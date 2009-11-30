@@ -3,7 +3,7 @@
 #
 # This connects to a GDB Server listening
 # for commands on localhost at tcp port 2331
-target remote 192.168.1.4:2331
+target remote 192.168.1.2:2331
 monitor flash device = STM32F103RB
 monitor flash download = 1
 monitor flash breakpoints = 1
@@ -28,8 +28,10 @@ monitor reg pc = 0x00000004
 monitor speed 2000
 
 file main.elf
-break Reset_Handler
+#break Reset_Handler
+break main
 load
-#monitor go
+monitor reset
+c
 
 
