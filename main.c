@@ -58,14 +58,34 @@ int main(void)
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_Init(GPIOB, &GPIO_InitStructure);
 
+  /*configure PA9<uart1.tx>, PA10<uart1.rx>*/
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+  GPIO_Init(GPIOA, &GPIO_InitStructure);
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+  GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+  /*init serial port*/
+  USART_InitTypeDef uartinfo;
+  USART_StructInit(&uartinfo);
+  uartinfo.USART_BaudRate = 115200;
+  USART_Init(USART1, &uartinfo);
+  USART_Cmd(USART1, ENABLE);
+  
   while (1)
   {
+
+    USART_SendData(USART1, 'T');
     /* Turn on led connected to PC.4 pin */
     GPIO_SetBits(GPIOB, GPIO_Pin_5);
     /* Insert delay */
     Delay(0xAFFFF);
 
     /* Turn off led connected to PC.4 pin */
+    USART_SendData(USART1, 'x');
     GPIO_ResetBits(GPIOB, GPIO_Pin_5);
     /* Insert delay */
     Delay(0xAFFFF);
