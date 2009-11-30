@@ -50,7 +50,7 @@ int main(void)
   NVIC_Configuration();
 
   /* Enable GPIOC clock */
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
   
   /* Configure PC.4 as Output push-pull */
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
