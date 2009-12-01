@@ -29,6 +29,11 @@ void NVIC_Configuration(void);
 void Delay(vu32 nCount);
 
 /* Private functions ---------------------------------------------------------*/
+void putchar(char c)
+{
+	USART_SendData(USART1, c);
+	while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+}
 
 /*******************************************************************************
 * Function Name  : main
@@ -51,6 +56,8 @@ int main(void)
 
   /* Enable GPIOC clock */
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
   
   /* Configure PC.4 as Output push-pull */
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
@@ -60,7 +67,7 @@ int main(void)
 
   /*configure PA9<uart1.tx>, PA10<uart1.rx>*/
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
   GPIO_Init(GPIOA, &GPIO_InitStructure);
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
@@ -78,14 +85,14 @@ int main(void)
   while (1)
   {
 
-    USART_SendData(USART1, 'T');
+    putchar('T');
     /* Turn on led connected to PC.4 pin */
     GPIO_SetBits(GPIOB, GPIO_Pin_5);
     /* Insert delay */
     Delay(0xAFFFF);
 
     /* Turn off led connected to PC.4 pin */
-    USART_SendData(USART1, 'x');
+    putchar('x');
     GPIO_ResetBits(GPIOB, GPIO_Pin_5);
     /* Insert delay */
     Delay(0xAFFFF);

@@ -116,7 +116,7 @@
 
 /* In the following line adjust the value of External High Speed oscillator (HSE)
    used in your application */
-#define HSE_Value    ((u32)8000000) /* Value of the External oscillator in Hz*/
+#define HSE_Value    ((u32)12000000) /* Value of the External oscillator in Hz*/
 
 /* Exported macro ------------------------------------------------------------*/
 #ifdef  DEBUG

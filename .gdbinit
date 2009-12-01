@@ -10,28 +10,27 @@ monitor flash breakpoints = 1
 
 # Set JTAG speed to 30 kHz
 monitor endian little
-monitor speed 30
+monitor speed 1000
 
 #reset target
 monitor reset
-monitor sleep 10
+monitor sleep 8
 
 #perform peripheral reset
 #disable watchdog
 #init PLL
-monitor reg r13 = 0x00000000
-monitor reg pc = 0x00000004
+#monitor reg r13 = 0x00000000
+#monitor reg pc = 0x00000004
 
 #setup GDB for faster downloads
-#set remote memory-write-packet-size 4096
-#set remote memory-write-packet-size fixed
-monitor speed 2000
+set remote memory-write-packet-size 4096
+set remote memory-write-packet-size fixed
+#monitor speed 1000
 
 file main.elf
 #break Reset_Handler
 break main
 load
 monitor reset
-c
 
 

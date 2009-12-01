@@ -82,4 +82,4 @@ $(LIBSTM32_OBJS): stm32f10x_conf.h
 
 
 clean:
-	-rm *.o lib/src/*.o $(LIBSTM32_OUT) $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)
+	-rm -rf *.o *.map lib/src/*.o $(LIBSTM32_OUT) $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)
