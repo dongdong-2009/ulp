@@ -1,8 +1,9 @@
 # setup
-
+ROOT_DIR = $(shell pwd)
+LIBS += stm32 gnu
+INCLUDE_DIRS = -I . -I $(ROOT_DIR) $(addprefix -I $(ROOT_DIR)/,$(addsuffix /inc,$(LIBS)))
+LIBRARY_DIRS = $(addprefix -L $(ROOT_DIR)/,$(LIBS))
 COMPILE_OPTS = -mcpu=cortex-m3 -mthumb -Wall -g -O0
-INCLUDE_DIRS = -I . -I lib/inc
-LIBRARY_DIRS = -L lib
 
 CC = arm-none-eabi-gcc
 CFLAGS = $(COMPILE_OPTS) $(INCLUDE_DIRS)
@@ -22,64 +23,33 @@ OBJCPFLAGS = -O binary
 AR = arm-none-eabi-ar
 ARFLAGS = cr
 
+export ROOT_DIR
+export CC CFLAGS CXX CXXFLAGS AS ASFLAGS LD LDFLAGS AR ARFLAGS
+	
 MAIN_OUT = main
 MAIN_OUT_ELF = $(MAIN_OUT).elf
 MAIN_OUT_BIN = $(MAIN_OUT).bin
+LIB_FILES = $(addsuffix .a, $(join $(LIBS), $(addprefix /lib,$(LIBS))))
 
 # all
-
 all: $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)
 
 # main
-
-$(MAIN_OUT_ELF): main.o stm32f10x_it.o lib/libstm32.a
-	$(LD) $(LDFLAGS) main.o stm32f10x_it.o lib/libstm32.a --output $@
+$(MAIN_OUT_ELF): main.o stm32f10x_it.o
+	@for dir in $(LIBS); do\
+		make -C $$dir; \
+	done
+	$(LD) $(LDFLAGS) main.o stm32f10x_it.o $(LIB_FILES) --output $@
 
 $(MAIN_OUT_BIN): $(MAIN_OUT_ELF)
 	$(OBJCP) $(OBJCPFLAGS) $< $@
 
-
-# flash
-
-flash: $(MAIN_OUT)
-	@cp $(MAIN_OUT_ELF) jtag/flash
-	@cd jtag; openocd -f flash.cfg
-	@rm jtag/flash
-
-
-# libstm32.a
-
-LIBSTM32_OUT = lib/libstm32.a
-
-LIBSTM32_OBJS = \
- lib/src/stm32f10x_adc.o \
- lib/src/stm32f10x_bkp.o \
- lib/src/stm32f10x_can.o \
- lib/src/stm32f10x_dma.o \
- lib/src/stm32f10x_exti.o \
- lib/src/stm32f10x_flash.o \
- lib/src/stm32f10x_gpio.o \
- lib/src/stm32f10x_i2c.o \
- lib/src/stm32f10x_iwdg.o \
- lib/src/stm32f10x_lib.o \
- lib/src/stm32f10x_nvic.o \
- lib/src/stm32f10x_pwr.o \
- lib/src/stm32f10x_rcc.o \
- lib/src/stm32f10x_rtc.o \
- lib/src/stm32f10x_spi.o \
- lib/src/stm32f10x_systick.o \
- lib/src/stm32f10x_tim.o \
- lib/src/stm32f10x_tim1.o \
- lib/src/stm32f10x_usart.o \
- lib/src/stm32f10x_wwdg.o \
- lib/src/cortexm3_macro.o \
- lib/src/stm32f10x_vector.o
-
-$(LIBSTM32_OUT): $(LIBSTM32_OBJS)
-	$(AR) $(ARFLAGS) $@ $(LIBSTM32_OBJS)
-
-$(LIBSTM32_OBJS): stm32f10x_conf.h
-
-
+#libs
+#$(LIB_FILES):
+#	make -C $(subst .a,,$(subst lib,,$@))
+	
 clean:
-	-rm -rf *.o *.map lib/src/*.o $(LIBSTM32_OUT) $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)
+	@rm -rf *.o *.map $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)
+	@for dir in $(LIBS); do\
+		make -C $$dir clean; \
+	done
