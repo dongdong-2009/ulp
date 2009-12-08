@@ -1,6 +1,6 @@
 # setup
 ROOT_DIR = $(shell pwd)
-LIBS += stm32 gnu
+LIBS += stm32 gnu board
 INCLUDE_DIRS = -I . -I $(ROOT_DIR) $(addprefix -I $(ROOT_DIR)/,$(addsuffix /inc,$(LIBS)))
 LIBRARY_DIRS = $(addprefix -L $(ROOT_DIR)/,$(LIBS))
 COMPILE_OPTS = -mcpu=cortex-m3 -mthumb -Wall -g -O0
@@ -49,6 +49,18 @@ $(MAIN_OUT_ELF): $(OBJS)
 
 $(MAIN_OUT_BIN): $(MAIN_OUT_ELF)
 	$(OBJCP) $(OBJCPFLAGS) $< $@
+
+zf103_config: board_unconfig
+	@ln -s boards/zf103 ./board
+	@echo "#define CONFIG_BOARD_ZF103" > autoconfig.h
+	@echo "#define CONFIG_BOARD_DEBUG" > autoconfig.h
+	
+hurry_config: board_unconfig
+	@ln -s boards/hurry ./board
+	@echo "#define CONFIG_BOARD_HURRY" > autoconfig.h
+	
+board_unconfig:
+	@rm -rf ./board
 	
 clean:
 	@rm -rf *.o *.map $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)
