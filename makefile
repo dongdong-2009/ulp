@@ -25,28 +25,30 @@ ARFLAGS = cr
 
 export ROOT_DIR
 export CC CFLAGS CXX CXXFLAGS AS ASFLAGS LD LDFLAGS AR ARFLAGS
-	
+
+#app module compile
 MAIN_OUT = bldc
 MAIN_OUT_ELF = $(MAIN_OUT).elf
 MAIN_OUT_BIN = $(MAIN_OUT).bin
 LIB_FILES = $(addsuffix .a, $(join $(LIBS), $(addprefix /lib,$(LIBS))))
 
-# all
+COBJS-y += main.o
+COBJS-y += stm32f10x_it.o
+
+COBJS	:= $(COBJS-y)
+SRCS 	:= $(COBJS:.o=.c)
+OBJS 	:= $(addprefix $(obj),$(COBJS))
+
 all: $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)
 
-# main
-$(MAIN_OUT_ELF): main.o stm32f10x_it.o
+$(MAIN_OUT_ELF): $(OBJS)
 	@for dir in $(LIBS); do\
 		make -C $$dir; \
 	done
-	$(LD) $(LDFLAGS) main.o stm32f10x_it.o $(LIB_FILES) --output $@
+	$(LD) $(LDFLAGS) $(OBJS) $(LIB_FILES) --output $@
 
 $(MAIN_OUT_BIN): $(MAIN_OUT_ELF)
 	$(OBJCP) $(OBJCPFLAGS) $< $@
-
-#libs
-#$(LIB_FILES):
-#	make -C $(subst .a,,$(subst lib,,$@))
 	
 clean:
 	@rm -rf *.o *.map $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)

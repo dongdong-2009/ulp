@@ -28,7 +28,6 @@ OBJS 	:= $(addprefix $(obj),$(COBJS))
 all:	$(LIB)
 
 $(LIB): $(OBJS)
-	@echo $(AR) $(ARFLAGS)
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 
 $(OBJS): $(ROOT_DIR)/stm32f10x_conf.h
