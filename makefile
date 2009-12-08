@@ -26,7 +26,7 @@ ARFLAGS = cr
 export ROOT_DIR
 export CC CFLAGS CXX CXXFLAGS AS ASFLAGS LD LDFLAGS AR ARFLAGS
 	
-MAIN_OUT = main
+MAIN_OUT = bldc
 MAIN_OUT_ELF = $(MAIN_OUT).elf
 MAIN_OUT_BIN = $(MAIN_OUT).bin
 LIB_FILES = $(addsuffix .a, $(join $(LIBS), $(addprefix /lib,$(LIBS))))
