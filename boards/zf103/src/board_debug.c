@@ -3,14 +3,16 @@
  */
 
 #include "config.h"
-#include "stm32f10x_lib.h"
-#include "debug.h"
-#include "led.h"
-#include "console.h"
-#include "time.h"
+#include "board.h"
+#include "board_debug.h"
 
 void board_debug(void)
 {
+	board_init();
+	time_init();
+	led_init();
+	console_init();
+	
   while (1) {
 	/*turn on led*/
 	console_putchar('T');

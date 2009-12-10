@@ -1,6 +1,6 @@
 # setup
 ROOT_DIR = $(shell pwd)
-LIBS += stm32 gnu board
+LIBS += board stm32 gnu
 INCLUDE_DIRS = -I . -I $(ROOT_DIR) $(addprefix -I $(ROOT_DIR)/,$(addsuffix /inc,$(LIBS)))
 LIBRARY_DIRS = $(addprefix -L $(ROOT_DIR)/,$(LIBS))
 COMPILE_OPTS = -mcpu=cortex-m3 -mthumb -Wall -g -O0
@@ -39,8 +39,8 @@ COBJS	:= $(COBJS-y)
 SRCS 	:= $(COBJS:.o=.c)
 OBJS 	:= $(addprefix $(obj),$(COBJS))
 
-all: $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)
-
+all: board_config $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)
+	
 $(MAIN_OUT_ELF): $(OBJS)
 	@for dir in $(LIBS); do\
 		make -C $$dir; \
@@ -50,20 +50,35 @@ $(MAIN_OUT_ELF): $(OBJS)
 $(MAIN_OUT_BIN): $(MAIN_OUT_ELF)
 	$(OBJCP) $(OBJCPFLAGS) $< $@
 
+AUTOCONFIG_HEAD_FILE = autoconfig.h
+board_config:
+	@if [ -z $(wildcard $(AUTOCONFIG_HEAD_FILE)) ];\
+	then \
+		echo "System not configured!!!"; \
+		echo "Please try: ";\
+		echo "  make your_board_name_config"; \
+		echo "  make"; \
+		echo ""; \
+		exit 1; \
+	fi
+	
 zf103_config: board_unconfig
 	@ln -s boards/zf103 ./board
-	@echo "#define CONFIG_BOARD_ZF103" > autoconfig.h
-	@echo "#define CONFIG_BOARD_DEBUG" > autoconfig.h
+	@echo -e "#define CONFIG_BOARD_ZF103\r" > $(AUTOCONFIG_HEAD_FILE)
+	@echo -e "#define CONFIG_BOARD_DEBUG\r" >> $(AUTOCONFIG_HEAD_FILE)
 	
 hurry_config: board_unconfig
 	@ln -s boards/hurry ./board
-	@echo "#define CONFIG_BOARD_HURRY" > autoconfig.h
-	
+	@echo -e "#define CONFIG_BOARD_HURRY\r" > $(AUTOCONFIG_HEAD_FILE)
+
 board_unconfig:
 	@rm -rf ./board
+	@rm -rf $(AUTOCONFIG_HEAD_FILE)
 	
 clean:
 	@rm -rf *.o *.map $(MAIN_OUT_ELF) $(MAIN_OUT_BIN)
 	@for dir in $(LIBS); do\
 		make -C $$dir clean; \
 	done
+
+distclean: clean board_unconfig

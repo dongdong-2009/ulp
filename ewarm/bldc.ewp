@@ -281,7 +281,8 @@
           <name>CCIncludePath2</name>
           <state>$PROJ_DIR$\..</state>
           <state>$PROJ_DIR$\..\stm32\inc</state>
-          <state>$PROJ_DIR$\..\pmsm\inc</state>
+          <state>$PROJ_DIR$\..\motor\inc</state>
+          <state>$PROJ_DIR$\..\board\inc</state>
         </option>
         <option>
           <name>CCStdIncCheck</name>
@@ -1583,6 +1584,45 @@
     </settings>
   </configuration>
   <group>
+    <name>board</name>
+    <group>
+      <name>inc</name>
+      <file>
+        <name>$PROJ_DIR$\..\board\inc\board.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\board\inc\board_debug.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\board\inc\console.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\board\inc\led.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\board\inc\time.h</name>
+      </file>
+    </group>
+    <group>
+      <name>src</name>
+      <file>
+        <name>$PROJ_DIR$\..\board\src\board.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\board\src\board_debug.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\board\src\console.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\board\src\led.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\board\src\time.c</name>
+      </file>
+    </group>
+  </group>
+  <group>
     <name>ewarm</name>
     <file>
       <name>$PROJ_DIR$\cortexm3_macro.s</name>
@@ -1729,6 +1769,9 @@
       </file>
     </group>
   </group>
+  <file>
+    <name>$PROJ_DIR$\..\debug.h</name>
+  </file>
   <file>
     <name>$PROJ_DIR$\..\main.c</name>
   </file>

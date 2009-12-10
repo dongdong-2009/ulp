@@ -5,7 +5,7 @@ COBJS-y += src/board.o
 COBJS-y += src/time.o
 COBJS-y += src/led.o
 COBJS-y += src/console.o
-COBJS-y += src/debug.o
+COBJS-y += src/board_debug.o
 
 COBJS	:= $(COBJS-y)
 SRCS 	:= $(COBJS:.o=.c)

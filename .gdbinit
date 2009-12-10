@@ -27,7 +27,7 @@ set remote memory-write-packet-size 4096
 set remote memory-write-packet-size fixed
 #monitor speed 1000
 
-file main.elf
+file bldc.elf
 #break Reset_Handler
 break main
 load
