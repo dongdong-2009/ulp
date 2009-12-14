@@ -1628,7 +1628,13 @@
       <name>$PROJ_DIR$\cortexm3_macro.s</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\read.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\stm32f10x_vector.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\write.c</name>
     </file>
   </group>
   <group>

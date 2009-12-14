@@ -32,8 +32,34 @@ void console_init(void)
 	USART_Cmd(USART1, ENABLE);
 }
 
-void console_putchar(char c)
-{
+int console_putchar(char c)
+{		
 	USART_SendData(USART1, c);
 	while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+	if(c == '\n') {
+		USART_SendData(USART1, '\r');
+		while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+	}
+	return 0;
+}
+
+int console_getchar(void)
+{
+	int ret;
+
+	/*wait for a char*/
+	while(1) {
+		ret = console_IsNotEmpty();
+		if(ret) break;
+	}
+
+	/*read and echo back*/
+	ret = USART_ReceiveData(USART1);
+	console_putchar((char)ret);
+	return ret;
+}
+
+int console_IsNotEmpty()
+{
+	return (int) USART_GetFlagStatus(USART1, USART_FLAG_RXNE);
 }

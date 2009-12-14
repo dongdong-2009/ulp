@@ -5,6 +5,8 @@
 #include "config.h"
 #include "board.h"
 #include "board_debug.h"
+#include <stdio.h>
+#include <string.h>
 
 void board_debug(void)
 {
@@ -14,15 +16,16 @@ void board_debug(void)
 	console_init();
 
 	led_flash(LED_GREEN);
+	printf("This is a zf103 board demo program\n");
 	
   while (1) {
   	//module updates
   	led_update();
-
-	//misc
-	console_putchar('T');
-	mdelay(250);
-	console_putchar('x');
-	mdelay(250);
+	
+	if(console_IsNotEmpty()) {
+		char str[64];
+		scanf("%s", str);
+		printf("str: %s, len=%d\n", str, strlen(str));
+	}
   }
 }
