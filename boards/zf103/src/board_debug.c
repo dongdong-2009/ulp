@@ -14,6 +14,7 @@ void board_debug(void)
 	time_init();
 	led_init();
 	console_init();
+	adc_init();
 
 	led_flash(LED_GREEN);
 	printf("This is a zf103 board demo program\n");
@@ -21,6 +22,12 @@ void board_debug(void)
   while (1) {
   	//module updates
   	led_update();
+	
+	//adc debug
+	int volt = adc_getvolt();
+	int temp = adc_gettemp();
+	volt = volt*3300/65536;
+	printf("\rvolt = %05d,temp=%05d", volt, temp);
 	
 	if(console_IsNotEmpty()) {
 		char str[64];
