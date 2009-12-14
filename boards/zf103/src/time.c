@@ -41,7 +41,7 @@ void time_update(void)
 }
 
 /*unit: ms*/
-int time_get(int delay)
+time_t time_get(int delay)
 {
 	int val,deadline;
 	
@@ -49,16 +49,16 @@ int time_get(int delay)
 	val = RTC_GetCounter();
 	deadline = (unsigned)val + delay;
 	
-	return deadline;
+	return (time_t)deadline;
 }
 
-int time_left(int deadline)
+int time_left(time_t deadline)
 {
 	int val, left;
 	
 	RTC_WaitForLastTask();
 	val = RTC_GetCounter();
-	left = deadline - val;
+	left = (int)deadline - val;
 	
 	return left;
 }
@@ -70,12 +70,12 @@ void udelay(int us)
 
 void mdelay(int ms)
 {
-	int deadline = time_get(ms);
+	time_t deadline = time_get(ms);
 	while(time_left(deadline) > 0);
 }
 
 void sdelay(int ss)
 {
-	int deadline = time_get(ss*1000);
+	time_t deadline = time_get(ss*1000);
 	while(time_left(deadline) > 0);
 }

@@ -12,16 +12,17 @@ void board_debug(void)
 	time_init();
 	led_init();
 	console_init();
+
+	led_flash(LED_GREEN);
 	
   while (1) {
-	/*turn on led*/
-	console_putchar('T');
-	led_on();
-	sdelay(1);
+  	//module updates
+  	led_update();
 
-	/* Turn off led */
+	//misc
+	console_putchar('T');
+	mdelay(250);
 	console_putchar('x');
-	led_off();
-	sdelay(1);
+	mdelay(250);
   }
 }

@@ -4,10 +4,12 @@
 #ifndef __TIME_H_
 #define __TIME_H_
 
+typedef int time_t;
+
 void time_init(void);
 void time_update(void);
-int time_get(int delay); //unit: ms
-int time_left(int deadline); //unit: ms
+time_t time_get(int delay); //unit: ms
+int time_left(time_t deadline); //unit: ms
 void udelay(int us);
 void mdelay(int ms);
 void sdelay(int ss);
