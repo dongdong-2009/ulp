@@ -6,7 +6,8 @@
 
 #include <stm32f10x_lib.h>
 
-#define ADC_MODE_NORMAL
+//#define ADC_MODE_NORMAL
+#define ADC_MODE_INJECT
 
 void adc_init(void);
 int adc_getvolt(void); /*zf32 board: PA1/ADC_IN1, JP1 R7 POT_WHEEL 0~3v3*/
