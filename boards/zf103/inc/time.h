@@ -5,11 +5,11 @@
 #define __TIME_H_
 
 void time_init(void);
-#define time_update()
-unsigned int time_get(unsigned int delay); //unit: ms
-unsigned int time_left(unsigned int deadline); //unit: ms
-void udelay(unsigned int us);
-void mdelay(unsigned int ms);
-void sdelay(unsigned int ss);
+void time_update(void);
+int time_get(int delay); //unit: ms
+int time_left(int deadline); //unit: ms
+void udelay(int us);
+void mdelay(int ms);
+void sdelay(int ss);
 
 #endif /*__TIME_H_*/
