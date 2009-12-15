@@ -26,8 +26,7 @@ void board_debug(void)
 	//adc debug
 	int volt = adc_getvolt();
 	int temp = adc_gettemp();
-	volt = volt*3300/65536;
-	printf("\rvolt = %05d,temp=%05d", volt, temp);
+	printf("\rvolt = %04dmv,temp=%04d", volt, temp);
 	
 	if(console_IsNotEmpty()) {
 		char str[64];
