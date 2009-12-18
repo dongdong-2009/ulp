@@ -25,12 +25,12 @@ void adc_init(void)
 	/* ADC1 registers reset ----------------------------------------------------*/
 	ADC_DeInit(ADC1);
 	/* ADC2 registers reset ----------------------------------------------------*/
-	//ADC_DeInit(ADC2);
+	ADC_DeInit(ADC2);
 
 	/* Enable ADC1 */
 	ADC_Cmd(ADC1, ENABLE);
 	/* Enable ADC2 */
-	//ADC_Cmd(ADC2, ENABLE);
+	ADC_Cmd(ADC2, ENABLE);
 	
 	/* ADC1 configuration ------------------------------------------------------*/
 	ADC_StructInit(&ADC_InitStructure);
@@ -41,25 +41,23 @@ void adc_init(void)
 	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
 	ADC_InitStructure.ADC_NbrOfChannel = 2;
 	ADC_Init(ADC1, &ADC_InitStructure);
-#if 0
+
 	/* ADC2 Configuration ------------------------------------------------------*/
 	ADC_StructInit(&ADC_InitStructure);	
-	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
+	ADC_InitStructure.ADC_ScanConvMode = DISABLE;
 	ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
 	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
-	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Left;
+	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
 	ADC_InitStructure.ADC_NbrOfChannel = 1;
 	ADC_Init(ADC2, &ADC_InitStructure);
-#endif
 
 	// Start calibration of ADC1
 	ADC_StartCalibration(ADC1);
 	// Start calibration of ADC2
-	//ADC_StartCalibration(ADC2);
+	ADC_StartCalibration(ADC2);
 
 	// Wait for the end of ADCs calibration 
-	while (ADC_GetCalibrationStatus(ADC1));
-	//& ADC_GetCalibrationStatus(ADC2));
+	while (ADC_GetCalibrationStatus(ADC1) & ADC_GetCalibrationStatus(ADC2));
 
 	//ADC_ITConfig(ADC1, ADC_IT_EOC|ADC_IT_AWD|ADC_IT_JEOC, DISABLE);
 }
@@ -84,10 +82,24 @@ int adc_getvolt(void)
 	ADC_InjectedChannelConfig(ADC1, ADC_Channel_1, 1, ADC_SampleTime_55Cycles5);
 	ADC_InjectedSequencerLengthConfig(ADC1, 1);
 
+	#ifdef ADC_MODE_INJECT_DUAL
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_16, 1, ADC_SampleTime_239Cycles5);
+
+	ADC_ExternalTrigInjectedConvConfig(ADC2, ADC_ExternalTrigInjecConv_None);
+	ADC_ExternalTrigInjectedConvCmd(ADC2, ENABLE);
+	ADC_InjectedChannelConfig(ADC2, ADC_Channel_1, 1, ADC_SampleTime_55Cycles5);
+	ADC_InjectedSequencerLengthConfig(ADC2, 1);
+
+	/*note: ADC mode is already ADC_Mode_InjecSimult, refer ADC_Init(..)*/
+	#endif
+
 	ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);
 	ADC_SoftwareStartInjectedConvCmd(ADC1,ENABLE);
 	while(!ADC_GetFlagStatus(ADC1,ADC_FLAG_JEOC));
 	value = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
+	#ifdef ADC_MODE_INJECT_DUAL
+	value = ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_1);
+	#endif
 #endif
 
 	value &= 0x0fff;

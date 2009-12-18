@@ -6,8 +6,9 @@
 
 #include "stm32f10x.h"
 
-//#define ADC_MODE_NORMAL
+#undef ADC_MODE_NORMAL
 #define ADC_MODE_INJECT
+#define ADC_MODE_INJECT_DUAL
 
 void adc_init(void);
 /*zf32 board: PA1/ADC_IN1, JP1 R7 POT_WHEEL 0~3v3*/
