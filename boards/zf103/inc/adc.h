@@ -4,7 +4,7 @@
 #ifndef __ADC_H_
 #define __ADC_H_
 
-#include <stm32f10x_lib.h>
+#include "stm32f10x.h"
 
 //#define ADC_MODE_NORMAL
 #define ADC_MODE_INJECT

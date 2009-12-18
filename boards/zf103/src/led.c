@@ -3,7 +3,7 @@
  */
 
 #include "config.h"
-#include "stm32f10x_lib.h"
+#include "stm32f10x.h"
 #include "led.h"
 #include "time.h"
 

@@ -4,7 +4,7 @@
 #ifndef __LED_H_
 #define __LED_H_
 
-#include <stm32f10x_lib.h>
+#include "stm32f10x.h"
 
 #define LED_FLASH_PERIOD	1000 /*unit ms*/
 

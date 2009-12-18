@@ -280,6 +280,7 @@
         <option>
           <name>CCIncludePath2</name>
           <state>$PROJ_DIR$\..</state>
+          <state>$PROJ_DIR$\..\cmsis</state>
           <state>$PROJ_DIR$\..\stm32\inc</state>
           <state>$PROJ_DIR$\..\motor\inc</state>
           <state>$PROJ_DIR$\..\board\inc</state>
@@ -1629,15 +1630,36 @@
     </group>
   </group>
   <group>
-    <name>ewarm</name>
+    <name>cmsis</name>
     <file>
-      <name>$PROJ_DIR$\cortexm3_macro.s</name>
+      <name>$PROJ_DIR$\..\cmsis\core_cm3.c</name>
+      <excluded>
+        <configuration>Debug</configuration>
+      </excluded>
     </file>
+    <file>
+      <name>$PROJ_DIR$\..\cmsis\core_cm3.h</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\cmsis\stm32f10x.h</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\cmsis\system_stm32f10x.c</name>
+      <excluded>
+        <configuration>Debug</configuration>
+      </excluded>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\cmsis\system_stm32f10x.h</name>
+    </file>
+  </group>
+  <group>
+    <name>ewarm</name>
     <file>
       <name>$PROJ_DIR$\read.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\stm32f10x_vector.c</name>
+      <name>$PROJ_DIR$\startup_stm32f10x_md.s</name>
     </file>
     <file>
       <name>$PROJ_DIR$\write.c</name>
@@ -1648,7 +1670,7 @@
     <group>
       <name>inc</name>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\cortexm3_macro.h</name>
+        <name>$PROJ_DIR$\..\stm32\inc\misc.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_adc.h</name>
@@ -1660,6 +1682,15 @@
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_can.h</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_crc.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_dac.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_dbgmcu.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_dma.h</name>
       </file>
       <file>
@@ -1667,6 +1698,9 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_flash.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_fsmc.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_gpio.h</name>
@@ -1678,15 +1712,6 @@
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_iwdg.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_lib.h</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_map.h</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_nvic.h</name>
-      </file>
-      <file>
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_pwr.h</name>
       </file>
       <file>
@@ -1696,19 +1721,13 @@
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_rtc.h</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_sdio.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_spi.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_systick.h</name>
-      </file>
-      <file>
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_tim.h</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_tim1.h</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_type.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_usart.h</name>
@@ -1720,6 +1739,9 @@
     <group>
       <name>src</name>
       <file>
+        <name>$PROJ_DIR$\..\stm32\src\misc.c</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_adc.c</name>
       </file>
       <file>
@@ -1727,6 +1749,15 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_can.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_crc.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_dac.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_dbgmcu.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_dma.c</name>
@@ -1738,6 +1769,9 @@
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_flash.c</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_fsmc.c</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_gpio.c</name>
       </file>
       <file>
@@ -1745,12 +1779,6 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_iwdg.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_lib.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_nvic.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_pwr.c</name>
@@ -1762,16 +1790,13 @@
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_rtc.c</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_sdio.c</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_spi.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_systick.c</name>
-      </file>
-      <file>
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_tim.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_tim1.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\stm32\src\stm32f10x_usart.c</name>
