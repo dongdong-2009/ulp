@@ -39,9 +39,6 @@ void pwm_init(void)
 	TIM_OC3PreloadConfig(TIM3, TIM_OCPreload_Enable);
 	
 	TIM_ARRPreloadConfig(TIM3, ENABLE);
-
-	/* TIM3 enable counter */
-	TIM_Cmd(TIM3, ENABLE);
 }
 
 void pwm_update(void)
@@ -51,5 +48,19 @@ void pwm_update(void)
 /*freq: Hz, duty: 0~100*/
 void pwm_config(int freq, int duty)
 {
-	
+	int pre, cnt, cmp;
+	RCC_ClocksTypeDef RCC_Clocks;
+	RCC_GetClocksFreq(&RCC_Clocks);
+
+	pre = 1;
+	cnt = RCC_Clocks.PCLK1_Frequency/freq;
+	if( cnt > 100 ) {
+		cnt = 100;
+		pre = RCC_Clocks.PCLK1_Frequency/freq/cnt;
+	}
+	cmp = cnt*duty/100;
+
+	TIM_PrescalerConfig(TIM3, pre-1, TIM_PSCReloadMode_Update);
+	TIM_SetCounter(TIM3, cnt-1);
+	TIM_SetCompare3(TIM3, cmp-1);
 }
