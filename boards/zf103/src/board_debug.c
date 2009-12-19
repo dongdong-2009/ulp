@@ -15,6 +15,7 @@ void board_debug(void)
 	led_init();
 	console_init();
 	adc_init();
+	pwm_init();
 
 	led_flash(LED_GREEN);
 	printf("This is a zf103 board demo program\n");

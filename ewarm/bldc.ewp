@@ -1604,6 +1604,9 @@
         <name>$PROJ_DIR$\..\board\inc\led.h</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\board\inc\pwm.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\board\inc\time.h</name>
       </file>
     </group>
@@ -1623,6 +1626,9 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\board\src\led.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\board\src\pwm.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\board\src\time.c</name>

@@ -10,4 +10,5 @@ void board_init(void);
 #include "led.h"
 #include "console.h"
 #include "adc.h"
+#include "pwm.h"
 #endif /*__BOARD_H_*/
