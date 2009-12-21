@@ -19,6 +19,10 @@ void board_debug(void)
 	adc_init();
 	pwm_init();
 
+	/*clear screen*/
+	/*ref: http://www.cnblogs.com/mugua/archive/2009/11/25/1610118.html*/
+	putchar(0x1b);
+	putchar('c');
 	printf("This is a zf103 board demo program\n");
 	pwm_on();
 	led_flash(LED_GREEN);
