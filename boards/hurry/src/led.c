@@ -11,14 +11,20 @@ void led_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	
-	/* Enable GPIOB clock */
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-
-	/* Configure PB.5 as Output push-pull */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+	/* Enable GPIOA,GPIOC clock */
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+  
+	/* Configure PC.10 as Output push-pull */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+  
+	/* Configure PC.12 as Output push-pull */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
 }
 
 #define LED_FLASH_TIMER_STOP 0
@@ -62,7 +68,10 @@ void led_SetStatus(led_t led, led_status_t status)
 	switch(led) {
 		case LED_GREEN:
 			//GPIO_SetBits(GPIOB, GPIO_Pin_5);
-			GPIO_WriteBit(GPIOB, GPIO_Pin_5, ba);
+			GPIO_WriteBit(GPIOC, GPIO_Pin_10, ba);
+			break;
+		case LED_YELLOW:
+			GPIO_WriteBit(GPIOC, GPIO_Pin_12, ba);
 			break;
 		default:
 			break;

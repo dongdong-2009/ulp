@@ -10,6 +10,7 @@
 
 typedef enum {
 	LED_GREEN = 0,
+	LED_YELLOW,
 	NR_OF_LED
 } led_t;
 
