@@ -27,7 +27,6 @@ board
 board/*
 
 #ewarm files
-ewarm/settings/*
-ewarm/Debug/*
-ewarm/Release/*
-
+ewarm/zf103/settings/*
+ewarm/zf103/Debug/*
+ewarm/zf103/Release/*

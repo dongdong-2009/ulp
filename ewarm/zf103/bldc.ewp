@@ -280,10 +280,11 @@
         <option>
           <name>CCIncludePath2</name>
           <state>$PROJ_DIR$\..</state>
-          <state>$PROJ_DIR$\..\cmsis</state>
-          <state>$PROJ_DIR$\..\stm32\inc</state>
-          <state>$PROJ_DIR$\..\motor\inc</state>
-          <state>$PROJ_DIR$\..\board\inc</state>
+          <state>$PROJ_DIR$\..\..</state>
+          <state>$PROJ_DIR$\..\..\cmsis</state>
+          <state>$PROJ_DIR$\..\..\stm32\inc</state>
+          <state>$PROJ_DIR$\..\..\motor\inc</state>
+          <state>$PROJ_DIR$\..\..\board\inc</state>
         </option>
         <option>
           <name>CCStdIncCheck</name>
@@ -632,7 +633,7 @@
         </option>
         <option>
           <name>IlinkIcfFile</name>
-          <state>$PROJ_DIR$\stm32f103rb.icf</state>
+          <state>$PROJ_DIR$\..\stm32f103rb.icf</state>
         </option>
         <option>
           <name>IlinkIcfFileSlave</name>
@@ -1589,86 +1590,80 @@
     <group>
       <name>inc</name>
       <file>
-        <name>$PROJ_DIR$\..\board\inc\adc.h</name>
+        <name>$PROJ_DIR$\..\..\board\inc\adc.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\inc\board.h</name>
+        <name>$PROJ_DIR$\..\..\board\inc\board.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\inc\board_debug.h</name>
+        <name>$PROJ_DIR$\..\..\board\inc\board_debug.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\inc\console.h</name>
+        <name>$PROJ_DIR$\..\..\board\inc\console.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\inc\led.h</name>
+        <name>$PROJ_DIR$\..\..\board\inc\led.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\inc\pwm.h</name>
+        <name>$PROJ_DIR$\..\..\board\inc\pwm.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\inc\time.h</name>
+        <name>$PROJ_DIR$\..\..\board\inc\time.h</name>
       </file>
     </group>
     <group>
       <name>src</name>
       <file>
-        <name>$PROJ_DIR$\..\board\src\adc.c</name>
+        <name>$PROJ_DIR$\..\..\board\src\adc.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\src\board.c</name>
+        <name>$PROJ_DIR$\..\..\board\src\board.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\src\board_debug.c</name>
+        <name>$PROJ_DIR$\..\..\board\src\board_debug.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\src\console.c</name>
+        <name>$PROJ_DIR$\..\..\board\src\console.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\src\led.c</name>
+        <name>$PROJ_DIR$\..\..\board\src\led.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\src\pwm.c</name>
+        <name>$PROJ_DIR$\..\..\board\src\pwm.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\board\src\time.c</name>
+        <name>$PROJ_DIR$\..\..\board\src\time.c</name>
       </file>
     </group>
   </group>
   <group>
     <name>cmsis</name>
     <file>
-      <name>$PROJ_DIR$\..\cmsis\core_cm3.c</name>
-      <excluded>
-        <configuration>Debug</configuration>
-      </excluded>
+      <name>$PROJ_DIR$\..\..\cmsis\core_cm3.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\cmsis\core_cm3.h</name>
+      <name>$PROJ_DIR$\..\..\cmsis\core_cm3.h</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\cmsis\stm32f10x.h</name>
+      <name>$PROJ_DIR$\..\..\cmsis\stm32f10x.h</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\cmsis\system_stm32f10x.c</name>
-      <excluded>
-        <configuration>Debug</configuration>
-      </excluded>
+      <name>$PROJ_DIR$\..\..\cmsis\system_stm32f10x.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\cmsis\system_stm32f10x.h</name>
+      <name>$PROJ_DIR$\..\..\cmsis\system_stm32f10x.h</name>
     </file>
   </group>
   <group>
     <name>ewarm</name>
     <file>
-      <name>$PROJ_DIR$\read.c</name>
+      <name>$PROJ_DIR$\..\read.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\startup_stm32f10x_md.s</name>
+      <name>$PROJ_DIR$\..\startup_stm32f10x_md.s</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\write.c</name>
+      <name>$PROJ_DIR$\..\write.c</name>
     </file>
   </group>
   <group>
@@ -1676,156 +1671,159 @@
     <group>
       <name>inc</name>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\misc.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\misc.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_adc.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_adc.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_bkp.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_bkp.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_can.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_can.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_crc.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_crc.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_dac.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_dac.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_dbgmcu.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_dbgmcu.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_dma.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_dma.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_exti.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_exti.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_flash.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_flash.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_fsmc.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_fsmc.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_gpio.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_gpio.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_i2c.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_i2c.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_iwdg.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_iwdg.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_pwr.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_pwr.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_rcc.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_rcc.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_rtc.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_rtc.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_sdio.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_sdio.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_spi.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_spi.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_tim.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_tim.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_usart.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_usart.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\inc\stm32f10x_wwdg.h</name>
+        <name>$PROJ_DIR$\..\..\stm32\inc\stm32f10x_wwdg.h</name>
       </file>
     </group>
     <group>
       <name>src</name>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\misc.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\misc.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_adc.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_adc.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_bkp.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_bkp.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_can.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_can.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_crc.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_crc.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_dac.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_dac.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_dbgmcu.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_dbgmcu.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_dma.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_dma.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_exti.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_exti.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_flash.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_flash.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_fsmc.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_fsmc.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_gpio.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_gpio.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_i2c.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_i2c.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_iwdg.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_iwdg.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_pwr.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_pwr.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_rcc.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_rcc.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_rtc.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_rtc.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_sdio.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_sdio.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_spi.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_spi.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_tim.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_tim.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_usart.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_usart.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\stm32\src\stm32f10x_wwdg.c</name>
+        <name>$PROJ_DIR$\..\..\stm32\src\stm32f10x_wwdg.c</name>
       </file>
     </group>
   </group>
   <file>
-    <name>$PROJ_DIR$\..\debug.h</name>
+    <name>$PROJ_DIR$\..\..\config.h</name>
   </file>
   <file>
-    <name>$PROJ_DIR$\..\main.c</name>
+    <name>$PROJ_DIR$\..\..\debug.h</name>
   </file>
   <file>
-    <name>$PROJ_DIR$\..\stm32f10x_conf.h</name>
+    <name>$PROJ_DIR$\..\..\main.c</name>
   </file>
   <file>
-    <name>$PROJ_DIR$\..\stm32f10x_it.c</name>
+    <name>$PROJ_DIR$\..\..\stm32f10x_conf.h</name>
   </file>
   <file>
-    <name>$PROJ_DIR$\..\stm32f10x_it.h</name>
+    <name>$PROJ_DIR$\..\..\stm32f10x_it.c</name>
+  </file>
+  <file>
+    <name>$PROJ_DIR$\..\..\stm32f10x_it.h</name>
   </file>
 </project>
 
