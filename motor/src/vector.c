@@ -73,7 +73,24 @@ void clarke(const vector_t *pvi, vector_t *pvo)
 	pvo->beta = (short)(-a);
 }
 
-/*iclarke is excuted by svpwm modulator*/
+/*
+* a = alpha;
+* b = (-1/2)*alpha + 3^(1/2)/2*beta;
+* c = (-1/2)*alpha - 3^(1/2)/2*beta;
+*/
 void iclarke(const vector_t *pvi, vector_t *pvo)
 {
+	int alpha, beta;
+	
+	/*calc a*/
+	alpha = pvi->alpha;
+	pvo->a = (short)alpha;
+	
+	/*calc b*/
+	alpha = alpha >> 1;
+	beta = pvi->beta;
+	beta = beta * sqrt3DIV_2;
+	beta = beta >> 15;
+	alpha = -alpha + beta;
+	pvo->b = (short)alpha;
 }
