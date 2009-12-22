@@ -5,7 +5,7 @@
 #include "config.h"
 #include <stdlib.h>
 
-pid_t *pid_Init(int kp, int ki, int kd)
+pid_t *pid_Init(short kp, short ki, short kd)
 {
 	pid_t *pid = malloc(sizeof(pid_t));
 	pid->kp = kp;
@@ -16,14 +16,14 @@ pid_t *pid_Init(int kp, int ki, int kd)
 	return pid;
 }
 
-void pid_SetRef(pid_t *pid, int ref)
+void pid_SetRef(pid_t *pid, short ref)
 {
 	pid->ref = ref;
 }
 
-int pid_Calcu(pid_t *pid, int in)
+short pid_Calcu(pid_t *pid, short in)
 {
-	int err, out;
+	short err, out;
 	err = in - pid->ref;
 	out = err * pid->kp;
 	out += pid->err_history * pid->ki;
