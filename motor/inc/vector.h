@@ -26,6 +26,6 @@ typedef union {
 */
 void park(const vector_t *pvi, vector_t *pvo, short theta);
 void ipark(const vector_t *pvi, vector_t *pvo, short theta);
-void clarke(const vector_t *pvi, vector_t *pvo, short theta);
-void iclarke(const vector_t *pvi, vector_t *pvo, short theta);
+void clarke(const vector_t *pvi, vector_t *pvo);
+void iclarke(const vector_t *pvi, vector_t *pvo);
 #endif /*__VECTOR_H_*/

@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include <stdlib.h>
+#include "pid.h"
 
 pid_t *pid_Init(short kp, short ki, short kd)
 {

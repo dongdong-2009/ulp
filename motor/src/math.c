@@ -48,33 +48,35 @@ static short hSin_Cos_Table[256] = {\
 #define U270_360	0x0100
 void mtri(short theta, short *sin, short *cos)
 {
-	unsigned short hindex;
+	unsigned short hindex, sector;
 	
 	/* midShort = 2^15 = 4*pi/2 = 2pi, sin(theta+2pi) = sin(theta)*/
 	hindex = (unsigned short)(theta + midShort);
-	/*hindex:	xxx val(13bit=pi/2) */
-	hindex >> 6;
+	/*hindex:	xxx val(14bit=pi/2) */
+	hindex = hindex >> 6;
+	sector = hindex & SIN_MASK;
+	hindex = hindex & 0xff;
 	
-	switch (hindex & SIN_MASK) 
+	switch (sector) 
 	{
 	case U0_90:
-		*sin = hSin_Cos_Table[(u8)(hindex)];
-		*cos = hSin_Cos_Table[(u8)(0xFF-(u8)(hindex))];
+		*sin = hSin_Cos_Table[hindex];
+		*cos = hSin_Cos_Table[0xFF - hindex];
 		break;
 	
 	case U90_180:	
-		*sin = hSin_Cos_Table[(u8)(0xFF-(u8)(hindex))];
-		*cos = -hSin_Cos_Table[(u8)(hindex)];
+		*sin = hSin_Cos_Table[0xFF - hindex];
+		*cos = -hSin_Cos_Table[hindex];
 		break;
 	
 	case U180_270:
-		*sin = -hSin_Cos_Table[(u8)(hindex)];
-		*cos = -hSin_Cos_Table[(u8)(0xFF-(u8)(hindex))];
+		*sin = -hSin_Cos_Table[hindex];
+		*cos = -hSin_Cos_Table[0xFF - hindex];
 		break;
 	
 	case U270_360:
-		*sin =	-hSin_Cos_Table[(u8)(0xFF-(u8)(hindex))];
-		*cos =	hSin_Cos_Table[(u8)(hindex)]; 
+		*sin =	-hSin_Cos_Table[0xFF - hindex];
+		*cos =	hSin_Cos_Table[hindex]; 
  
 	default:
 		break;

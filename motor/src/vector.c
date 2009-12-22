@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "math.h"
+#include "vector.h"
 
 /*
 * d=alpha*cos(theta)+beta*sin(theta)
@@ -67,6 +68,7 @@ void clarke(const vector_t *pvi, vector_t *pvo)
 	/*calc beta*/
 	a = a * divSQRT_3;
 	a = a >> 15;
+	b = pvi->b;
 	b = b * divSQRT_3;
 	b = b >> (15 - 1); /*b*2*/
 	a = a + b;
