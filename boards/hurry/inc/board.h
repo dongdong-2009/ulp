@@ -9,4 +9,5 @@ void board_init(void);
 #include "time.h"
 #include "led.h"
 #include "console.h"
+#include "adc.h"
 #endif /*__BOARD_H_*/

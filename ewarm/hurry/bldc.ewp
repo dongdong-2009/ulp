@@ -1590,6 +1590,9 @@
     <group>
       <name>inc</name>
       <file>
+        <name>$PROJ_DIR$\..\..\board\inc\adc.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\board\inc\board.h</name>
       </file>
       <file>
@@ -1607,6 +1610,9 @@
     </group>
     <group>
       <name>src</name>
+      <file>
+        <name>$PROJ_DIR$\..\..\board\src\adc.c</name>
+      </file>
       <file>
         <name>$PROJ_DIR$\..\..\board\src\board.c</name>
       </file>
