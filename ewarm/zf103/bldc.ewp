@@ -1667,6 +1667,39 @@
     </file>
   </group>
   <group>
+    <name>motor</name>
+    <group>
+      <name>inc</name>
+      <file>
+        <name>$PROJ_DIR$\..\..\motor\inc\math.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\motor\inc\motor_debug.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\motor\inc\pid.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\motor\inc\vector.h</name>
+      </file>
+    </group>
+    <group>
+      <name>src</name>
+      <file>
+        <name>$PROJ_DIR$\..\..\motor\src\math.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\motor\src\motor_debug.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\motor\src\pid.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\motor\src\vector.c</name>
+      </file>
+    </group>
+  </group>
+  <group>
     <name>stm32</name>
     <group>
       <name>inc</name>

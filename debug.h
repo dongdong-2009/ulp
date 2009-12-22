@@ -6,5 +6,6 @@
 #define __DEBUG_H_
 
 #include "board_debug.h"
+#include "motor_debug.h"
 
 #endif /*__CONFIG_H_*/

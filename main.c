@@ -29,5 +29,9 @@ int main(void)
 #ifdef CONFIG_BOARD_DEBUG
 	board_debug();
 #endif
+
+#ifdef CONFIG_MOTOR_DEBUG
+	motor_Debug();
+#endif
 	while(1);
 }
