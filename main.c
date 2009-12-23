@@ -16,6 +16,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "config.h"
 #include "debug.h"
+#include "board.h"
+#include "motor.h"
 
 /*******************************************************************************
 * Function Name  : main
@@ -33,5 +35,11 @@ int main(void)
 #ifdef CONFIG_MOTOR_DEBUG
 	motor_Debug();
 #endif
-	while(1);
+	
+	board_Init();
+	motor_Init();
+	
+	while(1) {
+		board_Update();
+	}
 }
