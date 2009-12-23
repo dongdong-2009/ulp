@@ -9,8 +9,25 @@
 /* Private function prototypes -----------------------------------------------*/
 void RCC_Configuration(void);
 void NVIC_Configuration(void);
+void cpu_Init(void);
 
-void board_init(void)
+void board_Init(void)
+{
+	/*pls add your driver init routines to here*/
+	cpu_Init();
+	time_init();
+	led_init();
+	console_init();
+	adc_init();
+	pwm_init();
+}
+
+void board_Update(void)
+{
+	led_update();
+}
+
+void cpu_Init(void)
 {
 	ErrorStatus HSEStartUpStatus;
 	
