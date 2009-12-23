@@ -63,7 +63,7 @@ void adc_init(void)
 }
 
 /*ext voltage 0~3v3*/
-int adc_getvolt(void)
+int adc_getvolt1(void)
 {
 	int value;
 #ifdef ADC_MODE_NORMAL
@@ -100,6 +100,37 @@ int adc_getvolt(void)
 	#ifdef ADC_MODE_INJECT_DUAL
 	value = ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_1);
 	#endif
+#endif
+
+	value &= 0x0fff;
+	return ADC_COUNT_TO_VOLTAGE(value);
+}
+
+
+/*ext voltage 0~3v3*/
+int adc_getvolt(uint8_t ch)
+{
+	int value;
+	
+#ifdef ADC_MODE_NORMAL
+	ADC_ExternalTrigConvCmd(ADC1, ENABLE);
+	ADC_RegularChannelConfig(ADC1, ch, 1, ADC_SampleTime_55Cycles5);
+	ADC_ClearFlag(ADC1, ADC_FLAG_EOC);
+	ADC_SoftwareStartConvCmd(ADC1,ENABLE);
+	while(!ADC_GetFlagStatus(ADC1,ADC_FLAG_EOC));
+	value = ADC_GetConversionValue(ADC1);
+#endif
+
+#ifdef ADC_MODE_INJECT
+	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_None);
+	ADC_ExternalTrigInjectedConvCmd(ADC1, ENABLE);
+	ADC_InjectedChannelConfig(ADC1, ch, 1, ADC_SampleTime_55Cycles5);
+	ADC_InjectedSequencerLengthConfig(ADC1, 1);
+
+	ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);
+	ADC_SoftwareStartInjectedConvCmd(ADC1,ENABLE);
+	while(!ADC_GetFlagStatus(ADC1,ADC_FLAG_JEOC));
+	value = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
 #endif
 
 	value &= 0x0fff;
