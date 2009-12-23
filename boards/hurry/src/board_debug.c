@@ -20,6 +20,10 @@ void board_debug(void)
 	led_init();
 	console_init();
 	adc_init();
+	//pwm_init();
+	pwmdebug_init();
+
+	pwm_on();
 
 	printf("\n\nThis is hurry board test program\n");
 	led_flash(LED_GREEN);
@@ -31,7 +35,7 @@ void board_debug(void)
 	time_update();
 	
 	//adc debug
-	volt = adc_getvolt();
+	volt = adc_getvolt1();
 	temp = adc_gettemp();
 
 	//display per second
@@ -41,6 +45,10 @@ void board_debug(void)
 		printf("\ri=%06d",i);
 		//display temperature
 		printf("  volt = %04dmv,temp=%03.1f", volt, temp);		
+		
+		pwmdebug_config(PWMDEBUG_CH4,1000,i);
+		if(i == 100)
+			i=0;
 	}
   }
 }

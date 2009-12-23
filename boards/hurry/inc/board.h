@@ -11,4 +11,5 @@ void board_Update(void);
 #include "led.h"
 #include "console.h"
 #include "adc.h"
+#include "pwm.h"
 #endif /*__BOARD_H_*/
