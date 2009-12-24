@@ -1720,13 +1720,22 @@
     <group>
       <name>inc</name>
       <file>
+        <name>$PROJ_DIR$\..\..\shell\inc\cmd.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\shell\inc\shell.h</name>
       </file>
     </group>
     <group>
       <name>src</name>
       <file>
+        <name>$PROJ_DIR$\..\..\shell\src\cmd.c</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\shell\src\shell.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\shell\src\speed.c</name>
       </file>
     </group>
   </group>
