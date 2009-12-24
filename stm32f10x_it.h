@@ -52,7 +52,7 @@ void DMAChannel4_IRQHandler(void);
 void DMAChannel5_IRQHandler(void);
 void DMAChannel6_IRQHandler(void);
 void DMAChannel7_IRQHandler(void);
-void ADC_IRQHandler(void);
+void ADC1_2_IRQHandler(void);
 void USB_HP_CAN_TX_IRQHandler(void);
 void USB_LP_CAN_RX0_IRQHandler(void);
 void CAN_RX1_IRQHandler(void);
