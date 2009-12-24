@@ -14,10 +14,18 @@ void vsm_Update(void)
 {
 }
 
-void vsm_SetVoltage(int Valpha,int Vbeta,int theta)
+void vsm_SetVoltage(int Valpha,int Vbeta)
 {
 }
 
-void vsm_GetCurrent(int *Ialpha, int *Ibeta,int theta)
+void vsm_GetCurrent(int *Ialpha, int *Ibeta)
+{
+}
+
+void vsm_Start(void)
+{
+}
+
+void vsm_Stop(void)
 {
 }

@@ -8,7 +8,9 @@
 
 void vsm_Init(void); //timer1£¨ADC1°¢2 µ»≥ı ºªØ
 void vsm_Update(void); 
-void vsm_SetVoltage(int Valpha,int Vbeta,int theta);//unit:mV, ref: stm32f10x_svpwm_3shunt.c/SVPWM_3ShuntCalcDutyCycles()
-void vsm_GetCurrent(int *Ialpha, int *Ibeta,int theta);//unit:mA
+void vsm_SetVoltage(int Valpha,int Vbeta);
+void vsm_GetCurrent(int *Ialpha, int *Ibeta);
+void vsm_Start(void);
+void vsm_Stop(void);
 
 #endif /*__VSM_H_*/
