@@ -18,6 +18,7 @@
 #include "debug.h"
 #include "board.h"
 #include "motor.h"
+#include "shell.h"
 
 /*******************************************************************************
 * Function Name  : main
@@ -38,9 +39,11 @@ int main(void)
 	
 	board_Init();
 	motor_Init();
+	shell_Init();
 	
 	while(1) {
 		board_Update();
 		motor_Update();
+		shell_Update();
 	}
 }
