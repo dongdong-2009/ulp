@@ -4,7 +4,7 @@
 #ifndef __SMO_H_
 #define __SMO_H_
 
-#inlcude "vector.h"
+#include "vector.h"
 
 typedef struct {
 	short rs; /*stator resistance, unit mOhm*/
