@@ -41,5 +41,6 @@ int main(void)
 	
 	while(1) {
 		board_Update();
+		motor_Update();
 	}
 }
