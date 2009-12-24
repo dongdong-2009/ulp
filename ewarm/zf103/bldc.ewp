@@ -285,6 +285,7 @@
           <state>$PROJ_DIR$\..\..\stm32\inc</state>
           <state>$PROJ_DIR$\..\..\motor\inc</state>
           <state>$PROJ_DIR$\..\..\board\inc</state>
+          <state>$PROJ_DIR$\..\..\shell\inc</state>
         </option>
         <option>
           <name>CCStdIncCheck</name>
@@ -1610,6 +1611,9 @@
       <file>
         <name>$PROJ_DIR$\..\..\board\inc\time.h</name>
       </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\board\inc\vsm.h</name>
+      </file>
     </group>
     <group>
       <name>src</name>
@@ -1674,10 +1678,16 @@
         <name>$PROJ_DIR$\..\..\motor\inc\math.h</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\..\motor\inc\motor.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\motor\inc\motor_debug.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\motor\inc\pid.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\motor\inc\smo.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\motor\inc\vector.h</name>
@@ -1689,13 +1699,34 @@
         <name>$PROJ_DIR$\..\..\motor\src\math.c</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\..\motor\src\motor.c</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\motor\src\motor_debug.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\motor\src\pid.c</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\..\motor\src\smo.c</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\motor\src\vector.c</name>
+      </file>
+    </group>
+  </group>
+  <group>
+    <name>shell</name>
+    <group>
+      <name>inc</name>
+      <file>
+        <name>$PROJ_DIR$\..\..\shell\inc\shell.h</name>
+      </file>
+    </group>
+    <group>
+      <name>src</name>
+      <file>
+        <name>$PROJ_DIR$\..\..\shell\src\shell.c</name>
       </file>
     </group>
   </group>

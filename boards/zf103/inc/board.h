@@ -12,4 +12,5 @@ void board_Update(void);
 #include "console.h"
 #include "adc.h"
 #include "pwm.h"
+#include "vsm.h"
 #endif /*__BOARD_H_*/

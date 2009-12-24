@@ -70,7 +70,7 @@ zf103_config: board_unconfig
 	@echo -e "#define HSE_Value    ((uint32_t)12000000)\r" >> $(AUTOCONFIG_HEAD_FILE)
 	@echo -e "#define CONFIG_BOARD_ZF103\r" >> $(AUTOCONFIG_HEAD_FILE)
 	@echo -e "#undef CONFIG_BOARD_DEBUG\r" >> $(AUTOCONFIG_HEAD_FILE)
-	@echo -e "#define CONFIG_MOTOR_DEBUG\r" >> $(AUTOCONFIG_HEAD_FILE)
+	@echo -e "#undef CONFIG_MOTOR_DEBUG\r" >> $(AUTOCONFIG_HEAD_FILE)
 	
 hurry_config: board_unconfig
 	@ln -s boards/hurry ./board
