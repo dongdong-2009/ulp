@@ -45,8 +45,6 @@ void shell_Update(void)
 	p = shell_Parse();
 	if(p) 
 		ok = p->cmd(argc, argv);
-	if(!p || (ok < 0))
-		printf("Invalid Command\n");
 }
 
 void shell_AddCmd(cmd_t *cmd)
@@ -68,7 +66,8 @@ int cmd_help_func(int argc, char *argv[])
 	cmd_list_t *p = cmd_list;
 	
 	while(p) {
-		printf("%s\t\t%s\n", p->cmd->name, p->cmd->help);
+		printf("%s\t%s\n", p->cmd->name, p->cmd->help);
+		p = p->next;
 	}
 	
 	return 0;
@@ -98,15 +97,16 @@ static int shell_ReadLine(void)
 			ready = 1;
 			putchar('\n');
 			break;
-		case '\b':			// Backspace
+		case 127:			// Backspace
 			if(cmd_idx > 0)
 			{
 				cmd_buffer[--cmd_idx] = 0;
-				printf("%s", "\b \b");
+				/*printf("%s", "\b \b");*/
+				putchar(ch);
 			}
 			continue;
 		default:
-			if((ch < ' ') || (ch > 127))
+			if((ch < ' ') || (ch > 126))
 				continue;
 			if(cmd_idx < CONFIG_SHELL_LEN_CMD_MAX - 1)
 			{
@@ -125,6 +125,7 @@ static cmd_t *shell_Parse(void)
 	int len, i = 0;
 	char ch;
 	cmd_list_t *p;
+	int flag = 0;
 	
 	argc = 0;
 	len = strlen(cmd_buffer);
@@ -134,11 +135,15 @@ static cmd_t *shell_Parse(void)
 			if(argc > CONFIG_SHELL_NR_PARA_MAX)
 				break;
 			
-			argv[argc] = cmd_buffer + i;
-			argc ++;
+			if(flag == 0) {
+				argv[argc] = cmd_buffer + i;
+				argc ++;
+				flag = 1;
+			}
 		}
 		else {
 			cmd_buffer[i] = 0;
+			flag = 0;
 		}
 			
 		i++;
@@ -150,7 +155,7 @@ static cmd_t *shell_Parse(void)
 	}
 	
 	/*debug*/
-#if 1
+#if 0
 	for(i = 0; i < argc; i++)
 		printf("argv[%d] = %s\n", i, argv[i]);
 #endif
@@ -162,7 +167,10 @@ static cmd_t *shell_Parse(void)
 			/*found it*/
 			return p->cmd;
 		}
+		p = p->next;
 	}
 	
+	if(len > 0)
+		printf("Invalid Command\n");
 	return 0;
 }
