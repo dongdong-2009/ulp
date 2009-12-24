@@ -14,6 +14,7 @@
 #define V_CHANNEL	ADC_Channel_5
 #define W_CHANNEL	ADC_Channel_14
 #define TOTAL_CHANNEL	ADC_Channel_15
+#define VDC_CHANNEL	ADC_Channel_11
 
 void adc_init(void);
 /*zf32 board: PA1/ADC_IN1, JP1 R7 POT_WHEEL 0~3v3*/

@@ -6,21 +6,48 @@
 #include "stm32f10x.h"
 #include "adc.h"
 
+/*private functions*/
+
+/**
+  * @brief  Configures NVIC and Vector Table base location.
+  * @param  None
+  * @retval None
+  */
+static void ADC_NVIC_Configuration(void)
+{
+	NVIC_InitTypeDef NVIC_InitStructure;
+
+	/* Enable ADC1_2 IRQChannel */
+	NVIC_InitStructure.NVIC_IRQChannel = ADC1_2_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+}
+
 /*zf32 board: PA1/ADC_IN1, JP1 R7 POT_WHEEL 0~3v3*/
 void adc_init(void)
 {
+	ADC_NVIC_Configuration();
+	
 	GPIO_InitTypeDef GPIO_InitStructure;
 	ADC_InitTypeDef ADC_InitStructure;
 	
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	RCC_ADCCLKConfig(RCC_PCLK2_Div6); /*72Mhz/6 = 12Mhz*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC2, ENABLE);
 
-	/* Configure PA.1 as Analog Input */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
+	/* Configure PA.4 PA.5 as Analog Input,channel u,v */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	/* Configure PC.4 PC.5 PC.1 as Analog Input,channel w,t,vdc */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_1;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
 	/* ADC1 registers reset ----------------------------------------------------*/
 	ADC_DeInit(ADC1);
@@ -34,13 +61,31 @@ void adc_init(void)
 	
 	/* ADC1 configuration ------------------------------------------------------*/
 	ADC_StructInit(&ADC_InitStructure);
-	ADC_InitStructure.ADC_Mode = ADC_Mode_InjecSimult;
+	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
 	ADC_InitStructure.ADC_ScanConvMode = DISABLE;
 	ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
-	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigInjecConv_T1_TRGO;
 	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
-	ADC_InitStructure.ADC_NbrOfChannel = 2;
+	ADC_InitStructure.ADC_NbrOfChannel = 1;
 	ADC_Init(ADC1, &ADC_InitStructure);
+	
+	/* Set injected sequencer length */
+	ADC_InjectedSequencerLengthConfig(ADC1, 1);
+	/* ADC1 injected channel Configuration */ 
+	ADC_InjectedChannelConfig(ADC1, TOTAL_CHANNEL, 1, ADC_SampleTime_71Cycles5);
+	/* Enable automatic injected conversion start after regular one */	
+	//ADC_AutoInjectedConvCmd(ADC1, ENABLE);	
+	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_T1_TRGO);
+	/* Enable ADC1 external trigger */ 
+	ADC_ExternalTrigInjectedConvCmd(ADC1, ENABLE);
+
+	/* Clear ADC1 JEOC pending interrupt bit */
+	ADC_ClearITPendingBit(ADC1, ADC_IT_JEOC);
+	/* Enable JEOC interupt */
+	ADC_ITConfig(ADC1, ADC_IT_JEOC, ENABLE);
+	/* Enable ADC1 */
+	ADC_Cmd(ADC1, ENABLE);
+  
 
 	/* ADC2 Configuration ------------------------------------------------------*/
 	ADC_StructInit(&ADC_InitStructure);	
@@ -60,6 +105,8 @@ void adc_init(void)
 	while (ADC_GetCalibrationStatus(ADC1) & ADC_GetCalibrationStatus(ADC2));
 
 	//ADC_ITConfig(ADC1, ADC_IT_EOC|ADC_IT_AWD|ADC_IT_JEOC, DISABLE);
+	
+	
 }
 
 /*ext voltage 0~3v3*/

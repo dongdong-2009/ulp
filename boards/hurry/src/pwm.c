@@ -70,8 +70,10 @@ void pwm_init(void)
 	TIM_TimeBaseStructure.TIM_Prescaler = (72000/1000 - 1);
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;//
+	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
 	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
+	
+	TIM_ARRPreloadConfig(TIM1, ENABLE);
 	
 	/* Automatic Output enable, Break, dead time and lock configuration*/
 	TIM_BDTRInitStructure.TIM_OSSRState = TIM_OSSRState_Enable;
@@ -82,6 +84,9 @@ void pwm_init(void)
 	TIM_BDTRInitStructure.TIM_BreakPolarity = TIM_BreakPolarity_High;
 	TIM_BDTRInitStructure.TIM_AutomaticOutput = TIM_AutomaticOutput_Disable;
 	TIM_BDTRConfig(TIM1, &TIM_BDTRInitStructure);
+	
+	/* Master Mode selection */
+	TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update);
 
 	/* PWM1 Mode configuration: Channel1 */
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
@@ -115,8 +120,6 @@ void pwm_init(void)
 	TIM_OC3Init(TIM1, &TIM_OCInitStructure);
 	TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
 	
-	TIM_ARRPreloadConfig(TIM1, ENABLE);
-	
 	
 	/* Master Mode selection */
 	//TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update);
@@ -130,11 +133,13 @@ void pwm_update(void)
 }
 
 /*freq: Hz between 72KHz and 1Hz, duty: 0~100*/
-void pwm_config(uint16_t ch,int freq, int duty)
+void pwm_config(uint16_t ch,int freq, int duty, uint8_t repetition)
 {
 	int pre, cmp;
 	RCC_ClocksTypeDef RCC_Clocks;
 	RCC_GetClocksFreq(&RCC_Clocks);
+	
+	TIM1->RCR = repetition;
 	
 	pre = 1;		
 	pre = RCC_Clocks.PCLK1_Frequency*2/freq/TIM1_COUNTER_VALUE;
@@ -243,21 +248,16 @@ void pwmdebug_init(void)
 /*freq: Hz, duty: 0~100,prescaler is 72,Tim counter clock = 1M*/
 void pwmdebug_config(uint16_t ch,int freq, int duty)
 {
-	int cnt, cmp;
-//	RCC_ClocksTypeDef RCC_Clocks;
-//	RCC_GetClocksFreq(&RCC_Clocks);
-
-	cnt = 1000000/freq;
+	int pre, cmp;
+	RCC_ClocksTypeDef RCC_Clocks;
+	RCC_GetClocksFreq(&RCC_Clocks);
 	
-	if(duty>100)
-		cmp = cnt;
-	else if(duty<0)
-		cmp = 0;
-	else
-		cmp = cnt*duty/100;
+	pre = 1;		
+	pre = RCC_Clocks.PCLK1_Frequency*2/freq/TIM3_COUNTER_VALUE;
+	TIM_PrescalerConfig(TIM3, pre-1, TIM_PSCReloadMode_Update);
 
-//	TIM_PrescalerConfig(TIM3, pre-1, TIM_PSCReloadMode_Update);
-	TIM_SetCounter(TIM3, cnt-1);
+	cmp = TIM3_COUNTER_VALUE*duty/100;
+
 	switch(ch){
 		case PWMDEBUG_CH1:
 		TIM_SetCompare1(TIM3, cmp);

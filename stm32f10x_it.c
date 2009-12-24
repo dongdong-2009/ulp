@@ -21,6 +21,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
+#include <stdio.h>
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -349,8 +350,18 @@ void DMAChannel7_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void ADC_IRQHandler(void)
+void ADC1_2_IRQHandler(void)
 {
+	uint16_t temp;
+	/* Get injected channel11 converted value */
+	temp = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
+	temp &= 0xfff;
+	temp = temp*3300/4096;
+#ifdef CONFIG_BOARD_DEBUG
+	printf("\nprint the ADC result : %d !\n",temp);
+#endif
+	/* Clear ADC1 JEOC pending interrupt bit */
+	ADC_ClearITPendingBit(ADC1, ADC_IT_JEOC);
 }
 
 /*******************************************************************************
