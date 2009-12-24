@@ -23,6 +23,7 @@ typedef struct {
 pid_t *pid_Init(void);
 void pid_Config(pid_t *pid, short kp, short ki, short kd);
 void pid_SetRef(pid_t *pid, short ref);
+#define pid_GetRef(pid) (pid->ref)
 short pid_Calcu(pid_t *pid, short in);
 void pid_Close(pid_t *pid);
 #endif /*__PID_H_*/

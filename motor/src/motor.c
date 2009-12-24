@@ -13,7 +13,10 @@ pid_t *pid_flux;
 motor_t *motor;
 
 /*private*/
-static motor_status_t motor_status; 
+static motor_status_t motor_status;
+static vector_t Iab, I , Idq;
+static vector_t Vdq, V;
+static time_t motor_timer;
 
 void motor_Init(void)
 {
@@ -35,9 +38,34 @@ void motor_Init(void)
 	motor_SetRPM(500);
 }
 
+void motor_Update(void)
+{
+	short speed, rpm, torque_ref;
+	
+	/*update cycle = 1s*/
+	if(!motor_timer || time_left(motor_timer) < 0) {
+		motor_timer = time_get(1000);
+		
+		speed = smo_GetSpeed();
+		rpm = smo_GetRPM();
+		
+		/*stop motor?*/
+		if(!pid_GetRef(pid_speed) && (rpm < 100) && (rpm > 0))
+			vsm_Stop();
+		
+		/*speed pid && set torque/flux pid ref according to the speed*/
+		torque_ref = pid_Calcu(pid_speed, speed);
+		pid_SetRef(pid_flux, 0); /*Id = 0 control method*/
+		pid_SetRef(pid_torque, torque_ref);
+	}
+}
+
 void motor_SetSpeed(short speed)
 {
+	short cur_speed;
 	pid_SetRef(pid_speed, speed); 
+	cur_speed = smo_GetSpeed();
+	if(!cur_speed && speed) vsm_Start();
 }
 
 void motor_SetRPM(short rpm)
@@ -46,19 +74,27 @@ void motor_SetRPM(short rpm)
 	pid_SetRef(pid_speed, speed);
 }
 
-void motor_Start(void)
-{
-	motor_status = MOTOR_STATUS_START;
-	vsm_Start();
-}
-
 /*this routine will be called periodly by ADC isr*/
-void motor_Update(void)
+void motor_isr(void)
 {
-}
-
-/*maybe we can use smo to stop the motor more quickly???*/
-void motor_Stop(void)
-{
-	motor_status = MOTOR_STATUS_STOP;
+	short angle, speed;
+	
+	/*1, smo get cur speed&angle*/
+	angle = smo_GetAngle();
+	/*2, get current*/
+	vsm_GetCurrent(&Iab.a, &Iab.b);
+	/*3, clarke*/
+	clarke(&Iab, &I);
+	/*4, park*/
+	park(&I, &Idq);
+	/*5, update smo*/
+	smo_Update(&V, &I);
+	/*6, pid*/
+	Vdq.d = pid_Calcu(pid_flux, Idq.d);
+	Vdq.q = pid_Calcu(pid_torque, Idq.q);
+	/*7, ipark circle lim*/
+	/*8, ipark*/
+	iPark(&Vdq, &V);
+	/*9, set voltage*/
+	vsm_SetVoltage(V.alpha, V.beta);
 }
