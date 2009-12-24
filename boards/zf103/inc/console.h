@@ -6,6 +6,7 @@
 
 void console_init(void);
 int console_putchar(char c);
+int console_getch(void);
 int console_getchar(void);
 int console_IsNotEmpty();
 

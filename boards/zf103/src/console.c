@@ -43,7 +43,7 @@ int console_putchar(char c)
 	return 0;
 }
 
-int console_getchar(void)
+int console_getch(void)
 {
 	int ret;
 
@@ -55,6 +55,12 @@ int console_getchar(void)
 
 	/*read and echo back*/
 	ret = USART_ReceiveData(USART1);
+	return ret;
+}
+
+int console_getchar(void)
+{
+	int ret = console_getch();
 	console_putchar((char)ret);
 	return ret;
 }
