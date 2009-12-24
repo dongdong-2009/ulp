@@ -22,18 +22,22 @@ void smo_Update(vector_t *pvs, vector_t *pis)
 /*return yes(1)/no(0)*/
 int smo_IsReady(void)
 {
+	return 0;
 }
 
  /*unit: Hz*/
 short smo_GetSpeed(void)
 {
+	return 0;
 }
 
 /*unit: RPM*/
 short smo_GetRPM(void)
 {
+	return 0;
 }
 
-void smo_GetAngle(void)
+short smo_GetAngle(void)
 {
+	return 0;
 }

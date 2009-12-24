@@ -9,12 +9,7 @@
 
 void motor_Debug(void)
 {
-	board_init();
-	time_init();
-	led_init();
-	console_init();
-	adc_init();
-	pwm_init();
+	board_Init();
 
 	/*clear screen*/
 	/*ref: http://www.cnblogs.com/mugua/archive/2009/11/25/1610118.html*/

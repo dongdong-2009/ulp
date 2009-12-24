@@ -13,14 +13,12 @@ pid_t *pid_flux;
 motor_t *motor;
 
 /*private*/
-static motor_status_t motor_status;
 static vector_t Iab, I , Idq;
 static vector_t Vdq, V;
 static time_t motor_timer;
 
 void motor_Init(void)
 {
-	motor_status = MOTOR_STATUS_STOP;
 	pid_speed = pid_Init();
 	pid_torque = pid_Init();
 	pid_flux = pid_Init();
@@ -77,7 +75,7 @@ void motor_SetRPM(short rpm)
 /*this routine will be called periodly by ADC isr*/
 void motor_isr(void)
 {
-	short angle, speed;
+	short angle;
 	
 	/*1, smo get cur speed&angle*/
 	angle = smo_GetAngle();
@@ -86,7 +84,7 @@ void motor_isr(void)
 	/*3, clarke*/
 	clarke(&Iab, &I);
 	/*4, park*/
-	park(&I, &Idq);
+	park(&I, &Idq, angle);
 	/*5, update smo*/
 	smo_Update(&V, &I);
 	/*6, pid*/
@@ -94,7 +92,7 @@ void motor_isr(void)
 	Vdq.q = pid_Calcu(pid_torque, Idq.q);
 	/*7, ipark circle lim*/
 	/*8, ipark*/
-	iPark(&Vdq, &V);
+	ipark(&Vdq, &V, angle);
 	/*9, set voltage*/
 	vsm_SetVoltage(V.alpha, V.beta);
 }
