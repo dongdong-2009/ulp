@@ -14,6 +14,8 @@ void cmd_Init(void)
 {
 	cmd_list = 0;
 	cmd_Add(&cmd_help);
+	cmd_Add(&cmd_speed);
+	cmd_Add(&cmd_rpm);
 }
 
 void cmd_Update(void)
