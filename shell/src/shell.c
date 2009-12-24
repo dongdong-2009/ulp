@@ -8,69 +8,38 @@
 #include <stdlib.h>
 #include <string.h>
 #include "board.h"
+#include "cmd.h"
 
-static int cmd_help_func(int agrc, char *argv[]);
 static int shell_ReadLine(void);
-static cmd_t *shell_Parse(void);
+static void shell_Parse(void);
 
 static char cmd_buffer[CONFIG_SHELL_LEN_CMD_MAX]; /*max length of a cmd and paras*/
 static int cmd_idx;
 static char *argv[CONFIG_SHELL_NR_PARA_MAX]; /*max number of para, include command itself*/
 static int argc;
 
-static cmd_list_t *cmd_list;
-static cmd_t cmd_help = {"help", cmd_help_func, "list all commands"};
-
 void shell_Init(void)
 {
-	cmd_list = 0;
 	cmd_buffer[0] = 0;
 	cmd_idx = -1;
-	shell_AddCmd(&cmd_help);
 	
 	putchar(0x1b); /*clear screen*/
 	putchar('c');
 	
+	cmd_Init();
 	printf("%s\n", CONFIG_BLDC_BANNER);
 }
 
 void shell_Update(void)
 {
 	int ok;
-	cmd_t *p;
 	
+	cmd_Update();
 	ok = shell_ReadLine();
 	if(!ok) return;
 	
-	p = shell_Parse();
-	if(p) 
-		ok = p->cmd(argc, argv);
-}
-
-void shell_AddCmd(cmd_t *cmd)
-{
-	cmd_list_t *new;
-	cmd_list_t *p = cmd_list;
-	
-	new = malloc(sizeof(cmd_list_t));
-	new->cmd = cmd;
-	new->next = 0;
-	
-	while(p && p->next) p = p->next;
-	if(!p) p = cmd_list = new;
-	else p->next = new;
-}
-
-int cmd_help_func(int argc, char *argv[])
-{
-	cmd_list_t *p = cmd_list;
-	
-	while(p) {
-		printf("%s\t%s\n", p->cmd->name, p->cmd->help);
-		p = p->next;
-	}
-	
-	return 0;
+	shell_Parse();
+	cmd_Exec(argc, argv);
 }
 
 /*read a line of string from console*/
@@ -120,11 +89,10 @@ static int shell_ReadLine(void)
 	return ready;
 }
 
-static cmd_t *shell_Parse(void)
+static void shell_Parse(void)
 {
 	int len, i = 0;
 	char ch;
-	cmd_list_t *p;
 	int flag = 0;
 	
 	argc = 0;
@@ -159,18 +127,4 @@ static cmd_t *shell_Parse(void)
 	for(i = 0; i < argc; i++)
 		printf("argv[%d] = %s\n", i, argv[i]);
 #endif
-	
-	/*find command from cmd_list*/
-	p = cmd_list;
-	while(p) {
-		if( !strcmp(p->cmd->name, argv[0])) {
-			/*found it*/
-			return p->cmd;
-		}
-		p = p->next;
-	}
-	
-	if(len > 0)
-		printf("Invalid Command\n");
-	return 0;
 }

@@ -20,19 +20,7 @@
 #define CONFIG_SHELL_NR_PARA_MAX 8
 #endif
 
-typedef struct {
-	char *name;
-	int (*cmd)(int argc, char *argv[]);
-	char *help;
-} cmd_t;
-
-typedef struct {
-	cmd_t *cmd;
-	void *next;
-} cmd_list_t;
-
 void shell_Init(void);
 void shell_Update(void);
-void shell_AddCmd(cmd_t *cmd);
 
 #endif /*__SHELL_H_*/
