@@ -16,14 +16,24 @@
 
 void pwmdebug_init(void);
 void pwmdebug_config(uint16_t ch,int freq, int duty);
+
+#define pwmdebug_on() do{ TIM_Cmd(TIM3, ENABLE); } while(0)
+#define pwmdebug_off() do{ TIM_Cmd(TIM3, DISABLE); } while(0)
+
 #endif
+
+#define PWM_U	TIM_Channel_1
+#define PWM_V	TIM_Channel_2
+#define PWM_W	TIM_Channel_3
+
+#define TIM1_COUNTER_VALUE	1000
 
 void pwm_init(void);
 void pwm_update(void);
 
 /*freq: Hz, duty: 0~100*/
-void pwm_config(int freq, int duty);
-#define pwm_on() do{ TIM_Cmd(TIM3, ENABLE); } while(0)
-#define pwm_off() do{ TIM_Cmd(TIM3, DISABLE); } while(0)
+void pwm_config(uint16_t ch,int freq, int duty);
+#define pwm_on() do{ TIM_Cmd(TIM1, ENABLE);TIM_CtrlPWMOutputs(TIM1, ENABLE);} while(0)
+#define pwm_off() do{ TIM_Cmd(TIM1, DISABLE);TIM_CtrlPWMOutputs(TIM1, DISABLE); } while(0)
 
 #endif /*__PWM_H_*/
