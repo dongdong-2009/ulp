@@ -69,8 +69,9 @@ void cmd_Exec(int argc, char *argv[])
 		p = p->next;
 	}
 	
-	if(!p && (len > 0)) {
-		printf("Invalid Command\n");
+	if(!p) {
+		if(len > 0)
+			printf("Invalid Command\n");
 		return;
 	}
 		
