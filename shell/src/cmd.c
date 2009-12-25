@@ -23,6 +23,7 @@ void cmd_Init(void)
 	cmd_Add(&cmd_rpm);
 	cmd_Add(&cmd_motor);
 	cmd_Add(&cmd_pid);
+	cmd_Add(&cmd_debug);
 }
 
 void cmd_Update(void)
