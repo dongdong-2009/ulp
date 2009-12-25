@@ -9,7 +9,7 @@
 #include <string.h>
 #include "motor.h"
 
-int cmd_speed_func(int argc, char *argv[])
+static int cmd_speed_func(int argc, char *argv[])
 {
 	short speed;
 	
@@ -26,7 +26,7 @@ int cmd_speed_func(int argc, char *argv[])
 }
 cmd_t cmd_speed = {"speed", cmd_speed_func, "set motor speed in Hz"};
 
-int cmd_rpm_func(int argc, char *argv[])
+static int cmd_rpm_func(int argc, char *argv[])
 {
 	short rpm;
 	
@@ -43,7 +43,7 @@ int cmd_rpm_func(int argc, char *argv[])
 }
 cmd_t cmd_rpm = {"rpm", cmd_rpm_func, "set motor speed in rpm"};
 
-int cmd_motor_func(int argc, char *argv[])
+static int cmd_motor_func(int argc, char *argv[])
 {
 	int rs, ls, pn;
 	if(argc < 4) {
@@ -67,3 +67,41 @@ int cmd_motor_func(int argc, char *argv[])
 	return 0;
 }
 cmd_t cmd_motor = {"motor", cmd_motor_func, "set motor paras"};
+
+static void cmd_pid_usage(void)
+{
+	printf( \
+			"uasge:\n" \
+			" pid type kp ki\n" \
+			" type = speed/flux/torque\n" \
+			" pid speed 150 25\n" \
+	);
+}
+
+static int cmd_pid_func(int argc, char *argv[])
+{
+	int kp,ki;
+	
+	if(argc < 4) {
+		cmd_pid_usage();
+		return 0;
+	}
+	
+	kp = atoi(argv[2]);
+	ki = atoi(argv[3]);
+	
+	if(!strcmp(argv[1], "speed")) {
+		pid_Config(pid_speed, kp, ki, 0);
+	}
+	else if(!strcmp(argv[1], "flux")) {
+		pid_Config(pid_flux, kp, ki, 0);
+	}
+	else if(!strcmp(argv[1], "torque")) {
+		pid_Config(pid_torque, kp, ki, 0);
+	}
+	else {
+		cmd_pid_usage();
+	}
+	return 0;
+}
+cmd_t cmd_pid = {"pid", cmd_pid_func, "set pid paras"};

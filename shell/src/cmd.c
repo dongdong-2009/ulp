@@ -17,6 +17,7 @@ void cmd_Init(void)
 	cmd_Add(&cmd_speed);
 	cmd_Add(&cmd_rpm);
 	cmd_Add(&cmd_motor);
+	cmd_Add(&cmd_pid);
 }
 
 void cmd_Update(void)
