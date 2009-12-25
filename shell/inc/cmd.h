@@ -22,6 +22,7 @@ typedef struct {
 extern cmd_t cmd_help;
 extern cmd_t cmd_speed;
 extern cmd_t cmd_rpm;
+extern cmd_t cmd_motor;
 
 void cmd_Init(void);
 void cmd_Update(void);
