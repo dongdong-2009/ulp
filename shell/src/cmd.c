@@ -75,8 +75,10 @@ void cmd_Exec(int argc, char *argv[])
 	}
 		
 	ret = p->cmd->func(argc, argv);
-	if(ret > 0)
+	if(ret != 0)
 		p->flag |= CMD_FLAG_REPEAT;
+	else
+		p->flag &= (~CMD_FLAG_REPEAT);
 }
 
 int cmd_help_func(int argc, char *argv[])
