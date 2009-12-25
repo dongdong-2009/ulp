@@ -26,15 +26,21 @@ void cmd_Init(void)
 }
 
 void cmd_Update(void)
-{
+{	
+	int ret;
 	cmd_list_t *p = cmd_list;
 	
 	if(cmd_update_stop_flag)
 		return;
 		
 	while(p) {
-		if(p->flag & CMD_FLAG_REPEAT)
-			cmd_Exec(0, 0);
+		if(p->flag & CMD_FLAG_REPEAT) {
+			ret = p->cmd->func(0, 0);
+			if(ret != 0)
+				p->flag |= CMD_FLAG_REPEAT;
+			else
+				p->flag &= (~CMD_FLAG_REPEAT);
+		}
 		p = p->next;
 	}
 }
