@@ -1735,6 +1735,9 @@
         <name>$PROJ_DIR$\..\..\shell\src\cmd.c</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\..\shell\src\cmd_debug.c</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\shell\src\cmd_motor.c</name>
       </file>
       <file>
