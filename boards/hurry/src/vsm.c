@@ -18,7 +18,7 @@ void vsm_SetVoltage(int Valpha,int Vbeta)
 {
 }
 
-void vsm_GetCurrent(int *Ialpha, int *Ibeta)
+void vsm_GetCurrent(short *Ialpha, short *Ibeta)
 {
 }
 
