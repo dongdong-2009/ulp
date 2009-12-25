@@ -6,6 +6,7 @@
 
 #include "pid.h"
 #include "smo.h"
+#include "normalize.h"
 
 /*only for command console to change the settings of these object*/
 extern pid_t *pid_speed;
