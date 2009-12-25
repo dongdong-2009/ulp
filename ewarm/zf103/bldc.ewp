@@ -1684,6 +1684,9 @@
         <name>$PROJ_DIR$\..\..\motor\inc\motor_debug.h</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\..\motor\inc\normalize.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\motor\inc\pid.h</name>
       </file>
       <file>
@@ -1732,10 +1735,10 @@
         <name>$PROJ_DIR$\..\..\shell\src\cmd.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\shell\src\shell.c</name>
+        <name>$PROJ_DIR$\..\..\shell\src\cmd_motor.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\shell\src\speed.c</name>
+        <name>$PROJ_DIR$\..\..\shell\src\shell.c</name>
       </file>
     </group>
   </group>
