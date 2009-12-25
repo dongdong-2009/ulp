@@ -20,6 +20,8 @@ typedef struct {
 
 /*commands declaration*/
 extern cmd_t cmd_help;
+extern cmd_t cmd_pause;
+extern cmd_t cmd_kill;
 extern cmd_t cmd_speed;
 extern cmd_t cmd_rpm;
 extern cmd_t cmd_motor;
