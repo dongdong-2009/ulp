@@ -10,9 +10,10 @@ typedef struct {
 	short kp;
 	short ki;
 	short kd; /*not used yet*/
+	short ref;
+	short err_limit; /*error input limit, to avoid output such as current change too fast*/
 	
 	/*private, pls don't touch me;)*/
-	short ref;
 	short err_history;
 } pid_t;
 
@@ -23,6 +24,7 @@ typedef struct {
 pid_t *pid_Init(void);
 void pid_Config(pid_t *pid, short kp, short ki, short kd);
 void pid_SetRef(pid_t *pid, short ref);
+void pid_SetLimit(pid_t *pid, short limit);
 #define pid_GetRef(pid) (pid->ref)
 short pid_Calcu(pid_t *pid, short in);
 void pid_Close(pid_t *pid);
