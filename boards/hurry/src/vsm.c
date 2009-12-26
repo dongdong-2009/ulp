@@ -26,18 +26,12 @@ void vsm_Update(void)
 {
 }
 
-void vsm_SetVoltage(int Valpha,int Vbeta)
+//void vsm_SetVoltage(int Valpha,int Vbeta)
+void vsm_SetVoltage(int wX, int wY, int wZ)
 {
-	int wX, wY, wZ, wUAlpha, wUBeta;
 	unsigned short  hTimePhA, hTimePhB, hTimePhC;
 	unsigned short  hDeltaDuty;
-	wUAlpha = Valpha * T_SQRT3 ;
-	wUBeta = -Vbeta * T;
 
-	wX = wUBeta;
-	wY = (wUBeta + wUAlpha)/2;
-	wZ = (wUBeta - wUAlpha)/2;
-   
 	// Sector calculation from wX, wY, wZ
 	if (wY<0){
 		if (wZ<0){
