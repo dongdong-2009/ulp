@@ -7,7 +7,7 @@
 #include "time.h"
 
 /*use RTC as timebase, tick period = 1ms*/
-void time_init(void)
+void time_Init(void)
 {
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
 	PWR_BackupAccessCmd(ENABLE);

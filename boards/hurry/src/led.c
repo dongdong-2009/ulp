@@ -7,7 +7,7 @@
 #include "led.h"
 #include "time.h"
 
-void led_init(void)
+void led_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	

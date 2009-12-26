@@ -6,7 +6,7 @@
 #include "stm32f10x.h"
 #include "console.h"
 
-void console_init(void)
+void console_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef uartinfo;
