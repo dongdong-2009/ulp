@@ -12,9 +12,9 @@
 #define ADC_MODE_INJECT
 #undef ADC_MODE_INJECT_DUAL
 
-#define PHASE_U_ADC_CHANNEL     ADC_Channel_4
-#define PHASE_V_ADC_CHANNEL     ADC_Channel_5
-#define PHASE_W_ADC_CHANNEL     ADC_Channel_14
+#define PHASE_A_ADC_CHANNEL     ADC_Channel_4
+#define PHASE_B_ADC_CHANNEL     ADC_Channel_5
+#define PHASE_C_ADC_CHANNEL     ADC_Channel_14
 #define TOTAL_CHANNEL			ADC_Channel_15
 #define VDC_CHANNEL				ADC_Channel_11
 
@@ -22,7 +22,7 @@
 #define ADC_COUNT_TO_VOLTAGE(CNT) (CNT*3300/4096)
 
 void adc_Init(void);
-void ad_Update(void);
+void adc_Update(void);
 void adc_GetCalibration(uint16_t* pPhaseAOffset,uint16_t* pPhaseBOffset,uint16_t* pPhaseCOffset);
 void adc_SetChannel(ADC_TypeDef* ADCx,uint8_t ch);
 

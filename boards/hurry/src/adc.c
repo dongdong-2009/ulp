@@ -21,13 +21,13 @@ static void adc_Config(void)
 	/* ADC1 Injected conversions configuration */ 
 	ADC_InjectedSequencerLengthConfig(ADC1,2);
 	ADC_InjectedSequencerLengthConfig(ADC2,2);
-#if 0
+#if 1
 	/* ADC2 Injected conversions configuration */ 
 	ADC_InjectedChannelConfig(ADC2, PHASE_A_ADC_CHANNEL, 1, ADC_SampleTime_7Cycles5);
-	ADC_InjectedChannelConfig(ADC2, TEMP_FDBK_CHANNEL, 2, ADC_SampleTime_7Cycles5);
+	ADC_InjectedChannelConfig(ADC2, TOTAL_CHANNEL, 2, ADC_SampleTime_7Cycles5);
   
 	ADC_InjectedChannelConfig(ADC1,PHASE_B_ADC_CHANNEL, 1, ADC_SampleTime_7Cycles5);
-	ADC_InjectedChannelConfig(ADC1,BUS_VOLT_FDBK_CHANNEL,2, ADC_SampleTime_28Cycles5);
+	ADC_InjectedChannelConfig(ADC1,VDC_CHANNEL,2, ADC_SampleTime_28Cycles5);
 #endif
 	/* ADC1 Injected conversions trigger is TIM1 TRGO */ 
 	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_T1_TRGO); 
@@ -59,42 +59,42 @@ static void adc_Config(void)
 
 void adc_GetCalibration(uint16_t * pPhaseAOffset,uint16_t *pPhaseBOffset,uint16_t *pPhaseCOffset)
 {
-  static u16 bIndex;
+	static u16 bIndex;
   
-  /* ADC1 Injected group of conversions end interrupt disabling */
-  ADC_ITConfig(ADC1, ADC_IT_JEOC, DISABLE);
+	/* ADC1 Injected group of conversions end interrupt disabling */
+	ADC_ITConfig(ADC1, ADC_IT_JEOC, DISABLE);
   
-  *pPhaseAOffset=0;
-  *pPhaseBOffset=0;
-  *pPhaseCOffset=0;
+	*pPhaseAOffset=0;
+	*pPhaseBOffset=0;
+	*pPhaseCOffset=0;
   
-  /* ADC1 Injected conversions trigger is given by software and enabled */ 
-  ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_None);  
-  ADC_ExternalTrigInjectedConvCmd(ADC1,ENABLE); 
+	/* ADC1 Injected conversions trigger is given by software and enabled */ 
+	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_None);  
+	ADC_ExternalTrigInjectedConvCmd(ADC1,ENABLE); 
   
-  /* ADC1 Injected conversions configuration */ 
-  ADC_InjectedSequencerLengthConfig(ADC1,3);
-  ADC_InjectedChannelConfig(ADC1, PHASE_U_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);
-  ADC_InjectedChannelConfig(ADC1, PHASE_V_ADC_CHANNEL,2,ADC_SampleTime_7Cycles5);
-  ADC_InjectedChannelConfig(ADC1, PHASE_W_ADC_CHANNEL,3,ADC_SampleTime_7Cycles5);
+	/* ADC1 Injected conversions configuration */ 
+	ADC_InjectedSequencerLengthConfig(ADC1,3);
+	ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);
+	ADC_InjectedChannelConfig(ADC1, PHASE_B_ADC_CHANNEL,2,ADC_SampleTime_7Cycles5);
+	ADC_InjectedChannelConfig(ADC1, PHASE_C_ADC_CHANNEL,3,ADC_SampleTime_7Cycles5);
   
-  /* Clear the ADC1 JEOC pending flag */
-  ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);  
-  ADC_SoftwareStartInjectedConvCmd(ADC1,ENABLE);
+	/* Clear the ADC1 JEOC pending flag */
+	ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);  
+	ADC_SoftwareStartInjectedConvCmd(ADC1,ENABLE);
    
-  /* ADC Channel used for current reading are read 
+	/* ADC Channel used for current reading are read 
      in order to get zero currents ADC values*/ 
 	for(bIndex=0; bIndex <NB_CONVERSIONS; bIndex++){
 		while(!ADC_GetFlagStatus(ADC1,ADC_FLAG_JEOC)) { }
     
-    *pPhaseAOffset += (ADC_GetInjectedConversionValue(ADC1,ADC_InjectedChannel_1)>>4);
-    *pPhaseBOffset += (ADC_GetInjectedConversionValue(ADC1,ADC_InjectedChannel_2)>>4);
-    *pPhaseCOffset += (ADC_GetInjectedConversionValue(ADC1,ADC_InjectedChannel_3)>>4);    
+		*pPhaseAOffset += (ADC_GetInjectedConversionValue(ADC1,ADC_InjectedChannel_1)>>3);
+		*pPhaseBOffset += (ADC_GetInjectedConversionValue(ADC1,ADC_InjectedChannel_2)>>3);
+		*pPhaseCOffset += (ADC_GetInjectedConversionValue(ADC1,ADC_InjectedChannel_3)>>3);    
         
-    /* Clear the ADC1 JEOC pending flag */
-    ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);    
-    ADC_SoftwareStartInjectedConvCmd(ADC1,ENABLE);
-  }
+		/* Clear the ADC1 JEOC pending flag */
+		ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);    
+		ADC_SoftwareStartInjectedConvCmd(ADC1,ENABLE);
+	}
   
 	adc_Config();  
 }
@@ -129,12 +129,12 @@ void adc_Init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC2, ENABLE);
 
-	/* Configure PA.4 PA.5 as Analog Input,channel u,v */
+	/* Configure PA.4 PA.5 as Analog Input,channel phase A,phase B */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	/* Configure PC.4 PC.5 PC.1 as Analog Input,channel w,t,vdc */
+	/* Configure PC.4 PC.5 PC.1 as Analog Input,channel phase C,total,vdc */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_1;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
@@ -155,7 +155,7 @@ void adc_Init(void)
 	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
 	ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
 	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
-	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Left;
 	ADC_InitStructure.ADC_NbrOfChannel = 1;
 	ADC_Init(ADC1, &ADC_InitStructure);
    
@@ -164,7 +164,7 @@ void adc_Init(void)
 	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
 	ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
 	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
-	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Left;
 	ADC_InitStructure.ADC_NbrOfChannel = 1;
 	ADC_Init(ADC2, &ADC_InitStructure);
   
@@ -248,7 +248,7 @@ void adc_SetChannel(ADC_TypeDef* ADCx,uint8_t ch)
 
 }
 
-void ad_Update(void)
+void adc_Update(void)
 {
 
 }
