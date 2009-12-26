@@ -11,6 +11,7 @@ pid_t *pid_speed;
 pid_t *pid_torque;
 pid_t *pid_flux;
 motor_t *motor;
+motor_config_t *motor_config;
 
 /*private*/
 static vector_t Iab, I , Idq;
@@ -23,17 +24,20 @@ void motor_Init(void)
 	pid_torque = pid_Init();
 	pid_flux = pid_Init();
 	smo_Init();
-	motor = malloc(sizeof(motor_t));
 	
 	/*default motor para, change me!!!*/
+	motor_config = malloc(sizeof(motor_config_t));
+	motor_config->fs = 14400;
+	motor_config->duration = 10000; /*10S*/
+	motor_config->rpm = 500;
+	
+	motor = malloc(sizeof(motor_t));
 	motor->rs = 0;
 	motor->ld = 0;
 	motor->lq = 0;
 	motor->pn = 8;
+	motor->config = motor_config;
 	smo_SetMotor(motor);
-	
-	/*default RPM*/
-	motor_SetRPM(500);
 }
 
 void motor_Update(void)
@@ -48,8 +52,12 @@ void motor_Update(void)
 		rpm = smo_GetRPM();
 		
 		/*stop motor?*/
-		if(!pid_GetRef(pid_speed) && (rpm < 100) && (rpm > 0))
+		/*the real motor is still run here!!!!!*/
+		if(!pid_GetRef(pid_speed) && (rpm < 500) && (rpm > 0)) {
+			smo_Reset();
 			vsm_Stop();
+			return;
+		}
 		
 		/*speed pid && set torque/flux pid ref according to the speed*/
 		torque_ref = pid_Calcu(pid_speed, speed);
@@ -63,7 +71,12 @@ void motor_SetSpeed(short speed)
 	short cur_speed;
 	pid_SetRef(pid_speed, speed); 
 	cur_speed = smo_GetSpeed();
-	if(!cur_speed && speed) vsm_Start();
+	
+	/*start motor*/
+	if(!cur_speed && speed) {
+		smo_Reset();
+		vsm_Start();
+	}
 }
 
 void motor_SetRPM(short rpm)
