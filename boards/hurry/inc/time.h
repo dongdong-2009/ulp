@@ -6,7 +6,7 @@
 
 typedef int time_t;
 
-void time_init(void);
+void time_Init(void);
 void time_update(void);
 time_t time_get(int delay); //unit: ms
 int time_left(time_t deadline); //unit: ms

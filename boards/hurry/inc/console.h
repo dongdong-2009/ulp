@@ -4,7 +4,7 @@
 #ifndef __CONSOLE_H_
 #define __CONSOLE_H_
 
-void console_init(void);
+void console_Init(void);
 int console_putchar(char c);
 int console_getchar(void);
 int console_getch(void);

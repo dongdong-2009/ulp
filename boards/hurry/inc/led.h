@@ -21,7 +21,7 @@ typedef enum {
 	LED_STATUS_NA
 } led_status_t;
 
-void led_init(void);
+void led_Init(void);
 void led_update(void);
 void led_on(led_t led);
 void led_off(led_t led);

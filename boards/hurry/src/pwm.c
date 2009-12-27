@@ -14,7 +14,7 @@
 /*
 *TIM1 default init:TIM1 counter = 1000 ,duty cycle = 50%
 */
-void pwm_init(void)
+void pwm_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
@@ -27,40 +27,14 @@ void pwm_init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
 
-	/* Configure PA.8 as Output push-pull */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
+	/* Configure PA.8,PA.9,PA.10 as Output push-pull */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 	
-	/* Configure PA.9 as Output push-pull */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	
-	
-	/* Configure PA.10 as Output push-pull */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	
-	/* Configure PB.13 as Output push-pull */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-	
-	
-	/* Configure PB.14 as Output push-pull */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-	
-	/* Configure PB.15 as Output push-pull */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
+	/* Configure PB.13,PB.14,PB.15 as Output push-pull */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
@@ -69,8 +43,9 @@ void pwm_init(void)
 	TIM_TimeBaseStructure.TIM_Period = (TIM1_COUNTER_VALUE - 1);
 	TIM_TimeBaseStructure.TIM_Prescaler = (72000/1000 - 1);
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
+	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_CenterAligned1;
+	// Initial condition is REP=0 to set the UPDATE only on the underflow
+	TIM_TimeBaseStructure.TIM_RepetitionCounter = REP_RATE;
 	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
 	
 	TIM_ARRPreloadConfig(TIM1, ENABLE);
@@ -79,7 +54,7 @@ void pwm_init(void)
 	TIM_BDTRInitStructure.TIM_OSSRState = TIM_OSSRState_Enable;
 	TIM_BDTRInitStructure.TIM_OSSIState = TIM_OSSIState_Enable;
 	TIM_BDTRInitStructure.TIM_LOCKLevel = TIM_LOCKLevel_1;
-	TIM_BDTRInitStructure.TIM_DeadTime = 5;
+	//TIM_BDTRInitStructure.TIM_DeadTime = DEADTIME;
 	TIM_BDTRInitStructure.TIM_Break = TIM_Break_Disable;
 	TIM_BDTRInitStructure.TIM_BreakPolarity = TIM_BreakPolarity_High;
 	TIM_BDTRInitStructure.TIM_AutomaticOutput = TIM_AutomaticOutput_Disable;
@@ -119,8 +94,12 @@ void pwm_init(void)
 	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCPolarity_High;
 	TIM_OC3Init(TIM1, &TIM_OCInitStructure);
 	TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
-	
-	
+
+#if 0
+	// Clear Update Flag
+	TIM1_ClearFlag(TIM1_FLAG_Update);
+	TIM1_ITConfig(TIM1_IT_Update, DISABLE);
+#endif  
 	/* Master Mode selection */
 	//TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update);
 
@@ -128,12 +107,12 @@ void pwm_init(void)
 	//TIM_CtrlPWMOutputs(TIM1, ENABLE);
 }
 
-void pwm_update(void)
+void pwm_Update(void)
 {
 }
 
 /*freq: Hz between 72KHz and 1Hz, duty: 0~100*/
-void pwm_config(uint16_t ch,int freq, int duty, uint8_t repetition)
+void pwm_Config(uint16_t ch,int freq, int duty, uint8_t repetition)
 {
 	int pre, cmp;
 	RCC_ClocksTypeDef RCC_Clocks;
@@ -167,7 +146,7 @@ void pwm_config(uint16_t ch,int freq, int duty, uint8_t repetition)
 *default set:pwm frequency is 1KHZ,the duty rate %50,
 *CH1,CH2,CH3,CH4 of TIM3 are valid and with the same config
 */
-void pwmdebug_init(void)
+void pwmdebug_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
@@ -246,7 +225,7 @@ void pwmdebug_init(void)
 }
 
 /*freq: Hz, duty: 0~100,prescaler is 72,Tim counter clock = 1M*/
-void pwmdebug_config(uint16_t ch,int freq, int duty)
+void pwmdebug_Config(uint16_t ch,int freq, int duty)
 {
 	int pre, cmp;
 	RCC_ClocksTypeDef RCC_Clocks;
