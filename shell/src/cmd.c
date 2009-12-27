@@ -24,6 +24,7 @@ void cmd_Init(void)
 	cmd_Add(&cmd_motor);
 	cmd_Add(&cmd_pid);
 	cmd_Add(&cmd_debug);
+	cmd_Add(&cmd_dalgo);
 }
 
 void cmd_Update(void)
