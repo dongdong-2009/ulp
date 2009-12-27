@@ -59,16 +59,16 @@ static int cmd_dalgo_func(int argc, char *argv[])
 	mtri(angle, &sin, &cos);
 	
 	printf("%04d ", cmd_dalgo_counter);
-	printf("angle %04x ", (unsigned short)angle);
-	printf("speed %03d ", speed);
-	printf("sin %04x ", (unsigned short)sin);
-	printf("cos %04x ", (unsigned short)cos);
-	printf("Iab %04x %04x ", (unsigned short)Iab.a, (unsigned short)Iab.b);
-	printf("I %04x %04x ", (unsigned short)I.alpha, (unsigned short)I.beta);
-	printf("Idq %04x %04x ", (unsigned short)Idq.d, (unsigned short)Idq.q);
-	printf("Vdq %04x %04x ", (unsigned short)Vdq.d, (unsigned short)Vdq.q);
-	printf("V %04x %04x ", (unsigned short)V.alpha, (unsigned short)V.beta);
-	printf("Vab %04x %04x ", (unsigned short)Vab.a, (unsigned short)Vab.b);
+	printf("angle %d ",  angle);
+	printf("speed %d ", speed);
+	printf("sin %d ", sin);
+	printf("cos %d ",  cos);
+	printf("Iab %d %d ",  Iab.a,  Iab.b);
+	printf("I %d %d ",  I.alpha,  I.beta);
+	printf("Idq %d %d ",  Idq.d,  Idq.q);
+	printf("Vdq %d %d ",  Vdq.d,  Vdq.q);
+	printf("V %d %d ",  V.alpha,  V.beta);
+	printf("Vab %d %d ",  Vab.a,  Vab.b);
 	printf("\n");
 	
 	cmd_dalgo_counter ++;
