@@ -13,6 +13,7 @@ pid_t *pid_Init(void)
 	pid->ki = PID_KI_DEF;
 	pid->kd = PID_KD_DEF;
 	pid->ref = 0;
+	pid->err_limit = 0;
 	pid->err_history = 0;
 	return pid;
 }

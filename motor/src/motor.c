@@ -6,60 +6,41 @@
 #include "board.h"
 #include "motor.h"
 #include <stdlib.h>
-
-pid_t *pid_speed;
-pid_t *pid_torque;
-pid_t *pid_flux;
-motor_t *motor;
-motor_config_t *motor_config;
+#include <string.h>
 
 /*private*/
-static vector_t Iab, I , Idq;
-static vector_t Vdq, V;
+vector_t Iab, I, Idq;
+vector_t Vab, V, Vdq; 
 static time_t motor_timer;
 
 void motor_Init(void)
 {
-	pid_speed = pid_Init();
-	pid_torque = pid_Init();
-	pid_flux = pid_Init();
 	smo_Init();
-	
-	/*default motor para, change me!!!*/
-	motor_config = malloc(sizeof(motor_config_t));
-	motor_config->fs = 14400;
-	motor_config->duration = 10000; /*10S*/
-	motor_config->rpm = 500;
-	
-	motor = malloc(sizeof(motor_t));
-	motor->rs = 0;
-	motor->ld = 0;
-	motor->lq = 0;
-	motor->pn = 8;
-	motor->config = motor_config;
-	smo_SetMotor(motor);
 }
 
 void motor_Update(void)
 {
 	short speed, rpm, torque_ref;
 	
-	/*update cycle = 1s*/
+	smo_Update();
+	
+	/*update cycle = 1s?*/
 	if(!motor_timer || time_left(motor_timer) < 0) {
-		motor_timer = time_get(1000);
+		motor_timer = time_get(MOTOR_UPDATE_PERIOD);
 		
 		speed = smo_GetSpeed();
-		rpm = smo_GetRPM();
+		speed = (short)_SPEED(speed);
+		rpm = (short)SPEED_TO_RPM(speed, motor->pn);
 		
 		/*stop motor?*/
 		/*the real motor is still run here!!!!!*/
-		if(!pid_GetRef(pid_speed) && (rpm < 500) && (rpm > 0)) {
+		if(!pid_GetRef(pid_speed) && (rpm < motor->start_rpm) && rpm ) {
 			smo_Reset();
 			vsm_Stop();
 			return;
 		}
 		
-		/*speed pid && set torque/flux pid ref according to the speed*/
+		/*speed pid*/
 		torque_ref = pid_Calcu(pid_speed, speed);
 		pid_SetRef(pid_flux, 0); /*Id = 0 control method*/
 		pid_SetRef(pid_torque, torque_ref);
@@ -69,6 +50,8 @@ void motor_Update(void)
 void motor_SetSpeed(short speed)
 {
 	short cur_speed;
+	
+	speed = (short)NOR_SPEED(speed);
 	pid_SetRef(pid_speed, speed); 
 	cur_speed = smo_GetSpeed();
 	
@@ -81,7 +64,7 @@ void motor_SetSpeed(short speed)
 
 void motor_SetRPM(short rpm)
 {
-	short speed = rpm*motor->pn/2/60;
+	short speed = (short)RPM_TO_SPEED(rpm, motor->pn);
 	pid_SetRef(pid_speed, speed);
 }
 
@@ -99,13 +82,15 @@ void motor_isr(void)
 	/*4, park*/
 	park(&I, &Idq, angle);
 	/*5, update smo*/
-	smo_Update(&V, &I);
+	smo_Calcu(&V, &I);
 	/*6, pid*/
 	Vdq.d = pid_Calcu(pid_flux, Idq.d);
 	Vdq.q = pid_Calcu(pid_torque, Idq.q);
 	/*7, ipark circle lim*/
 	/*8, ipark*/
 	ipark(&Vdq, &V, angle);
-	/*9, set voltage*/
-	vsm_SetVoltage(V.alpha, V.beta);
+	/*9, iclarke*/
+	iclarke(&V, &Vab);
+	/*A, set voltage*/
+	vsm_SetVoltage(Vab.a, Vab.b);
 }

@@ -8,11 +8,11 @@
 #include "smo.h"
 #include "normalize.h"
 
-/*only for command console to change the settings of these object*/
-extern pid_t *pid_speed;
-extern pid_t *pid_torque;
-extern pid_t *pid_flux;
-extern motor_t *motor;
+/*readonly, for debug purpose*/
+extern vector_t Iab, I, Idq;
+extern vector_t Vab, V, Vdq; 
+
+#define MOTOR_UPDATE_PERIOD	(1000) /*unit: mS*/
 
 void motor_Init(void);
 void motor_SetSpeed(short speed);
