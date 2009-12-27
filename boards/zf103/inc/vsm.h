@@ -7,7 +7,7 @@
 #define vsm_Init()
 #define vsm_Update()
 #define vsm_SetVoltage(x,y)
-#define vsm_GetCurrent(x,y)
+#define vsm_GetCurrent(px,py) do{*(px) = 0; *(py) = 0;} while(0)
 #define vsm_Start()
 #define vsm_Stop()
 
