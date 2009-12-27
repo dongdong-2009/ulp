@@ -66,9 +66,9 @@ static int cmd_dalgo_func(int argc, char *argv[])
 	printf("Iab %04x %04x ", (unsigned short)Iab.a, (unsigned short)Iab.b);
 	printf("I %04x %04x ", (unsigned short)I.alpha, (unsigned short)I.beta);
 	printf("Idq %04x %04x ", (unsigned short)Idq.d, (unsigned short)Idq.q);
-	printf("Vab %04x %04x ", (unsigned short)Vab.a, (unsigned short)Vab.b);
-	printf("V %04x %04x ", (unsigned short)V.alpha, (unsigned short)V.beta);
 	printf("Vdq %04x %04x ", (unsigned short)Vdq.d, (unsigned short)Vdq.q);
+	printf("V %04x %04x ", (unsigned short)V.alpha, (unsigned short)V.beta);
+	printf("Vab %04x %04x ", (unsigned short)Vab.a, (unsigned short)Vab.b);
 	printf("\n");
 	
 	cmd_dalgo_counter ++;
