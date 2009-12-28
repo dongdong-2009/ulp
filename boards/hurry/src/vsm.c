@@ -7,13 +7,13 @@
 #include "pwm.h"
 #include "adc.h"
 
+/*extern varible*/
+extern int g_BusVoltage;	//save the bus voltage
 /* Private variables ---------------------------------------------------------*/
-unsigned char  bSector;
+static unsigned char  bSector;
 unsigned short hPhaseAOffset;
 unsigned short hPhaseBOffset;
 unsigned short hPhaseCOffset;
-
-unsigned char PWM4Direction=PWM2_MODE;
 
 void vsm_Init(void)
 {
@@ -27,32 +27,38 @@ void vsm_Update(void)
 }
 
 //void vsm_SetVoltage(int Valpha,int Vbeta)
-void vsm_SetVoltage(int wX, int wY, int wZ)
+void vsm_SetVoltage(int Va,int Vb)
 {
 	unsigned short  hTimePhA, hTimePhB, hTimePhC;
 	unsigned short  hDeltaDuty;
+	int Vc;
+	
+	/*suppose 10000mv*/
+	g_BusVoltage = 30000;
+	
+	Vc = -(Va + Vb);
 
-	// Sector calculation from wX, wY, wZ
-	if (wY<0){
-		if (wZ<0){
-			bSector = SECTOR_5;
+	// Sector calculation from Va, Vb, Vc
+	if (Va<0){
+		if (Vb<0){
+			bSector = SECTOR_6;
 		}
 		else{
-			if (wX<=0){
-				bSector = SECTOR_4;
+			if (Vc>0){
+				bSector = SECTOR_5;
 			}
 			else{
-			bSector = SECTOR_3;
+				bSector = SECTOR_4;
 			}
 		}
 	}
 	else{
-		if (wZ>=0){
-			bSector = SECTOR_2;
+		if (Vb>0){
+			bSector = SECTOR_3;
 		}
 		else{
-			if (wX<=0){  
-				bSector = SECTOR_6;
+			if (Vc<0){  
+				bSector = SECTOR_2;
 			}
 			else{
 				bSector = SECTOR_1;
@@ -63,10 +69,15 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 	/* Duty cycles computation */
 	switch(bSector){  
 	case SECTOR_1:
-			hTimePhA = (T/8) + ((((T + wX) - wZ)/2)/131072);
-			hTimePhB = hTimePhA + wZ/131072;
-			hTimePhC = hTimePhB - wX/131072;
-                
+			hTimePhA = PWM_PERIOD - (Va * PWM_PERIOD / g_BusVoltage );
+			hTimePhB = (-Vb) * PWM_PERIOD / g_BusVoltage ;
+			hTimePhC = (-Vc) * PWM_PERIOD / g_BusVoltage ;
+#if 0
+			hTimePhA = (T/8) + ((((T + Va) - Vc)/2)/131072);
+			hTimePhB = hTimePhA + Vc/131072;
+			hTimePhC = hTimePhB - Va/131072;
+#endif
+ #if 0             
 			// ADC Syncronization setting value             
 			if ((u16)(PWM_PERIOD-hTimePhA) > TW_AFTER){
 				hTimePhD = PWM_PERIOD - 1;
@@ -89,20 +100,25 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 					PWM4Direction=PWM1_MODE;
 
 					hTimePhD = (2 * PWM_PERIOD) - hTimePhD-1;
+					}
 				}
 			}
-		}
-                
+#endif		
 			ADC_InjectedChannelConfig(ADC1, PHASE_B_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);
 			//ADC1->JSQR = PHASE_B_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;
 			ADC_InjectedChannelConfig(ADC2, PHASE_C_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);     
 			//ADC2->JSQR = PHASE_C_MSK + TEMP_FDBK_MSK + SEQUENCE_LENGHT;                                         
 			break;
 	case SECTOR_2:
-			hTimePhA = (T/8) + ((((T + wY) - wZ)/2)/131072);
-			hTimePhB = hTimePhA + wZ/131072;
-			hTimePhC = hTimePhA - wY/131072;
-                
+			hTimePhA = PWM_PERIOD - (Va * PWM_PERIOD  / g_BusVoltage );
+			hTimePhB = PWM_PERIOD - (Vb * PWM_PERIOD  / g_BusVoltage );
+			hTimePhC = ((-Vc) * PWM_PERIOD ) / g_BusVoltage ;
+#if 0
+			hTimePhA = (T/8) + ((((T + Vb) - Vc)/2)/131072);
+			hTimePhB = hTimePhA + Vc/131072;
+			hTimePhC = hTimePhA - Vb/131072;
+#endif
+#if 0
 			// ADC Syncronization setting value
 			if ((u16)(PWM_PERIOD-hTimePhB) > TW_AFTER){
 				hTimePhD = PWM_PERIOD - 1;
@@ -128,7 +144,7 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 					}
 				}
 			}
-                
+#endif
 			ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);
 			//ADC1->JSQR = PHASE_A_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
 			ADC_InjectedChannelConfig(ADC2, PHASE_C_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);               
@@ -136,10 +152,15 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 			break;
 
 	case SECTOR_3:
-			hTimePhA = (T/8) + ((((T - wX) + wY)/2)/131072);
-			hTimePhC = hTimePhA - wY/131072;
-			hTimePhB = hTimePhC + wX/131072;
-		
+			hTimePhA = ((-Va) * PWM_PERIOD  / g_BusVoltage );
+			hTimePhB = PWM_PERIOD - (Vb * PWM_PERIOD / (g_BusVoltage ));
+			hTimePhC = ((-Vc) * PWM_PERIOD ) / (g_BusVoltage );
+#if 0
+			hTimePhA = (T/8) + ((((T - Va) + Vb)/2)/131072);
+			hTimePhC = hTimePhA - Vb/131072;
+			hTimePhB = hTimePhC + Va/131072;
+#endif
+#if 0
 			// ADC Syncronization setting value
 			if ((u16)(PWM_PERIOD-hTimePhB) > TW_AFTER){
 				hTimePhD = PWM_PERIOD - 1;
@@ -165,7 +186,7 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 					}
 				}
 			}
-                
+#endif
 			ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);
 			//ADC1->JSQR = PHASE_A_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
 			ADC_InjectedChannelConfig(ADC2, PHASE_C_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);               
@@ -173,10 +194,15 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 			break;
     
     case SECTOR_4:
-			hTimePhA = (T/8) + ((((T + wX) - wZ)/2)/131072);
-			hTimePhB = hTimePhA + wZ/131072;
-			hTimePhC = hTimePhB - wX/131072;
-                
+			hTimePhA = ((-Va) * PWM_PERIOD / (g_BusVoltage ));
+			hTimePhB = PWM_PERIOD - (Vb * PWM_PERIOD  / g_BusVoltage );
+			hTimePhC = PWM_PERIOD - (Vc * PWM_PERIOD  / g_BusVoltage );
+#if 0
+			hTimePhA = (T/8) + ((((T + Va) - Vc)/2)/131072);
+			hTimePhB = hTimePhA + Vc/131072;
+			hTimePhC = hTimePhB - Va/131072;
+#endif
+#if 0
 			// ADC Syncronization setting value
 			if ((u16)(PWM_PERIOD-hTimePhC) > TW_AFTER){
 				hTimePhD = PWM_PERIOD - 1;
@@ -199,21 +225,26 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 					PWM4Direction=PWM1_MODE;
                       
 					hTimePhD = (2 * PWM_PERIOD) - hTimePhD-1;
+					}
 				}
 			}
-		}
-                
-		ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);
-		//ADC1->JSQR = PHASE_A_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
-		ADC_InjectedChannelConfig(ADC2, PHASE_B_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);               
-		//ADC2->JSQR = PHASE_B_MSK + TEMP_FDBK_MSK + SEQUENCE_LENGHT;
-		break;  
-    
+#endif
+			ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);
+			//ADC1->JSQR = PHASE_A_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
+			ADC_InjectedChannelConfig(ADC2, PHASE_B_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);               
+			//ADC2->JSQR = PHASE_B_MSK + TEMP_FDBK_MSK + SEQUENCE_LENGHT;
+			break;  
+
 	case SECTOR_5:
-			hTimePhA = (T/8) + ((((T + wY) - wZ)/2)/131072);
-			hTimePhB = hTimePhA + wZ/131072;
-			hTimePhC = hTimePhA - wY/131072;
-                
+			hTimePhA = ((-Va) * PWM_PERIOD  / g_BusVoltage);
+			hTimePhB = ((-Vb) * PWM_PERIOD  / g_BusVoltage);
+			hTimePhC = PWM_PERIOD - (Vc * PWM_PERIOD / (g_BusVoltage ));
+#if 0
+			hTimePhA = (T/8) + ((((T + Vb) - Vc)/2)/131072);
+			hTimePhB = hTimePhA + Vc/131072;
+			hTimePhC = hTimePhA - Vb/131072;
+#endif
+#if 0
 			// ADC Syncronization setting value
 			if ((u16)(PWM_PERIOD-hTimePhC) > TW_AFTER){
 				hTimePhD = PWM_PERIOD - 1;
@@ -236,21 +267,26 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 					PWM4Direction=PWM1_MODE;
                       
 					hTimePhD = (2 * PWM_PERIOD) - hTimePhD-1;
+					}
 				}
 			}
-		}
-                
-		ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);
-		//ADC1->JSQR = PHASE_A_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
-		ADC_InjectedChannelConfig(ADC2, PHASE_B_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);               
-		//ADC2->JSQR = PHASE_B_MSK + TEMP_FDBK_MSK + SEQUENCE_LENGHT;
-		break;
+#endif
+			ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);
+			//ADC1->JSQR = PHASE_A_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
+			ADC_InjectedChannelConfig(ADC2, PHASE_B_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);               
+			//ADC2->JSQR = PHASE_B_MSK + TEMP_FDBK_MSK + SEQUENCE_LENGHT;
+			break;
                 
 	case SECTOR_6:
-			hTimePhA = (T/8) + ((((T - wX) + wY)/2)/131072);
-			hTimePhC = hTimePhA - wY/131072;
-			hTimePhB = hTimePhC + wX/131072;
-                
+			hTimePhA = PWM_PERIOD - ((Va) * PWM_PERIOD / g_BusVoltage);
+			hTimePhB = ((-Vb) * PWM_PERIOD /  ( g_BusVoltage ));
+			hTimePhC = PWM_PERIOD - (Vc * PWM_PERIOD / g_BusVoltage);
+#if 0
+			hTimePhA = (T/8) + ((((T - Va) + Vb)/2)/131072);
+			hTimePhC = hTimePhA - Vb/131072;
+			hTimePhB = hTimePhC + Va/131072;
+#endif
+#if 0
 			// ADC Syncronization setting value
 			if ((u16)(PWM_PERIOD-hTimePhA) > TW_AFTER){
 				hTimePhD = PWM_PERIOD - 1;
@@ -273,10 +309,10 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 					PWM4Direction=PWM1_MODE;
                       
 					hTimePhD = (2 * PWM_PERIOD) - hTimePhD-1;
+					}
 				}
 			}
-		}
-                
+#endif
 		ADC_InjectedChannelConfig(ADC1, PHASE_B_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);
 		//ADC1->JSQR = PHASE_B_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
 		ADC_InjectedChannelConfig(ADC2, PHASE_C_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);               
@@ -285,7 +321,7 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 	default:
 		break;
 	}
-  
+#if 0
 	if (PWM4Direction == PWM2_MODE){
 		//Set Polarity of CC4 High
 		TIM1->CCER &= 0xDFFF;    
@@ -294,19 +330,18 @@ void vsm_SetVoltage(int wX, int wY, int wZ)
 		//Set Polarity of CC4 Low
 		TIM1->CCER |= 0x2000;
 	}
-  
+ #endif
 	/* Load compare registers values */ 
 	TIM1->CCR1 = hTimePhA;
 	TIM1->CCR2 = hTimePhB;
 	TIM1->CCR3 = hTimePhC;
-	TIM1->CCR4 = hTimePhD; // To Syncronyze the ADC
+	//TIM1->CCR4 = hTimePhD; // To Syncronyze the ADC
 }
 
 /*
-*here,*Ialpha and *Ibeta seems to be negative,and the ADC values are multiplied 16 times
-*i am confused,so just accept it now.
+*
 */
-void vsm_GetCurrent(short *Ialpha, short *Ibeta)
+void vsm_GetCurrent(int *Ia, int *Ib)
 {
 	s32 wAux;
 
@@ -314,85 +349,85 @@ void vsm_GetCurrent(short *Ialpha, short *Ibeta)
 	case 4:
 	case 5: //Current on Phase C not accessible     
 			// Ia = (hPhaseAOffset)-(ADC Channel 11 value)  
-			wAux = (s32)(hPhaseAOffset)- ((ADC1->JDR1)<<1);          
+			wAux = (s32)(hPhaseAOffset)- ((ADC1->JDR1)>>3);          
 			//Saturation of Ia 
 			if (wAux < S16_MIN){
-				*Ialpha = S16_MIN;
+				*Ia = S16_MIN;
 			}
             else  if (wAux > S16_MAX){ 
-				*Ialpha = S16_MAX;
+				*Ia = S16_MAX;
 			}
 			else{
-				*Ialpha = wAux;
+				*Ia = wAux;
 			}                     
 			// Ib = (hPhaseBOffset)-(ADC Channel 12 value)
-			wAux = (s32)(hPhaseBOffset)-((ADC2->JDR1)<<1);
+			wAux = (s32)(hPhaseBOffset)-((ADC2->JDR1)>>3);
 			// Saturation of Ib
 			if (wAux < S16_MIN){
-				*Ibeta = S16_MIN;
+				*Ib = S16_MIN;
 			}
 			else  if (wAux > S16_MAX){ 
-				*Ibeta = S16_MAX;
+				*Ib = S16_MAX;
 			}
 			else{ 
-				*Ibeta = wAux;
+				*Ib = wAux;
 			}
 			break;
 			
 	case 6:
 	case 1:  //Current on Phase A not accessible     
 			// Ib = (hPhaseBOffset)-(ADC Channel 12 value)
-			wAux = (s32)(hPhaseBOffset)-((ADC1->JDR1)<<1);
+			wAux = (s32)(hPhaseBOffset)-((ADC1->JDR1)>>3);
 			//Saturation of Ib 
 			if (wAux < S16_MIN){
-				*Ibeta = S16_MIN;
+				*Ib = S16_MIN;
 			}  
 			else  if (wAux > S16_MAX){ 
-				*Ibeta = S16_MAX;
+				*Ib = S16_MAX;
 			}
 			else{
-				*Ibeta = wAux;
+				*Ib = wAux;
 			}
 			// Ia = -Ic -Ib 
-			wAux = ((ADC2->JDR1)<<1)-hPhaseCOffset- (*Ibeta );
+			wAux = ((ADC2->JDR1)>>3)-hPhaseCOffset- (*Ib );
 			//Saturation of Ia
 			if (wAux> S16_MAX){
-				*Ialpha = S16_MAX;
+				*Ia = S16_MAX;
 			}
 			else  if (wAux <S16_MIN){
-				*Ialpha = S16_MIN;
+				*Ia = S16_MIN;
 			}
 			else{  
-				*Ialpha = wAux;
+				*Ia = wAux;
 			}
 			break;
            
 	case 2:
 	case 3:  // Current on Phase B not accessible
 			// Ia = (hPhaseAOffset)-(ADC Channel 11 value)     
-			wAux = (s32)(hPhaseAOffset)-((ADC1->JDR1)<<1);
+			wAux = (s32)(hPhaseAOffset)-((ADC1->JDR1)>>3);
 			//Saturation of Ia 
 			if (wAux < S16_MIN){
-				*Ialpha = S16_MIN;
+				*Ia = S16_MIN;
             }  
             else  if (wAux > S16_MAX){ 
-				*Ialpha = S16_MAX;
+				*Ia = S16_MAX;
 			}
 			else{
-				*Ialpha = wAux;
+				*Ia = wAux;
 			}
 			
 			// Ib = -Ic-Ia;
-			wAux = ((ADC2->JDR1)<<1) - hPhaseCOffset - (*Ialpha) ;
+			wAux = ((ADC2->JDR1)>>3) - hPhaseCOffset - (*Ia) ;
 			// Saturation of Ib
 			if (wAux> S16_MAX){
-				*Ibeta =S16_MAX;
+				*Ib =S16_MAX;
 			}
 			else  if (wAux <S16_MIN){  
-				*Ibeta = S16_MIN;
+				*Ib = S16_MIN;
 			}
 			else{
-				*Ibeta = wAux;
+				*Ib = wAux;
 			}                     
 			break;
 			

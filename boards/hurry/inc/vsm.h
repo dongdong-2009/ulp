@@ -31,10 +31,8 @@
 #define PWM1_MODE 1
 
 /*********************** POWER DEVICES PARAMETERS ******************************/
-
 /****	Power devices switching frequency  ****/
 #define PWM_FREQ ((u16) 14400) // in Hz  (N.b.: pattern type is center aligned)
-
 /****    Deadtime Value   ****/
 #define DEADTIME_NS	((u16) 800)  //in nsec; range is [0...3500] 
                                                                     
@@ -52,16 +50,14 @@
 //#define MAX_MODULATION_91_PER_CENT      // up to 17.5 kHz
 
 /////////////////////// PWM Peripheral Input clock ////////////////////////////
-#define CKTIM	((u32)72000000uL) 	/* Silicon running at 60MHz Resolution: 1Hz */
+#define CKTIM	((u32)72000000uL)
 
 ////////////////////// PWM Frequency ///////////////////////////////////
-
-/****	 Pattern type is center aligned  ****/
-
-#define PWM_PRSC ((u8)0)
-
-/* Resolution: 1Hz ,the count value of ARR*/                            
-#define PWM_PERIOD ((u16) (CKTIM / (u32)(2 * PWM_FREQ *(PWM_PRSC+1)))) 
+//#define PWM_PRSC ((u8)0)
+/*Pattern type is center aligned*/
+/*Resolution: 1Hz ,the count value of ARR*/                            
+//#define PWM_PERIOD ((u16) (CKTIM / (u32)(2 * PWM_FREQ *(PWM_PRSC+1)))) 
+#define PWM_PERIOD 2500
         
 ////////////////////////////// Deadtime Value /////////////////////////////////
 #define DEADTIME  (u16)((unsigned long long)CKTIM/2 * (unsigned long long)DEADTIME_NS/1000000000uL)
@@ -83,8 +79,8 @@
 
 void vsm_Init(void); //timer1£¨ADC1°¢2 µ»≥ı ºªØ
 void vsm_Update(void); 
-void vsm_SetVoltage(int Valpha,int Vbeta);
-void vsm_SetVoltage(int wX, int wY, int wZ);
+void vsm_SetVoltage(int Va,int Vb);
+void vsm_GetCurrent(int *Ia,int *Ib);
 void vsm_Start(void);
 void vsm_Stop(void);
 
