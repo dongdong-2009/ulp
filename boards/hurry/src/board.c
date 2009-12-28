@@ -15,6 +15,16 @@ void board_Init(void)
 {
 	/*pls add your driver init routines to here*/
 	cpu_Init();
+	
+	time_Init();
+	led_Init();
+	console_Init();
+	
+	pwm_Init();
+	pwmdebug_Init();
+
+	pwm_On();
+	pwmdebug_On();	
 }
 
 void board_Update(void)
