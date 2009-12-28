@@ -18,15 +18,18 @@
 #define TOTAL_CHANNEL			ADC_Channel_15
 #define VDC_CHANNEL				ADC_Channel_11
 
-/*unit: mv*/
+/*unit: mV ext voltage 0~3v3*/
 #define ADC_COUNT_TO_VOLTAGE(CNT) (CNT*3300/4096)
+/*bus voltage ratio*/
+#define BV_RATIO	100
+
+#define ADC_COUNT_TO_BUSVOLTAGE(CNT)	(BV_RATIO*ADC_COUNT_TO_VOLTAGE(CNT))
 
 void adc_Init(void);
 void adc_Update(void);
 void adc_GetCalibration(uint16_t* pPhaseAOffset,uint16_t* pPhaseBOffset,uint16_t* pPhaseCOffset);
-void adc_SetChannel(ADC_TypeDef* ADCx,uint8_t ch);
 
-int adc_GetVolt(uint8_t ch);
+int adc_GetBusVoltage(void);
 
 /*temperature sensor para V25 = 1400 mV,avg_slope = 4.478 mV/C*/
 #define V25 1400

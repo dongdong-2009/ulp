@@ -6,7 +6,14 @@
 #include "stm32f10x.h"
 #include "adc.h"
 
+/*global varible*/
+int g_BusVoltage;	//save the bus voltage
+
 /*private functions*/
+static void adc_Config(void);
+static void ADC_NVIC_Configuration(void);
+
+
 /*******************************************************************************
 * Function Name  : SVPWM_InjectedConvConfig
 * Description    : This function configure ADC1 for 3 shunt current 
@@ -19,15 +26,16 @@
 static void adc_Config(void)
 {
 	/* ADC1 Injected conversions configuration */ 
-	ADC_InjectedSequencerLengthConfig(ADC1,2);
-	ADC_InjectedSequencerLengthConfig(ADC2,2);
+	ADC_InjectedSequencerLengthConfig(ADC1,1);
+	ADC_InjectedSequencerLengthConfig(ADC2,1);
 #if 1
 	/* ADC2 Injected conversions configuration */ 
 	ADC_InjectedChannelConfig(ADC2, PHASE_A_ADC_CHANNEL, 1, ADC_SampleTime_7Cycles5);
-	ADC_InjectedChannelConfig(ADC2, TOTAL_CHANNEL, 2, ADC_SampleTime_7Cycles5);
+	//ADC_InjectedChannelConfig(ADC2, TOTAL_CHANNEL, 2, ADC_SampleTime_7Cycles5);
   
 	ADC_InjectedChannelConfig(ADC1,PHASE_B_ADC_CHANNEL, 1, ADC_SampleTime_7Cycles5);
-	ADC_InjectedChannelConfig(ADC1,VDC_CHANNEL,2, ADC_SampleTime_28Cycles5);
+	ADC_RegularChannelConfig(ADC1, VDC_CHANNEL, 1, ADC_SampleTime_28Cycles5);
+	//ADC_InjectedChannelConfig(ADC1,VDC_CHANNEL,2, ADC_SampleTime_28Cycles5);
 #endif
 	/* ADC1 Injected conversions trigger is TIM1 TRGO */ 
 	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_T1_TRGO); 
@@ -95,6 +103,10 @@ void adc_GetCalibration(uint16_t * pPhaseAOffset,uint16_t *pPhaseBOffset,uint16_
 		ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);    
 		ADC_SoftwareStartInjectedConvCmd(ADC1,ENABLE);
 	}
+	/*divided by NB_CONVERSIONS,NB_CONVERSIONS = 16*/
+	(*pPhaseAOffset) /= NB_CONVERSIONS;
+	(*pPhaseBOffset) /= NB_CONVERSIONS;
+	(*pPhaseCOffset) /= NB_CONVERSIONS;
   
 	adc_Config();  
 }
@@ -195,35 +207,6 @@ void adc_Init(void)
 	//ADC_ITConfig(ADC1, ADC_IT_EOC|ADC_IT_AWD|ADC_IT_JEOC, DISABLE);	
 }
 
-/*ext voltage 0~3v3*/
-int adc_GetVolt(uint8_t ch)
-{
-	int value;
-	
-#ifdef ADC_MODE_NORMAL
-	ADC_ExternalTrigConvCmd(ADC1, ENABLE);
-	ADC_RegularChannelConfig(ADC1, ch, 1, ADC_SampleTime_55Cycles5);
-	ADC_ClearFlag(ADC1, ADC_FLAG_EOC);
-	ADC_SoftwareStartConvCmd(ADC1,ENABLE);
-	while(!ADC_GetFlagStatus(ADC1,ADC_FLAG_EOC));
-	value = ADC_GetConversionValue(ADC1);
-#endif
-
-#ifdef ADC_MODE_INJECT
-	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_None);
-	ADC_ExternalTrigInjectedConvCmd(ADC1, ENABLE);
-	ADC_InjectedChannelConfig(ADC1, ch, 1, ADC_SampleTime_55Cycles5);
-	ADC_InjectedSequencerLengthConfig(ADC1, 1);
-
-	ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);
-	ADC_SoftwareStartInjectedConvCmd(ADC1,ENABLE);
-	while(!ADC_GetFlagStatus(ADC1,ADC_FLAG_JEOC));
-	value = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
-#endif
-
-	value &= 0x0fff;
-	return ADC_COUNT_TO_VOLTAGE(value);
-}
 
 float adc_GetTemp(void)
 {
@@ -243,12 +226,31 @@ float adc_GetTemp(void)
 	return temp2;
 }
 
-void adc_SetChannel(ADC_TypeDef* ADCx,uint8_t ch)
-{
-
-}
-
 void adc_Update(void)
 {
+	int value;	
+	ADC_ClearFlag(ADC1, ADC_FLAG_EOC);
+	/*start when adc_Update is called*/
+	ADC_SoftwareStartConvCmd(ADC1,ENABLE);
+	while(!ADC_GetFlagStatus(ADC1,ADC_FLAG_EOC));
 
+	value = ADC_GetConversionValue(ADC1)>>3;
+	value &= 0x0fff;
+	value = ADC_COUNT_TO_BUSVOLTAGE(value);
+	g_BusVoltage = value;
+#if 0
+	printf("the Bus Voltage is: %d",ADC_GetConversionValue(ADC1)>>3);
+#endif
+}
+
+/*
+*description:return the Bus Voltage
+*/
+int adc_GetBusVoltage(void)
+{
+	int value;
+	value = ADC_GetConversionValue(ADC1)>>3;
+	value &= 0x0fff;
+	ADC_COUNT_TO_BUSVOLTAGE(value);
+	return value;
 }
