@@ -28,6 +28,7 @@ extern cmd_t cmd_motor;
 extern cmd_t cmd_pid;
 extern cmd_t cmd_debug;
 extern cmd_t cmd_dalgo;
+extern cmd_t cmd_svpwm;
 
 void cmd_Init(void);
 void cmd_Update(void);

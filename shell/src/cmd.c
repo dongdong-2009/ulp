@@ -25,6 +25,7 @@ void cmd_Init(void)
 	cmd_Add(&cmd_pid);
 	cmd_Add(&cmd_debug);
 	cmd_Add(&cmd_dalgo);
+	cmd_Add(&cmd_svpwm);
 }
 
 void cmd_Update(void)

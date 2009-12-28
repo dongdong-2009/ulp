@@ -75,3 +75,69 @@ static int cmd_dalgo_func(int argc, char *argv[])
 	return 1;
 }
 cmd_t cmd_dalgo = {"dalgo", cmd_dalgo_func, "motor algo debug"};
+
+#define CMD_SVPWM_TS	2 /*unit; mS*/
+static time_t cmd_svpwm_timer; /*update timer*/
+static int cmd_svpwm_index; /*0,1,2,3,4....*/
+static vector_t cmd_svpwm_vdq; /*setting voltage*/
+static int cmd_svpwm_angle_inc; /*setting period*/
+static short cmd_svpwm_angle;
+static int cmd_svpwm_func(int argc, char *argv[])
+{
+	int v1, v2, hz;
+	vector_t v, vab;
+	char usage[] = { \
+		"usage:\n" \
+		" svpwm vd vq hz\n" \
+		" vd/vq, d/q axis voltage, unit mV\n" \
+		" hz, input modulation signal freq to vsm driver, pls do not exceed 100Hz\n" \
+	};
+	
+	/*first loop*/
+	if(argc) {
+		if(argc != 4) {
+			printf("%s", usage);
+			return 0;
+		}
+		
+		/*save voltage*/
+		v1 = atoi(argv[1]);
+		v2 = atoi(argv[2]);
+		cmd_svpwm_vdq.d = (short)NOR_VOL(v1);
+		cmd_svpwm_vdq.q = (short)NOR_VOL(v2);
+		
+		/*save freq*/
+		hz = atoi(argv[3]);
+		cmd_svpwm_angle_inc = hz * midShort * CMD_SVPWM_TS / 1000;
+		
+		cmd_svpwm_timer = CMD_SVPWM_TS;
+		cmd_svpwm_index = -1;
+		cmd_svpwm_angle = 0;
+		
+		vsm_Start();
+		return 1;
+	}
+	
+	if(time_left(cmd_svpwm_timer) > 0)
+		return 1;
+	
+	/*deadloop start here...*/
+	cmd_svpwm_timer = time_get(CMD_SVPWM_TS);
+	cmd_svpwm_index ++;
+	
+	/*invert transform*/
+	ipark(&cmd_svpwm_vdq, &v, cmd_svpwm_angle);
+	iclarke(&v, &vab);
+	v1 = _VOL(Vab.a);
+	v2 = _VOL(Vab.b);
+	vsm_SetVoltage(x, y);
+	
+	/*calc current angle*/
+	cmd_svpwm_angle += cmd_svpwm_angle_inc;
+	
+	/*display*/
+	printf("%05d: phi %d u %d v %d w %d\n", cmd_svpwm_index, cmd_svpwm_angle, v1, v2, (-v1-v2));
+	return 1;
+}
+cmd_t cmd_svpwm = {"svpwm", cmd_svpwm_func, "svpwm output test"};
+
