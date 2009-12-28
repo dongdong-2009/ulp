@@ -50,7 +50,7 @@ void mtri(short theta, short *sin, short *cos)
 {
 	unsigned short hindex, sector;
 	
-	/* midShort = 2^15 = 4*pi/2 = 2pi, sin(theta+2pi) = sin(theta)*/
+	/* midShort = 2^15 = 2*pi/2 = pi*/
 	hindex = (unsigned short)(theta + midShort);
 	/*hindex:	xxx val(14bit=pi/2) */
 	hindex = hindex >> 6;

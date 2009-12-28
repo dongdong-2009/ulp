@@ -122,7 +122,8 @@ static short smo_ramp(void)
 	
 	/*det_phi= 2*pi*f*det_t = 2*pi*f*(1/fs) = 2*pi*f/fs*/
 	tmp = smo_speed;
-	tmp *= (midShort / CONFIG_PWM_FREQ);
+	tmp = tmp << 16;
+	tmp = tmp / CONFIG_PWM_FREQ;
 	return (short)tmp;
 }
 

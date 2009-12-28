@@ -108,7 +108,7 @@ static int cmd_svpwm_func(int argc, char *argv[])
 		
 		/*save freq*/
 		hz = atoi(argv[3]);
-		cmd_svpwm_angle_inc = hz * midShort * CMD_SVPWM_TS / 1000;
+		cmd_svpwm_angle_inc = (hz << 16) * CMD_SVPWM_TS / 1000;
 		
 		cmd_svpwm_timer = CMD_SVPWM_TS;
 		cmd_svpwm_index = -1;
