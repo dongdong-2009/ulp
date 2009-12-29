@@ -41,7 +41,7 @@ void pwm_Init(void)
 
 	/* Time base configuration */
 	TIM_TimeBaseStructure.TIM_Period = (TIM1_COUNTER_VALUE - 1);
-	TIM_TimeBaseStructure.TIM_Prescaler = (72000/1000 - 1);
+	TIM_TimeBaseStructure.TIM_Prescaler = PWM_PRSC;//(72000/1000 - 1);
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_CenterAligned1;
 	// Initial condition is REP=0 to set the UPDATE only on the underflow
@@ -63,36 +63,22 @@ void pwm_Init(void)
 	/* Master Mode selection */
 	TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update);
 
-	/* PWM1 Mode configuration: Channel1 */
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
+	/* PWM2 Mode configuration: Channel1 Channel2 Channel3*/
+	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OCInitStructure.TIM_OutputNState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = 800;
+	TIM_OCInitStructure.TIM_Pulse = 2000;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCPolarity_High;
 	TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Set;
 	TIM_OCInitStructure.TIM_OCNIdleState = TIM_OCIdleState_Reset;	
+
 	TIM_OC1Init(TIM1, &TIM_OCInitStructure);
-	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);
-	
-	/* PWM1 Mode configuration: Channel2 */
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
-	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_OutputNState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = 800;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
-	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCPolarity_High;
 	TIM_OC2Init(TIM1, &TIM_OCInitStructure);
-	TIM_OC2PreloadConfig(TIM1, TIM_OCPreload_Enable);
-	
-	/* PWM1 Mode configuration: Channel3 */
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
-	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_OutputNState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = 800;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
-	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCPolarity_High;
 	TIM_OC3Init(TIM1, &TIM_OCInitStructure);
+	
+	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);
+	TIM_OC2PreloadConfig(TIM1, TIM_OCPreload_Enable);	
 	TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
 
 #if 0

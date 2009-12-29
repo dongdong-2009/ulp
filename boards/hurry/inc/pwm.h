@@ -35,7 +35,10 @@ void pwmdebug_Config(uint16_t ch,int freq, int duty);
 #define PWM_V	TIM_Channel_2
 #define PWM_W	TIM_Channel_3
 
-#define TIM1_COUNTER_VALUE	1000
+//#define TIM1_COUNTER_VALUE	1000
+#define TIM1_COUNTER_VALUE	2500
+#define PWM_PRSC ((u8)0)
+
 void pwm_Init(void);
 void pwm_Update(void);
 
