@@ -128,9 +128,9 @@ static int cmd_svpwm_func(int argc, char *argv[])
 	/*invert transform*/
 	ipark(&cmd_svpwm_vdq, &v, cmd_svpwm_angle);
 	iclarke(&v, &vab);
-	v1 = _VOL(Vab.a);
-	v2 = _VOL(Vab.b);
-	vsm_SetVoltage(x, y);
+	v1 = _VOL(vab.a);
+	v2 = _VOL(vab.b);
+	vsm_SetVoltage(v1, v2);
 	
 	/*calc current angle*/
 	cmd_svpwm_angle += cmd_svpwm_angle_inc;
