@@ -23,7 +23,7 @@ static int cmd_debug_func(int argc, char *argv[])
 		return 1;
 	}
 	
-	led_update();
+	led_Update();
 	if(time_left(debug_deadline) < 0) {
 		debug_deadline = time_get(1000);
 		debug_counter --;
@@ -85,9 +85,9 @@ static short cmd_svpwm_angle;
 static int cmd_svpwm_func(int argc, char *argv[])
 {
 	int v1, v2, hz;
-	vector_t v, vab;
+	vector_t v;//, vab;
 	char usage[] = { \
-		"usage:\n" \
+		" usage:\n" \
 		" svpwm vd vq hz\n" \
 		" vd/vq, d/q axis voltage, unit mV\n" \
 		" hz, input modulation signal freq to vsm driver, pls do not exceed 100Hz\n" \
@@ -127,16 +127,16 @@ static int cmd_svpwm_func(int argc, char *argv[])
 	
 	/*invert transform*/
 	ipark(&cmd_svpwm_vdq, &v, cmd_svpwm_angle);
-	iclarke(&v, &vab);
-	v1 = _VOL(vab.a);
-	v2 = _VOL(vab.b);
+	//iclarke(&v, &vab);
+	v1 = _VOL(v.a);
+	v2 = _VOL(v.b);
 	vsm_SetVoltage(v1, v2);
 	
 	/*calc current angle*/
 	cmd_svpwm_angle += cmd_svpwm_angle_inc;
 	
 	/*display*/
-	printf("%05d: phi %d u %d v %d w %d\n", cmd_svpwm_index, cmd_svpwm_angle, v1, v2, (-v1-v2));
+	printf("%05d: phi %d alpha %d beta %d \n", cmd_svpwm_index, cmd_svpwm_angle, v1, v2);
 	return 1;
 }
 cmd_t cmd_svpwm = {"svpwm", cmd_svpwm_func, "svpwm output test"};
