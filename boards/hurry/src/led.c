@@ -31,7 +31,7 @@ void led_Init(void)
 static time_t led_flash_timer[NR_OF_LED];
 static int led_status;
 
-void led_update(void)
+void led_Update(void)
 {
 	int i, left;
 	time_t time;
