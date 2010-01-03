@@ -26,10 +26,14 @@ void board_Init(void)
 	pwm_On();
 	pwmdebug_On();	
 #endif
+	led_flash(LED_GREEN);
+	led_flash(LED_YELLOW);
 }
 
 void board_Update(void)
 {
+	led_Update();
+	time_update();
 }
 
 void cpu_Init(void)
