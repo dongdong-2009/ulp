@@ -28,6 +28,10 @@
 #define T		(PWM_PERIOD * 4)
 #define T_SQRT3         (u16)(T * SQRT_3)
 
+#define midShort (1<<15)
+#define divSQRT_3 ((short)(0.57735026918963*midShort)) /* 1/sqrt(3) */
+#define sqrt3DIV_2 ((short)(0.86602540378444*midShort))
+
 #define PWM2_MODE 0
 #define PWM1_MODE 1
 
@@ -60,7 +64,7 @@
 
 void vsm_Init(void); //timer1£¬ADC1¡¢2 µÈ³õÊ¼»¯
 void vsm_Update(void); 
-void vsm_SetVoltage(short Va,short Vb);
+void vsm_SetVoltage(int alpha,int beta);
 void vsm_GetCurrent(int *Ia,int *Ib);
 void vsm_Start(void);
 void vsm_Stop(void);
