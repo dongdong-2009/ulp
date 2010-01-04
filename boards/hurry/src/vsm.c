@@ -8,8 +8,8 @@
 #include "adc.h"
 
 /*extern varible*/
-extern int g_BusVoltage;	//save the bus voltage
-/* Private variables ---------------------------------------------------------*/
+extern int g_BusVoltage;
+/* Private variables */
 static unsigned char  bSector;
 unsigned short hPhaseAOffset;
 unsigned short hPhaseBOffset;
@@ -26,125 +26,71 @@ void vsm_Update(void)
 {
 }
 
-//void vsm_SetVoltage(int Valpha,int Vbeta)
-void vsm_SetVoltage(int Va,int Vb)
+/* config the duty cycle */
+void vsm_SetVoltage(int alpha,int beta)
 {
 	unsigned short  hTimePhA, hTimePhB, hTimePhC;
-	unsigned short  hDeltaDuty;
-	int Vc;
+        unsigned short PhaseVoltage;
+	unsigned short T1,T2,T0;
+	int wX, wY, wZ, wUAlpha, wUBeta;
+	int tX,tY,tZ;
+	char a,b,c;
+	/*BusVoltage = 1.7321*PhaseVoltage,vq<=10000*/
+	g_BusVoltage = 17330;
+        /* PhaseVoltage = g_BusVoltage/1.7321*/
+	PhaseVoltage = 10000;
 	
-	/*suppose 10000mv*/
-	g_BusVoltage = 30000;
+	wUAlpha = (int)((float)alpha * SQRT_3);
+	wUBeta = beta;
 	
-	Vc = -(Va + Vb);
-
-	// Sector calculation from Va, Vb, Vc
-	if (Va<0){
-		if (Vb<0){
-			bSector = SECTOR_6;
-		}
-		else{
-			if (Vc>0){
-				bSector = SECTOR_5;
-			}
-			else{
-				bSector = SECTOR_4;
-			}
-		}
-	}
-	else{
-		if (Vb>0){
-			bSector = SECTOR_3;
-		}
-		else{
-			if (Vc<0){  
-				bSector = SECTOR_2;
-			}
-			else{
-				bSector = SECTOR_1;
-			}
-		}
-	}
+	/*for calc duty time*/
+	tX = wUBeta;
+	tY = (wUAlpha + wUBeta)/2;
+	tZ = (-wUAlpha + wUBeta)/2;
+	
+	/*for calc sector*/
+	wX = wUBeta;
+	wY = (-wUBeta + wUAlpha)/2;
+	wZ = (-wUBeta - wUAlpha)/2;
+	if(wX > 0)
+		a = 1;
+	else
+		a = 0;
+	if(wY > 0)
+		b = 1;
+	else
+		b = 0;
+	if(wZ > 0)
+		c = 1;
+	else
+		c = 0;
+	bSector = 4*c + 2*b + a;
 
 	/* Duty cycles computation */
 	switch(bSector){  
 	case SECTOR_1:
-			hTimePhA = PWM_PERIOD - (Va * PWM_PERIOD / g_BusVoltage );
-			hTimePhB = (-Vb) * PWM_PERIOD / g_BusVoltage ;
-			hTimePhC = (-Vc) * PWM_PERIOD / g_BusVoltage ;
-#if 0
-			hTimePhA = (T/8) + ((((T + Va) - Vc)/2)/131072);
-			hTimePhB = hTimePhA + Vc/131072;
-			hTimePhC = hTimePhB - Va/131072;
-#endif
- #if 0             
-			// ADC Syncronization setting value             
-			if ((u16)(PWM_PERIOD-hTimePhA) > TW_AFTER){
-				hTimePhD = PWM_PERIOD - 1;
-			}
-			else{
-				hDeltaDuty = (u16)(hTimePhA - hTimePhB);
-                  
-				// Definition of crossing point
-				if (hDeltaDuty > (u16)(PWM_PERIOD-hTimePhA)*2){
-					hTimePhD = hTimePhA - TW_BEFORE; // Ts before Phase A 
-				}
-				else{
-					hTimePhD = hTimePhA + TW_AFTER; // DT + Tn after Phase A
-                     
-					if (hTimePhD >= PWM_PERIOD){
-					// Trigger of ADC at Falling Edge PWM4
-					// OCR update
-
-					//Set Polarity of CC4 Low
-					PWM4Direction=PWM1_MODE;
-
-					hTimePhD = (2 * PWM_PERIOD) - hTimePhD-1;
-					}
-				}
-			}
-#endif		
+			T1 = tZ*PWM_PERIOD/PhaseVoltage;
+			T2 = tY*PWM_PERIOD/PhaseVoltage;
+			T0 = PWM_PERIOD - T1 - T2;
+			
+			hTimePhB = T0/2;
+			hTimePhA = hTimePhB + T1;
+			hTimePhC = hTimePhA + T2;		
+	
 			ADC_InjectedChannelConfig(ADC1, PHASE_B_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);
 			//ADC1->JSQR = PHASE_B_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;
 			ADC_InjectedChannelConfig(ADC2, PHASE_C_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);     
 			//ADC2->JSQR = PHASE_C_MSK + TEMP_FDBK_MSK + SEQUENCE_LENGHT;                                         
 			break;
-	case SECTOR_2:
-			hTimePhA = PWM_PERIOD - (Va * PWM_PERIOD  / g_BusVoltage );
-			hTimePhB = PWM_PERIOD - (Vb * PWM_PERIOD  / g_BusVoltage );
-			hTimePhC = ((-Vc) * PWM_PERIOD ) / g_BusVoltage ;
-#if 0
-			hTimePhA = (T/8) + ((((T + Vb) - Vc)/2)/131072);
-			hTimePhB = hTimePhA + Vc/131072;
-			hTimePhC = hTimePhA - Vb/131072;
-#endif
-#if 0
-			// ADC Syncronization setting value
-			if ((u16)(PWM_PERIOD-hTimePhB) > TW_AFTER){
-				hTimePhD = PWM_PERIOD - 1;
-			}
-			else{
-				hDeltaDuty = (u16)(hTimePhB - hTimePhA);
-                  
-				// Definition of crossing point
-				if (hDeltaDuty > (u16)(PWM_PERIOD-hTimePhB)*2){
-					hTimePhD = hTimePhB - TW_BEFORE; // Ts before Phase B 
-				}
-				else{
-					hTimePhD = hTimePhB + TW_AFTER; // DT + Tn after Phase B
-                    
-					if (hTimePhD >= PWM_PERIOD){
-					// Trigger of ADC at Falling Edge PWM4
-					// OCR update
-                      
-					//Set Polarity of CC4 Low
-					PWM4Direction=PWM1_MODE;
-                      
-					hTimePhD = (2 * PWM_PERIOD) - hTimePhD-1;
-					}
-				}
-			}
-#endif
+	case SECTOR_2:	
+			T1 = tY*PWM_PERIOD/PhaseVoltage;
+			T2 = (-tX)*PWM_PERIOD/PhaseVoltage;
+			T0 = PWM_PERIOD - T1 - T2;
+			
+			hTimePhA = T0/2;
+			hTimePhC = hTimePhA + T1;	
+			hTimePhB = hTimePhC + T2;
+
 			ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);
 			//ADC1->JSQR = PHASE_A_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
 			ADC_InjectedChannelConfig(ADC2, PHASE_C_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);               
@@ -152,41 +98,14 @@ void vsm_SetVoltage(int Va,int Vb)
 			break;
 
 	case SECTOR_3:
-			hTimePhA = ((-Va) * PWM_PERIOD  / g_BusVoltage );
-			hTimePhB = PWM_PERIOD - (Vb * PWM_PERIOD / (g_BusVoltage ));
-			hTimePhC = ((-Vc) * PWM_PERIOD ) / (g_BusVoltage );
-#if 0
-			hTimePhA = (T/8) + ((((T - Va) + Vb)/2)/131072);
-			hTimePhC = hTimePhA - Vb/131072;
-			hTimePhB = hTimePhC + Va/131072;
-#endif
-#if 0
-			// ADC Syncronization setting value
-			if ((u16)(PWM_PERIOD-hTimePhB) > TW_AFTER){
-				hTimePhD = PWM_PERIOD - 1;
-			}
-			else{
-				hDeltaDuty = (u16)(hTimePhB - hTimePhC);
-                  
-				// Definition of crossing point
-				if (hDeltaDuty > (u16)(PWM_PERIOD-hTimePhB)*2) {
-					hTimePhD = hTimePhB - TW_BEFORE; // Ts before Phase B 
-				}
-				else{
-					hTimePhD = hTimePhB + TW_AFTER; // DT + Tn after Phase B
-                    
-					if (hTimePhD >= PWM_PERIOD){
-					// Trigger of ADC at Falling Edge PWM4
-					// OCR update
-                      
-					//Set Polarity of CC4 Low
-					PWM4Direction=PWM1_MODE;
-                      
-					hTimePhD = (2 * PWM_PERIOD) - hTimePhD-1;
-					}
-				}
-			}
-#endif
+			T1 = (-tZ)*PWM_PERIOD/PhaseVoltage;
+			T2 = tX*PWM_PERIOD/PhaseVoltage;
+			T0 = PWM_PERIOD - T1 - T2;
+			
+			hTimePhA = T0/2;
+			hTimePhB = hTimePhA + T1;
+			hTimePhC = hTimePhB + T2;
+
 			ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);
 			//ADC1->JSQR = PHASE_A_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
 			ADC_InjectedChannelConfig(ADC2, PHASE_C_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);               
@@ -194,41 +113,14 @@ void vsm_SetVoltage(int Va,int Vb)
 			break;
     
     case SECTOR_4:
-			hTimePhA = ((-Va) * PWM_PERIOD / (g_BusVoltage ));
-			hTimePhB = PWM_PERIOD - (Vb * PWM_PERIOD  / g_BusVoltage );
-			hTimePhC = PWM_PERIOD - (Vc * PWM_PERIOD  / g_BusVoltage );
-#if 0
-			hTimePhA = (T/8) + ((((T + Va) - Vc)/2)/131072);
-			hTimePhB = hTimePhA + Vc/131072;
-			hTimePhC = hTimePhB - Va/131072;
-#endif
-#if 0
-			// ADC Syncronization setting value
-			if ((u16)(PWM_PERIOD-hTimePhC) > TW_AFTER){
-				hTimePhD = PWM_PERIOD - 1;
-			}
-			else{
-				hDeltaDuty = (u16)(hTimePhC - hTimePhB);
-                  
-				// Definition of crossing point
-				if (hDeltaDuty > (u16)(PWM_PERIOD-hTimePhC)*2){
-					hTimePhD = hTimePhC - TW_BEFORE; // Ts before Phase C 
-				}
-				else{
-					hTimePhD = hTimePhC + TW_AFTER; // DT + Tn after Phase C
-                    
-					if (hTimePhD >= PWM_PERIOD){
-					// Trigger of ADC at Falling Edge PWM4
-					// OCR update
-                      
-					//Set Polarity of CC4 Low
-					PWM4Direction=PWM1_MODE;
-                      
-					hTimePhD = (2 * PWM_PERIOD) - hTimePhD-1;
-					}
-				}
-			}
-#endif
+			T1 = (-tX)*PWM_PERIOD/PhaseVoltage;
+			T2 = tZ*PWM_PERIOD/PhaseVoltage;
+			T0 = PWM_PERIOD - T1 - T2;
+			
+			hTimePhC = T0/2;
+			hTimePhB = hTimePhC + T1;
+			hTimePhA = hTimePhB + T2;					
+
 			ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);
 			//ADC1->JSQR = PHASE_A_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
 			ADC_InjectedChannelConfig(ADC2, PHASE_B_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);               
@@ -236,41 +128,14 @@ void vsm_SetVoltage(int Va,int Vb)
 			break;  
 
 	case SECTOR_5:
-			hTimePhA = ((-Va) * PWM_PERIOD  / g_BusVoltage);
-			hTimePhB = ((-Vb) * PWM_PERIOD  / g_BusVoltage);
-			hTimePhC = PWM_PERIOD - (Vc * PWM_PERIOD / (g_BusVoltage ));
-#if 0
-			hTimePhA = (T/8) + ((((T + Vb) - Vc)/2)/131072);
-			hTimePhB = hTimePhA + Vc/131072;
-			hTimePhC = hTimePhA - Vb/131072;
-#endif
-#if 0
-			// ADC Syncronization setting value
-			if ((u16)(PWM_PERIOD-hTimePhC) > TW_AFTER){
-				hTimePhD = PWM_PERIOD - 1;
-			}
-			else{
-				hDeltaDuty = (u16)(hTimePhC - hTimePhA);
-                  
-				// Definition of crossing point
-				if (hDeltaDuty > (u16)(PWM_PERIOD-hTimePhC)*2){
-					hTimePhD = hTimePhC - TW_BEFORE; // Ts before Phase C 
-				}
-				else{
-					hTimePhD = hTimePhC + TW_AFTER; // DT + Tn after Phase C
-                    
-					if (hTimePhD >= PWM_PERIOD){
-					// Trigger of ADC at Falling Edge PWM4
-					// OCR update
-                      
-					//Set Polarity of CC4 Low
-					PWM4Direction=PWM1_MODE;
-                      
-					hTimePhD = (2 * PWM_PERIOD) - hTimePhD-1;
-					}
-				}
-			}
-#endif
+			T1 = tX*PWM_PERIOD/PhaseVoltage;
+			T2 = (-tY)*PWM_PERIOD/PhaseVoltage;
+			T0 = PWM_PERIOD - T1 - T2;
+			
+			hTimePhB = T0/2;
+			hTimePhC = hTimePhB + T1;
+			hTimePhA = hTimePhC + T2;			
+
 			ADC_InjectedChannelConfig(ADC1, PHASE_A_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);
 			//ADC1->JSQR = PHASE_A_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
 			ADC_InjectedChannelConfig(ADC2, PHASE_B_ADC_CHANNEL,1,ADC_SampleTime_7Cycles5);               
@@ -278,59 +143,23 @@ void vsm_SetVoltage(int Va,int Vb)
 			break;
                 
 	case SECTOR_6:
-			hTimePhA = PWM_PERIOD - ((Va) * PWM_PERIOD / g_BusVoltage);
-			hTimePhB = ((-Vb) * PWM_PERIOD /  ( g_BusVoltage ));
-			hTimePhC = PWM_PERIOD - (Vc * PWM_PERIOD / g_BusVoltage);
-#if 0
-			hTimePhA = (T/8) + ((((T - Va) + Vb)/2)/131072);
-			hTimePhC = hTimePhA - Vb/131072;
-			hTimePhB = hTimePhC + Va/131072;
-#endif
-#if 0
-			// ADC Syncronization setting value
-			if ((u16)(PWM_PERIOD-hTimePhA) > TW_AFTER){
-				hTimePhD = PWM_PERIOD - 1;
-			}
-			else{
-				hDeltaDuty = (u16)(hTimePhA - hTimePhC);
-                  
-				// Definition of crossing point
-				if (hDeltaDuty > (u16)(PWM_PERIOD-hTimePhA)*2){
-					hTimePhD = hTimePhA - TW_BEFORE; // Ts before Phase A 
-				}
-				else{
-					hTimePhD = hTimePhA + TW_AFTER; // DT + Tn after Phase A
-                    
-					if (hTimePhD >= PWM_PERIOD){
-					// Trigger of ADC at Falling Edge PWM4
-					// OCR update
-                      
-					//Set Polarity of CC4 Low
-					PWM4Direction=PWM1_MODE;
-                      
-					hTimePhD = (2 * PWM_PERIOD) - hTimePhD-1;
-					}
-				}
-			}
-#endif
-		ADC_InjectedChannelConfig(ADC1, PHASE_B_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);
-		//ADC1->JSQR = PHASE_B_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
-		ADC_InjectedChannelConfig(ADC2, PHASE_C_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);               
-		//ADC2->JSQR = PHASE_C_MSK + TEMP_FDBK_MSK + SEQUENCE_LENGHT;
-		break;
+			T1 = (-tY)*PWM_PERIOD/PhaseVoltage;
+			T2 = (-tZ)*PWM_PERIOD/PhaseVoltage;
+			T0 = PWM_PERIOD - T1 - T2;
+			
+			hTimePhC = T0/2;	
+			hTimePhA = hTimePhC + T1;
+			hTimePhB = hTimePhA + T2;			
+
+			ADC_InjectedChannelConfig(ADC1, PHASE_B_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);
+			//ADC1->JSQR = PHASE_B_MSK + BUS_VOLT_FDBK_MSK + SEQUENCE_LENGHT;                
+			ADC_InjectedChannelConfig(ADC2, PHASE_C_ADC_CHANNEL,1, ADC_SampleTime_7Cycles5);               
+			//ADC2->JSQR = PHASE_C_MSK + TEMP_FDBK_MSK + SEQUENCE_LENGHT;
+			break;
 	default:
-		break;
+			break;
 	}
-#if 0
-	if (PWM4Direction == PWM2_MODE){
-		//Set Polarity of CC4 High
-		TIM1->CCER &= 0xDFFF;    
-	}
-	else{
-		//Set Polarity of CC4 Low
-		TIM1->CCER |= 0x2000;
-	}
- #endif
+ 
 	/* Load compare registers values */ 
 	TIM1->CCR1 = hTimePhA;
 	TIM1->CCR2 = hTimePhB;

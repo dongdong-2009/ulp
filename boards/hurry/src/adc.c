@@ -251,6 +251,6 @@ int adc_GetBusVoltage(void)
 	int value;
 	value = ADC_GetConversionValue(ADC1)>>3;
 	value &= 0x0fff;
-	ADC_COUNT_TO_BUSVOLTAGE(value);
+	value = ADC_COUNT_TO_BUSVOLTAGE(value);
 	return value;
 }

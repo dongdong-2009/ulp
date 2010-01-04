@@ -23,7 +23,7 @@ void motor_Debug(void)
 	int tmp1,tmp2, y;
 	
 	while(1) {
-		led_update();
+		led_Update();
 		
 		scanf("%d %d ", &tmp1, &tmp2);
 		printf("\n");
