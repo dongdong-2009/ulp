@@ -12,7 +12,7 @@
 */
 
 /*
-*TIM1 default init:TIM1 counter = 1000 ,duty cycle = 50%
+*TIM1 default init:TIM1 counter = PWM_PERIOD ,duty cycle = 50%
 */
 void pwm_Init(void)
 {
@@ -26,6 +26,7 @@ void pwm_Init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
 
 	/* Configure PA.8,PA.9,PA.10 as Output push-pull */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
@@ -33,11 +34,19 @@ void pwm_Init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 	
+	/* Lock GPIOE Pin9 and Pin11 Pin 13 (High sides) */
+	//GPIO_PinLockConfig(GPIOA, GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10);
+	
 	/* Configure PB.13,PB.14,PB.15 as Output push-pull */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	
+	/* GPIOB Configuration: BKIN pin */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);  
 
 	/* Time base configuration ,Pattern type is center aligned */
 	TIM_TimeBaseStructure.TIM_Period = PWM_PERIOD;
@@ -53,11 +62,11 @@ void pwm_Init(void)
 	/* Automatic Output enable, Break, dead time and lock configuration*/
 	TIM_BDTRInitStructure.TIM_OSSRState = TIM_OSSRState_Enable;
 	TIM_BDTRInitStructure.TIM_OSSIState = TIM_OSSIState_Enable;
-	TIM_BDTRInitStructure.TIM_LOCKLevel = TIM_LOCKLevel_1;
+	TIM_BDTRInitStructure.TIM_LOCKLevel = TIM_LOCKLevel_OFF;
 	TIM_BDTRInitStructure.TIM_DeadTime = DEADTIME;
 	TIM_BDTRInitStructure.TIM_Break = TIM_Break_Disable;
 	TIM_BDTRInitStructure.TIM_BreakPolarity = TIM_BreakPolarity_High;
-	TIM_BDTRInitStructure.TIM_AutomaticOutput = TIM_AutomaticOutput_Disable;
+	TIM_BDTRInitStructure.TIM_AutomaticOutput = TIM_AutomaticOutput_Enable;
 	TIM_BDTRConfig(TIM1, &TIM_BDTRInitStructure);
 	
 	/* Master Mode selection */
@@ -66,12 +75,12 @@ void pwm_Init(void)
 	/* PWM2 Mode configuration: Channel1 Channel2 Channel3*/
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_OutputNState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = PWM_PERIOD/2;
+	TIM_OCInitStructure.TIM_OutputNState = TIM_OutputNState_Enable;
+	TIM_OCInitStructure.TIM_Pulse = PWM_PERIOD;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
-	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCPolarity_High;
-	TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Set;
-	TIM_OCInitStructure.TIM_OCNIdleState = TIM_OCIdleState_Reset;	
+	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCNPolarity_High;
+	TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Reset;
+	TIM_OCInitStructure.TIM_OCNIdleState = TIM_OCNIdleState_Reset;	
 
 	TIM_OC1Init(TIM1, &TIM_OCInitStructure);
 	TIM_OC2Init(TIM1, &TIM_OCInitStructure);
@@ -80,17 +89,6 @@ void pwm_Init(void)
 	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);
 	TIM_OC2PreloadConfig(TIM1, TIM_OCPreload_Enable);	
 	TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
-
-#if 0
-	// Clear Update Flag
-	TIM1_ClearFlag(TIM1_FLAG_Update);
-	TIM1_ITConfig(TIM1_IT_Update, DISABLE);
-#endif  
-	/* Master Mode selection */
-	//TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update);
-
-	/* Main Output Enable */
-	//TIM_CtrlPWMOutputs(TIM1, ENABLE);
 }
 
 void pwm_Update(void)
