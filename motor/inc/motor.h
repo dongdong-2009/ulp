@@ -6,7 +6,6 @@
 
 #include "pid.h"
 #include "smo.h"
-#include "normalize.h"
 
 /*readonly, for debug purpose*/
 extern vector_t Iab, I, Idq;

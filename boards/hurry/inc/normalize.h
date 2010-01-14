@@ -5,7 +5,6 @@
 #define __NORMALIZE_H_
 
 #include "config.h"
-#include "math.h"
 
 #ifndef CONFIG_PWM_FREQ
 	#define CONFIG_PWM_FREQ (72000000/5000) /*unit: Hz*/

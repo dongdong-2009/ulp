@@ -72,14 +72,11 @@ void motor_SetRPM(short rpm)
 void motor_isr(void)
 {
 	short angle;
-	int x, y;
 	
 	/*1, smo get cur speed&angle*/
 	angle = smo_GetAngle();
 	/*2, get current*/
-	vsm_GetCurrent(&x, &y);
-	Iab.a = (short)NOR_AMP(x);
-	Iab.b = (short)NOR_AMP(y);
+	vsm_GetCurrent(&Iab.a, &Iab.b);
 	/*3, clarke*/
 	clarke(&Iab, &I);
 	/*4, park*/
@@ -95,7 +92,5 @@ void motor_isr(void)
 	/*9, iclarke*/
 	iclarke(&V, &Vab);
 	/*A, set voltage*/
-	x = _VOL(Vab.a);
-	y = _VOL(Vab.b);
-	vsm_SetVoltage(x, y);
+	vsm_SetVoltage(Vab.a, Vab.b);
 }
