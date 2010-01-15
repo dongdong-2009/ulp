@@ -13,4 +13,5 @@ void board_Update(void);
 #include "adc.h"
 #include "pwm.h"
 #include "vsm.h"
+#include "normalize.h"
 #endif /*__BOARD_H_*/

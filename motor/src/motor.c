@@ -10,7 +10,7 @@
 
 /*private*/
 vector_t Iab, I, Idq;
-vector_t Vab, V, Vdq; 
+vector_t V, Vdq; 
 static time_t motor_timer;
 
 void motor_Init(void)
@@ -89,8 +89,6 @@ void motor_isr(void)
 	/*7, ipark circle lim*/
 	/*8, ipark*/
 	ipark(&Vdq, &V, angle);
-	/*9, iclarke*/
-	iclarke(&V, &Vab);
-	/*A, set voltage*/
-	vsm_SetVoltage(Vab.a, Vab.b);
+	/*9, set voltage*/
+	vsm_SetVoltage(V.alpha, V.beta);
 }
