@@ -10,6 +10,12 @@
 	#define CONFIG_PWM_FREQ (72000000/5000) /*unit: Hz*/
 #endif
 
+/*constant*/
+#define maxShort (1<<16)
+#define midShort (1<<15)
+#define divSQRT_3 ((short)(0.57735026918963*midShort)) /* 1/sqrt(3) */
+#define sqrt3DIV_2 ((short)(0.86602540378444*midShort))
+
 /*note: NOR_XX must be the maximum allowable value*/
 #define NOR_RES_VAL	(1<<10) /*unit: Ohm*/
 #define NOR_RES(x) ((int)x << (15 -10)) /*y =  (x/nor_res)*32768*/

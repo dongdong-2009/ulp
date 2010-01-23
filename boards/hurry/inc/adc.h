@@ -12,11 +12,7 @@
 #define ADC_MODE_INJECT
 #undef ADC_MODE_INJECT_DUAL
 
-#define PHASE_A_ADC_CHANNEL     ADC_Channel_4
-#define PHASE_B_ADC_CHANNEL     ADC_Channel_5
-#define PHASE_C_ADC_CHANNEL     ADC_Channel_14
 #define TOTAL_CHANNEL			ADC_Channel_15
-#define VDC_CHANNEL				ADC_Channel_11
 
 /*unit: mV ext voltage 0~3v3*/
 #define ADC_COUNT_TO_VOLTAGE(CNT) (CNT*3300/4096)

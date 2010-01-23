@@ -6,9 +6,7 @@
 
 #include "config.h"
 
-#ifndef CONFIG_PWM_FREQ
-	#define CONFIG_PWM_FREQ (72000000/5000) /*unit: Hz*/
-#endif
+#define T 2500 /*72,000,000 / 2500 / 2 = 14, 400 Hz*/
 
 enum {
 	SECTOR_1 = 1,
