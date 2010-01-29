@@ -1,6 +1,6 @@
 /* vsm.h
- * 	dusk@2009 initial version
- */
+*	dusk@2009 initial version
+*/
 #ifndef __VSM_H_
 #define __VSM_H_
 
@@ -18,7 +18,7 @@ enum {
 } sector_t;
 
 void vsm_Init(void);
-void vsm_Update(void); 
+void vsm_Update(void);
 void vsm_SetVoltage(short alpha, short beta); /*normalized alpha/beta voltage*/
 void vsm_GetCurrent(short *a, short *b); /*normalized a-b-c current*/
 void vsm_Start(void);
