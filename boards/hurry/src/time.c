@@ -31,7 +31,7 @@ void time_Init(void)
 	RTC_SetCounter(0);
 }
 
-void time_update(void)
+void time_Update(void)
 {
 #if 0
 	int val;
