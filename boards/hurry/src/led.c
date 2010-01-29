@@ -70,7 +70,7 @@ void led_SetStatus(led_t led, led_status_t status)
 			//GPIO_SetBits(GPIOB, GPIO_Pin_5);
 			GPIO_WriteBit(GPIOC, GPIO_Pin_10, ba);
 			break;
-		case LED_YELLOW:
+		case LED_RED:
 			GPIO_WriteBit(GPIOC, GPIO_Pin_12, ba);
 			break;
 		default:
