@@ -7,8 +7,10 @@
 #include "config.h"
 
 #define T 2500 /*72,000,000 / 2500 / 2 = 14, 400 Hz*/
+#define TD 800 /*time of dead zone, unit: nS, range: 0~1763*/
 
 /*current sense resistor and adc ref voltage*/
+#define VSM_VDC_RATIO (1/10.0)
 #define VSM_RS_OHM (4.7)
 #define VSM_VREF_MV (3300.0)
 
