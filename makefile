@@ -79,7 +79,8 @@ hurry_config: board_unconfig
 	@echo -e "#define USE_STDPERIPH_DRIVER\r" >> $(AUTOCONFIG_HEAD_FILE)
 	@echo -e "#define HSE_Value    ((uint32_t)12000000)\r" >> $(AUTOCONFIG_HEAD_FILE)
 	@echo -e "#define CONFIG_BOARD_HURRY\r" >> $(AUTOCONFIG_HEAD_FILE)
-	@echo -e "#define CONFIG_BOARD_DEBUG\r" >> $(AUTOCONFIG_HEAD_FILE)
+	@echo -e "#undef CONFIG_BOARD_DEBUG\r" >> $(AUTOCONFIG_HEAD_FILE)
+	@echo -e "#undef CONFIG_MOTOR_DEBUG\r" >> $(AUTOCONFIG_HEAD_FILE)
 
 board_unconfig:
 	@rm -rf ./board
@@ -92,3 +93,6 @@ clean:
 	done
 
 distclean: clean board_unconfig
+
+
+

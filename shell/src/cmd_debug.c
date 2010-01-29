@@ -68,7 +68,6 @@ static int cmd_dalgo_func(int argc, char *argv[])
 	printf("Idq %d %d ",  Idq.d,  Idq.q);
 	printf("Vdq %d %d ",  Vdq.d,  Vdq.q);
 	printf("V %d %d ",  V.alpha,  V.beta);
-	printf("Vab %d %d ",  Vab.a,  Vab.b);
 	printf("\n");
 	
 	cmd_dalgo_counter ++;

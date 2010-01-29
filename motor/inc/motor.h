@@ -4,12 +4,15 @@
 #ifndef __MOTOR_H_
 #define __MOTOR_H_
 
+#include "board.h"
 #include "pid.h"
 #include "smo.h"
+#include "vector.h"
+#include "math.h"
 
 /*readonly, for debug purpose*/
 extern vector_t Iab, I, Idq;
-extern vector_t Vab, V, Vdq; 
+extern vector_t V, Vdq; 
 
 #define MOTOR_UPDATE_PERIOD	(1000) /*unit: mS*/
 
