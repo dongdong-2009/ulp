@@ -13,27 +13,24 @@ void cpu_Init(void);
 
 void board_Init(void)
 {
-	/*pls add your driver init routines to here*/
 	cpu_Init();
-#ifndef CONFIG_BOARD_DEBUG
 	time_Init();
 	led_Init();
 	console_Init();
-	
-	pwm_Init();
-	pwmdebug_Init();
+	vsm_Init();
 
-	pwm_On();
-	pwmdebug_On();	
-#endif
+	/*indicates system busy*/
+	led_on(LED_RED);
+	led_on(LED_GREEN);
+	led_flash(LED_RED);
 	led_flash(LED_GREEN);
-	led_flash(LED_YELLOW);
 }
 
 void board_Update(void)
 {
 	led_Update();
-	time_update();
+	time_Update();
+	vsm_Update();
 }
 
 void cpu_Init(void)

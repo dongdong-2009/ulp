@@ -174,11 +174,11 @@
         </option>
         <option>
           <name>CCListAssFile</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>CCListAssSource</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>CCEnableRemarks</name>
@@ -1591,9 +1591,6 @@
     <group>
       <name>inc</name>
       <file>
-        <name>$PROJ_DIR$\..\..\board\inc\adc.h</name>
-      </file>
-      <file>
         <name>$PROJ_DIR$\..\..\board\inc\board.h</name>
       </file>
       <file>
@@ -1606,7 +1603,7 @@
         <name>$PROJ_DIR$\..\..\board\inc\led.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\board\inc\pwm.h</name>
+        <name>$PROJ_DIR$\..\..\board\inc\normalize.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\board\inc\time.h</name>
@@ -1618,9 +1615,6 @@
     <group>
       <name>src</name>
       <file>
-        <name>$PROJ_DIR$\..\..\board\src\adc.c</name>
-      </file>
-      <file>
         <name>$PROJ_DIR$\..\..\board\src\board.c</name>
       </file>
       <file>
@@ -1631,9 +1625,6 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\board\src\led.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\..\board\src\pwm.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\board\src\time.c</name>
@@ -1685,9 +1676,6 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\motor\inc\motor_debug.h</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\..\motor\inc\normalize.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\motor\inc\pid.h</name>

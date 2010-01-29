@@ -10,8 +10,6 @@ void board_Update(void);
 #include "time.h"
 #include "led.h"
 #include "console.h"
-#include "adc.h"
-#include "pwm.h"
 #include "vsm.h"
 #include "normalize.h"
 #endif /*__BOARD_H_*/
