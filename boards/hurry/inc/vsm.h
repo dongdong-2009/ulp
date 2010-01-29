@@ -14,7 +14,7 @@
 #define VSM_RS_OHM (4.7)
 #define VSM_VREF_MV (3300.0)
 
-enum {
+typedef enum {
 	SECTOR_1 = 1,
 	SECTOR_2,
 	SECTOR_3,
