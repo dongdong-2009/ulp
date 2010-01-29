@@ -6,6 +6,7 @@
 #include "vsm.h"
 #include "pwm.h"
 #include "adc.h"
+#include "normalize.h"
 
 /* Private variables */
 static int sector;
@@ -42,7 +43,7 @@ void vsm_SetVoltage(short alpha, short beta)
 
 	/*basic voltage vector calcu*/
 	tmp = alpha * sqrt3DIV_2;
-	alpha = (short)(tmp1 >> 15); /*= ((3^0.5)/2)¦Á*/
+	alpha = (short)(tmp >> 15); /*= ((3^0.5)/2)¦Á*/
 	tmp = beta >> 1; /* = (1/2)¦Â*/
 
 	x = beta;
@@ -167,98 +168,46 @@ void vsm_SetVoltage(short alpha, short beta)
 /*
 *
 */
-void vsm_GetCurrent(int *Ia, int *Ib)
-{
-	s32 wAux;
+#define VSM_ADC_BITS (15) //left aligh, msb is sign bit
+#define VSM_MA_PER_CNT (VSM_VREF_MV/VSM_RS_OHM/(1 << VSM_ADC_BITS))
+#define VSM_CNT_2_MA(cnt) ((cnt * (int)(VSM_MA_PER_CNT*(1 << 20))) >> 20)
 
-	switch (bSector){
+void vsm_GetCurrent(short *a, short *b)
+{
+	int i1, i2;
+
+	i1 = ADC1->JDR1;
+	i2 = ADC2->JDR1;
+
+	/*convet current unit from count to mA*/
+	i1 = VSM_CNT_2_MA(i1);
+	i2 = VSM_CNT_2_MA(i2);
+
+	/*normalize*/
+	i1 = NOR_AMP(i1);
+	i2 = NOR_AMP(i2);
+
+	switch (sector){
 	case 4:
-	case 5: //Current on Phase C not accessible
-			// Ia = (hPhaseAOffset)-(ADC Channel 11 value)
-			wAux = (s32)(hPhaseAOffset)- ((ADC1->JDR1)>>3);
-			//Saturation of Ia
-			if (wAux < S16_MIN){
-				*Ia = S16_MIN;
-			}
-				else  if (wAux > S16_MAX){
-				*Ia = S16_MAX;
-			}
-			else{
-				*Ia = wAux;
-			}
-			// Ib = (hPhaseBOffset)-(ADC Channel 12 value)
-			wAux = (s32)(hPhaseBOffset)-((ADC2->JDR1)>>3);
-			// Saturation of Ib
-			if (wAux < S16_MIN){
-				*Ib = S16_MIN;
-			}
-			else  if (wAux > S16_MAX){
-				*Ib = S16_MAX;
-			}
-			else{
-				*Ib = wAux;
-			}
-			break;
+	case 5: // measure a/b
+		*a = (short) i1;
+		*b = (short) i2;
+		break;
 
 	case 6:
-	case 1:  //Current on Phase A not accessible
-			// Ib = (hPhaseBOffset)-(ADC Channel 12 value)
-			wAux = (s32)(hPhaseBOffset)-((ADC1->JDR1)>>3);
-			//Saturation of Ib
-			if (wAux < S16_MIN){
-				*Ib = S16_MIN;
-			}
-			else  if (wAux > S16_MAX){
-				*Ib = S16_MAX;
-			}
-			else{
-				*Ib = wAux;
-			}
-			// Ia = -Ic -Ib
-			wAux = ((ADC2->JDR1)>>3)-hPhaseCOffset- (*Ib );
-			//Saturation of Ia
-			if (wAux> S16_MAX){
-				*Ia = S16_MAX;
-			}
-			else  if (wAux <S16_MIN){
-				*Ia = S16_MIN;
-			}
-			else{
-				*Ia = wAux;
-			}
-			break;
+	case 1: //measure b/c
+		*a = (short) (-i1 - i2);
+		*b = (short) i2;
+		break;
 
 	case 2:
-	case 3:  // Current on Phase B not accessible
-			// Ia = (hPhaseAOffset)-(ADC Channel 11 value)
-			wAux = (s32)(hPhaseAOffset)-((ADC1->JDR1)>>3);
-			//Saturation of Ia
-			if (wAux < S16_MIN){
-				*Ia = S16_MIN;
-				}
-				else  if (wAux > S16_MAX){
-				*Ia = S16_MAX;
-			}
-			else{
-				*Ia = wAux;
-			}
-
-			// Ib = -Ic-Ia;
-			wAux = ((ADC2->JDR1)>>3) - hPhaseCOffset - (*Ia) ;
-			// Saturation of Ib
-			if (wAux> S16_MAX){
-				*Ib =S16_MAX;
-			}
-			else  if (wAux <S16_MIN){
-				*Ib = S16_MIN;
-			}
-			else{
-				*Ib = wAux;
-			}
-			break;
+	case 3: // measure a/c
+		*a = (short) i1;
+		*b = (short) (-i1 - i2);
+		break;
 
 	default:
-			break;
+		break;
 	}
 }
 

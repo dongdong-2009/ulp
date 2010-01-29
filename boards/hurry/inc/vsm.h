@@ -8,6 +8,10 @@
 
 #define T 2500 /*72,000,000 / 2500 / 2 = 14, 400 Hz*/
 
+/*current sense resistor and adc ref voltage*/
+#define VSM_RS_OHM (4.7)
+#define VSM_VREF_MV (3300.0)
+
 enum {
 	SECTOR_1 = 1,
 	SECTOR_2,
