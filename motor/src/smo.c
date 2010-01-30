@@ -127,7 +127,7 @@ static short smo_ramp(void)
 	return (short)tmp;
 }
 
-void smo_Calcu(vector_t *pvs, vector_t *pis)
+void smo_isr(vector_t *pvs, vector_t *pis)
 {
 	if(!smo_locked) {
 		smo_angle += smo_ramp();

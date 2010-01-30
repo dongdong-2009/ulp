@@ -82,7 +82,7 @@ void motor_isr(void)
 	/*4, park*/
 	park(&I, &Idq, angle);
 	/*5, update smo*/
-	smo_Calcu(&V, &I);
+	smo_isr(&V, &I);
 	/*6, pid*/
 	Vdq.d = pid_Calcu(pid_flux, Idq.d);
 	Vdq.q = pid_Calcu(pid_torque, Idq.q);

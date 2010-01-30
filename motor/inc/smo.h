@@ -40,7 +40,7 @@ extern pid_t *pid_flux;
 void smo_Init(void);
 void smo_Update(void);
 void smo_Reset(void);
-void smo_Calcu(vector_t *pvs, vector_t *pis);
+void smo_isr(vector_t *pvs, vector_t *pis);
 int smo_IsReady(void); /*return yes(1)/no(0)*/
 short smo_GetSpeed(void); /*unit: Hz*/
 short smo_GetRPM(void); /*unit: RPM*/
