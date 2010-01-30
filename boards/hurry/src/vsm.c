@@ -89,6 +89,8 @@ void vsm_Init(void)
 	TIM_OC2PreloadConfig(TIM1, TIM_OCPreload_Enable);
 	TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
 
+	TIM_CtrlPWMOutputs(TIM1, ENABLE);
+
 	/*step 2, adc1/2 init*/
 	/* pin map:
 		ADC_U	PA4/IN4
@@ -174,8 +176,8 @@ void vsm_SetVoltage(short alpha, short beta)
 	tmp = beta >> 1; /* = (1/2)¦Â*/
 
 	x = beta;
-	y = alpha - beta; /*((3^0.5)¦Á-¦Â)/2*/
-	z = - alpha - beta; /*(-(3^0.5)¦Á-¦Â)/2*/
+	y = alpha - tmp; /*((3^0.5)¦Á-¦Â)/2*/
+	z = - alpha - tmp; /*(-(3^0.5)¦Á-¦Â)/2*/
 
 	/*sector calcu*/
 	tmp =  (x > 0)?1:0;
