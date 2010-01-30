@@ -142,14 +142,13 @@ void vsm_Init(void)
 	NVIC_Init(&NVIC_InitStructure);
 }
 
-#define ADC_BITS (15) //left aligh, msb is sign bit
-#define MV_PER_CNT (VSM_VREF_MV / (1 << ADC_BITS))
-#define CNT_2_VDC(cnt) (cnt * (int) ((1 / MV_PER_CNT) * (1 / VSM_VDC_RATIO)))
+#define REG_ADC_BITS (16) //left aligh, msb is sign bit
+#define MV_PER_CNT (VSM_VREF_MV / (1 << REG_ADC_BITS))
+#define CNT_2_VDC(cnt) ((cnt * (int) (MV_PER_CNT / VSM_VDC_RATIO * (1 << 12))) >> 12)
 
 void vsm_Update(void)
 {
-	int cnt, vdc;
-	short tmp;
+	int cnt, vdc, tmp;
 
 	/*get bus/phase voltage*/
 	ADC_ClearFlag(ADC1, ADC_FLAG_EOC);
@@ -158,7 +157,7 @@ void vsm_Update(void)
 	cnt = ADC_GetConversionValue(ADC1);
 
 	vdc = CNT_2_VDC(cnt);
-	tmp = (short) NOR_VOL(vdc);
+	tmp = NOR_VOL(vdc);
 	tmp = tmp * divSQRT_3; /*vp = vb / (3^0.5)*/
 	vp = tmp >> 15;
 }
@@ -290,7 +289,8 @@ void vsm_SetVoltage(short alpha, short beta)
 	TIM1->CCR4 = (unsigned short)tmp;
 }
 
-#define MA_PER_CNT (VSM_VREF_MV/VSM_RS_OHM/(1 << ADC_BITS))
+#define INJ_ADC_BITS (15)
+#define MA_PER_CNT (VSM_VREF_MV/VSM_RS_OHM/(1 << INJ_ADC_BITS))
 #define CNT_2_MA(cnt) ((cnt * (int)(MA_PER_CNT*(1 << 20))) >> 20)
 
 void vsm_GetCurrent(short *a, short *b)
