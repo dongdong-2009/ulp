@@ -9,9 +9,6 @@
 #include <string.h>
 
 motor_t *motor;
-pid_t *pid_speed;
-pid_t *pid_torque;
-pid_t *pid_flux;
 
 static time_t smo_timer;
 
@@ -27,9 +24,6 @@ static short smo_start_flag; /*1 ramp in update, 0 ramp in isr*/
 void smo_Init(void)
 {
 	motor = malloc(sizeof(motor_t));
-	pid_speed = pid_Init();
-	pid_torque = pid_Init();
-	pid_flux = pid_Init();
 	
 	/*default motor para, change me!!!*/
 	motor->rs = 0;

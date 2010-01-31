@@ -33,9 +33,6 @@ typedef struct {
 } motor_t;
 
 extern motor_t *motor;
-extern pid_t *pid_speed;
-extern pid_t *pid_torque;
-extern pid_t *pid_flux;
 
 void smo_Init(void);
 void smo_Update(void);

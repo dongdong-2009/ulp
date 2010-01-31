@@ -10,11 +10,25 @@
 #include "vector.h"
 #include "math.h"
 
-/*readonly, for debug purpose*/
+/*shared with command shell*/
 extern vector_t Iab, I, Idq;
 extern vector_t V, Vdq; 
+extern pid_t *pid_speed;
+extern pid_t *pid_torque;
+extern pid_t *pid_flux;
 
 #define MOTOR_UPDATE_PERIOD	(1000) /*unit: mS*/
+#define MOTOR_STOP_PERIOD	(5000) /*unit: mS*/
+
+typedef enum {
+	MOTOR_IDLE,
+	MOTOR_START_OP,
+	MOTOR_START,
+	MOTOR_RUN,
+	MOTOR_STOP_OP,
+	MOTOR_STOP,
+	MOTOR_ERROR
+} motor_status_t;
 
 void motor_Init(void);
 void motor_SetSpeed(short speed);
