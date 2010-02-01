@@ -83,16 +83,22 @@ static void cmd_pid_usage(void)
 
 static int cmd_pid_func(int argc, char *argv[])
 {
-	int kp,ki;
+	float fp,fi;
+        short kp,ki;
 	
 	if(argc < 4) {
 		cmd_pid_usage();
 		return 0;
 	}
 	
-	kp = atoi(argv[2]);
-	ki = atoi(argv[3]);
+	fp = atof(argv[2]);
+	fi = atof(argv[3]);
 	
+        kp = (short) NOR_PID_GAIN(fp);
+        ki = (short) NOR_PID_GAIN(fi);
+        
+        printf("normalized kp = %d, ki = %d\n", kp, ki);
+        
 	if(!strcmp(argv[1], "speed")) {
 		pid_Config(pid_speed, kp, ki, 0);
 	}
