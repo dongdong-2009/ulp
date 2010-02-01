@@ -9,11 +9,10 @@
 pid_t *pid_Init(void)
 {
 	pid_t *pid = malloc(sizeof(pid_t));
-	pid->kp = PID_KP_DEF;
-	pid->ki = PID_KI_DEF;
-	pid->kd = PID_KD_DEF;
+	pid->kp = (short) NOR_PID_GAIN(PID_KP_DEF);
+	pid->ki = (short) NOR_PID_GAIN(PID_KI_DEF);
+	pid->kd = (short) NOR_PID_GAIN(PID_KD_DEF);
 	pid->ref = 0;
-	pid->err_limit = 0;
 	pid->err_history = 0;
 	return pid;
 }
@@ -30,31 +29,19 @@ void pid_SetRef(pid_t *pid, short ref)
 	pid->ref = ref;
 }
 
-void pid_SetLimit(pid_t *pid, short limit)
-{
-	pid->err_limit = limit;
-}
-
 short pid_Calcu(pid_t *pid, short in)
 {
-	short err, out;
-	short limit = pid->err_limit;
+	int err, out;
 	
 	err = in - pid->ref;
-	if(pid->err_limit) {
-		if(err > 0) err = (err > limit)?limit:err;
-		else {
-			limit = -limit;
-			err = (err < limit)?limit:err;
-		}
-	}
-	out = err * pid->kp;
-	out += pid->err_history * pid->ki;
-	pid->err_history = err;
-	return out;
+	out = (err * pid->kp) >> PID_GAIN_SHIFT;
+	out += (pid->err_history * pid->ki) >> PID_GAIN_SHIFT;
+	pid->err_history += err;
+	return (short) out;
 }
 
 void pid_Close(pid_t *pid)
 {
 	free(pid);
 }
+
