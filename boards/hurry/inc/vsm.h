@@ -14,6 +14,8 @@
 #define VSM_RS_OHM (4.7)
 #define VSM_VREF_MV (3300.0)
 
+#define VSM_FREQ (CONFIG_SYS_FREQ/T/2)
+
 typedef enum {
 	SECTOR_1 = 1,
 	SECTOR_2,

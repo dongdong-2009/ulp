@@ -6,8 +6,8 @@
 
 #include "config.h"
 
-#ifndef CONFIG_PWM_FREQ
-	#define CONFIG_PWM_FREQ (72000000/5000) /*unit: Hz*/
+#ifndef CONFIG_SYS_FREQ
+	#define CONFIG_SYS_FREQ (72000000) /*unit: Hz*/
 #endif
 
 /*constant*/
@@ -33,8 +33,8 @@
 #define NOR_AMP(x) ((int)x << (15 - 13)) /*y =  (x/nor_amp)*32768*/
 #define _AMP(y) ((int)y >> (15 - 13)) /* amp = (y/32768)*nor_amp */
 
-#define NOR_SPEED_VAL 1 /*(CONFIG_PWM_FREQ)*/
-#define NOR_SPEED(x) (x) /*(((int)x << 15) / NOR_SPEED_VAL)*/
-#define _SPEED(y) (y) /*(((int)y * NOR_SPEED_VAL) >> 15)*/
+#define NOR_SPEED_VAL 1
+#define NOR_SPEED(x) (x)
+#define _SPEED(y) (y)
 
 #endif /*__NORMALIZE_H_*/
