@@ -62,7 +62,7 @@ void smo_Reset(void)
 }
 
 /*return yes(1)/no(0)*/
-int smo_IsReady(void)
+int smo_IsLocked(void)
 {
 	return smo_locked;
 }
