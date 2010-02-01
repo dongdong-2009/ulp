@@ -11,7 +11,7 @@
 
 static int cmd_speed_func(int argc, char *argv[])
 {
-	short speed;
+	int speed;
 	
 	if(argc < 2) {
 		printf("uasge:\n");
@@ -21,14 +21,15 @@ static int cmd_speed_func(int argc, char *argv[])
 	
 	speed = (short)atoi(argv[1]);
 	printf("setting motor speed to %dHz\n", speed);
-	motor_SetSpeed(speed);
+	speed = NOR_SPEED(speed);
+	motor_SetSpeed((short)speed);
 	return 0;
 }
 cmd_t cmd_speed = {"speed", cmd_speed_func, "set motor speed in Hz"};
 
 static int cmd_rpm_func(int argc, char *argv[])
 {
-	short rpm;
+	int rpm, speed;
 	
 	if(argc < 2) {
 		printf("uasge:\n");
@@ -38,7 +39,9 @@ static int cmd_rpm_func(int argc, char *argv[])
 	
 	rpm = (short)atoi(argv[1]);
 	printf("setting motor speed to %dRPM\n", rpm);
-	motor_SetRPM(rpm);
+	speed = RPM_TO_SPEED(rpm);
+	speed = NOR_SPEED(speed); 
+	motor_SetSpeed((short)speed);
 	return 0;
 }
 cmd_t cmd_rpm = {"rpm", cmd_rpm_func, "set motor speed in rpm"};
@@ -105,3 +108,4 @@ static int cmd_pid_func(int argc, char *argv[])
 	return 0;
 }
 cmd_t cmd_pid = {"pid", cmd_pid_func, "set pid paras"};
+

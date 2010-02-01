@@ -4,7 +4,6 @@
 #ifndef __MOTOR_H_
 #define __MOTOR_H_
 
-#include "board.h"
 #include "pid.h"
 #include "smo.h"
 #include "vector.h"
@@ -20,6 +19,9 @@ extern pid_t *pid_flux;
 #define MOTOR_UPDATE_PERIOD	(1000) /*unit: mS*/
 #define MOTOR_STOP_PERIOD	(5000) /*unit: mS*/
 
+#define RPM_TO_SPEED(rpm) ((int)rpm * motor->pn / (2 * 60))
+#define SPEED_TO_RPM(speed) ((int)speed * (60 * 2) / motor->pn)
+
 typedef enum {
 	MOTOR_IDLE,
 	MOTOR_START_OP,
@@ -32,7 +34,7 @@ typedef enum {
 
 void motor_Init(void);
 void motor_SetSpeed(short speed);
-void motor_SetRPM(short rpm);
 void motor_Update(void);
 void motor_isr(void); /*this routine will be called periodly by ADC isr*/
 #endif /*__MOTOR_H_*/
+

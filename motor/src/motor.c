@@ -6,7 +6,9 @@
 #include "board.h"
 #include "motor.h"
 #include <stdio.h>
+#include <stdlib.h>
 
+motor_t *motor;
 pid_t *pid_speed;
 pid_t *pid_torque;
 pid_t *pid_flux;
@@ -20,6 +22,16 @@ static time_t stop_timer;
 
 void motor_Init(void)
 {
+	motor = malloc(sizeof(motor_t));
+	
+	/*default smo_motor para, change me!!!*/
+	motor->rs = (short) NOR_RES(0);
+	motor->ld = (short) NOR_IND(0);
+	motor->lq = (short) NOR_IND(0);
+	motor->pn = 8;
+	motor->start_time = CONFIG_MOTOR_START_TIME;
+	motor->start_speed = NOR_SPEED(RPM_TO_SPEED(CONFIG_MOTOR_START_RPM));
+	
 	stm = MOTOR_IDLE;
 	pid_speed = pid_Init();
 	pid_torque = pid_Init();
@@ -32,11 +44,9 @@ void motor_Init(void)
 
 void motor_Update(void)
 {
-	short speed, rpm, torque_ref, speed_pid;
+	short speed, torque_ref, speed_pid;
 
 	speed = smo_GetSpeed();
-	speed = (short)_SPEED(speed);
-	rpm = (short)SPEED_TO_RPM(speed, motor->pn);
 	speed_pid = pid_GetRef(pid_speed);
 
 	switch (stm) {
@@ -58,7 +68,7 @@ void motor_Update(void)
 
 		case MOTOR_RUN:
 			smo_Update();
-			if((speed_pid == 0) && (rpm < motor->start_rpm)) {
+			if((speed_pid == 0) && (speed < motor->start_speed)) {
 				stm = MOTOR_STOP_OP;
 				return;
 			}
@@ -99,15 +109,8 @@ void motor_Update(void)
 }
 
 void motor_SetSpeed(short speed)
-{	
-	speed = (short)NOR_SPEED(speed);
-	pid_SetRef(pid_speed, speed); 
-}
-
-void motor_SetRPM(short rpm)
 {
-	short speed = (short)RPM_TO_SPEED(rpm, motor->pn);
-	pid_SetRef(pid_speed, speed);
+	pid_SetRef(pid_speed, speed); 
 }
 
 /*this routine will be called periodly by ADC isr*/
