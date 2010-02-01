@@ -6,10 +6,6 @@
 
 #include "vector.h"
 
-#ifndef CONFIG_PWM_FREQ
-	#define CONFIG_PWM_FREQ (72000000/5000) /*unit: Hz*/
-#endif
-
 #ifndef CONFIG_MOTOR_START_TIME
 	#define CONFIG_MOTOR_START_TIME (1000) /*unit: mS*/
 #endif

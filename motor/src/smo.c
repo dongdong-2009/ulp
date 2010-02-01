@@ -6,14 +6,21 @@
 #include "board.h"
 #include "smo.h"
 
+typedef enum {
+	RAMP_IN_UPDATE,
+	RAMP_IN_ISR
+} ramp_type_t;
+
 static time_t smo_timer;
 static short smo_speed; /*current motor speed*/
 static short smo_angle; /*current motor angle*/
 static short smo_locked; /*smo algo is in lock*/
 
 /*used by rampup only*/
-static short smo_start_speed_inc; /*rampup speed inc per step*/
-static short smo_start_flag; /*1 ramp in update, 0 ramp in isr*/
+static short ramp_speed_inc;
+ramp_type_t ramp_type;
+
+static void ramp(ramp_type_t rt);
 
 void smo_Init(void)
 {
@@ -24,12 +31,7 @@ void smo_Update(void)
 	/*update cycle = 1s?*/
 	if(!smo_timer || time_left(smo_timer) < 0) {
 		smo_timer = time_get(SMO_UPDATE_PERIOD);
-		
-		/*update smo speed when in ramp-up progress */
-		if(!smo_locked && smo_start_flag) {
-			if (smo_speed < motor->start_speed)
-				smo_speed += smo_start_speed_inc;
-		}
+		ramp(RAMP_IN_UPDATE);
 	}
 }
 
@@ -43,19 +45,19 @@ void smo_Reset(void)
 	smo_locked = 0;
 	
 	/*rampup var init*/
-	smo_start_flag = 0; /*ramp up in isr*/
+	ramp_type = RAMP_IN_ISR;
 	
 	tmp = motor->start_time;
-	steps =  (short)(tmp * CONFIG_PWM_FREQ / 1000);
-	smo_start_speed_inc = (motor->start_speed) / steps;
+	steps =  (short)(tmp * (VSM_FREQ / 1000));
+	ramp_speed_inc = (motor->start_speed) / steps;
 	
-	if(smo_start_speed_inc == 0) {
+	if(ramp_speed_inc == 0) {
 		/*start progress is too slow, ramp up in update*/
-		smo_start_flag = 1;
+		ramp_type = RAMP_IN_UPDATE;
 		
 		tmp = motor->start_time;
 		steps =  (short)(tmp / SMO_UPDATE_PERIOD);
-		smo_start_speed_inc = (motor->start_speed) / steps;
+		ramp_speed_inc = (motor->start_speed) / steps;
 	}
 	
 	/*pid gain para init according to the given motor model*/
@@ -78,29 +80,36 @@ short smo_GetAngle(void)
 	return smo_angle;
 }
 
-/*motor speed ramp up, return angle*/
-static short smo_ramp(void)
-{
-	int tmp;
-	
-	if(!smo_start_flag) {
-		if (smo_speed < motor->start_speed)
-			smo_speed += smo_start_speed_inc;
-	}
-	
-	/*det_phi= 2*pi*f*det_t = 2*pi*f*(1/fs) = 2*pi*f/fs*/
-	tmp = smo_speed;
-	tmp = tmp << 16;
-	tmp = tmp / CONFIG_PWM_FREQ;
-	return (short)tmp;
-}
-
 void smo_isr(vector_t *pvs, vector_t *pis)
 {
-	if(!smo_locked) {
-		smo_angle += smo_ramp();
-	}
-	
-	/*normal stm update*/
+	ramp(RAMP_IN_ISR);
+}
+
+/*
+*	This routine is used to rampup the motor when startup. because the speed
+*	of the motor is so slow that smo algo cann't use the back-EMF to do estimation.
+*/
+static void ramp(ramp_type_t rt)
+{
+	int tmp;
+
+	if(rt != ramp_type)
+		return;
+
+	if(smo_locked)
+		return;
+
+	/*rampup speed*/
+	if (smo_speed < motor->start_speed)
+		smo_speed += ramp_speed_inc;
+
+	if(rt == RAMP_IN_UPDATE)
+		return;
+
+	/*rampup angle*/
+	tmp = smo_speed;
+	tmp = tmp << 16;
+	tmp = tmp / VSM_FREQ;
+	smo_angle += (short)tmp;
 }
 
