@@ -93,23 +93,21 @@ static void ramp(ramp_type_t rt)
 {
 	int tmp;
 
-	if(rt != ramp_type)
-		return;
-
 	if(smo_locked)
 		return;
 
 	/*rampup speed*/
-	if (smo_speed < motor->start_speed)
-		smo_speed += ramp_speed_inc;
-
-	if(rt == RAMP_IN_UPDATE)
-		return;
+	if(rt == ramp_type) {
+		if (smo_speed < motor->start_speed)
+			smo_speed += ramp_speed_inc;
+	}
 
 	/*rampup angle*/
-	tmp = smo_speed;
-	tmp = tmp << 16;
-	tmp = tmp / VSM_FREQ;
-	smo_angle += (short)tmp;
+	if(rt == RAMP_IN_ISR) {
+		tmp = smo_speed;
+		tmp = tmp << 16;
+		tmp = tmp / VSM_FREQ;
+		smo_angle += (short)tmp;
+	}
 }
 
