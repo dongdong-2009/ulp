@@ -22,13 +22,13 @@ extern pid_t *pid_flux;
 #define SPEED_TO_RPM(speed) ((int)speed * (60 * 2) / motor->pn)
 
 typedef enum {
-	MOTOR_IDLE,
+	MOTOR_IDLE, /*green*/
 	MOTOR_START_OP,
-	MOTOR_START,
-	MOTOR_RUN,
+	MOTOR_START, /*yellow flash*/
+	MOTOR_RUN, /*green flash*/
 	MOTOR_STOP_OP,
-	MOTOR_STOP,
-	MOTOR_ERROR
+	MOTOR_STOP, /*yellow*/
+	MOTOR_ERROR /*red flash*/
 } motor_status_t;
 
 void motor_Init(void);

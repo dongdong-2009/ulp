@@ -31,8 +31,10 @@ void motor_Init(void)
 	motor->start_time = CONFIG_MOTOR_START_TIME;
 	motor->start_speed = NOR_SPEED(RPM_TO_SPEED(CONFIG_MOTOR_START_RPM));
 	motor->start_torque = NOR_AMP(CONFIG_MOTOR_START_CURRENT);
-	
+
 	stm = MOTOR_IDLE;
+	led_off(LED_RED);
+	led_on(LED_GREEN);
 	pid_speed = pid_Init();
 	pid_torque = pid_Init();
 	pid_flux = pid_Init();
@@ -52,8 +54,11 @@ void motor_Update(void)
 
 	switch (stm) {
 		case MOTOR_IDLE:
-			if(speed_pid > 0)
+			if(speed_pid > 0) {
 				stm = MOTOR_START_OP;
+				led_flash(LED_RED);
+				led_flash(LED_GREEN);
+			}
 			break;
 
 		case MOTOR_START_OP:
@@ -70,15 +75,21 @@ void motor_Update(void)
 		case MOTOR_START:
 			if(smo_IsLocked()) {
 				stm = MOTOR_RUN;
+				led_off(LED_RED);
+				led_flash(LED_GREEN);
 			}
 			if(speed_pid == 0) {
 				stm = MOTOR_STOP_OP;
+				led_on(LED_RED);
+				led_on(LED_GREEN);
 			}
 			break;
 
 		case MOTOR_RUN:
 			if((speed_pid == 0) && (speed < motor->start_speed)) {
 				stm = MOTOR_STOP_OP;
+				led_on(LED_RED);
+				led_on(LED_GREEN);
 				break;
 			}
 
@@ -95,11 +106,16 @@ void motor_Update(void)
 			break;
 			
 		case MOTOR_STOP:
-			if(time_left(stop_timer) < 0)	
+			if(time_left(stop_timer) < 0) {
 				stm = MOTOR_IDLE;
+				led_off(LED_RED);
+				led_on(LED_GREEN);
+			}
 			break;
 
 		default:
+			led_on(LED_RED);
+			led_off(LED_GREEN);
 			printf("SYSTEM ERROR!!!\n");
 	}
 }
