@@ -16,7 +16,6 @@ extern pid_t *pid_speed;
 extern pid_t *pid_torque;
 extern pid_t *pid_flux;
 
-#define MOTOR_UPDATE_PERIOD	(1000) /*unit: mS*/
 #define MOTOR_STOP_PERIOD	(5000) /*unit: mS*/
 
 #define RPM_TO_SPEED(rpm) ((int)rpm * motor->pn / (2 * 60))

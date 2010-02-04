@@ -17,7 +17,6 @@ vector_t V, Vdq;
 
 /*private*/
 motor_status_t stm;
-static time_t motor_timer;
 static time_t stop_timer;
 
 void motor_Init(void)
@@ -31,6 +30,7 @@ void motor_Init(void)
 	motor->pn = 8;
 	motor->start_time = CONFIG_MOTOR_START_TIME;
 	motor->start_speed = NOR_SPEED(RPM_TO_SPEED(CONFIG_MOTOR_START_RPM));
+	motor->start_torque = NOR_AMP(CONFIG_MOTOR_START_CURRENT);
 	
 	stm = MOTOR_IDLE;
 	pid_speed = pid_Init();
@@ -46,6 +46,7 @@ void motor_Update(void)
 {
 	short speed, torque_ref, speed_pid;
 
+	smo_Update();
 	speed = smo_GetSpeed();
 	speed_pid = pid_GetRef(pid_speed);
 
@@ -53,58 +54,53 @@ void motor_Update(void)
 		case MOTOR_IDLE:
 			if(speed_pid > 0)
 				stm = MOTOR_START_OP;
-			return;
+			break;
 
 		case MOTOR_START_OP:
+			smo_Start();
+			vsm_Start();
+			stm = MOTOR_START;
+
+			//soft start???
+			torque_ref = motor->start_torque;
+			pid_SetRef(pid_flux, 0); /*Id = 0 control method*/
+			pid_SetRef(pid_torque, torque_ref);
 			break;
 			
 		case MOTOR_START:
-			smo_Update();
+			if(smo_IsLocked()) {
+				stm = MOTOR_RUN;
+			}
 			if(speed_pid == 0) {
 				stm = MOTOR_STOP_OP;
-				return;
 			}
 			break;
 
 		case MOTOR_RUN:
-			smo_Update();
 			if((speed_pid == 0) && (speed < motor->start_speed)) {
 				stm = MOTOR_STOP_OP;
-				return;
+				break;
 			}
+
+			/*speed pid*/
+			torque_ref = pid_Calcu(pid_speed, speed);
+			pid_SetRef(pid_flux, 0); /*Id = 0 control method*/
+			pid_SetRef(pid_torque, torque_ref);
 			break;
 
 		case MOTOR_STOP_OP:
-			smo_Reset();
 			vsm_Stop(); /*note: It's not a brake!!!*/
 			stop_timer = time_get(MOTOR_STOP_PERIOD);
 			stm = MOTOR_STOP;
-			return;
+			break;
 			
 		case MOTOR_STOP:
 			if(time_left(stop_timer) < 0)	
 				stm = MOTOR_IDLE;
-			return;
+			break;
 
 		default:
 			printf("SYSTEM ERROR!!!\n");
-			return;
-	}
-	
-	/*update cycle = 1s?*/
-	if(time_left(motor_timer) < 0) {
-		motor_timer = time_get(MOTOR_UPDATE_PERIOD);
-		
-		/*speed pid*/
-		torque_ref = pid_Calcu(pid_speed, speed);
-		pid_SetRef(pid_flux, 0); /*Id = 0 control method*/
-		pid_SetRef(pid_torque, torque_ref);
-
-		if(stm == MOTOR_START_OP) {
-			smo_Reset();
-			vsm_Start();
-			stm = MOTOR_START;
-		}
 	}
 }
 

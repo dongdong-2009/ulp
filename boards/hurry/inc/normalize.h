@@ -33,8 +33,8 @@
 #define NOR_AMP(x) ((int)x << (15 - 13)) /*y =  (x/nor_amp)*32768*/
 #define _AMP(y) ((int)y >> (15 - 13)) /* amp = (y/32768)*nor_amp */
 
-#define NOR_SPEED_VAL 1
-#define NOR_SPEED(x) (x)
-#define _SPEED(y) (y)
+#define NOR_SPEED_VAL (1 << 10) /*unit: Hz*/
+#define NOR_SPEED(x) ((int)x << (15 - 10)) /*y =  (x/nor_speed)*32768*/
+#define _SPEED(y) ((int)y >> (15 - 10)) /* speed = (y/32768)*nor_speed */
 
 #endif /*__NORMALIZE_H_*/

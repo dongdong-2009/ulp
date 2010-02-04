@@ -14,22 +14,25 @@
 	#define CONFIG_MOTOR_START_RPM (500)
 #endif
 
-#define SMO_UPDATE_PERIOD	(100) /*unit: mS*/
+#ifndef CONFIG_MOTOR_START_CURRENT
+	#define CONFIG_MOTOR_START_CURRENT (10)
+#endif
 
 typedef struct {
-	short rs; /*stator resistance, unit mOhm*/
-	short ld; /*d axis inductance*/
-	short lq; /*q axis inductance*/
+	short rs;
+	short ld;
+	short lq;
 	short pn; /*nr of poles, such as 8*/
 	short start_time; /*startup duration, unit: mS*/
-	short start_speed; /*motor final startup speed in Hz*/
+	short start_speed;
+	short start_torque;
 } motor_t;
 
 extern motor_t *motor;
 
 void smo_Init(void);
 void smo_Update(void);
-void smo_Reset(void);
+void smo_Start(void);
 void smo_isr(vector_t *pvs, vector_t *pis);
 int smo_IsLocked(void); /*return yes(1)/no(0)*/
 short smo_GetSpeed(void); /*unit: Hz*/
