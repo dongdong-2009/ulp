@@ -19,11 +19,14 @@ void board_Init(void)
 	console_Init();
 	vsm_Init();
 
-	/*indicates system busy*/
+	/*indicates board init finish*/
 	led_on(LED_RED);
+	mdelay(100);
+	led_off(LED_RED);
+	
 	led_on(LED_GREEN);
-	led_flash(LED_RED);
-	led_flash(LED_GREEN);
+	mdelay(100);
+	led_off(LED_GREEN);
 }
 
 void board_Update(void)
