@@ -67,11 +67,10 @@ void led_SetStatus(led_t led, led_status_t status)
 	
 	switch(led) {
 		case LED_GREEN:
-			//GPIO_SetBits(GPIOB, GPIO_Pin_5);
-			GPIO_WriteBit(GPIOC, GPIO_Pin_10, ba);
+			GPIO_WriteBit(GPIOC, GPIO_Pin_12, ba);
 			break;
 		case LED_RED:
-			GPIO_WriteBit(GPIOC, GPIO_Pin_12, ba);
+			GPIO_WriteBit(GPIOC, GPIO_Pin_10, ba);
 			break;
 		default:
 			break;
