@@ -33,7 +33,7 @@ short pid_Calcu(pid_t *pid, short in)
 {
 	int err, out;
 	
-	err = in - pid->ref;
+	err = pid->ref - in;
 	out = (err * pid->kp) >> PID_GAIN_SHIFT;
 	out += (pid->err_history * pid->ki) >> PID_GAIN_SHIFT;
 	pid->err_history += err;
