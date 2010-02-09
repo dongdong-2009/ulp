@@ -113,6 +113,7 @@ void vsm_Init(void)
 
 	ADC_StructInit(&ADC_InitStructure);
 	ADC_InitStructure.ADC_Mode = ADC_Mode_InjecSimult;
+	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
 	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
 	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Left;
 	ADC_Init(ADC1, &ADC_InitStructure);
@@ -208,8 +209,8 @@ void vsm_SetVoltage(short alpha, short beta)
 		cmp_c = (unsigned short)(cmp_a - z); /*+ T2*/
 		tmp = (cmp_a + cmp_c) >> 1;
 
-		ADC1->JSQR = VSM_PHV;
-		ADC2->JSQR = VSM_PHW;
+		ADC1->JSQR = VSM_PHV << 15;
+		ADC2->JSQR = VSM_PHW << 15;
 		break;
 	case SECTOR_2:
 		/*T1 = - z; (+(3^0.5)¦Á+¦Â)/2*/
@@ -221,8 +222,8 @@ void vsm_SetVoltage(short alpha, short beta)
 		cmp_b = (unsigned short)(cmp_c - x); /*+ T2*/
 		tmp = (cmp_c + cmp_b) >> 1;
 
-		ADC1->JSQR = VSM_PHU;
-		ADC2->JSQR = VSM_PHW;
+		ADC1->JSQR = VSM_PHU << 15;
+		ADC2->JSQR = VSM_PHW << 15;
 		break;
 
 	case SECTOR_3:
@@ -235,8 +236,8 @@ void vsm_SetVoltage(short alpha, short beta)
 		cmp_c = (unsigned short)(cmp_b + x); /*+ T2*/
 		tmp = (cmp_b + cmp_c) >> 1;
 
-		ADC1->JSQR = VSM_PHU;
-		ADC2->JSQR = VSM_PHW;
+		ADC1->JSQR = VSM_PHU << 15;
+		ADC2->JSQR = VSM_PHW << 15;
 		break;
 
 	 case SECTOR_4:
@@ -249,8 +250,8 @@ void vsm_SetVoltage(short alpha, short beta)
 		cmp_a = (unsigned short)(cmp_b - y); /*+ T2*/
 		tmp = (cmp_b + cmp_a) >> 1;
 
-		ADC1->JSQR = VSM_PHU;
-		ADC2->JSQR = VSM_PHV;
+		ADC1->JSQR = VSM_PHU << 15;
+		ADC2->JSQR = VSM_PHV << 15;
 		break;
 
 	case SECTOR_5:
@@ -263,8 +264,8 @@ void vsm_SetVoltage(short alpha, short beta)
 		cmp_a = (unsigned short)(cmp_c + z); /*+ T2*/
 		tmp = (cmp_c + cmp_a) >> 1;
 
-		ADC1->JSQR = VSM_PHU;
-		ADC2->JSQR = VSM_PHV;
+		ADC1->JSQR = VSM_PHU << 15;
+		ADC2->JSQR = VSM_PHV << 15;
 		break;
 
 	case SECTOR_6:
@@ -277,8 +278,8 @@ void vsm_SetVoltage(short alpha, short beta)
 		cmp_b = (unsigned short)(cmp_a + y); /*+ T2*/
 		tmp = (cmp_a + cmp_b) >> 1;
 
-		ADC1->JSQR = VSM_PHV;
-		ADC2->JSQR = VSM_PHW;
+		ADC1->JSQR = VSM_PHV << 15;
+		ADC2->JSQR = VSM_PHW << 15;
 		break;
 	default:
 		break;
@@ -301,8 +302,8 @@ void vsm_GetCurrent(short *a, short *b)
 {
 	int i1, i2;
 
-	i1 = ADC1->JDR1;
-	i2 = ADC2->JDR1;
+	i1 = ADC1->JDR4;
+	i2 = ADC2->JDR4;
 
 	/*convet current unit from count to mA*/
 	i1 = CNT_2_MA(i1);
