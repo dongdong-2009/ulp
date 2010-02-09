@@ -1230,7 +1230,7 @@ void ADC_ClearFlag(ADC_TypeDef* ADCx, uint8_t ADC_FLAG)
   assert_param(IS_ADC_ALL_PERIPH(ADCx));
   assert_param(IS_ADC_CLEAR_FLAG(ADC_FLAG));
   /* Clear the selected ADC flags */
-  ADCx->SR = ~(uint32_t)ADC_FLAG;
+  ADCx->SR &= ~(uint32_t)ADC_FLAG;
 }
 
 /**
@@ -1288,7 +1288,7 @@ void ADC_ClearITPendingBit(ADC_TypeDef* ADCx, uint16_t ADC_IT)
   /* Get the ADC IT index */
   itmask = (uint8_t)(ADC_IT >> 8);
   /* Clear the selected ADC interrupt pending bits */
-  ADCx->SR = ~(uint32_t)itmask;
+  ADCx->SR &= ~(uint32_t)itmask;
 }
 
 /**
