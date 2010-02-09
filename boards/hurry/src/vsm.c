@@ -302,8 +302,8 @@ void vsm_GetCurrent(short *a, short *b)
 {
 	int i1, i2;
 
-	i1 = ADC1->JDR4;
-	i2 = ADC2->JDR4;
+	i1 = ADC1->JDR1;
+	i2 = ADC2->JDR1;
 
 	/*convet current unit from count to mA*/
 	i1 = CNT_2_MA(i1);
