@@ -45,7 +45,7 @@ void vsm_Init(void)
 		PWM_VN	PB14
 		PWM_WN	PB15
 	*/
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;//|GPIO_Pin_11;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
@@ -84,10 +84,12 @@ void vsm_Init(void)
 	TIM_OC1Init(TIM1, &TIM_OCInitStructure);
 	TIM_OC2Init(TIM1, &TIM_OCInitStructure);
 	TIM_OC3Init(TIM1, &TIM_OCInitStructure);
+	TIM_OC4Init(TIM1, &TIM_OCInitStructure);
 
 	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);
 	TIM_OC2PreloadConfig(TIM1, TIM_OCPreload_Enable);
 	TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
+	TIM_OC4PreloadConfig(TIM1, TIM_OCPreload_Enable);
 
 	TIM_CtrlPWMOutputs(TIM1, ENABLE);
 
@@ -339,6 +341,7 @@ void vsm_Start(void)
 	ADC_ClearITPendingBit(ADC1, ADC_IT_JEOC);
 	ADC_ITConfig(ADC1, ADC_IT_JEOC, ENABLE);
 	TIM_Cmd(TIM1, ENABLE);
+	vsm_SetVoltage(0,0);
 }
 
 void vsm_Stop(void)
