@@ -6,6 +6,8 @@
 #include "board.h"
 #include "smo.h"
 
+static short smo_speed;
+static short smo_angle;
 static short smo_locked; /*smo algo is in lock*/
 
 /*used by rampup only*/
@@ -25,7 +27,7 @@ void smo_Start(void)
 {	
 	int tmp, steps;
 	
-	/*var init*/
+	/*ramp var init*/
 	ramp_speed = 0;
 	ramp_angle = 0;
 	smo_locked = 0;
@@ -36,6 +38,10 @@ void smo_Start(void)
 	
 	if(ramp_speed_inc == 0)
 		ramp_speed_inc = 1;
+
+	/*smo var init*/
+	smo_speed = 0;
+	smo_angle = 0;
 	
 	/*pid gain para init according to the given motor model*/
 }
@@ -49,12 +55,16 @@ int smo_IsLocked(void)
  /*unit: Hz*/
 short smo_GetSpeed(void)
 {
-	return ramp_speed;
+	short speed;
+	speed = (smo_locked)?smo_speed : smo_angle;
+	return speed;
 }
 
 short smo_GetAngle(void)
 {
-	return ramp_angle;
+	short angle;
+	angle = (smo_locked)?smo_angle : ramp_angle;
+	return angle;
 }
 
 void smo_isr(vector_t *pvs, vector_t *pis)
