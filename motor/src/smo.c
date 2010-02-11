@@ -10,6 +10,10 @@ static short smo_speed;
 static short smo_angle;
 static short smo_locked; /*smo algo is in lock*/
 
+static vector_t smo_bemf;
+static short smo_A; /* (-Rs * Ts) / Ls */
+static short smo_B; /* (Ts / Ls) * (NOR_VOL_VAL / NOR_AMP_VAL) */
+
 /*used by rampup only*/
 static short ramp_speed;
 static short ramp_angle;
@@ -26,6 +30,7 @@ void smo_Update(void)
 void smo_Start(void)
 {	
 	int tmp, steps;
+	float r, l, g;
 	
 	/*ramp var init*/
 	ramp_speed = 0;
@@ -42,6 +47,15 @@ void smo_Start(void)
 	/*smo var init*/
 	smo_speed = 0;
 	smo_angle = 0;
+	smo_bemf.alpha = 0;
+	smo_bemf.beta = 0;
+
+	r = _RES(motor->rs);
+	l = _IND(motor->ld) / 1000;
+	g = -1.0 * r / l / VSM_FREQ;
+	smo_A = (int) NOR_SMO_GAIN(g);
+	g = 1.0 * NOR_VOL_VAL / NOR_AMP_VAL / l / VSM_FREQ;
+	smo_B = (int) NOR_SMO_GAIN(g);
 	
 	/*pid gain para init according to the given motor model*/
 }
@@ -69,6 +83,8 @@ short smo_GetAngle(void)
 
 void smo_isr(vector_t *pvs, vector_t *pis)
 {
+	vector_t ise;
+	
 	if(!smo_locked) {
 		int tmp;
 		/*
@@ -84,5 +100,10 @@ void smo_isr(vector_t *pvs, vector_t *pis)
 		tmp = _SPEED(tmp);
 		ramp_angle += (short)tmp;
 	}
+
+	/*1, predict current Ise*/
+	/*2, compare the Ise with current Is to obtain bemf*/
+	/*3, calculate smo_angle*/
+	/*4, calculate smo_speed*/
 }
 
