@@ -6,11 +6,11 @@
 #include "board.h"
 #include "smo.h"
 
-static short smo_speed; /*current motor speed*/
-static short smo_angle; /*current motor angle*/
 static short smo_locked; /*smo algo is in lock*/
 
 /*used by rampup only*/
+static short ramp_speed;
+static short ramp_angle;
 static short ramp_speed_inc;
 
 void smo_Init(void)
@@ -26,8 +26,8 @@ void smo_Start(void)
 	int tmp, steps;
 	
 	/*var init*/
-	smo_speed = 0;
-	smo_angle = 0;
+	ramp_speed = 0;
+	ramp_angle = 0;
 	smo_locked = 0;
 	
 	tmp = motor->start_time;
@@ -49,12 +49,12 @@ int smo_IsLocked(void)
  /*unit: Hz*/
 short smo_GetSpeed(void)
 {
-	return smo_speed;
+	return ramp_speed;
 }
 
 short smo_GetAngle(void)
 {
-	return smo_angle;
+	return ramp_angle;
 }
 
 void smo_isr(vector_t *pvs, vector_t *pis)
@@ -65,14 +65,14 @@ void smo_isr(vector_t *pvs, vector_t *pis)
 		*	This routine is used to rampup the motor when startup. because the speed
 		*	of the motor is so slow that smo algo cann't use the back-EMF to do estimation.
 		*/
-		if (smo_speed < motor->start_speed)
-			smo_speed += ramp_speed_inc;
+		if (ramp_speed < motor->start_speed)
+			ramp_speed += ramp_speed_inc;
 		
-		tmp = smo_speed;
+		tmp = ramp_speed;
 		tmp = tmp << 16;
 		tmp = tmp / VSM_FREQ;
 		tmp = _SPEED(tmp);
-		smo_angle += (short)tmp;
+		ramp_angle += (short)tmp;
 	}
 }
 
