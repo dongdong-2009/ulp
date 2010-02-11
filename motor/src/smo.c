@@ -5,6 +5,7 @@
 #include "config.h"
 #include "board.h"
 #include "smo.h"
+#include "math.h"
 
 static short smo_speed;
 static short smo_angle;
@@ -83,10 +84,10 @@ short smo_GetAngle(void)
 
 void smo_isr(vector_t *pvs, vector_t *pis)
 {
-	vector_t ise;
+	int tmp, A, B;
+	short i1, i2, v1, v2, angle;
 	
 	if(!smo_locked) {
-		int tmp;
 		/*
 		*	This routine is used to rampup the motor when startup. because the speed
 		*	of the motor is so slow that smo algo cann't use the back-EMF to do estimation.
@@ -101,9 +102,40 @@ void smo_isr(vector_t *pvs, vector_t *pis)
 		ramp_angle += (short)tmp;
 	}
 
+	A = smo_A;
+	B = smo_B;
+	angle = smo_angle;
+	
 	/*1, predict current Ise*/
-	/*2, compare the Ise with current Is to obtain bemf*/
+	tmp = A * pis->alpha;
+	tmp += B * pvs->alpha;
+	tmp -= B * smo_bemf.alpha;
+	i1 = (short) (tmp >> SMO_GAIN_SHIFT);
+
+	tmp = A * pis->beta;
+	tmp += B * pvs->beta;
+	tmp -= B * smo_bemf.beta;
+	i2 = (short) (tmp >> SMO_GAIN_SHIFT);
+	
+	/*2, predict current bemf*/
+	v1 = msigmoid(pis->alpha - i1);
+	v2 = msigmoid(pis->beta - i2);
+	smo_bemf.alpha = v1;
+	smo_bemf.beta = v2;
+	
 	/*3, calculate smo_angle*/
+	tmp = v2 << 15;
+	tmp = tmp / v1;
+	tmp = tmp >> 15;
+	smo_angle = matan((short) tmp);
+	
 	/*4, calculate smo_speed*/
+	tmp = smo_angle;
+	tmp = tmp - angle;
+	if(tmp < 0)
+		tmp += 1 << 16;
+	tmp *= VSM_FREQ;
+	tmp = NOR_SPEED(tmp);
+	smo_speed = (short) (tmp >> 16);
 }
 

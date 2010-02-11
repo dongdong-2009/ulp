@@ -18,7 +18,7 @@
 	#define CONFIG_MOTOR_START_CURRENT (10)
 #endif
 
-#define SMO_GAIN_SHIFT	15 /*n -> range: (+/-) 2^(-n) ~ 2^(15-n)*/
+#define SMO_GAIN_SHIFT	11 /*n -> range: (+/-) 2^(-n) ~ 2^(15-n)*/
 #define NOR_SMO_GAIN_VAL	(1.0/(1 << SMO_GAIN_SHIFT))
 #define NOR_SMO_GAIN(g) (g  / NOR_SMO_GAIN_VAL)
 #define _SMO_GAIN(g) (g * NOR_SMO_GAIN_VAL)

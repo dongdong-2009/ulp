@@ -82,3 +82,13 @@ void mtri(short theta, short *sin, short *cos)
 		break;
 	}
 }
+
+short msigmoid(short x)
+{
+	return 0;
+}
+
+short matan(short x)
+{
+	return 0;
+}
