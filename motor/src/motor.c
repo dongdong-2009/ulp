@@ -24,9 +24,9 @@ void motor_Init(void)
 	motor = malloc(sizeof(motor_t));
 	
 	/*default smo_motor para, change me!!!*/
-	motor->rs = (short) NOR_RES(0);
-	motor->ld = (short) NOR_IND(0);
-	motor->lq = (short) NOR_IND(0);
+	motor->rs = (short) NOR_RES(65.0f);
+	motor->ld = (short) NOR_IND(49.0f);
+	motor->lq = (short) NOR_IND(49.0f);
 	motor->pn = 8;
 	motor->start_time = CONFIG_MOTOR_START_TIME;
 	motor->start_speed = NOR_SPEED(RPM_TO_SPEED(CONFIG_MOTOR_START_RPM));

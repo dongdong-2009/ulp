@@ -48,7 +48,8 @@ cmd_t cmd_rpm = {"rpm", cmd_rpm_func, "set motor speed in rpm"};
 
 static int cmd_motor_func(int argc, char *argv[])
 {
-	int rs, ls, pn;
+	float rs, ls;
+	int pn;
 	if(argc < 4) {
 		printf( \
 			"uasge:\n" \
@@ -58,14 +59,14 @@ static int cmd_motor_func(int argc, char *argv[])
 		return 0;
 	}
 	
-	rs = atoi(argv[1]);
-	ls = atoi(argv[2]);
+	rs = atof(argv[1]);
+	ls = atof(argv[2]);
 	pn = atoi(argv[3]);
 	
-	printf("rs = %dOhm\nls = %dmH\npn = %d\n", rs, ls, pn);
-	motor->rs = NOR_RES(rs);
-	motor->ld = NOR_IND(ls);
-	motor->lq = NOR_IND(ls);
+	printf("rs = %fOhm\nls = %fmH\npn = %d\n", rs, ls, pn);
+	motor->rs = (short) NOR_RES(rs);
+	motor->ld = (short) NOR_IND(ls);
+	motor->lq = (short) NOR_IND(ls);
 	motor->pn = pn;
 	return 0;
 }
