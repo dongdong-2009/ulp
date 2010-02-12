@@ -7,8 +7,10 @@
 #include "board.h"
 
 /*loopup table to get sin(theta), cos(theta) at the same time in order to increase speed*/
-/*theta: unit: 0001 = pi/2/(2^13) = 0.01degree*/
+/*theta = phi(unit: rad) / (2*pi) * (2^16)*/
 void mtri(short theta, short *sin, short *cos);
 short msigmoid(short x);
-short matan(short x);
+
+/*arctan(y/x), return (short) (phi/(2*pi) * (2^16)), range: -pi ~ pi */
+short matan(short sin, short cos);
 #endif /*__CONSTANT_H_*/

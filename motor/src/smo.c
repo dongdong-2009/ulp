@@ -124,10 +124,7 @@ void smo_isr(vector_t *pvs, vector_t *pis)
 	smo_bemf.beta = v2;
 	
 	/*3, calculate smo_angle*/
-	tmp = v2 << 15;
-	tmp = tmp / v1;
-	tmp = tmp >> 15;
-	smo_angle = matan((short) tmp);
+	angle = -matan(v1, v2);
 	
 	/*4, calculate smo_speed*/
 	tmp = smo_angle;
