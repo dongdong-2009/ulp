@@ -199,6 +199,13 @@ static short hAtan_table[256] = {
 	0x1f5a, 0x1f6f, 0x1f84, 0x1f99, 0x1fad, 0x1fc2, 0x1fd7, 0x1feb, \
 };
 
+typedef enum {
+	MATAN_SECTOR_000_090 = 0,
+	MATAN_SECTOR_090_180 = 1,
+	MATAN_SECTOR_180_270 = 3,
+	MATAN_SECTOR_270_360 = 2
+} matan_sector_t;
+
 /*arctan(y/x), return (short) (phi/(2*pi) * (2^16)), range: -pi ~ pi */
 short matan(short sin, short cos)
 {
@@ -230,6 +237,28 @@ short matan(short sin, short cos)
 	}
 
 	/*extend to 0~2*pi*/
-	theta |= (sector << 14);
+	switch (sector) {
+		case MATAN_SECTOR_000_090:
+			break;
+
+		case MATAN_SECTOR_090_180:
+			theta = 0x4000 - theta; /*pi/2 - theta*/
+			theta |= (1 << 14);
+			break;
+
+		case MATAN_SECTOR_180_270:
+			theta |= (2 << 14);
+			break;
+
+		case MATAN_SECTOR_270_360:
+			theta = 0x4000 - theta; /*pi/2 - theta*/
+			theta |= (3 << 14);
+			break;
+
+		default:
+			break;
+	}
+
 	return theta;
 }
+
