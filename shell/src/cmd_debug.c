@@ -10,31 +10,21 @@
 #include "board.h"
 #include "motor.h"
 
-static time_t debug_deadline;
-static int debug_counter;
-
 static int cmd_debug_func(int argc, char *argv[])
 {
-	if(!debug_counter) {
-		/*first time run*/
-		debug_counter = 10;
-		debug_deadline = time_get(1000);
-		led_flash(LED_GREEN);
-		return 1;
+	int angle;
+	short theta, sin, cos, atan;
+
+	for(angle = 0; angle < (1<<17); angle += 100)
+	{
+		theta = (short) angle;
+		mtri(theta, &sin, &cos);
+		atan = matan(sin, cos);
+
+		printf("angle %05d sin %05d cos %05d atan %05d\n", theta, sin, cos, atan);
 	}
 	
-	led_Update();
-	if(time_left(debug_deadline) < 0) {
-		debug_deadline = time_get(1000);
-		debug_counter --;
-		if(debug_counter > 0)
-			printf("\rdebug_ms_counter = %02d ", debug_counter);
-		else {
-			printf("debug command is over!!\n");
-			return 0;
-		}
-	}
-	return 1;
+	return 0;
 }
 cmd_t cmd_debug = {"debug", cmd_debug_func, "for self-defined debug purpose"};
 
