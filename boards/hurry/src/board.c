@@ -18,6 +18,7 @@ void board_Init(void)
 	led_Init();
 	console_Init();
 	vsm_Init();
+	dbg_Init();
 
 	/*indicates board init finish*/
 	led_on(LED_RED);

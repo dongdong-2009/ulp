@@ -1600,6 +1600,9 @@
         <name>$PROJ_DIR$\..\..\board\inc\console.h</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\..\board\inc\dbg.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\board\inc\led.h</name>
       </file>
       <file>
@@ -1622,6 +1625,9 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\board\src\console.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\board\src\dbg.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\board\src\led.c</name>

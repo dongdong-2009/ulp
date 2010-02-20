@@ -11,5 +11,6 @@ void board_Update(void);
 #include "led.h"
 #include "console.h"
 #include "vsm.h"
+#include "dbg.h"
 #include "normalize.h"
 #endif /*__BOARD_H_*/
