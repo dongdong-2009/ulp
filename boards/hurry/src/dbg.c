@@ -5,7 +5,6 @@
 #include "config.h"
 #include "stm32f10x.h"
 #include "dbg.h"
-#include "vsm.h"
 
 void dbg_Init(void)
 {
@@ -32,7 +31,7 @@ void dbg_Init(void)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-	TIM_TimeBaseStructure.TIM_Period = T;
+	TIM_TimeBaseStructure.TIM_Period = (T * 2);
 	TIM_TimeBaseStructure.TIM_Prescaler = 0;
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -40,7 +39,7 @@ void dbg_Init(void)
 
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = (T >> 2);
+	TIM_OCInitStructure.TIM_Pulse = (T >> 1);
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 
 	TIM_OC1Init(TIM3, &TIM_OCInitStructure);

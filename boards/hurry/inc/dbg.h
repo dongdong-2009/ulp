@@ -5,12 +5,13 @@
 #define __DBG_H_
 
 #include "stm32f10x.h"
+#include "vsm.h"
 
 /*pwm debug*/
-#define pwm1_Set(val) do { TIM3->CCR1 = val; } while(0)
-#define pwm2_Set(val) do { TIM3->CCR2 = val; } while(0)
-#define pwm3_Set(val) do { TIM3->CCR3 = val; } while(0)
-#define pwm4_Set(val) do { TIM3->CCR4 = val; } while(0)
+#define pwm1_Set(val) do { TIM3->CCR1 = (((int)val * T >> 15) + T); } while(0)
+#define pwm2_Set(val) do { TIM3->CCR2 = (((int)val * T >> 15) + T); } while(0)
+#define pwm3_Set(val) do { TIM3->CCR3 = (((int)val * T >> 15) + T); } while(0)
+#define pwm4_Set(val) do { TIM3->CCR4 = (((int)val * T >> 15) + T); } while(0)
 
 /*gpio debug*/
 /* pin map:
