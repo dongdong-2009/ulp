@@ -9,6 +9,7 @@
 #include <string.h>
 #include "board.h"
 #include "motor.h"
+#include "stm32f10x.h"
 
 static int cmd_debug_func(int argc, char *argv[])
 {
@@ -65,7 +66,7 @@ static int cmd_dalgo_func(int argc, char *argv[])
 }
 cmd_t cmd_dalgo = {"dalgo", cmd_dalgo_func, "motor algo debug"};
 
-#define CMD_SVPWM_TS	2 /*unit; mS*/
+#define CMD_SVPWM_TS	5 /*unit; mS*/
 static time_t cmd_svpwm_timer; /*update timer*/
 static int cmd_svpwm_index; /*0,1,2,3,4....*/
 static vector_t cmd_svpwm_vdq; /*setting voltage*/
@@ -73,13 +74,13 @@ static int cmd_svpwm_angle_inc; /*setting period*/
 static short cmd_svpwm_angle;
 static int cmd_svpwm_func(int argc, char *argv[])
 {
-	int v1, v2, hz;
-	vector_t v;//, vab;
+	int v1, v2, i1, i2, hz;
+	vector_t v, iab, i;
 	char usage[] = { \
 		" usage:\n" \
 		" svpwm vd vq hz\n" \
 		" vd/vq, d/q axis voltage, unit mV\n" \
-		" hz, input modulation signal freq to vsm driver, pls do not exceed 100Hz\n" \
+		" hz, input modulation signal freq to vsm driver, pls do not exceed 10Hz\n" \
 	};
 	
 	/*first loop*/
@@ -99,11 +100,12 @@ static int cmd_svpwm_func(int argc, char *argv[])
 		hz = atoi(argv[3]);
 		cmd_svpwm_angle_inc = (hz << 16) * CMD_SVPWM_TS / 1000;
 		
-		cmd_svpwm_timer = CMD_SVPWM_TS;
+		cmd_svpwm_timer = time_get(CMD_SVPWM_TS);
 		cmd_svpwm_index = -1;
 		cmd_svpwm_angle = 0;
 		
 		vsm_Start();
+		ADC_ITConfig(ADC1, ADC_IT_JEOC, DISABLE);
 		return 1;
 	}
 	
@@ -119,12 +121,23 @@ static int cmd_svpwm_func(int argc, char *argv[])
 	v1 = _VOL(v.alpha);
 	v2 = _VOL(v.beta);
 	vsm_SetVoltage(v.alpha, v.beta);
+
+	/*wait for adc result*/
+	while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_JEOC));
+	vsm_GetCurrent(&iab.a, &iab.b);
+	i1 = _AMP(iab.a);
+	i2 = _AMP(iab.b);
+	clarke(&iab, &i);
+	ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);
 	
 	/*calc current angle*/
 	cmd_svpwm_angle += cmd_svpwm_angle_inc;
 	
 	/*display*/
-	printf("%05d: phi %d alpha %d beta %d \n", cmd_svpwm_index, cmd_svpwm_angle, v1, v2);
+	printf("%05d: phi %d V %d %d", cmd_svpwm_index, cmd_svpwm_angle, v1, v2);
+	printf(" I %d %d", i.alpha, i.beta);
+	printf(" Iab %d %d", i1, i2);
+	printf("\n");
 	return 1;
 }
 cmd_t cmd_svpwm = {"svpwm", cmd_svpwm_func, "svpwm output test"};
