@@ -71,7 +71,7 @@ int smo_IsLocked(void)
 short smo_GetSpeed(void)
 {
 	short speed;
-	speed = (smo_locked)?smo_speed : smo_angle;
+	speed = (smo_locked)?smo_speed : ramp_speed;
 	return speed;
 }
 
