@@ -13,6 +13,7 @@
 static int shell_ReadLine(void);
 static void shell_Parse(void);
 
+static char cmd_history[CONFIG_SHELL_LEN_CMD_MAX];
 static char cmd_buffer[CONFIG_SHELL_LEN_CMD_MAX]; /*max length of a cmd and paras*/
 static int cmd_idx;
 static char *argv[CONFIG_SHELL_NR_PARA_MAX]; /*max number of para, include command itself*/
@@ -21,6 +22,7 @@ static int argc;
 void shell_Init(void)
 {
 	cmd_buffer[0] = 0;
+	strcpy(cmd_history, "help");
 	cmd_idx = -1;
 	
 	putchar(0x1b); /*clear screen*/
@@ -37,7 +39,9 @@ void shell_Update(void)
 	cmd_Update();
 	ok = shell_ReadLine();
 	if(!ok) return;
-	
+
+	if(strlen(cmd_buffer))
+		strcpy(cmd_history, cmd_buffer);
 	shell_Parse();
 	cmd_Exec(argc, argv);
 }
@@ -76,6 +80,23 @@ static int shell_ReadLine(void)
 				/*printf("%s", "\b \b");*/
 				putchar(ch);
 			}
+			continue;
+		case 0x18: /*UP key*/
+		case 0x19:
+		case 0x1A:
+		case 0x1B:
+			ch = console_getch();
+			ch = console_getch();
+			
+			while(cmd_idx > 0)
+			{
+				cmd_buffer[--cmd_idx] = 0;
+				/*printf("%s", "\b \b");*/
+				putchar(127);
+			}
+			strcpy(cmd_buffer, cmd_history);
+			cmd_idx = strlen(cmd_buffer);
+			printf(cmd_buffer);
 			continue;
 		default:
 			if((ch < ' ') || (ch > 126))
