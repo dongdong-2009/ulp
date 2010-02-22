@@ -49,13 +49,18 @@ void shell_Update(void)
 /*read a line of string from console*/
 static int shell_ReadLine(void)
 {
-	int ch;
+	int ch, len, sz, offset;
+	char buf[CONFIG_SHELL_LEN_CMD_MAX];
 	int ready = 0;
 	
 	if(cmd_idx == -1) { 
 		printf("%s", CONFIG_SHELL_PROMPT);
+		memset(cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
 		cmd_idx ++;
 	}
+
+	len = strlen(cmd_buffer);
+	memset(buf, 0, CONFIG_SHELL_LEN_CMD_MAX);
 	
 	while(console_IsNotEmpty())
 	{
@@ -66,9 +71,8 @@ static int shell_ReadLine(void)
 			continue;
 		case 3: /*ctrl-c*/
 			strcpy(cmd_buffer, "pause");
-			cmd_idx = 5;
+			len = 5;
 		case '\r':		// Return
-			cmd_buffer[cmd_idx] = '\0';
 			cmd_idx = -1;
 			ready = 1;
 			putchar('\n');
@@ -76,9 +80,25 @@ static int shell_ReadLine(void)
 		case 127:			// Backspace
 			if(cmd_idx > 0)
 			{
-				cmd_buffer[--cmd_idx] = 0;
-				/*printf("%s", "\b \b");*/
-				putchar(ch);
+				sz = len - cmd_idx;
+				if(sz > 0) {
+					/*copy cursor->rail to buf*/
+					offset = cmd_idx;
+					memcpy(buf, cmd_buffer + offset, sz);
+					/*copy back*/
+					offset = cmd_idx - 1;
+					memcpy(cmd_buffer + offset, buf, sz);
+				}
+
+				cmd_buffer[len - 1] = 0;
+				cmd_idx --;
+
+				/*terminal display*/
+				putchar(127);
+				printf("\033[s"); /*save cursor pos*/
+				printf("\033[K"); /*clear contents after cursor*/
+				printf(buf);
+				printf("\033[u"); /*restore cursor pos*/
 			}
 			continue;
 		case 0x1B: /*arrow keys*/
@@ -88,21 +108,30 @@ static int shell_ReadLine(void)
 			ch = console_getch();
 			switch (ch) {
 				case 'A': /*UP key*/
-					while(cmd_idx > 0)
-					{
-						cmd_buffer[--cmd_idx] = 0;
-						/*printf("%s", "\b \b");*/
-						putchar(127);
-					}
+					offset = cmd_idx;
+					memset(cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
 					strcpy(cmd_buffer, cmd_history);
 					cmd_idx = strlen(cmd_buffer);
+					
+					/*terminal display*/
+					if(offset > 0)
+						printf("\033[%dD", offset); /*mov cursor to left*/
+					printf("\033[K"); /*clear contents after cursor*/
 					printf(cmd_buffer);
 					break;
 				case 'B': /*DOWN key*/
 					break;
 				case 'C': /*RIGHT key*/
+					if(cmd_idx < len) {
+						cmd_idx ++;
+						printf("\033[C"); /*mov cursor right*/
+					}
 					break;
 				case 'D': /*LEFT key*/
+					if(cmd_idx > 0) {
+						cmd_idx --;
+						printf("\033[D"); /*mov cursor left*/
+					}
 					break;
 				default:
 					break;
@@ -111,10 +140,28 @@ static int shell_ReadLine(void)
 		default:
 			if((ch < ' ') || (ch > 126))
 				continue;
-			if(cmd_idx < CONFIG_SHELL_LEN_CMD_MAX - 1)
+			if(len < CONFIG_SHELL_LEN_CMD_MAX - 1)
 			{
+				sz = len - cmd_idx;
+				if(sz > 0) {
+					/*copy cursor->rail to buf*/
+					offset = cmd_idx;
+					memcpy(buf, cmd_buffer + offset, sz);
+					
+					/*copy back*/
+					offset ++;
+					memcpy(cmd_buffer + offset, buf, sz);
+				}
+
+				cmd_buffer[cmd_idx] = ch;
+				cmd_idx ++;
+				
+				/*terminal display*/
 				putchar(ch);
-				cmd_buffer[cmd_idx++] = ch;
+				printf("\033[s"); /*save cursor pos*/
+				printf("\033[K"); /*clear contents after cursor*/
+				printf(buf);
+				printf("\033[u"); /*restore cursor pos*/
 			}
 			continue;
 		}
