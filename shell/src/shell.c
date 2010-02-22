@@ -81,22 +81,32 @@ static int shell_ReadLine(void)
 				putchar(ch);
 			}
 			continue;
-		case 0x18: /*UP key*/
-		case 0x19:
-		case 0x1A:
-		case 0x1B:
+		case 0x1B: /*arrow keys*/
 			ch = console_getch();
+			if(ch != '[')
+				continue;
 			ch = console_getch();
-			
-			while(cmd_idx > 0)
-			{
-				cmd_buffer[--cmd_idx] = 0;
-				/*printf("%s", "\b \b");*/
-				putchar(127);
+			switch (ch) {
+				case 'A': /*UP key*/
+					while(cmd_idx > 0)
+					{
+						cmd_buffer[--cmd_idx] = 0;
+						/*printf("%s", "\b \b");*/
+						putchar(127);
+					}
+					strcpy(cmd_buffer, cmd_history);
+					cmd_idx = strlen(cmd_buffer);
+					printf(cmd_buffer);
+					break;
+				case 'B': /*DOWN key*/
+					break;
+				case 'C': /*RIGHT key*/
+					break;
+				case 'D': /*LEFT key*/
+					break;
+				default:
+					break;
 			}
-			strcpy(cmd_buffer, cmd_history);
-			cmd_idx = strlen(cmd_buffer);
-			printf(cmd_buffer);
 			continue;
 		default:
 			if((ch < ' ') || (ch > 126))
