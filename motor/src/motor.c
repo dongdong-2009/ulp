@@ -73,6 +73,10 @@ void motor_Update(void)
 			break;
 			
 		case MOTOR_START:
+			/*only for debug purpose*/
+			pwm1_Set(smo_GetSpeed()*100);
+			pwm2_Set(smo_GetAngle());
+			
 			if(smo_IsLocked()) {
 				stm = MOTOR_RUN;
 				led_off(LED_RED);
@@ -86,6 +90,10 @@ void motor_Update(void)
 			break;
 
 		case MOTOR_RUN:
+			/*only for debug purpose*/
+			pwm1_Set(smo_GetSpeed()*100);
+			pwm2_Set(smo_GetAngle());
+			
 			if((speed_pid == 0) && (speed < motor->start_speed)) {
 				stm = MOTOR_STOP_OP;
 				led_on(LED_RED);
