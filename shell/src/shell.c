@@ -12,8 +12,12 @@
 
 static int shell_ReadLine(void);
 static void shell_Parse(void);
+static void cmd_GetHistory(char *cmd, int dir);
+static void cmd_SetHistory(const char *cmd);
 
-static char cmd_history[CONFIG_SHELL_LEN_CMD_MAX];
+static char cmd_history[CONFIG_SHELL_LEN_HIS_MAX];
+static char cmd_hrail;
+static char cmd_hrpos;
 static char cmd_buffer[CONFIG_SHELL_LEN_CMD_MAX]; /*max length of a cmd and paras*/
 static int cmd_idx;
 static char *argv[CONFIG_SHELL_NR_PARA_MAX]; /*max number of para, include command itself*/
@@ -22,7 +26,7 @@ static int argc;
 void shell_Init(void)
 {
 	cmd_buffer[0] = 0;
-	strcpy(cmd_history, "help");
+	cmd_SetHistory("help");
 	cmd_idx = -1;
 	
 	putchar(0x1b); /*clear screen*/
@@ -40,8 +44,6 @@ void shell_Update(void)
 	ok = shell_ReadLine();
 	if(!ok) return;
 
-	if(strlen(cmd_buffer))
-		strcpy(cmd_history, cmd_buffer);
 	shell_Parse();
 	cmd_Exec(argc, argv);
 }
@@ -57,11 +59,12 @@ static int shell_ReadLine(void)
 		printf("%s", CONFIG_SHELL_PROMPT);
 		memset(cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
 		cmd_idx ++;
+		cmd_hrpos = cmd_hrail;
 	}
 
 	if(cmd_idx < -1) { /*+/- key for quick debug purpose*/
 		cmd_idx --;
-		strcpy(cmd_buffer, cmd_history);
+		cmd_GetHistory(cmd_buffer, -1);
 		cmd_idx = -2 - cmd_idx;
 				
 		/*terminal display*/
@@ -151,7 +154,7 @@ static int shell_ReadLine(void)
 				case 'A': /*UP key*/
 					offset = cmd_idx;
 					memset(cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
-					strcpy(cmd_buffer, cmd_history);
+					cmd_GetHistory(cmd_buffer, -1);
 					cmd_idx = strlen(cmd_buffer);
 					
 					/*terminal display*/
@@ -161,6 +164,16 @@ static int shell_ReadLine(void)
 					printf(cmd_buffer);
 					break;
 				case 'B': /*DOWN key*/
+					offset = cmd_idx;
+					memset(cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
+					cmd_GetHistory(cmd_buffer, 1);
+					cmd_idx = strlen(cmd_buffer);
+					
+					/*terminal display*/
+					if(offset > 0)
+						printf("\033[%dD", offset); /*mov cursor to left*/
+					printf("\033[K"); /*clear contents after cursor*/
+					printf(cmd_buffer);
 					break;
 				case 'C': /*RIGHT key*/
 					if(cmd_idx < len) {
@@ -207,7 +220,11 @@ static int shell_ReadLine(void)
 			continue;
 		}
 	}
-	
+
+	if(ready) {
+		if(strlen(cmd_buffer))
+			cmd_SetHistory(cmd_buffer);
+	}
 	return ready;
 }
 
@@ -250,3 +267,83 @@ static void shell_Parse(void)
 		printf("argv[%d] = %s\n", i, argv[i]);
 #endif
 }
+
+/*cmd history format: d0cmd0cmd0000000cm*/
+static void cmd_GetHistory(char *cmd, int dir)
+{
+	char ch;
+	int ofs, len, cnt, bytes;
+
+	bytes = 0;
+	dir = (dir > 0) ? 1 : -1;
+	
+	/*search next cmd related to current offset*/
+	ofs = cmd_hrpos;
+	
+	for(cnt = 0; cnt < CONFIG_SHELL_LEN_HIS_MAX; cnt ++) {
+		ch = cmd_history[ofs];
+		if(ch != 0) {
+			cmd[bytes] = ch;
+			bytes ++;
+		}
+		else {
+			if(bytes != 0) {
+				cmd[bytes] = 0;
+				break;
+			}
+		}
+		
+		ofs += dir;
+		if( ofs >= CONFIG_SHELL_LEN_HIS_MAX)
+			ofs -= CONFIG_SHELL_LEN_HIS_MAX;
+		else if(ofs < 0)
+			ofs = CONFIG_SHELL_LEN_HIS_MAX - 1;
+	}
+
+	if(bytes == 0)
+		return;
+	
+	/*swap*/
+	if(dir < 0) {
+		len = bytes;
+		bytes = bytes >> 1;
+		for(cnt = 0; cnt < bytes; cnt ++) {
+			ch = cmd[cnt];
+			cmd[cnt] = cmd[len - cnt - 1];
+			cmd[len - cnt -1] = ch;
+		}
+	}
+	
+	cmd_hrpos = ofs;
+}
+
+static void cmd_SetHistory(const char *cmd)
+{
+	int ofs, len, cnt;
+	
+	/*insert the cmd to rail*/
+	ofs = cmd_hrail;
+	len = strlen(cmd);
+	if( !len)
+		return;
+	
+	for(cnt = 0; cnt < CONFIG_SHELL_LEN_HIS_MAX; cnt ++) {
+		if(cnt < len) {
+			cmd_history[ofs] = cmd[cnt];
+			cmd_hrail = ofs + 2;
+		}
+		else {
+			if(cmd_history[ofs] == 0)
+				break;
+			cmd_history[ofs] = 0;
+		}
+		
+		ofs ++;
+		if( ofs >= CONFIG_SHELL_LEN_HIS_MAX)
+			ofs -= CONFIG_SHELL_LEN_HIS_MAX;
+	}
+
+	if( cmd_hrail >= CONFIG_SHELL_LEN_HIS_MAX)
+		cmd_hrail -= CONFIG_SHELL_LEN_HIS_MAX;
+}
+

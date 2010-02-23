@@ -20,6 +20,10 @@
 #define CONFIG_SHELL_NR_PARA_MAX 8
 #endif
 
+#ifndef CONFIG_SHELL_LEN_HIS_MAX
+#define CONFIG_SHELL_LEN_HIS_MAX 64
+#endif
+
 void shell_Init(void);
 void shell_Update(void);
 
