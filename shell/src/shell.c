@@ -86,9 +86,12 @@ static int shell_ReadLine(void)
 		switch(ch) {
 		case '\n':		// NewLine
 			continue;
+		case 24: /*ctrl-x*/
 		case 3: /*ctrl-c*/
-			strcpy(cmd_buffer, "pause");
-			len = 5;
+			if(ch == 3)
+				strcpy(cmd_buffer, "pause");
+			else
+				strcpy(cmd_buffer, "kill all");
 		case '\r':		// Return
 			cmd_idx = -1;
 			ready = 1;
