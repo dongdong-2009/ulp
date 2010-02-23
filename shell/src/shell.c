@@ -16,8 +16,8 @@ static void cmd_GetHistory(char *cmd, int dir);
 static void cmd_SetHistory(const char *cmd);
 
 static char cmd_history[CONFIG_SHELL_LEN_HIS_MAX];
-static char cmd_hrail;
-static char cmd_hrpos;
+static int cmd_hrail;
+static int cmd_hrpos;
 static char cmd_buffer[CONFIG_SHELL_LEN_CMD_MAX]; /*max length of a cmd and paras*/
 static int cmd_idx;
 static char *argv[CONFIG_SHELL_NR_PARA_MAX]; /*max number of para, include command itself*/
@@ -59,7 +59,9 @@ static int shell_ReadLine(void)
 		printf("%s", CONFIG_SHELL_PROMPT);
 		memset(cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
 		cmd_idx ++;
-		cmd_hrpos = cmd_hrail;
+		cmd_hrpos = cmd_hrail - 1;
+		if(cmd_hrpos < 0)
+			cmd_hrpos = CONFIG_SHELL_LEN_HIS_MAX;
 	}
 
 	if(cmd_idx <= -1) { /*+/- key for quick debug purpose*/
