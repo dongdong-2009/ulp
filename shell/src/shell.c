@@ -196,6 +196,8 @@ static int shell_ReadLine(void)
 					break;
 			}
 			continue;
+		case '/':
+			ch = '-';
 		default:
 			if((ch < ' ') || (ch > 126))
 				continue;
