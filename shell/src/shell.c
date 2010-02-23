@@ -62,7 +62,7 @@ static int shell_ReadLine(void)
 		cmd_hrpos = cmd_hrail;
 	}
 
-	if(cmd_idx < -1) { /*+/- key for quick debug purpose*/
+	if(cmd_idx <= -1) { /*+/- key for quick debug purpose*/
 		cmd_idx --;
 		cmd_GetHistory(cmd_buffer, -1);
 		cmd_idx = -2 - cmd_idx;
