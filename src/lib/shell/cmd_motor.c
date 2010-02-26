@@ -3,11 +3,11 @@
  */
 
 #include "config.h"
-#include "cmd.h"
+#include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "motor.h"
+#include "motor/motor.h"
 
 static int cmd_speed_func(int argc, char *argv[])
 {

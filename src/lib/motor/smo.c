@@ -3,9 +3,9 @@
  */
 
 #include "config.h"
-#include "board.h"
-#include "smo.h"
-#include "math.h"
+#include "sys/system.h"
+#include "motor/smo.h"
+#include "motor/math.h"
 
 static short smo_speed;
 static short smo_angle;

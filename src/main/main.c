@@ -16,9 +16,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "config.h"
 #include "debug.h"
-#include "board.h"
-#include "motor.h"
-#include "shell.h"
+#include "sys/system.h"
+#include "motor/motor.h"
+#include "shell/shell.h"
 
 /*******************************************************************************
 * Function Name  : main
@@ -29,20 +29,20 @@
 *******************************************************************************/
 int main(void)
 {
-#ifdef CONFIG_BOARD_DEBUG
-	board_debug();
+#ifdef CONFIG_SYS_DEBUG
+	sys_Debug();
 #endif
 
 #ifdef CONFIG_MOTOR_DEBUG
 	motor_Debug();
 #endif
 	
-	board_Init();
+	sys_Init();
 	motor_Init();
 	shell_Init();
 	
 	while(1) {
-		board_Update();
+		sys_Update();
 		motor_Update();
 		shell_Update();
 	}

@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "cmd.h"
+#include "shell/cmd.h"
 
 static cmd_list_t *cmd_list;
 static char cmd_update_stop_flag;

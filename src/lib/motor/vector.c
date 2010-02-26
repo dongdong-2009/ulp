@@ -3,8 +3,8 @@
  */
 
 #include "config.h"
-#include "math.h"
-#include "vector.h"
+#include "motor/math.h"
+#include "motor/vector.h"
 
 /*
 * d=alpha*cos(theta)+beta*sin(theta)

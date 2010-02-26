@@ -4,10 +4,10 @@
 #ifndef __MOTOR_H_
 #define __MOTOR_H_
 
-#include "pid.h"
-#include "smo.h"
-#include "vector.h"
-#include "math.h"
+#include "motor/pid.h"
+#include "motor/smo.h"
+#include "motor/vector.h"
+#include "motor/math.h"
 
 /*shared with command shell*/
 extern vector_t Iab, I, Idq;

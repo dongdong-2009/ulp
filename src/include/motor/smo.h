@@ -4,7 +4,7 @@
 #ifndef __SMO_H_
 #define __SMO_H_
 
-#include "vector.h"
+#include "motor/vector.h"
 
 #ifndef CONFIG_MOTOR_START_TIME
 	#define CONFIG_MOTOR_START_TIME (1000) /*unit: mS*/

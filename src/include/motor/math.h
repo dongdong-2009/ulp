@@ -4,7 +4,7 @@
 #ifndef __MATH_H_
 #define __MATH_H_
 
-#include "board.h"
+#include "sys/system.h"
 
 /*loopup table to get sin(theta), cos(theta) at the same time in order to increase speed*/
 /*theta = phi(unit: rad) / (2*pi) * (2^16)*/

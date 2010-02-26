@@ -3,13 +3,13 @@
  */
 
 #include "config.h"
-#include "board.h"
+#include "sys/system.h"
 #include <stdio.h>
-#include "math.h"
+#include "motor/math.h"
 
 void motor_Debug(void)
 {
-	board_Init();
+	sys_Init();
 
 	/*clear screen*/
 	/*ref: http://www.cnblogs.com/mugua/archive/2009/11/25/1610118.html*/

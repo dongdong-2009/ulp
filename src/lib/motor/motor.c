@@ -3,8 +3,8 @@
  */
 
 #include "config.h"
-#include "board.h"
-#include "motor.h"
+#include "sys/system.h"
+#include "motor/motor.h"
 #include <stdio.h>
 #include <stdlib.h>
 

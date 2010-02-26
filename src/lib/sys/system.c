@@ -4,14 +4,14 @@
 
 #include "config.h"
 #include "stm32f10x.h"
-#include "board.h"
+#include "sys/system.h"
 
 /* Private function prototypes -----------------------------------------------*/
 void RCC_Configuration(void);
 void NVIC_Configuration(void);
 void cpu_Init(void);
 
-void board_Init(void)
+void sys_Init(void)
 {
 	cpu_Init();
 	time_Init();
@@ -30,7 +30,7 @@ void board_Init(void)
 	led_off(LED_GREEN);
 }
 
-void board_Update(void)
+void sys_Update(void)
 {
 	led_Update();
 	time_Update();

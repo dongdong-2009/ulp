@@ -21,8 +21,8 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
-#include "motor.h"
-#include "board.h"
+#include "motor/motor.h"
+#include "sys/system.h"
 #include <stdio.h>
 
 /* Private typedef -----------------------------------------------------------*/

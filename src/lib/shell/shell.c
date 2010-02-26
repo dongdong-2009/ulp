@@ -3,12 +3,12 @@
  */
 
 #include "config.h"
-#include "shell.h"
+#include "shell/shell.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "board.h"
-#include "cmd.h"
+#include "sys/system.h"
+#include "shell/cmd.h"
 
 static int shell_ReadLine(void);
 static void shell_Parse(void);

@@ -5,7 +5,7 @@
 #ifndef __DEBUG_H_
 #define __DEBUG_H_
 
-#include "board_debug.h"
-#include "motor_debug.h"
+#include "sys/debug.h"
+#include "motor/debug.h"
 
 #endif /*__CONFIG_H_*/

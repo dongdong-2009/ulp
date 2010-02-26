@@ -3,12 +3,12 @@
  */
 
 #include "config.h"
-#include "cmd.h"
+#include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "board.h"
-#include "motor.h"
+#include "sys/system.h"
+#include "motor/motor.h"
 #include "stm32f10x.h"
 
 static int cmd_debug_func(int argc, char *argv[])

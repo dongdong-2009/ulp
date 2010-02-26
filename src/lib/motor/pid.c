@@ -4,7 +4,7 @@
 
 #include "config.h"
 #include <stdlib.h>
-#include "pid.h"
+#include "motor/pid.h"
 
 pid_t *pid_Init(void)
 {

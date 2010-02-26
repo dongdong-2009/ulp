@@ -22,9 +22,9 @@ folders description:
 
 
 /src/lib/basic	standard low level algorithms<lib_basic>
-/src/lib/gnu	gcc toolchain specific files<lib_basic>
-/src/lib/ewarm	iar toolchain specific files<lib_basic>
-/src/lib/system	basic system maintain task<lib_task>
+/src/lib/gcc	gcc toolchain specific files<lib_basic>
+/src/lib/iar	iar toolchain specific files<lib_basic>
+/src/lib/sys	basic system maintain task<lib_task>
 /src/lib/motor	motor control specific files<lib_task>
 /src/lib/shell	command line user interface<lib_task>
 

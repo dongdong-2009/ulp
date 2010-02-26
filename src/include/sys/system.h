@@ -1,11 +1,11 @@
-/* board.h
+/*
  * 	miaofng@2009 initial version
  */
-#ifndef __BOARD_H_
-#define __BOARD_H_
+#ifndef __SYSTEM_H_
+#define __SYSTEM_H_
 
-void board_Init(void);
-void board_Update(void);
+void sys_Init(void);
+void sys_Update(void);
 
 #include "time.h"
 #include "led.h"
@@ -13,4 +13,4 @@ void board_Update(void);
 #include "vsm.h"
 #include "dbg.h"
 #include "normalize.h"
-#endif /*__BOARD_H_*/
+#endif /*__SYSTEM_H_*/
