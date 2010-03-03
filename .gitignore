@@ -27,11 +27,5 @@
 src/include/autoconfig.h
 
 #ewarm files
-projects/zf103/settings/*
-projects/zf103/Debug/*
-projects/zf103/Release/*
-
-projects/hurry/settings/*
-projects/hurry/Debug/*
-projects/hurry/Release/*
+projects/*
 

@@ -29,21 +29,31 @@
 *******************************************************************************/
 int main(void)
 {
-#ifdef CONFIG_SYS_DEBUG
+#if CONFIG_SYS_DEBUG == 1
 	sys_Debug();
 #endif
 
-#ifdef CONFIG_MOTOR_DEBUG
+#if CONFIG_MOTOR_DEBUG == 1
 	motor_Debug();
 #endif
 	
+	//init funcs
 	sys_Init();
+#if CONFIG_TASK_MOTOR == 1
 	motor_Init();
+#endif
+#if CONFIG_TASK_SHELL == 1
 	shell_Init();
+#endif
 	
 	while(1) {
+		//update funcs
 		sys_Update();
+#if CONFIG_TASK_MOTOR == 1
 		motor_Update();
+#endif
+#if CONFIG_TASK_SHELL == 1
 		shell_Update();
+#endif
 	}
 }
