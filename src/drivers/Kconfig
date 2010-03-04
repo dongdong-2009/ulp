@@ -1,0 +1,7 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+bool "enable all drivers for board 'hurry'?" CONFIG_DRIVER_HURRY
+bool "enable console driver?" CONFIG_DRIVER_CONSOLE

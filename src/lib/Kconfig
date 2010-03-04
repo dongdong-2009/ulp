@@ -1,0 +1,17 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+choice 'stm32 toolchain select'	" \
+	gcc	CONFIG_TOOLCHAIN_GCC \
+	iar	CONFIG_TOOLCHAIN_IAR \
+" iar
+
+bool "enable task of 'motor'?" CONFIG_TASK_MOTOR
+if [ "$CONFIG_TASK_MOTOR" = "y"]; then
+	source src/lib/motor/Kconfig
+fi
+
+bool "enable task of 'shell'?" CONFIG_TASK_SHELL
+bool "enable sys_Debug()?" CONFIG_SYSTEM_DEBUG

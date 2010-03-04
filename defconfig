@@ -1,0 +1,29 @@
+#
+# Automatically generated make config: don't edit
+#
+
+#
+# cpu
+#
+# CONFIG_STM32F10X_LD is not set
+CONFIG_STM32F10X_MD=y
+# CONFIG_STM32F10X_HD is not set
+# CONFIG_STM32F10X_CL is not set
+CONFIG_USE_STDPERIPH_DRIVER=y
+CONFIG_HSE_VALUE=12000000
+
+#
+# drivers
+#
+CONFIG_DRIVER_HURRY=y
+CONFIG_DRIVER_CONSOLE=y
+
+#
+# lib
+#
+# CONFIG_TOOLCHAIN_GCC is not set
+CONFIG_TOOLCHAIN_IAR=y
+CONFIG_TASK_MOTOR=y
+# CONFIG_MOTOR_DEBUG is not set
+CONFIG_TASK_SHELL=y
+# CONFIG_SYSTEM_DEBUG is not set

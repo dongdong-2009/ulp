@@ -1,0 +1,24 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+mainmenu_name "bldc software platform settings"
+
+mainmenu_option next_comment
+  comment 'cpu'
+  source src/cpu/Kconfig
+endmenu
+
+mainmenu_option next_comment
+  comment 'drivers'
+  source src/drivers/Kconfig
+endmenu
+
+mainmenu_option next_comment
+  comment 'lib'
+  source src/lib/Kconfig
+endmenu
+
+

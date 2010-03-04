@@ -1,0 +1,15 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+choice 'stm32 cpu type select'	" \
+	ld	CONFIG_STM32F10X_LD \
+	md	CONFIG_STM32F10X_MD \
+	hi	CONFIG_STM32F10X_HD \
+	cl	CONFIG_STM32F10X_CL \
+" md
+bool "use stm32 std periph driver?" CONFIG_USE_STDPERIPH_DRIVER y
+if [ "$CONFIG_USE_STDPERIPH_DRIVER" = "y"]; then
+	int "high speed external clk freq?" CONFIG_HSE_VALUE 12000000
+fi
