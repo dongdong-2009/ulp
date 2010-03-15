@@ -3,4 +3,7 @@
 #
 # Written by miaofng@2010
 #
-source src/cpu/stm32/Kconfig
+bool "Enable cpu STM32 support?" CONFIG_CPU_STM32 y
+if [ "$CONFIG_CPU_STM32" = "y"]; then
+	source src/cpu/stm32/Kconfig
+fi

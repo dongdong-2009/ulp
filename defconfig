@@ -5,6 +5,7 @@
 #
 # cpu
 #
+CONFIG_CPU_STM32=y
 # CONFIG_STM32F10X_LD is not set
 CONFIG_STM32F10X_MD=y
 # CONFIG_STM32F10X_HD is not set

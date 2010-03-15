@@ -354,9 +354,11 @@ void DMAChannel7_IRQHandler(void)
 *******************************************************************************/
 void ADC1_2_IRQHandler(void)
 {	
+#if CONFIG_TASK_MOTOR == 1
 	//ADC_ClearITPendingBit(ADC1, ADC_IT_JEOC);
 	ADC1->SR &= ~(1 << 2);
 	motor_isr();
+#endif
 }
 
 /*******************************************************************************
