@@ -13,5 +13,10 @@ if [ "$CONFIG_TASK_MOTOR" = "y"]; then
 	source src/lib/motor/Kconfig
 fi
 
+bool "enable task of 'vvt'?" CONFIG_TASK_VVT
+if [ "$CONFIG_TASK_VVT" = "y"]; then
+	source src/lib/vvt/Kconfig
+fi
+
 bool "enable task of 'shell'?" CONFIG_TASK_SHELL
 bool "enable sys_Debug()?" CONFIG_SYSTEM_DEBUG
