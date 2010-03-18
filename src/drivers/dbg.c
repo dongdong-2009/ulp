@@ -5,6 +5,7 @@
 #include "config.h"
 #include "stm32f10x.h"
 #include "dbg.h"
+#include "vsm.h"
 
 void dbg_Init(void)
 {

@@ -5,7 +5,6 @@
 #define __DBG_H_
 
 #include "stm32f10x.h"
-#include "vsm.h"
 
 /*pwm debug*/
 #define pwm1_Set(val) do { TIM3->CCR1 = (((int)val * T >> 15) + T); } while(0)

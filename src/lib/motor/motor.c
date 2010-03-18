@@ -7,6 +7,7 @@
 #include "motor/motor.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "vsm.h"
 
 motor_t *motor;
 pid_t *pid_speed;
@@ -21,6 +22,8 @@ static time_t stop_timer;
 
 void motor_Init(void)
 {
+	vsm_Init();
+	
 	motor = malloc(sizeof(motor_t));
 	
 	/*default smo_motor para, change me!!!*/
@@ -48,6 +51,7 @@ void motor_Update(void)
 {
 	short speed, torque_ref, speed_pid;
 
+	vsm_Update();
 	smo_Update();
 	speed = smo_GetSpeed();
 	speed_pid = pid_GetRef(pid_speed);

@@ -10,7 +10,6 @@ void sys_Update(void);
 #include "time.h"
 #include "led.h"
 #include "console.h"
-#include "vsm.h"
 #include "dbg.h"
 #include "normalize.h"
 #endif /*__SYSTEM_H_*/

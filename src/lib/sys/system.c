@@ -17,7 +17,6 @@ void sys_Init(void)
 	time_Init();
 	led_Init();
 	console_Init();
-	vsm_Init();
 	dbg_Init();
 
 	/*indicates board init finish*/
@@ -34,7 +33,6 @@ void sys_Update(void)
 {
 	led_Update();
 	time_Update();
-	vsm_Update();
 }
 
 void cpu_Init(void)
