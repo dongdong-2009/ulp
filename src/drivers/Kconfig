@@ -3,5 +3,29 @@
 #
 # Written by miaofng@2010
 #
+#chip: ad9833 and mcp41x
+bool "enable dds chip ad9833 support?" CONFIG_DRIVER_AD9833
+bool "enable digi pot chip mcp41x support?" CONFIG_DRIVER_MCP41X
+
 bool "enable all drivers for board 'hurry'?" CONFIG_DRIVER_HURRY
 bool "enable console driver?" CONFIG_DRIVER_CONSOLE
+
+#vvt/pss
+if [ "$CONFIG_DRIVER_AD9833" = "y" ]; then
+	bool "enable vvt/pss driver?" CONFIG_DRIVER_PSS
+fi
+
+if [ "$CONFIG_DRIVER_PSS" = "y" ]; then
+	int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
+	int "vss dds mclk frequency Hz?" CONFIG_DRIVER_VSS_DDS_MCLK 25000000
+fi
+
+#vvt/knock
+if [ "$CONFIG_DRIVER_AD9833" = "y" -a "$CONFIG_DRIVER_MCP41X" = "y"]; then
+	bool "enable vvt/knock driver?" CONFIG_DRIVER_KNOCK
+fi
+
+if [ "$CONFIG_DRIVER_KNOCK" = "y" ]; then
+	int "knock dds mclk frequency Hz?" CONFIG_DRIVER_KNOCK_DDS_MCLK 25000000
+	int "max knock sensor out voltage mVpp?" CONFIG_DRIVER_KNOCK_MVPP_MAX 255
+fi

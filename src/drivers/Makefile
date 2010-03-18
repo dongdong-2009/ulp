@@ -3,3 +3,7 @@ obj-$(CONFIG_DRIVER_HURRY) += dbg.o
 obj-$(CONFIG_DRIVER_HURRY) += led.o
 obj-$(CONFIG_DRIVER_HURRY) += time.o
 obj-$(CONFIG_DRIVER_HURRY) += vsm.o
+obj-$(CONFIG_DRIVER_AD9833) += ad9833.o
+obj-$(CONFIG_DRIVER_MCP41X) += mcp41x.o 
+obj-$(CONFIG_DRIVER_KNOCK) += knock.o
+obj-$(CONFIG_DRIVER_PSS) += pss.o
