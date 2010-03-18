@@ -8,8 +8,4 @@ void sys_Init(void);
 void sys_Update(void);
 
 #include "time.h"
-#include "led.h"
-#include "console.h"
-#include "dbg.h"
-#include "normalize.h"
 #endif /*__SYSTEM_H_*/

@@ -7,6 +7,7 @@
 #include "motor/smo.h"
 #include "motor/math.h"
 #include "vsm.h"
+#include "normalize.h"
 
 static short smo_speed;
 static short smo_angle;

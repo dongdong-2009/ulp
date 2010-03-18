@@ -5,6 +5,7 @@
 #include "config.h"
 #include "motor/math.h"
 #include "motor/vector.h"
+#include "normalize.h"
 
 /*
 * d=alpha*cos(theta)+beta*sin(theta)

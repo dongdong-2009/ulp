@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "motor/math.h"
+#include "normalize.h"
 
 /*[sin(0:pi/2/128:pi/2) * (1<<15), cos(0:pi/2/128:pi/2) * (1<<15)]*/
 static short hSin_Cos_Table[256] = {\

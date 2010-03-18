@@ -9,6 +9,7 @@
 #include <string.h>
 #include "sys/system.h"
 #include "shell/cmd.h"
+#include "console.h"
 
 static int shell_ReadLine(void);
 static void shell_Parse(void);

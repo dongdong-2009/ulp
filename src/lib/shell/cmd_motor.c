@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "motor/motor.h"
+#include "normalize.h"
 
 static int cmd_speed_func(int argc, char *argv[])
 {

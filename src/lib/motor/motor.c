@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "vsm.h"
+#include "normalize.h"
+#include "led.h"
+#include "dbg.h"
 
 motor_t *motor;
 pid_t *pid_speed;
@@ -23,6 +26,7 @@ static time_t stop_timer;
 void motor_Init(void)
 {
 	vsm_Init();
+	dbg_Init();
 	
 	motor = malloc(sizeof(motor_t));
 	

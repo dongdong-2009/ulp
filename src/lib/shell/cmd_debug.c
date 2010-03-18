@@ -10,6 +10,8 @@
 #include "sys/system.h"
 #include "motor/motor.h"
 #include "stm32f10x.h"
+#include "normalize.h"
+#include "vsm.h"
 
 static int cmd_debug_func(int argc, char *argv[])
 {

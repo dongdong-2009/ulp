@@ -1,7 +1,7 @@
-obj-$(CONFIG_DRIVER_CONSOLE) += console.o
+obj-y += console.o
+obj-y += time.o
+obj-y += led.o
 obj-$(CONFIG_DRIVER_HURRY) += dbg.o
-obj-$(CONFIG_DRIVER_HURRY) += led.o
-obj-$(CONFIG_DRIVER_HURRY) += time.o
 obj-$(CONFIG_DRIVER_HURRY) += vsm.o
 obj-$(CONFIG_DRIVER_AD9833) += ad9833.o
 obj-$(CONFIG_DRIVER_MCP41X) += mcp41x.o 

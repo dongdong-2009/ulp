@@ -8,7 +8,6 @@ bool "enable dds chip ad9833 support?" CONFIG_DRIVER_AD9833
 bool "enable digi pot chip mcp41x support?" CONFIG_DRIVER_MCP41X
 
 bool "enable all drivers for board 'hurry'?" CONFIG_DRIVER_HURRY
-bool "enable console driver?" CONFIG_DRIVER_CONSOLE
 
 #vvt/pss
 if [ "$CONFIG_DRIVER_AD9833" = "y" ]; then

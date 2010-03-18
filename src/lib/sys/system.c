@@ -5,6 +5,8 @@
 #include "config.h"
 #include "stm32f10x.h"
 #include "sys/system.h"
+#include "led.h"
+#include "console.h"
 
 /* Private function prototypes -----------------------------------------------*/
 void RCC_Configuration(void);
@@ -17,7 +19,6 @@ void sys_Init(void)
 	time_Init();
 	led_Init();
 	console_Init();
-	dbg_Init();
 
 	/*indicates board init finish*/
 	led_on(LED_RED);
