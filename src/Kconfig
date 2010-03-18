@@ -7,8 +7,8 @@
 mainmenu_name "bldc software platform settings"
 
 mainmenu_option next_comment
-  comment 'cpu'
-  source src/cpu/Kconfig
+  comment 'lib'
+  source src/lib/Kconfig
 endmenu
 
 mainmenu_option next_comment
@@ -17,8 +17,6 @@ mainmenu_option next_comment
 endmenu
 
 mainmenu_option next_comment
-  comment 'lib'
-  source src/lib/Kconfig
+  comment 'cpu'
+  source src/cpu/Kconfig
 endmenu
-
-
