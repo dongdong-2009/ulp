@@ -18,17 +18,9 @@ typedef struct {
 
 #define CMD_FLAG_REPEAT 1
 
-/*commands declaration*/
-extern cmd_t cmd_help;
-extern cmd_t cmd_pause;
-extern cmd_t cmd_kill;
-extern cmd_t cmd_speed;
-extern cmd_t cmd_rpm;
-extern cmd_t cmd_motor;
-extern cmd_t cmd_pid;
-extern cmd_t cmd_debug;
-extern cmd_t cmd_dalgo;
-extern cmd_t cmd_svpwm;
+#pragma section=".shell.cmd" 4
+#define DECLARE_SHELL_CMD(cmd) \
+	cmd_t *##cmd##_entry@".shell.cmd" = &##cmd;
 
 void cmd_Init(void);
 void cmd_Update(void);

@@ -3,4 +3,3 @@
 #
 # Written by miaofng@2010
 #
-bool "enable motor_Debug()?" CONFIG_MOTOR_DEBUG

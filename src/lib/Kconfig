@@ -9,14 +9,17 @@ choice 'stm32 toolchain select'	" \
 " iar
 
 bool "enable task of 'motor'?" CONFIG_TASK_MOTOR
-if [ "$CONFIG_TASK_MOTOR" = "y"]; then
-	source src/lib/motor/Kconfig
-fi
-
 bool "enable task of 'vvt'?" CONFIG_TASK_VVT
+bool "enable task of 'shell'?" CONFIG_TASK_SHELL
+
 if [ "$CONFIG_TASK_VVT" = "y"]; then
 	source src/lib/vvt/Kconfig
 fi
 
-bool "enable task of 'shell'?" CONFIG_TASK_SHELL
-bool "enable sys_Debug()?" CONFIG_SYSTEM_DEBUG
+if [ "$CONFIG_TASK_MOTOR" = "y"]; then
+	source src/lib/motor/Kconfig
+fi
+
+if [ "$CONFIG_TASK_SHELL" = "y"]; then
+	source src/lib/shell/Kconfig
+fi

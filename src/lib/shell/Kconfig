@@ -1,0 +1,12 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+if [ "$CONFIG_TASK_MOTOR" = "y"]; then
+	bool "enable commands for motor?" CONFIG_SHELL_MOTOR
+	bool "enable commands for motor debug?" CONFIG_SHELL_MOTOR_DEBUG
+else
+	define_bool CONFIG_SHELL_MOTOR n
+	define_bool CONFIG_SHELL_MOTOR_DEBUG n
+fi
