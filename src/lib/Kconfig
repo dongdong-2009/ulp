@@ -3,6 +3,7 @@
 #
 # Written by miaofng@2010
 #
+
 choice 'stm32 toolchain select'	" \
 	gcc	CONFIG_TOOLCHAIN_GCC \
 	iar	CONFIG_TOOLCHAIN_IAR \
@@ -12,14 +13,7 @@ bool "enable task of 'motor'?" CONFIG_TASK_MOTOR
 bool "enable task of 'vvt'?" CONFIG_TASK_VVT
 bool "enable task of 'shell'?" CONFIG_TASK_SHELL
 
-if [ "$CONFIG_TASK_VVT" = "y"]; then
-	source src/lib/vvt/Kconfig
-fi
-
-if [ "$CONFIG_TASK_MOTOR" = "y"]; then
-	source src/lib/motor/Kconfig
-fi
-
-if [ "$CONFIG_TASK_SHELL" = "y"]; then
-	source src/lib/shell/Kconfig
-fi
+mainmenu_option next_comment
+	comment 'tasks detail configuration'
+	source src/lib/Kconfig.submenu
+endmenu

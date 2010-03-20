@@ -1,0 +1,31 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+mainmenu_option next_comment
+	comment 'sys'
+	source src/lib/sys/Kconfig
+endmenu
+
+if [ "$CONFIG_TASK_MOTOR" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'motor'
+		source src/lib/motor/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_VVT" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'vvt'
+		source src/lib/vvt/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_SHELL" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'shell'
+		source src/lib/shell/Kconfig
+	endmenu	
+fi

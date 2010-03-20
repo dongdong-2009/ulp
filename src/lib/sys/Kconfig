@@ -4,4 +4,4 @@
 # Written by miaofng@2010
 #
 
-bool "enable motor debug?" CONFIG_MOTOR_DEBUG
+bool "enable sys debug?" CONFIG_SYSTEM_DEBUG
