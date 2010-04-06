@@ -3,3 +3,4 @@
 #
 # Written by miaofng@2010
 #
+int "default vvt rpm?" CONFIG_VVT_RPM_DEF 1000
