@@ -25,6 +25,17 @@ static ad9833_t rpm_dds = {
 	.option = AD9833_OPT_OUT_SQU,
 };
 
+void pss_Enable(int on)
+{
+	NVIC_InitTypeDef NVIC_InitStructure;
+	
+	NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = (on > 0) ? ENABLE : DISABLE;
+	NVIC_Init(&NVIC_InitStructure);
+}
+
 /*pinmap:
 	NE58X	PG2
 	CAM1X	PG3
@@ -34,7 +45,6 @@ static ad9833_t rpm_dds = {
 void pss_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
-	NVIC_InitTypeDef NVIC_InitStructure;
 	EXTI_InitTypeDef EXTI_InitStruct;
 	
 	/*pulse output gpio pins*/
@@ -64,12 +74,8 @@ void pss_Init(void)
 	EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
 	EXTI_InitStruct.EXTI_LineCmd = ENABLE;
 	EXTI_Init(&EXTI_InitStruct);
-	
-	NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure);
+
+	pss_Enable(1);
 	
 	/*chip init*/
 	spi_Init(&spi1);

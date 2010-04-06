@@ -16,6 +16,7 @@ typedef enum {
 
 void pss_Init(void);
 void pss_Update(void);
+void pss_Enable(int on);
 void pss_SetSpeed(short hz); /*1hz speed -> 2hz dsso -> 1rpm*/
 void pss_SetVolt(pss_ch_t ch, short mv); /*on/off?*/
 void pss_SetVssSpeed(short hz);
