@@ -10,7 +10,8 @@
 void led_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
-	
+
+#if CONFIG_TASK_MOTOR == 1
 	/* Enable GPIOA,GPIOC clock */
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
   
@@ -25,6 +26,14 @@ void led_Init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+#else
+	/*led_r pg8, led_g pg15*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8|GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOG, &GPIO_InitStructure);
+#endif
 }
 
 #define LED_FLASH_TIMER_STOP 0
@@ -67,10 +76,18 @@ void led_SetStatus(led_t led, led_status_t status)
 	
 	switch(led) {
 		case LED_GREEN:
+#if CONFIG_TASK_MOTOR == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_12, ba);
+#else
+			GPIO_WriteBit(GPIOG, GPIO_Pin_15, ba);
+#endif
 			break;
 		case LED_RED:
+#if CONFIG_TASK_MOTOR == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_10, ba);
+#else
+			GPIO_WriteBit(GPIOG, GPIO_Pin_8, ba);
+#endif
 			break;
 		default:
 			break;
