@@ -13,6 +13,6 @@ typedef struct {
 } mcp41x_t;
 
 void mcp41x_Init(mcp41x_t *chip);
-void mcp41x_SetPos(mcp41x_t *chip, int pos); /*0~255*/
+void mcp41x_SetPos(mcp41x_t *chip, short pos); /*0~255*/
 
 #endif /*__MCP41X_H_*/

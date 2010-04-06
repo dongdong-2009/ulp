@@ -34,19 +34,19 @@ void ad9833_Init(ad9833_t *chip)
 	chip->priv = priv;
 }
 
-int ad9833_SetFreq(ad9833_t *chip, unsigned freq)
+void ad9833_SetFreq(ad9833_t *chip, unsigned fw)
 {
 	unsigned short msb, lsb;
 	int priv = chip->priv;
 	
 	if((priv & AD9833_OPT_DIV) && (priv & AD9833_OPT_OUT_SQU))
-		freq >>= (32 - PHASE_RESOLUTION - 1);
+		fw >>= (32 - PHASE_RESOLUTION - 1);
 	else
-		freq >>= (32 - PHASE_RESOLUTION);
+		fw >>= (32 - PHASE_RESOLUTION);
 	
-	lsb = (unsigned short)(freq);
-	freq >>= 16;
-	msb = (unsigned short)(freq);
+	lsb = (unsigned short)(fw);
+	fw >>= 16;
+	msb = (unsigned short)(fw);
 	
 	if(priv & FSELECT) { /*current freq1 works*/
 		chip->io.write_reg(0, REG_FREQ0(lsb));
@@ -62,5 +62,4 @@ int ad9833_SetFreq(ad9833_t *chip, unsigned freq)
 	}
 	
 	chip->priv = priv;
-	return 0;
 }

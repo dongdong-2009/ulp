@@ -21,6 +21,6 @@ typedef struct {
 
 void ad9833_Init(ad9833_t *chip);
 /*para 'freq' is the freq tuning word in case of 32bit phase resolution*/
-int ad9833_SetFreq(ad9833_t *chip, unsigned freq);
+void ad9833_SetFreq(ad9833_t *chip, unsigned fw);
 
 #endif /*__AD9833_H_*/

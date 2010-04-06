@@ -34,6 +34,8 @@ static ad9833_t rpm_dds = {
 void pss_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
+	NVIC_InitTypeDef NVIC_InitStructure;
+	EXTI_InitTypeDef EXTI_InitStruct;
 	
 	/*pulse output gpio pins*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
@@ -49,26 +51,46 @@ void pss_Init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
+	/*rpm irq init*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+	GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource0);
+	EXTI_InitStruct.EXTI_Line = EXTI_Line0;
+	EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
+	EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
+	EXTI_InitStruct.EXTI_LineCmd = ENABLE;
+	EXTI_Init(&EXTI_InitStruct);
+	
+	NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+	
 	/*chip init*/
 	spi_Init(&spi1);
 	ad9833_Init(&rpm_dds);
-  }
+}
 
 void pss_Update(void)
 {
 }
 
-int pss_SetSpeed(short hz)
+ /*1hz speed -> 2hz dsso -> 1rpm*/
+void pss_SetSpeed(short hz)
 {
 	unsigned mclk = (CONFIG_DRIVER_RPM_DDS_MCLK >> 16);
 	unsigned fw = hz;
 	fw <<= 16;
 	fw /= mclk;
 	ad9833_SetFreq(&rpm_dds, fw);
-	return 0;
 }
 
-int pss_SetVolt(pss_ch_t ch, short mv)
+void pss_SetVolt(pss_ch_t ch, short mv)
 {
 	uint16_t pin;
 	BitAction val = Bit_RESET;
@@ -78,7 +100,6 @@ int pss_SetVolt(pss_ch_t ch, short mv)
 
 	pin = 1 << (2 + ch);
 	GPIO_WriteBit(GPIOG, pin, val);
-	return 0;
 }
 
 int rpm_dds_write_reg(int reg, int val)

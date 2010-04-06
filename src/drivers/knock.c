@@ -63,7 +63,7 @@ DECLARE_IO_FUNC(knock_pot2)
 #define knock_pot3_bus	&spi2
 #define knock_pot3_band	GPIOE //CS_VR_KS3
 #define knock_pot3_pin	GPIO_Pin_14
-DECLARE_IO_FUNC(knock_pot0)
+DECLARE_IO_FUNC(knock_pot3)
 
 static ad9833_t knock_dds = {
 	.io = {
@@ -77,28 +77,28 @@ static mcp41x_t knock_pot[NR_OF_KS] = {
 	[0] = {
 		.io = {
 			.write_reg = knock_pot0_write_reg,
-			.read_reg = knock_pot0_read_reg;
+			.read_reg = knock_pot0_read_reg,
 		},
 	},
 
 	[1] = {
 		.io = {
 			.write_reg = knock_pot1_write_reg,
-			.read_reg = knock_pot1_read_reg;
+			.read_reg = knock_pot1_read_reg,
 		},
 	},
 
 	[2] = {
 		.io = {
 			.write_reg = knock_pot2_write_reg,
-			.read_reg = knock_pot2_read_reg;
+			.read_reg = knock_pot2_read_reg,
 		},
 	},
 
 	[3] = {
 		.io = {
 			.write_reg = knock_pot3_write_reg,
-			.read_reg = knock_pot3_read_reg;
+			.read_reg = knock_pot3_read_reg,
 		},
 	},
 };
@@ -134,7 +134,7 @@ void knock_Update(void)
 {
 }
 
-int knock_SetFreq(short hz)
+void knock_SetFreq(short hz)
 {
 	unsigned mclk = (CONFIG_DRIVER_KNOCK_DDS_MCLK >> 16);
 	unsigned fw = hz;
@@ -143,18 +143,10 @@ int knock_SetFreq(short hz)
 	ad9833_SetFreq(&knock_dds, fw);
 }
 
-int knock_SetVolt(knock_ch_t ch, short mv)
+void knock_SetVolt(knock_ch_t ch, short mv)
 {
-	int ret = 0;
-	int vout, pos;
-
-	vout = mv;
-	pos = (vout * 255) / CONFIG_DRIVER_KNOCK_MVPP_MAX;
-	if(pos > 255) {
-		ret = -1;
-		pos = 255;
-	}
-
+	short pos;
+	pos = (mv * 255) / CONFIG_DRIVER_KNOCK_MVPP_MAX;
+	pos = (pos > 255) ? 255 : pos;
 	mcp41x_SetPos(&knock_pot[ch], pos);
-	return 0;
 }

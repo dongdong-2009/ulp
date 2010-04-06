@@ -15,8 +15,8 @@ typedef enum {
 
 void knock_Init(void);
 void knock_Update(void);
-int knock_SetFreq(short hz);
-int knock_SetVolt(knock_ch_t ch, short mv);
+void knock_SetFreq(short hz);
+void knock_SetVolt(knock_ch_t ch, short mv);
 
 #endif /*__KNOCK_H_*/
 

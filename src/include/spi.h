@@ -19,7 +19,7 @@ typedef struct {
 } spi_t;
 
 void spi_Init(spi_t *bus);
-void spi_Write(spi_t *bus, int reg, int val);
+int spi_Write(spi_t *bus, int reg, int val);
 int spi_Read(spi_t *bus, int reg);
 #endif /*__SPI_H_*/
 
