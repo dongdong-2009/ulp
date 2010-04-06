@@ -11,3 +11,15 @@ else
 	define_bool CONFIG_SHELL_MOTOR n
 	define_bool CONFIG_SHELL_MOTOR_DEBUG n
 fi
+
+if [ "$CONFIG_TASK_SHELL" = "y" -a "$CONFIG_TASK_VVT" = "y"]; then
+	bool "enable commands for vvt?" CONFIG_SHELL_VVT
+else
+	define_bool CONFIG_SHELL_VVT n
+fi
+
+if [ "$CONFIG_SHELL_VVT" = "y"]; then
+	bool "enable commands for vvt debug?" CONFIG_SHELL_VVT_DEBUG
+else
+	define_bool CONFIG_SHELL_VVT_DEBUG n
+fi
