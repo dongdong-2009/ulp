@@ -22,6 +22,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
 #include "motor/motor.h"
+#include "vvt/vvt.h"
 #include "sys/system.h"
 #include <stdio.h>
 
@@ -222,6 +223,10 @@ void RCC_IRQHandler(void)
 *******************************************************************************/
 void EXTI0_IRQHandler(void)
 {
+#if CONFIG_TASK_VVT == 1
+	EXTI->PR = EXTI_Line0;
+	vvt_isr();
+#endif
 }
 
 /*******************************************************************************

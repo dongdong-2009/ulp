@@ -18,6 +18,7 @@
 #include "debug.h"
 #include "sys/system.h"
 #include "motor/motor.h"
+#include "vvt/vvt.h"
 #include "shell/shell.h"
 
 /*******************************************************************************
@@ -42,6 +43,9 @@ int main(void)
 #if CONFIG_TASK_MOTOR == 1
 	motor_Init();
 #endif
+#if CONFIG_TASK_VVT == 1
+	vvt_Init();
+#endif
 #if CONFIG_TASK_SHELL == 1
 	shell_Init();
 #endif
@@ -51,6 +55,9 @@ int main(void)
 		sys_Update();
 #if CONFIG_TASK_MOTOR == 1
 		motor_Update();
+#endif
+#if CONFIG_TASK_VVT == 1
+		vvt_Update();
 #endif
 #if CONFIG_TASK_SHELL == 1
 		shell_Update();
