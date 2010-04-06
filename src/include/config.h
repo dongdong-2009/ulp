@@ -7,8 +7,20 @@
 
 #include "autoconfig.h"
 
+#ifdef CONFIG_STM32F10X_LD
+#define STM32F10X_LD
+#endif
+
 #ifdef CONFIG_STM32F10X_MD
 #define STM32F10X_MD
+#endif
+
+#ifdef CONFIG_STM32F10X_HD
+#define STM32F10X_HD
+#endif
+
+#ifdef CONFIG_STM32F10X_CL
+#define STM32F10X_CL
 #endif
 
 #ifdef CONFIG_USE_STDPERIPH_DRIVER
