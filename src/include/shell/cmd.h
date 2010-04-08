@@ -20,7 +20,7 @@ typedef struct {
 
 #pragma section=".shell.cmd" 4
 #define DECLARE_SHELL_CMD(cmd) \
-	cmd_t *##cmd##_entry@".shell.cmd" = &##cmd;
+	const cmd_t *##cmd##_entry@".shell.cmd" = &##cmd;
 
 void cmd_Init(void);
 void cmd_Update(void);

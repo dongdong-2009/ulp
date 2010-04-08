@@ -26,7 +26,7 @@ static int cmd_speed_func(int argc, char *argv[])
 	motor_SetSpeed((short)speed);
 	return 0;
 }
-cmd_t cmd_speed = {"speed", cmd_speed_func, "set motor speed in Hz"};
+const cmd_t cmd_speed = {"speed", cmd_speed_func, "set motor speed in Hz"};
 DECLARE_SHELL_CMD(cmd_speed)
 
 static int cmd_rpm_func(int argc, char *argv[])
@@ -46,7 +46,7 @@ static int cmd_rpm_func(int argc, char *argv[])
 	motor_SetSpeed((short)speed);
 	return 0;
 }
-cmd_t cmd_rpm = {"rpm", cmd_rpm_func, "set motor speed in rpm"};
+const cmd_t cmd_rpm = {"rpm", cmd_rpm_func, "set motor speed in rpm"};
 DECLARE_SHELL_CMD(cmd_rpm)
 
 static int cmd_motor_func(int argc, char *argv[])
@@ -73,7 +73,7 @@ static int cmd_motor_func(int argc, char *argv[])
 	motor->pn = pn;
 	return 0;
 }
-cmd_t cmd_motor = {"motor", cmd_motor_func, "set motor paras"};
+const cmd_t cmd_motor = {"motor", cmd_motor_func, "set motor paras"};
 DECLARE_SHELL_CMD(cmd_motor)
 
 static void cmd_pid_usage(void)
@@ -118,5 +118,5 @@ static int cmd_pid_func(int argc, char *argv[])
 	}
 	return 0;
 }
-cmd_t cmd_pid = {"pid", cmd_pid_func, "set pid paras"};
+const cmd_t cmd_pid = {"pid", cmd_pid_func, "set pid paras"};
 DECLARE_SHELL_CMD(cmd_pid)

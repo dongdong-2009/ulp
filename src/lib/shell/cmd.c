@@ -101,7 +101,7 @@ int cmd_help_func(int argc, char *argv[])
 	return 0;
 }
 
-cmd_t cmd_help = {"help", cmd_help_func, "list all commands"};
+const cmd_t cmd_help = {"help", cmd_help_func, "list all commands"};
 DECLARE_SHELL_CMD(cmd_help)
 
 static int cmd_ListBgTasks(void)
@@ -161,7 +161,7 @@ static int cmd_pause_func(int argc, char *argv[])
 	return 0;
 }
 
-cmd_t cmd_pause = {"pause", cmd_pause_func, "pause all background task, hotkey: ctrl-c"};
+const cmd_t cmd_pause = {"pause", cmd_pause_func, "pause all background task, hotkey: ctrl-c"};
 DECLARE_SHELL_CMD(cmd_pause)
 
 static int cmd_kill_func(int argc, char *argv[])
@@ -211,5 +211,5 @@ static int cmd_kill_func(int argc, char *argv[])
 	return 0;
 }
 
-cmd_t cmd_kill = {"kill", cmd_kill_func, "kill a background task"};
+const cmd_t cmd_kill = {"kill", cmd_kill_func, "kill a background task"};
 DECLARE_SHELL_CMD(cmd_kill)

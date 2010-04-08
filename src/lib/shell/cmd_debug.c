@@ -29,7 +29,7 @@ static int cmd_debug_func(int argc, char *argv[])
 
 	return 0;
 }
-cmd_t cmd_debug = {"debug", cmd_debug_func, "for self-defined debug purpose"};
+const cmd_t cmd_debug = {"debug", cmd_debug_func, "for self-defined debug purpose"};
 DECLARE_SHELL_CMD(cmd_debug)
 
 /*motor algo debug*/
@@ -67,7 +67,7 @@ static int cmd_dalgo_func(int argc, char *argv[])
 	cmd_dalgo_counter ++;
 	return 1;
 }
-cmd_t cmd_dalgo = {"dalgo", cmd_dalgo_func, "motor algo debug"};
+const cmd_t cmd_dalgo = {"dalgo", cmd_dalgo_func, "motor algo debug"};
 DECLARE_SHELL_CMD(cmd_dalgo)
 
 #define CMD_SVPWM_TS	5 /*unit; mS*/
@@ -144,5 +144,5 @@ static int cmd_svpwm_func(int argc, char *argv[])
 	printf("\n");
 	return 1;
 }
-cmd_t cmd_svpwm = {"svpwm", cmd_svpwm_func, "svpwm output test"};
+const cmd_t cmd_svpwm = {"svpwm", cmd_svpwm_func, "svpwm output test"};
 DECLARE_SHELL_CMD(cmd_svpwm)
