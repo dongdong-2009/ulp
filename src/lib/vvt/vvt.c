@@ -37,7 +37,6 @@ void vvt_Init(void)
 	vvt_knock_width = 5*2;
 	vvt_knock_strength = 1000;
 	vvt_knock_pattern = 0;
-	misfire_SetSpeed(CONFIG_VVT_RPM_DEF);
 }
 
 void vvt_Update(void)
