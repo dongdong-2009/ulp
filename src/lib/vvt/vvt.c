@@ -30,6 +30,7 @@ void vvt_Init(void)
 	pss_Init();
 	knock_Init();
 	misfire_Init();
+	vvt_Stop();
 
 	vvt_gear = 2; //tooth 1.0 1.1 2.0 2.1 ...
 	vvt_gear_save = 2;
