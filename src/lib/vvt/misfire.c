@@ -16,7 +16,7 @@ static short *misfire_curve; //0~+/-100%, 100% = 32867
 static short misfire_offset;
 
 //misfire - 1 cylinder, y = [-1*sin(t(1:60)*4*pi),1/3*sin(t(1:180)*4*pi/3)];
-static short curve_a[240] = {	\
+static const short curve_a[240] = {	\
 	0x0000, 0xf94e, 0xf29f, 0xebfb, 0xe564, 0xdee0, 0xd873, 0xd222, \
 	0xcbf1, 0xc5e5, 0xc001, 0xba4a, 0xb4c5, 0xaf74, 0xaa5b, 0xa57f, \
 	0xa0e2, 0x9c88, 0x9873, 0x94a8, 0x9127, 0x8df5, 0x8b12, 0x8882, \
@@ -50,7 +50,7 @@ static short curve_a[240] = {	\
 };
 
 //misfire - 2 cylinder - type 1-2, y = -sin(2*pi*t)
-static short curve_b[240] = {	\
+static const short curve_b[240] = {	\
 	0x0000, 0xfca7, 0xf94e, 0xf5f6, 0xf29f, 0xef4c, 0xebfb, 0xe8ad, \
 	0xe564, 0xe21f, 0xdee0, 0xdba6, 0xd873, 0xd547, 0xd222, 0xcf05, \
 	0xcbf1, 0xc8e6, 0xc5e5, 0xc2ed, 0xc001, 0xbd20, 0xba4a, 0xb781, \
@@ -84,7 +84,7 @@ static short curve_b[240] = {	\
 };
 
 //misfire - 2 cylinder - type 1-3, y = -sin(4*pi*t)
-static short curve_c[240] = {	\
+static const short curve_c[240] = {	\
 	0x0000, 0xf94e, 0xf29f, 0xebfb, 0xe564, 0xdee0, 0xd873, 0xd222, \
 	0xcbf1, 0xc5e5, 0xc001, 0xba4a, 0xb4c5, 0xaf74, 0xaa5b, 0xa57f, \
 	0xa0e2, 0x9c88, 0x9873, 0x94a8, 0x9127, 0x8df5, 0x8b12, 0x8882, \
@@ -169,11 +169,11 @@ void misfire_Config(short strength, short pattern)
 	}
 	
 	//curve type?
-	misfire_curve = curve_a;
+	misfire_curve = (short *)curve_a;
 	if(y != -1) {
-		misfire_curve = curve_b;
+		misfire_curve = (short *)curve_b;
 		if(y - x == 2)
-			misfire_curve = curve_c;
+			misfire_curve = (short *)curve_c;
 	}
 	
 	//offset?<tdc?>
