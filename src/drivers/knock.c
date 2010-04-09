@@ -1,8 +1,6 @@
 /*
 *	miaofng@2010 initial version
 		this routine is used to provide the device driver for vvt knock control
-		spi1: apb2/72Mhz, dds *3, dac, 36Mhz, CPOL=0(sck low idle), CPHA=1(latch at 2nd edge of sck),
-		spi2: apb1/36Mhz, dpot*8, 9Mhz, CPOL=0(sck low idle), CPHA=0(latch at 1st edge of sck),
 */
 
 #include "stm32f10x.h"
@@ -13,7 +11,7 @@
 
 static spi_t spi1 = {
 	.addr = SPI1,
-	.mode = SPI_MODE_POL_0| SPI_MODE_PHA_1| SPI_MODE_BW_16,
+	.mode = SPI_MODE_POL_1| SPI_MODE_PHA_0| SPI_MODE_BW_16 | SPI_MODE_MSB,
 };
 
 static spi_t spi2 = {
@@ -113,12 +111,17 @@ void knock_Init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_SET); //cs_dds_knock = 1
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11|GPIO_Pin_12|GPIO_Pin_13|GPIO_Pin_14;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
+	GPIO_WriteBit(GPIOE, GPIO_Pin_11, Bit_SET); //cs_vr_ks0 = 1
+	GPIO_WriteBit(GPIOE, GPIO_Pin_12, Bit_SET); //cs_vr_ks1 = 1
+	GPIO_WriteBit(GPIOE, GPIO_Pin_13, Bit_SET); //cs_vr_ks2 = 1
+	GPIO_WriteBit(GPIOE, GPIO_Pin_14, Bit_SET); //cs_vr_ks3 = 1
 
 	/*chip init*/
 	spi_Init(&spi1);

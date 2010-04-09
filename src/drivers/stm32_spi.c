@@ -46,7 +46,7 @@ void spi_Init(spi_t *bus)
 	SPI_InitStructure.SPI_CPHA = (bus->mode & SPI_MODE_PHA_1) ? SPI_CPHA_2Edge : SPI_CPHA_1Edge;
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
 	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
-	SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
+	SPI_InitStructure.SPI_FirstBit = (bus->mode & SPI_MODE_LSB) ? SPI_FirstBit_LSB : SPI_FirstBit_MSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
 	SPI_Init(bus->addr, &SPI_InitStructure);
 	/* Enable the SPI  */

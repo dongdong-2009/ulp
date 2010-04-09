@@ -1,7 +1,5 @@
 /*
  * 	miaofng@2010 initial version
- *		ad9833, dds, max mclk=25MHz, 28bit phase resolution, 10bit DAC
- *		interface: spi, 40Mhz, 16bit, CPOL=0(sck low idle), CPHA=1(latch at 2nd edge of sck)
  */
 #ifndef __AD9833_H_
 #define __AD9833_H_
@@ -16,7 +14,6 @@
 typedef struct {
 	dev_io_t io;
 	int option;
-	int priv;
 } ad9833_t;
 
 void ad9833_Init(ad9833_t *chip);

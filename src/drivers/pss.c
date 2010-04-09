@@ -14,7 +14,7 @@ static int rpm_dds_read_reg(int reg);
 
 static spi_t spi1 = {
 	.addr = SPI1,
-	.mode = SPI_MODE_POL_0| SPI_MODE_PHA_1| SPI_MODE_BW_16,
+	.mode = SPI_MODE_POL_1| SPI_MODE_PHA_0| SPI_MODE_BW_16 | SPI_MODE_MSB,
 };
 
 static ad9833_t rpm_dds = {
@@ -22,7 +22,7 @@ static ad9833_t rpm_dds = {
 		.write_reg = rpm_dds_write_reg,
 		.read_reg = rpm_dds_read_reg,
 	},
-	.option = AD9833_OPT_OUT_SQU,
+	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
 
 void pss_Enable(int on)
@@ -60,7 +60,15 @@ void pss_Init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_SET); // cs_dds_rpm = 1
 
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+	GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_SET); // cs_dds_vss = 1
+	
 	/*rpm irq init*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
