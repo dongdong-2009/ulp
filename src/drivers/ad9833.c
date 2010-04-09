@@ -30,6 +30,7 @@ void ad9833_Init(ad9833_t *chip)
 	
 	opt |= B28;
 	chip->io.write_reg(0, REG_CTRL(opt));
+	chip->option = opt;
 }
 
 void ad9833_SetFreq(ad9833_t *chip, unsigned fw)
@@ -44,11 +45,17 @@ void ad9833_SetFreq(ad9833_t *chip, unsigned fw)
 	msb = (unsigned short)(fw & 0x3fff);
 	
 	if(opt & FSELECT) {
-		chip->io.write_reg(0, REG_FREQ1(lsb));
-		chip->io.write_reg(0, REG_FREQ1(msb));
+		chip->io.write_reg(0, REG_FREQ0(lsb));
+		chip->io.write_reg(0, REG_FREQ0(msb));
+		opt &= ~FSELECT;
+		chip->io.write_reg(0, REG_CTRL(opt));
 	}
 	else {
-		chip->io.write_reg(1, REG_FREQ0(lsb));
-		chip->io.write_reg(1, REG_FREQ0(msb));
+		chip->io.write_reg(1, REG_FREQ1(lsb));
+		chip->io.write_reg(1, REG_FREQ1(msb));
+		opt |= FSELECT;
+		chip->io.write_reg(0, REG_CTRL(opt));
 	}
+
+	chip->option = opt;
 }
