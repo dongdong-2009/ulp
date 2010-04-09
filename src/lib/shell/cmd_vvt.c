@@ -83,11 +83,11 @@ static int cmd_vvt_func(int argc, char *argv[])
 	int result = -1;
 	short speed, s, a, b, c, d;
 	
-	vvt_Start();
-	
 	if(!strcmp(argv[1], "speed") && (argc == 3)) {
 		speed = (short)atoi(argv[2]);
 		misfire_SetSpeed(speed);
+		if(speed) vvt_Start();
+		else vvt_Stop();
 		result = 0;
 	}
 	
