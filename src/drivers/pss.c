@@ -70,6 +70,7 @@ void pss_Init(void)
 	GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_SET); // cs_dds_vss = 1
 	
 	/*rpm irq init*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -83,7 +84,7 @@ void pss_Init(void)
 	EXTI_InitStruct.EXTI_LineCmd = ENABLE;
 	EXTI_Init(&EXTI_InitStruct);
 
-	pss_Enable(1);
+	pss_Enable(0);
 	
 	/*chip init*/
 	spi_Init(&spi1);
