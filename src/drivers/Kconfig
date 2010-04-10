@@ -3,12 +3,14 @@
 #
 # Written by miaofng@2010
 #
+bool "enable spi bus driver for stm32?" CONFIG_DRIVER_SPI_STM32
 bool "enable all motor related drivers?" CONFIG_DRIVER_MOTOR
 bool "enable all vvt related drivers?" CONFIG_DRIVER_VVT
 if [ "$CONFIG_DRIVER_VVT" = "y" ]; then
 	define_bool CONFIG_DRIVER_AD9833 y
 	define_bool CONFIG_DRIVER_MCP41X y
-	define_bool CONFIG_DRIVER_SPI_STM32 y
+	define_bool CONFIG_DRIVER_DAC1X8S y
+	define_bool CONFIG_DRIVER_MCAO y
 	int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
 	int "vss dds mclk frequency Hz?" CONFIG_DRIVER_VSS_DDS_MCLK 25000000
 	int "knock dds mclk frequency Hz?" CONFIG_DRIVER_KNOCK_DDS_MCLK 25000000
