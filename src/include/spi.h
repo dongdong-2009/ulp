@@ -13,13 +13,8 @@
 #define SPI_MODE_MSB (0 << 3)
 #define SPI_MODE_LSB (1 << 3)
 
-typedef struct {
-	void *addr; /*addr of first register*/
-	int mode;
-} spi_t;
-
-void spi_Init(spi_t *bus);
-int spi_Write(spi_t *bus, int reg, int val);
-int spi_Read(spi_t *bus, int reg);
+/*bus,range: 1, 2, ...*/
+int spi_Init(int bus, int mode);
+int spi_Write(int bus, int val);
 #endif /*__SPI_H_*/
 

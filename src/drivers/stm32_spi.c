@@ -5,10 +5,15 @@
 #include "stm32f10x.h"
 #include "spi.h"
 
-void spi_Init(spi_t *bus)
+#define bus_to_spi(bus)	(bus == 1) ? SPI1 : ((bus == 2)? SPI2 : 0)
+
+int spi_Init(int bus, int mode)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	SPI_InitTypeDef  SPI_InitStructure;
+	SPI_TypeDef* spix = bus_to_spi(bus);
+	if(!spix)
+		return -1;
 
 	/* pin map:	SPI1		SPI2
 		NSS		PA4		PB12
@@ -16,7 +21,7 @@ void spi_Init(spi_t *bus)
 		MISO	PA6		PB14
 		MOSI	PA7		PB15
 	*/
-	if(bus->addr == SPI1) {
+	if(bus == 1) {
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);
@@ -27,7 +32,7 @@ void spi_Init(spi_t *bus)
 		GPIO_Init(GPIOA, &GPIO_InitStructure);
 	}
 
-	if(bus->addr == SPI2) {
+	if(bus == 2) {
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 		RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
@@ -41,28 +46,27 @@ void spi_Init(spi_t *bus)
 	/* SPI configuration */
 	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
 	SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
-	SPI_InitStructure.SPI_DataSize = (bus->mode & SPI_MODE_BW_16) ? SPI_DataSize_16b : SPI_DataSize_8b;
-	SPI_InitStructure.SPI_CPOL = (bus->mode & SPI_MODE_POL_1) ? SPI_CPOL_High : SPI_CPOL_Low;
-	SPI_InitStructure.SPI_CPHA = (bus->mode & SPI_MODE_PHA_1) ? SPI_CPHA_2Edge : SPI_CPHA_1Edge;
+	SPI_InitStructure.SPI_DataSize = (mode & SPI_MODE_BW_16) ? SPI_DataSize_16b : SPI_DataSize_8b;
+	SPI_InitStructure.SPI_CPOL = (mode & SPI_MODE_POL_1) ? SPI_CPOL_High : SPI_CPOL_Low;
+	SPI_InitStructure.SPI_CPHA = (mode & SPI_MODE_PHA_1) ? SPI_CPHA_2Edge : SPI_CPHA_1Edge;
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
 	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
-	SPI_InitStructure.SPI_FirstBit = (bus->mode & SPI_MODE_LSB) ? SPI_FirstBit_LSB : SPI_FirstBit_MSB;
+	SPI_InitStructure.SPI_FirstBit = (mode & SPI_MODE_LSB) ? SPI_FirstBit_LSB : SPI_FirstBit_MSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
-	SPI_Init(bus->addr, &SPI_InitStructure);
+	SPI_Init(spix, &SPI_InitStructure);
 	/* Enable the SPI  */
-	SPI_Cmd(bus->addr, ENABLE);
-}
-
-int spi_Write(spi_t *bus, int reg, int val)
-{
-	while (SPI_I2S_GetFlagStatus(bus->addr, SPI_I2S_FLAG_TXE) == RESET);
-	SPI_I2S_SendData(bus->addr, (uint16_t)val);
-	while (SPI_I2S_GetFlagStatus(bus->addr, SPI_I2S_FLAG_RXNE) == RESET);
-	return SPI_I2S_ReceiveData(bus->addr);
-}
-
-int spi_Read(spi_t *bus, int reg)
-{
+	SPI_Cmd(spix, ENABLE);
 	return 0;
 }
 
+int spi_Write(int bus, int val)
+{
+	SPI_TypeDef* spix = bus_to_spi(bus);
+	if(!spix)
+		return -1;
+
+	while (SPI_I2S_GetFlagStatus(spix, SPI_I2S_FLAG_TXE) == RESET);
+	SPI_I2S_SendData(spix, (uint16_t)val);
+	while (SPI_I2S_GetFlagStatus(spix, SPI_I2S_FLAG_RXNE) == RESET);
+	return SPI_I2S_ReceiveData(spix);
+}
