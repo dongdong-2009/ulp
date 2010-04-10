@@ -10,17 +10,11 @@
 #include "spi.h"
 
 static int rpm_dds_write_reg(int reg, int val);
-static int rpm_dds_read_reg(int reg);
-
-static spi_t spi1 = {
-	.addr = SPI1,
-	.mode = SPI_MODE_POL_1| SPI_MODE_PHA_0| SPI_MODE_BW_16 | SPI_MODE_MSB,
-};
 
 static ad9833_t rpm_dds = {
 	.io = {
 		.write_reg = rpm_dds_write_reg,
-		.read_reg = rpm_dds_read_reg,
+		.read_reg = 0,
 	},
 	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
@@ -87,7 +81,6 @@ void pss_Init(void)
 	pss_Enable(0);
 	
 	/*chip init*/
-	spi_Init(&spi1);
 	ad9833_Init(&rpm_dds);
 }
 
@@ -121,16 +114,7 @@ int rpm_dds_write_reg(int reg, int val)
 {
 	int ret;
 	GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_RESET);
-	ret = spi_Write(&spi1, reg, val);
-	GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_SET);
-	return ret;
-}
-
-int rpm_dds_read_reg(int reg)
-{
-	int ret;
-	GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_RESET);
-	ret = spi_Read(&spi1, reg);
+	ret = spi_Write(1, val);
 	GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_SET);
 	return ret;
 }
