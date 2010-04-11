@@ -6,6 +6,7 @@
 #include "vvt/misfire.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "mcao.h"
 
 //global
 
@@ -119,6 +120,10 @@ static const short curve_c[240] = {	\
 
 void misfire_Init(void)
 {
+#if CONFIG_VVT_MISFIRE_DEBUG == 1
+	mcao_Init();
+#endif
+
 	misfire_strength = 0;
 	misfire_curve = 0;
 }
@@ -132,6 +137,7 @@ short misfire_GetSpeed(short gear)
 {
 	int speed;
 	int coef, index;
+	coef = 0;
 	
 	speed = misfire_speed;
 	if(misfire_curve != 0) {
@@ -142,9 +148,19 @@ short misfire_GetSpeed(short gear)
 		coef >>= 15;
 		coef *= speed;
 		coef >>= 15;
-		speed += coef;
 	}
-	
+
+#if CONFIG_VVT_MISFIRE_DEBUG == 1
+	{
+		int mv = 2500;
+		mv *= coef;
+		mv /= speed;
+		mv += 2500 >> 1;
+		mcao_SetVolt(0, mv);
+	}
+#endif
+
+	speed += coef;
 	return speed;
 }
 
