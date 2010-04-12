@@ -175,9 +175,8 @@ short misfire_GetSpeed(short gear)
 void misfire_Config(short strength, short pattern)
 {
 	int ch, x, y;
-	if(pattern == 0) 
-		return;
 	x = y = -1;
+	
 	misfire_strength = strength;
 	for(ch = 0; ch < 4; ch ++)
 	{
@@ -193,7 +192,9 @@ void misfire_Config(short strength, short pattern)
 	}
 	
 	//curve type?
-	misfire_curve = (short *)curve_a;
+	misfire_curve = 0;
+	if(x != -1)
+		misfire_curve = (short *)curve_a;
 	if(y != -1) {
 		misfire_curve = (short *)curve_b;
 		if(y - x == 2)
