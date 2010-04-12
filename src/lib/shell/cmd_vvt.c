@@ -104,9 +104,9 @@ static int cmd_vvt_func(int argc, char *argv[])
 		d = (short) atoi(argv[6]);
 		
 		a = (a > 0) ? 1 : 0;
-		b = (a > 0) ? 2 : 0;
-		c = (a > 0) ? 4 : 0;
-		d = (a > 0) ? 8 : 0;
+		b = (b > 0) ? 2 : 0;
+		c = (c > 0) ? 4 : 0;
+		d = (d > 0) ? 8 : 0;
 		
 		misfire_Config(s, a+b+c+d);
 		result = 0;
