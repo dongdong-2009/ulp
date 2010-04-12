@@ -141,7 +141,7 @@ short misfire_GetSpeed(short gear)
 	
 	speed = misfire_speed;
 	if(misfire_curve != 0) {
-		gear += (gear > misfire_offset) ? 0 : 240;
+		gear += (gear >= misfire_offset) ? 0 : 240;
 		index = gear - misfire_offset;
 		coef = misfire_curve[index];
 		coef *= misfire_strength;
