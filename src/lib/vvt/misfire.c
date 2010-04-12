@@ -152,11 +152,19 @@ short misfire_GetSpeed(short gear)
 
 #if CONFIG_VVT_MISFIRE_DEBUG == 1
 	{
-		int mv = 2500;
+		int mv;
+		//ch0, current gear nr
+		mv = 2000;
+		mv *= gear;
+		mv /= 240;
+		mcao_SetVolt(0, mv);
+		
+		//ch1, misfire speed
+		mv = 2000 >> 1;
 		mv *= coef;
 		mv /= speed;
 		mv += 2500 >> 1;
-		mcao_SetVolt(0, mv);
+		mcao_SetVolt(1, mv);
 	}
 #endif
 
