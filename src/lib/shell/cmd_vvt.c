@@ -81,7 +81,7 @@ DECLARE_SHELL_CMD(cmd_knock)
 static int cmd_vvt_func(int argc, char *argv[])
 {
 	int result = -1;
-	short speed, s, a, b, c, d;
+	short speed, s, a, b, c, d, f;
 	
 	if(!strcmp(argv[1], "speed") && (argc == 3)) {
 		speed = (short)atoi(argv[2]);
@@ -112,10 +112,12 @@ static int cmd_vvt_func(int argc, char *argv[])
 		result = 0;
 	}
 	
-	if(!strcmp(argv[1], "knock") && (argc == 5)) {
+	if(!strcmp(argv[1], "knock") && (argc == 6)) {
 		vvt_knock_pos = (short) atoi(argv[2]);
 		vvt_knock_width = (short) atoi(argv[3]);
 		vvt_knock_strength = (short) atoi(argv[4]);
+		f = (short) atoi(argv[5]);
+		knock_SetFreq(f);
 		result = 0;
 	}
 	
@@ -135,11 +137,11 @@ static int cmd_vvt_func(int argc, char *argv[])
 	
 	if(result == -1) {
 		printf("uasge:\n");
-		printf(" vvt speed 100	unit: rpm\n");
-		printf(" vvt advance 5	unit: gears, range: 0~10 \n");
-		printf(" vvt misfire s A B C D 	strength(0.0~1)\n");
-		printf(" vvt knock p w s	pos,width,strength(mV)\n");
-		printf(" vvt kpat A B C D	knock pattern\n");
+		printf(" vvt speed 100		unit: rpm\n");
+		printf(" vvt advance 5		unit: gears, range: 0~10 \n");
+		printf(" vvt misfire s A B C D		strength(0.0~1)\n");
+		printf(" vvt knock p w s f		pos,width,strength(mV),freq(Hz)\n");
+		printf(" vvt kpat A B C D		knock pattern\n");
 	}
 	
 	return 0;
