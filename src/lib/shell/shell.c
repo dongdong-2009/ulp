@@ -104,8 +104,17 @@ static int shell_ReadLine(void)
 			do {
 				carry_flag = 0;
 				tmp = cmd_buffer[idx];
-				if( tmp < '0' || tmp > '9')
-					break;
+				if( tmp < '0' || tmp > '9') {
+					if(tmp != '.')
+						break;
+					else if(idx != cmd_idx) {
+						//float support
+						idx --;
+						printf("\033[D"); /*left shift 1 char*/
+						carry_flag = 1;
+						continue;
+					}
+				}
 				
 				if(ch == '+') {
 					tmp ++;
