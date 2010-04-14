@@ -52,7 +52,7 @@ void shell_Update(void)
 /*read a line of string from console*/
 static int shell_ReadLine(void)
 {
-	int ch, len, sz, offset, tmp;
+	int ch, len, sz, offset, tmp, idx, carry_flag;
 	char buf[CONFIG_SHELL_LEN_CMD_MAX];
 	int ready = 0;
 	
@@ -100,28 +100,41 @@ static int shell_ReadLine(void)
 			break;
 		case '+':
 		case '-':
-			tmp = cmd_buffer[cmd_idx];
-			if( tmp < '0' || tmp > '9')
+			idx = cmd_idx;
+			do {
+				carry_flag = 0;
+				tmp = cmd_buffer[idx];
+				if( tmp < '0' || tmp > '9')
+					break;
+				
+				if(ch == '+') {
+					tmp ++;
+					if(tmp > '9') {
+						tmp = '0';
+						carry_flag = 1;
+					}
+				}
+				else {
+					tmp --;
+					if(tmp < '0') {
+						tmp = '9';
+						carry_flag = 1;
+					}
+				}
+
+				/*replace*/
+				cmd_buffer[idx] = tmp;
+				idx --;
+
+				/*terminal display*/
+				printf("\033[1C"); /*right shift 1 char*/
+				putchar(127);
+				putchar(tmp);
+				printf("\033[D"); /*left shift 1 char*/
+			} while(carry_flag);
+			
+			if(idx == cmd_idx)
 				continue;
-
-			if(ch == '+') {
-				tmp ++;
-				if(tmp > '9') 
-					tmp = '0';
-			}
-			else {
-				tmp --;
-				if(tmp < '0')
-					tmp = '9';
-			}
-
-			/*replace*/
-			cmd_buffer[cmd_idx] = tmp;
-
-			/*terminal display*/
-			printf("\033[1C"); /*right shift 1 char*/
-			putchar(127);
-			putchar(tmp);
 			
 			cmd_idx = -2 - cmd_idx;
 			ready = 1;
