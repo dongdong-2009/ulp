@@ -92,6 +92,7 @@ void vsm_Init(void)
 	TIM_OC4PreloadConfig(TIM1, TIM_OCPreload_Enable);
 
 	TIM_CtrlPWMOutputs(TIM1, ENABLE);
+	TIM_Cmd(TIM1, ENABLE);
 
 	/*step 2, adc1/2 init*/
 	/* pin map:
@@ -341,7 +342,6 @@ void vsm_Start(void)
 {
 	ADC_ClearITPendingBit(ADC1, ADC_IT_JEOC);
 	ADC_ITConfig(ADC1, ADC_IT_JEOC, ENABLE);
-	TIM_Cmd(TIM1, ENABLE);
 	vsm_SetVoltage(0,0);
 }
 
@@ -350,3 +350,4 @@ void vsm_Stop(void)
 	ADC_ITConfig(ADC1, ADC_IT_JEOC, DISABLE);
 	TIM_Cmd(TIM1, DISABLE);
 }
+

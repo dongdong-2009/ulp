@@ -62,14 +62,11 @@ void motor_Update(void)
 
 	switch (stm) {
 		case MOTOR_IDLE:
-			if(speed_pid > 0) {
-				stm = MOTOR_START_OP;
-				led_flash(LED_RED);
-				led_flash(LED_GREEN);
-			}
 			break;
 
 		case MOTOR_START_OP:
+			led_flash(LED_RED);
+			led_flash(LED_GREEN);
 			smo_Start();
 			vsm_Start();
 			stm = MOTOR_START;
@@ -139,6 +136,13 @@ void motor_Update(void)
 void motor_SetSpeed(short speed)
 {
 	pid_SetRef(pid_speed, speed); 
+}
+
+void motor_Start(void)
+{
+	if(stm == MOTOR_IDLE) {
+		stm = MOTOR_START_OP;
+	}
 }
 
 /*this routine will be called periodly by ADC isr*/

@@ -107,9 +107,6 @@ static int cmd_svpwm_func(int argc, char *argv[])
 		cmd_svpwm_timer = time_get(CMD_SVPWM_TS);
 		cmd_svpwm_index = -1;
 		cmd_svpwm_angle = 0;
-
-		vsm_Start();
-		ADC_ITConfig(ADC1, ADC_IT_JEOC, DISABLE);
 		return 1;
 	}
 
@@ -146,3 +143,4 @@ static int cmd_svpwm_func(int argc, char *argv[])
 }
 const cmd_t cmd_svpwm = {"svpwm", cmd_svpwm_func, "svpwm output test"};
 DECLARE_SHELL_CMD(cmd_svpwm)
+

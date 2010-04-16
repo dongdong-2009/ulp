@@ -24,6 +24,7 @@ static int cmd_speed_func(int argc, char *argv[])
 	printf("setting motor speed to %dHz\n", speed);
 	speed = NOR_SPEED(speed);
 	motor_SetSpeed((short)speed);
+	motor_Start();
 	return 0;
 }
 const cmd_t cmd_speed = {"speed", cmd_speed_func, "set motor speed in Hz"};
@@ -44,6 +45,7 @@ static int cmd_rpm_func(int argc, char *argv[])
 	speed = RPM_TO_SPEED(rpm);
 	speed = NOR_SPEED(speed);
 	motor_SetSpeed((short)speed);
+	motor_Start();
 	return 0;
 }
 const cmd_t cmd_rpm = {"rpm", cmd_rpm_func, "set motor speed in rpm"};
@@ -120,3 +122,4 @@ static int cmd_pid_func(int argc, char *argv[])
 }
 const cmd_t cmd_pid = {"pid", cmd_pid_func, "set pid paras"};
 DECLARE_SHELL_CMD(cmd_pid)
+
