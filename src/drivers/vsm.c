@@ -7,6 +7,9 @@
 #include "vsm.h"
 #include "normalize.h"
 
+//#define CONFIG_VSM_CURRENT_DEBUG 1
+/*define this macro in order to monitor Iu/Iv only*/
+
 static int sector;
 static short vp;
 
@@ -286,6 +289,11 @@ void vsm_SetVoltage(short alpha, short beta)
 		break;
 	}
 
+#if CONFIG_VSM_CURRENT_DEBUG == 1
+	ADC1->JSQR = VSM_PHU << 15;
+	ADC2->JSQR = VSM_PHV << 15;
+#endif
+
 	/* Load compare registers values */
 	TIM1->CCR1 = cmp_a;
 	TIM1->CCR2 = cmp_b;
@@ -336,6 +344,11 @@ void vsm_GetCurrent(short *a, short *b)
 	default:
 		break;
 	}
+
+#if CONFIG_VSM_CURRENT_DEBUG == 1
+	*a = (short) i1;
+	*b = (short) i2;
+#endif
 }
 
 void vsm_Start(void)
