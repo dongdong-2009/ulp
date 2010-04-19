@@ -43,6 +43,7 @@ static int cmd_dalgo_func(int argc, char *argv[])
 		/*first time*/
 		cmd_dalgo_counter = 0;
 		motor_SetSpeed(100);
+		smo_Start();
 	}
 
 	/*call motor_isr*/
