@@ -78,6 +78,34 @@ static int cmd_motor_func(int argc, char *argv[])
 const cmd_t cmd_motor = {"motor", cmd_motor_func, "set motor paras"};
 DECLARE_SHELL_CMD(cmd_motor)
 
+static int cmd_ramp_func(int argc, char *argv[])
+{
+	short ms, rpm;
+	int speed;
+	
+	if(argc < 3) {
+		ms = motor->start_time;
+		speed = _SPEED(motor->start_speed);
+		rpm = (short)SPEED_TO_RPM(speed);
+		printf("uasge:\n");
+		printf(" ramp %d %d	ms rpm\n", ms, rpm);
+		return 0;
+	}
+
+	ms = (short)atoi(argv[1]);
+	rpm = (short)atoi(argv[2]);
+
+	speed = RPM_TO_SPEED(rpm);
+	printf("setting motor ramp speed to %dHz\n", speed);
+
+	speed = NOR_SPEED(speed);
+	motor->start_speed = (short)speed;
+	motor->start_time = ms;
+	return 0;
+}
+const cmd_t cmd_ramp = {"ramp", cmd_ramp_func, "set motor ramp up paras"};
+DECLARE_SHELL_CMD(cmd_ramp)
+
 static void cmd_pid_usage(void)
 {
 	printf( \
