@@ -11,7 +11,7 @@
 
 /*current sense resistor and adc ref voltage*/
 #define VSM_VDC_RATIO (1/10.0)
-#define VSM_RS_OHM (4.7)
+#define VSM_RS_OHM (10.0/2)
 #define VSM_VREF_MV (3300.0)
 
 #define VSM_FREQ (CONFIG_SYS_FREQ/T/2)
