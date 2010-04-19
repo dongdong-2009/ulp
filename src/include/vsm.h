@@ -10,7 +10,7 @@
 #define TD 800 /*time of dead zone, unit: nS, range: 0~1763*/
 
 /*current sense resistor and adc ref voltage*/
-#define VSM_VDC_RATIO (1/10.0)
+#define VSM_VDC_RATIO (1/100.0)
 #define VSM_RS_OHM (10.0/2)
 #define VSM_VREF_MV (3300.0)
 
