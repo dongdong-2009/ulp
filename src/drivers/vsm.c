@@ -365,6 +365,5 @@ void vsm_Start(void)
 void vsm_Stop(void)
 {
 	ADC_ITConfig(ADC1, ADC_IT_JEOC, DISABLE);
-	TIM_Cmd(TIM1, DISABLE);
 }
 
