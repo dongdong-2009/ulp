@@ -145,6 +145,11 @@ void motor_Start(void)
 	}
 }
 
+motor_status_t motor_GetStatus(void)
+{
+	return stm;
+}
+
 /*this routine will be called periodly by ADC isr*/
 void motor_isr(void)
 {

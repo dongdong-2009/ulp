@@ -83,7 +83,7 @@ static int cmd_ramp_func(int argc, char *argv[])
 	short ms, rpm;
 	int speed;
 	
-	if(argc < 3) {
+	if((argc < 3) && (argc != 0)) {
 		ms = motor->start_time;
 		speed = _SPEED(motor->start_speed);
 		rpm = (short)SPEED_TO_RPM(speed);
@@ -92,15 +92,26 @@ static int cmd_ramp_func(int argc, char *argv[])
 		return 0;
 	}
 
-	ms = (short)atoi(argv[1]);
-	rpm = (short)atoi(argv[2]);
+	if(argc == 3) {
+		ms = (short)atoi(argv[1]);
+		rpm = (short)atoi(argv[2]);
 
-	speed = RPM_TO_SPEED(rpm);
-	printf("setting motor ramp speed to %dHz\n", speed);
+		speed = RPM_TO_SPEED(rpm);
+		printf("setting motor ramp speed to %dHz\n", speed);
 
-	speed = NOR_SPEED(speed);
-	motor->start_speed = (short)speed;
-	motor->start_time = ms;
+		speed = NOR_SPEED(speed);
+		motor->start_speed = (short)speed;
+		motor->start_time = ms;
+	
+		//try to restart motor
+		motor_SetSpeed(0);
+	}
+	
+	if(motor_GetStatus() != MOTOR_IDLE)
+		return 1;
+	
+	motor_SetSpeed(1);
+	motor_Start();
 	return 0;
 }
 const cmd_t cmd_ramp = {"ramp", cmd_ramp_func, "set motor ramp up paras"};

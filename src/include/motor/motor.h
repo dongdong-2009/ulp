@@ -35,6 +35,7 @@ void motor_Init(void);
 void motor_SetSpeed(short speed);
 void motor_Update(void);
 void motor_Start(void);
+motor_status_t motor_GetStatus(void);
 void motor_isr(void); /*this routine will be called periodly by ADC isr*/
 #endif /*__MOTOR_H_*/
 
