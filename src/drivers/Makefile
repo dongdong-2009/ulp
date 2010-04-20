@@ -10,3 +10,4 @@ obj-$(CONFIG_DRIVER_MCAO) += mcao.o
 obj-$(CONFIG_DRIVER_SPI_STM32) += stm32_spi.o
 obj-$(CONFIG_DRIVER_VVT) += knock.o
 obj-$(CONFIG_DRIVER_VVT) += pss.o
+obj-$(CONFIG_DRIVER_FLASH_STM32) += flash.o
