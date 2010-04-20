@@ -3,6 +3,12 @@
 #
 # Written by miaofng@2010
 #
+
+bool "enable flash driver for stm32?" CONFIG_DRIVER_FLASH_STM32
+if [ "$CONFIG_DRIVER_FLASH_STM32" = "y" ]; then
+	int "Whole flash size KB?" CONFIG_FLASH_WHOLE_SIZE 64
+	int "User flash size KB?" CONFIG_FLASH_USER_SIZE 4
+fi
 bool "enable spi bus driver for stm32?" CONFIG_DRIVER_SPI_STM32
 bool "enable all motor related drivers?" CONFIG_DRIVER_MOTOR
 bool "enable all vvt related drivers?" CONFIG_DRIVER_VVT
