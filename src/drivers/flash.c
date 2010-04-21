@@ -17,10 +17,13 @@ FlashOpStatus flash_Write(uint32_t OffsetAddress,uint8_t * sour_addr, uint8_t da
 	uint32_t page_addr;
 	uint16_t half_word = 0;
 	volatile FLASH_Status flash_status = FLASH_COMPLETE;
-	uint32_t i;	
+	uint32_t i;
+	
+	if((OffsetAddress % 2) != 0)
+		return FAILED;
 
 	/*get page address*/
-	page_addr = USER_FLASH_STARTADDR + (OffsetAddress / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
+	page_addr = ((OffsetAddress - STM32_FLASH_STARTADDR) / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
 		
 	/* Unlock the Flash Program Erase controller */
 	FLASH_Unlock();
@@ -41,22 +44,22 @@ FlashOpStatus flash_Write(uint32_t OffsetAddress,uint8_t * sour_addr, uint8_t da
 		half_word <<= 8;
 		half_word |= *(sour_addr+i);		
 		
-		if(FLASH_ProgramHalfWord(USER_FLASH_STARTADDR + OffsetAddress + i, half_word) != FLASH_COMPLETE)
+		if(FLASH_ProgramHalfWord(OffsetAddress + i, half_word) != FLASH_COMPLETE)
 			return FAILED;
 		half_word = 0;
 	}
 			
 	FLASH_Lock();
 	
-	return PASSED;	
+	return PASSED;
 }
 
 FlashOpStatus flash_Read(uint32_t OffsetAddress,uint8_t * dest_addr,uint32_t data_size)
 {
 	uint32_t i;
 	for(i=0;i<data_size;i++){
-		* (dest_addr + i) = *(__IO uint8_t*) (USER_FLASH_STARTADDR + OffsetAddress + i);
+		* (dest_addr + i) = *(__IO uint8_t*) (OffsetAddress + i);
 	}
 	
-	return PASSED;	
+	return PASSED;
 }

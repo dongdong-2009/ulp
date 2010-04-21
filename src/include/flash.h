@@ -18,18 +18,8 @@
   #define FLASH_PAGE_SIZE    ((uint16_t)0x800)  
 #endif /* STM32F10X_LD */
 
-/*page flash*/
-#define USER_FLASH_PAGESIZE	FLASH_PAGE_SIZE
-
 /*STM32 flash start address*/
 #define STM32_FLASH_STARTADDR 0x08000000
-
-/*user's flash size*/
-#define USER_FLASH_SIZE (CONFIG_FLASH_USER_SIZE*1024)
-
-
-/*user's flash start address*/
-#define USER_FLASH_STARTADDR STM32_FLASH_STARTADDR + (CONFIG_FLASH_WHOLE_SIZE - CONFIG_FLASH_USER_SIZE)*1024
 
 typedef enum {
 	FAILED = 0,
