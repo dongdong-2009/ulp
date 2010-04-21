@@ -21,17 +21,17 @@ static int cmd_flash_mr(int argc, char *argv[])
 	
 	if(argc != 3){
 		printf("uasge:\n");
-		printf(" flashmr offset size\n");
+		printf("flashmr offset(0x) size(0x)\n");
 		return 0;
 	}
 	
-	offset = (uint32_t)atoi(argv[1]);
-	data_size = (uint32_t)atoi(argv[2]);
+	sscanf(argv[1],"%x",&offset);
+	sscanf(argv[2],"%x",&data_size);
 
 	for(i = 0; i < data_size ; i++ )
 	{
 		flash_Read( i + offset , &readbuffer , 1);
-		printf("0x%x, ",readbuffer);
+		printf("0x%2x, ",readbuffer);
 		if(i%4 == 3)
 			printf("\n");
 	}
@@ -39,8 +39,8 @@ static int cmd_flash_mr(int argc, char *argv[])
 	
 	return 0;
 }
-const cmd_t cmd_flashmr = {"flashmr", cmd_flash_mr, "for reading user flash memory"};
-DECLARE_SHELL_CMD(cmd_flashmr)
+const cmd_t cmd_flmr = {"flmr", cmd_flash_mr, "for reading user flash memory"};
+DECLARE_SHELL_CMD(cmd_flmr)
 
 /*for flash write*/
 static int cmd_flash_mw(int argc, char *argv[])
@@ -51,12 +51,13 @@ static int cmd_flash_mw(int argc, char *argv[])
 	
 	if(argc != 3){
 		printf("uasge:\n");
-		printf(" flashmw offset data\n");
+		printf("flashmw offset(0x) data(0x,32 bits)\n");
 		return 0;
 	}
 	
-	offset = (uint32_t)atoi(argv[1]);
-	data = (uint32_t)atoi(argv[2]);
+	sscanf(argv[1],"%x",&offset);
+	sscanf(argv[2],"%x",&data);
+	
 	writebuffer[0] = (uint8_t)data;
 	writebuffer[1] = (uint8_t)(data>>8);
 	writebuffer[2] = (uint8_t)(data>>16);
@@ -66,5 +67,5 @@ static int cmd_flash_mw(int argc, char *argv[])
 	
 	return 0;
 }
-const cmd_t cmd_flashmw = {"flashmw", cmd_flash_mw, "for writing user flash memory"};
-DECLARE_SHELL_CMD(cmd_flashmw)
+const cmd_t cmd_flmw = {"flmw", cmd_flash_mw, "for writing user flash memory"};
+DECLARE_SHELL_CMD(cmd_flmw)
