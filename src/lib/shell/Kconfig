@@ -23,3 +23,10 @@ if [ "$CONFIG_SHELL_VVT" = "y"]; then
 else
 	define_bool CONFIG_SHELL_VVT_DEBUG n
 fi
+
+#driver self debug commands
+if [ "$CONFIG_DRIVER_FLASH_STM32" = "y"]; then
+	bool "enable command flmr/flmw?" CONFIG_SHELL_FLASH_STM32
+else
+	define_bool CONFIG_SHELL_FLASH_STM32 n
+fi
