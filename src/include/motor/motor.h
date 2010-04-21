@@ -15,8 +15,8 @@ extern vector_t V, Vdq;
 extern pid_t *pid_speed;
 extern pid_t *pid_torque;
 extern pid_t *pid_flux;
-
-#define MOTOR_STOP_PERIOD	(5000) /*unit: mS*/
+extern short Vramp;
+#define MOTOR_STOP_PERIOD	(500) /*unit: mS*/
 
 #define RPM_TO_SPEED(rpm) ((int)rpm * motor->pn / (2 * 60))
 #define SPEED_TO_RPM(speed) ((int)speed * (60 * 2) / motor->pn)

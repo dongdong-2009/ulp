@@ -18,6 +18,7 @@ pid_t *pid_torque;
 pid_t *pid_flux;
 vector_t Iab, I, Idq;
 vector_t V, Vdq;
+short Vramp; //debug only
 
 /*private*/
 motor_status_t stm;
@@ -166,8 +167,14 @@ void motor_isr(void)
 	/*5, update smo*/
 	smo_isr(&V, &I);
 	/*6, pid*/
-	Vdq.d = pid_Calcu(pid_flux, Idq.d);
-	Vdq.q = pid_Calcu(pid_torque, Idq.q);
+	if(Vramp) { //fixed voltage ramp up mode, only for debug
+		Vdq.d = 0;
+		Vdq.q = Vramp;
+	}
+	else {
+		Vdq.d = pid_Calcu(pid_flux, Idq.d);
+		Vdq.q = pid_Calcu(pid_torque, Idq.q);
+	}
 	/*7, ipark circle lim*/
 	/*8, ipark*/
 	ipark(&Vdq, &V, angle);

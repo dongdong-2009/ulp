@@ -81,18 +81,20 @@ DECLARE_SHELL_CMD(cmd_motor)
 static int cmd_ramp_func(int argc, char *argv[])
 {
 	short ms, rpm;
-	int speed;
+	int speed, mv;
 	
 	if((argc < 3) && (argc != 0)) {
 		ms = motor->start_time;
 		speed = _SPEED(motor->start_speed);
 		rpm = (short)SPEED_TO_RPM(speed);
+		mv = _VOL(Vramp);
 		printf("uasge:\n");
-		printf(" ramp %d %d	ms rpm\n", ms, rpm);
+		printf(" ramp %d %d		ms rpm\n", ms, rpm);
+		printf(" ramp %d %d %d	ms rpm mv\n", ms, rpm, mv);
 		return 0;
 	}
 
-	if(argc == 3) {
+	if(argc >= 3) {
 		ms = (short)atoi(argv[1]);
 		rpm = (short)atoi(argv[2]);
 
@@ -105,6 +107,11 @@ static int cmd_ramp_func(int argc, char *argv[])
 	
 		//try to restart motor
 		motor_SetSpeed(0);
+	}
+
+	if(argc >= 4) {
+		mv = atoi(argv[3]);
+		Vramp = (short) NOR_VOL(mv);
 	}
 	
 	if(motor_GetStatus() != MOTOR_IDLE)
