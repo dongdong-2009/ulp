@@ -23,7 +23,7 @@ FlashOpStatus flash_Write(uint32_t OffsetAddress,uint8_t * sour_addr, uint8_t da
 		return FAILED;
 
 	/*get page address*/
-	page_addr = ((OffsetAddress - STM32_FLASH_STARTADDR) / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
+	page_addr = (OffsetAddress / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
 		
 	/* Unlock the Flash Program Erase controller */
 	FLASH_Unlock();
