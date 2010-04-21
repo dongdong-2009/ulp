@@ -102,6 +102,7 @@ void smo_isr(vector_t *pvs, vector_t *pis)
 		tmp = tmp / VSM_FREQ;
 		tmp = _SPEED(tmp);
 		ramp_angle += (short)tmp;
+		return;
 	}
 
 	A = smo_A;
