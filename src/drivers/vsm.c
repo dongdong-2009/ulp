@@ -80,13 +80,14 @@ void vsm_Init(void)
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OCInitStructure.TIM_OutputNState = TIM_OutputNState_Enable;
 	TIM_OCInitStructure.TIM_Pulse = T;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
-	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCNPolarity_High;
+	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
+	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCNPolarity_Low;
 	TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Reset;
 	TIM_OCInitStructure.TIM_OCNIdleState = TIM_OCNIdleState_Reset;
 	TIM_OC1Init(TIM1, &TIM_OCInitStructure);
 	TIM_OC2Init(TIM1, &TIM_OCInitStructure);
 	TIM_OC3Init(TIM1, &TIM_OCInitStructure);
+	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OC4Init(TIM1, &TIM_OCInitStructure);
 
 	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);
@@ -292,6 +293,7 @@ void vsm_SetVoltage(short alpha, short beta)
 #if CONFIG_VSM_CURRENT_DEBUG == 1
 	ADC1->JSQR = VSM_PHU << 15;
 	ADC2->JSQR = VSM_PHV << 15;
+	tmp = 2450;
 #endif
 
 	/* Load compare registers values */
