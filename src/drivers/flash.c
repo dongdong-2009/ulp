@@ -5,8 +5,6 @@
 #include "config.h"
 #include "stm32f10x.h"
 #include "flash.h"
-#include "time.h"
-
 
 /*
  *adopt FLASH_ProgramHalfWord function,so where the data_size is odd,full with zero
@@ -16,14 +14,16 @@ FlashOpStatus flash_Write(uint32_t OffsetAddress,uint8_t * sour_addr, uint8_t da
 {
 	uint32_t page_addr;
 	uint16_t half_word = 0;
-	volatile FLASH_Status flash_status = FLASH_COMPLETE;
 	uint32_t i;
 	
-	if((OffsetAddress % 2) != 0)
+	if(OffsetAddress & 0x01)
 		return FAILED;
 
+	if(data_size & 0x01)
+		return FAILED;
+		
 	/*get page address*/
-	page_addr = (OffsetAddress / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
+	page_addr = OffsetAddress & (~FLASH_PAGE_MASK);
 		
 	/* Unlock the Flash Program Erase controller */
 	FLASH_Unlock();
@@ -36,17 +36,9 @@ FlashOpStatus flash_Write(uint32_t OffsetAddress,uint8_t * sour_addr, uint8_t da
 		return FAILED;
     
 	for(i=0;i<data_size;i=i+2){
-		if((i+2)>data_size)
-			half_word = 0;
-		else
-			half_word |= *(sour_addr+i+1);
-			
-		half_word <<= 8;
-		half_word |= *(sour_addr+i);		
-		
+		half_word = *((uint16_t *)(sour_addr + i));
 		if(FLASH_ProgramHalfWord(OffsetAddress + i, half_word) != FLASH_COMPLETE)
 			return FAILED;
-		half_word = 0;
 	}
 			
 	FLASH_Lock();

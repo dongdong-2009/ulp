@@ -9,16 +9,18 @@
 /* Private define */
 /* Define the STM32F10x FLASH Page Size depending on the used STM32 device */
 #ifdef STM32F10X_LD
-  #define FLASH_PAGE_SIZE    ((uint16_t)0x400)
+  #define FLASH_PAGE_BITS    10
 #elif defined STM32F10X_MD
-  #define FLASH_PAGE_SIZE    ((uint16_t)0x400)
+  #define FLASH_PAGE_BITS    10
 #elif defined STM32F10X_HD
-  #define FLASH_PAGE_SIZE    ((uint16_t)0x800)
+  #define FLASH_PAGE_BITS    11
 #elif defined STM32F10X_CL
-  #define FLASH_PAGE_SIZE    ((uint16_t)0x800)  
+  #define FLASH_PAGE_BITS    11  
 #endif /* STM32F10X_LD */
 
 /*STM32 flash start address*/
+#define FLASH_PAGE_SIZE ((uint16_t)(1 << FLASH_PAGE_BITS))
+#define FLASH_PAGE_MASK ((uint16_t)(FLASH_PAGE_SIZE - 1))
 #define STM32_FLASH_STARTADDR 0x08000000
 
 typedef enum {
