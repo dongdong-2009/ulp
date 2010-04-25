@@ -5,53 +5,75 @@
 #include "config.h"
 #include "stm32f10x.h"
 #include "flash.h"
+#include <string.h>
 
-/*
- *adopt FLASH_ProgramHalfWord function,so where the data_size is odd,full with zero
- *para:OffsetAddress should be even
- */
-FlashOpStatus flash_Write(uint32_t OffsetAddress,uint8_t * sour_addr, uint8_t data_size)
+/* Private define */
+/* Define the STM32F10x FLASH Page Size depending on the used STM32 device */
+#ifdef CONFIG_STM32F10X_LD
+  #define PAGE_BITS    10
+#elif defined CONFIG_STM32F10X_MD
+  #define PAGE_BITS    10
+#elif defined CONFIG_STM32F10X_HD
+  #define PAGE_BITS    11
+#elif defined CONFIG_STM32F10X_CL
+  #define PAGE_BITS    11
+#endif
+
+/*STM32 flash start address*/
+#define PAGE_SIZE (1 << PAGE_BITS)
+#define PAGE_MASK (PAGE_SIZE - 1)
+
+int flash_Erase(void *dest, size_t n)
 {
-	uint32_t page_addr;
-	uint16_t half_word = 0;
-	uint32_t i;
-	
-	if(OffsetAddress & 0x01)
-		return FAILED;
+	int i, idest = (int)dest;
 
-	if(data_size & 0x01)
-		return FAILED;
-		
-	/*get page address*/
-	page_addr = OffsetAddress & (~FLASH_PAGE_MASK);
-		
-	/* Unlock the Flash Program Erase controller */
+	/*must be page aligned, to avoid mistakes*/
+	if(idest & PAGE_MASK)
+		return 0;
+
 	FLASH_Unlock();
+	FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
 
-	/* Clear All pending flags */
-	FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);	
-  
-	/* Erase the FLASH pages */
-	if(FLASH_ErasePage( page_addr ) != FLASH_COMPLETE)
-		return FAILED;
-    
-	for(i=0;i<data_size;i=i+2){
-		half_word = *((uint16_t *)(sour_addr + i));
-		if(FLASH_ProgramHalfWord(OffsetAddress + i, half_word) != FLASH_COMPLETE)
-			return FAILED;
+	for(i = 0; i < n; i ++) {
+		if(FLASH_ErasePage(idest) != FLASH_COMPLETE)
+			break;
+
+		idest += PAGE_SIZE;
 	}
-			
+
 	FLASH_Lock();
-	
-	return PASSED;
+	return i;
 }
 
-FlashOpStatus flash_Read(uint32_t OffsetAddress,uint8_t * dest_addr,uint32_t data_size)
+int flash_Write(void *dest, const void *src, size_t n)
 {
-	uint32_t i;
-	for(i=0;i<data_size;i++){
-		* (dest_addr + i) = *(__IO uint8_t*) (OffsetAddress + i);
+	const int *psrc;
+	int i, idest;
+
+	psrc = src;
+	idest = (int)dest;
+
+	/*data align check*/
+	if(idest & 0x03)
+		return 0;
+
+	FLASH_Unlock();
+	FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
+
+	for(i = 0; n - i >= 4; i += 4) {
+		if(FLASH_ProgramWord(idest, *psrc) != FLASH_COMPLETE)
+			break;
+
+		psrc ++;
+		idest += 4;
 	}
-	
-	return PASSED;
+
+	FLASH_Lock();
+	return i;
+}
+
+int flash_Read(void *dest, const void *src, size_t n)
+{
+	memcpy(dest, src, n);
+	return n;
 }

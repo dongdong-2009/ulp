@@ -1,34 +1,21 @@
 /* flash.h
  * 	dusk@2010 initial version
+ *	miaofng@2010, revise this file to a common flash api header<device independent>
  */
 #ifndef __FLASH_H_
 #define __FLASH_H_
 
-#include "stm32f10x.h"
+#include <stddef.h>
 
-/* Private define */
-/* Define the STM32F10x FLASH Page Size depending on the used STM32 device */
-#ifdef STM32F10X_LD
-  #define FLASH_PAGE_BITS    10
-#elif defined STM32F10X_MD
-  #define FLASH_PAGE_BITS    10
-#elif defined STM32F10X_HD
-  #define FLASH_PAGE_BITS    11
-#elif defined STM32F10X_CL
-  #define FLASH_PAGE_BITS    11  
-#endif /* STM32F10X_LD */
+//erase n-pages of flash sectors, which is given by address of dest(must be PAGE_SIZE aligned)
+int flash_Erase(void *dest, size_t n);
 
-/*STM32 flash start address*/
-#define FLASH_PAGE_SIZE ((uint16_t)(1 << FLASH_PAGE_BITS))
-#define FLASH_PAGE_MASK ((uint16_t)(FLASH_PAGE_SIZE - 1))
-#define STM32_FLASH_STARTADDR 0x08000000
-
-typedef enum {
-	FAILED = 0,
-	PASSED = !FAILED
-} FlashOpStatus;
-
-FlashOpStatus flash_Write(uint32_t OffsetAddress,uint8_t * sour_addr, uint8_t data_size);
-FlashOpStatus flash_Read(uint32_t OffsetAddress,uint8_t * dest_addr,uint32_t data_size);
+/*write/read flash,  return bytes have been wrote/read
+note: 
+	1, flash mem space must be erased before program
+	2, dest, n must be 4 bytes aligned
+*/
+int flash_Write(void *dest, const void *src, size_t n);
+int flash_Read(void *dest, const void *src, size_t n);
 
 #endif /*__FLASH_H_*/
