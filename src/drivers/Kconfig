@@ -7,6 +7,7 @@
 bool "enable flash driver for stm32?" CONFIG_DRIVER_FLASH_STM32
 bool "enable spi bus driver for stm32?" CONFIG_DRIVER_SPI_STM32
 bool "enable all motor related drivers?" CONFIG_DRIVER_MOTOR
+bool "enable all stepper motor related drivers?" CONFIG_DRIVER_STEPPERMOTOR
 bool "enable all vvt related drivers?" CONFIG_DRIVER_VVT
 if [ "$CONFIG_DRIVER_VVT" = "y" ]; then
 	define_bool CONFIG_DRIVER_AD9833 y
