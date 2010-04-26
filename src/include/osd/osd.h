@@ -10,10 +10,10 @@
 #define ITEM_DRAW_TXT	item_DrawTxt
 #define ITEM_DRAW_INT	item_DrawInt
 
-typedef osd_commands_s {
+typedef osd_command_s {
 	int cmd;
-	const int (*func)(const osd_commands_s *cmd);
-} osd_commands_t;
+	const int (*func)(const osd_command_s *cmd);
+} osd_command_t;
 
 //group status
 enum {
@@ -29,22 +29,26 @@ enum {
 
 typedef struct osd_group_s {
 	const osd_item_t *items[];
-	const osd_commands_t *cmds[];
+	const osd_command_t *cmds[];
 	int status; //focus order or group status or a status func, refer to group status
 	int option;
 } osd_group_t;
 
 typedef osd_dialog_s {
 	const osd_group_t *grps[];
-	const osd_commands_t *cmds[];
+	const osd_command_t *cmds[];
 	const int (*func)(const struct osd_dialog_s *dlg, int status); //init/close ...
-	int grps_max; //max scrollable groups
+	int max_grps; //max scrollable groups
 } osd_dialog_t;
+
+enum {
+	GROUP_NEXT = -1,
+	GROUP_PREV = -2,
+};
 
 void osd_Init(void);
 void osd_Update(void);
 int osd_ConstructDialog(const osd_dialog_t *dlg);
 int osd_SetActiveDialog(int handle); //enable cmd handling
-int osd_SelectNextGroup(void); //change focus up/dn
-int osd_SelectPrevGroup(void);
+int osd_SelectGroup(int grp); //change focus, could be GROUP_NEXT or GROUP_PREV
 #endif /*__OSD_H_*/

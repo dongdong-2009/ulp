@@ -15,11 +15,12 @@ enum {
 
 //runtime options
 enum {
-	ITEM_RUNTIME_X = 0,
-	ITEM_RUNTIME_Y,
-	ITEM_RUNTIME_W,
-	ITEM_RUNTIME_H,
-	ITEM_RUNTIME_V
+	ITEM_RUNTIME_NONE = 0,
+	ITEM_RUNTIME_X = 1 << 0,
+	ITEM_RUNTIME_Y = 1 << 1,
+	ITEM_RUNTIME_W = 1 << 2,
+	ITEM_RUNTIME_H = 1 << 3,
+	ITEM_RUNTIME_V = 1 << 4,
 };
 
 //options
