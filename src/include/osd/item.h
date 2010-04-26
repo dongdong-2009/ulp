@@ -37,7 +37,7 @@ typedef struct osd_item_s {
 	int w; //width
 	int h; //height
 	int v; //value
-	const int (*draw)(const struct osd_item_s *item); //draw function
+	int (*draw)(const struct osd_item_s *item); //draw function
 	int option; //misc draw options
 	short update; //refer to update options 
 	short runtime; //refer to runtime options
