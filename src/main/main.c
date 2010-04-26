@@ -20,6 +20,8 @@
 #include "motor/motor.h"
 #include "vvt/vvt.h"
 #include "shell/shell.h"
+#include "sm/stepmotor.h"
+#include "osd/osd.h"
 
 /*******************************************************************************
 * Function Name  : main
@@ -46,8 +48,14 @@ int main(void)
 #if CONFIG_TASK_VVT == 1
 	vvt_Init();
 #endif
+#if CONFIG_TASK_STEPMOTOR == 1
+	sm_Init();
+#endif
 #if CONFIG_TASK_SHELL == 1
 	shell_Init();
+#endif
+#if CONFIG_TASK_OSD == 1
+	osd_Init();
 #endif
 	
 	while(1) {
@@ -59,8 +67,14 @@ int main(void)
 #if CONFIG_TASK_VVT == 1
 		vvt_Update();
 #endif
+#if CONFIG_TASK_STEPMOTOR == 1
+		sm_Update();
+#endif
 #if CONFIG_TASK_SHELL == 1
 		shell_Update();
+#endif
+#if CONFIG_TASK_OSD == 1
+		osd_Update();
 #endif
 	}
 }

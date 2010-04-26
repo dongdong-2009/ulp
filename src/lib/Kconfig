@@ -10,8 +10,10 @@ choice 'stm32 toolchain select'	" \
 " iar
 
 bool "enable task of 'motor'?" CONFIG_TASK_MOTOR
+bool "enable task of 'stepmotor'?" CONFIG_TASK_STEPMOTOR
 bool "enable task of 'vvt'?" CONFIG_TASK_VVT
 bool "enable task of 'shell'?" CONFIG_TASK_SHELL
+bool "enable task of 'osd'?" CONFIG_TASK_OSD
 
 mainmenu_option next_comment
 	comment 'tasks detail configuration'
