@@ -21,5 +21,6 @@
 int lcd1602_Init(void);
 int lcd1602_WriteChar(uint8_t row,uint8_t column,int8_t ch);
 int lcd1602_WriteString(uint8_t row,uint8_t column,char *s);
+int lcd1602_ClearScreen(void);
 
 #endif /*__LCD1602_H_*/

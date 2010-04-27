@@ -181,3 +181,12 @@ int lcd1602_WriteString(uint8_t row,uint8_t column,char *s)
 
 	return 0;	
 }
+
+int lcd1602_ClearScreen(void)
+{
+	//check the busy bit
+	while(lcd1602_ReadStaus());
+	lcd1602_WriteCommand(LCD1602_COMMAND_CLRSCREEN);	//clear screeen
+
+	return 0;
+}
