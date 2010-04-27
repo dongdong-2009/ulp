@@ -12,3 +12,4 @@ obj-$(CONFIG_DRIVER_VVT) += knock.o
 obj-$(CONFIG_DRIVER_VVT) += pss.o
 obj-$(CONFIG_DRIVER_FLASH_STM32) += flash.o
 obj-$(CONFIG_DRIVER_STEPPERMOTOR) += lcd1602.o
+obj-$(CONFIG_DRIVER_STEPPERMOTOR) += l6208.o
