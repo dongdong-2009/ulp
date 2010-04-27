@@ -10,9 +10,9 @@
 #define ITEM_DRAW_TXT	item_DrawTxt
 #define ITEM_DRAW_INT	item_DrawInt
 
-typedef osd_command_s {
+typedef struct osd_command_s {
 	int cmd;
-	const int (*func)(const osd_command_s *cmd);
+	int (*func)(const struct osd_command_s *cmd);
 } osd_command_t;
 
 //group status
@@ -28,16 +28,16 @@ enum {
 };
 
 typedef struct osd_group_s {
-	const osd_item_t *items[];
-	const osd_command_t *cmds[];
+	const osd_item_t *items;
+	const osd_command_t *cmds;
 	int status; //focus order or group status or a status func, refer to group status
 	int option;
 } osd_group_t;
 
-typedef osd_dialog_s {
-	const osd_group_t *grps[];
-	const osd_command_t *cmds[];
-	const int (*func)(const struct osd_dialog_s *dlg, int status); //init/close ...
+typedef struct osd_dialog_s {
+	const osd_group_t *grps;
+	const osd_command_t *cmds;
+	int (*func)(const struct osd_dialog_s *dlg, int status); //init/close ...
 	int max_grps; //max scrollable groups
 } osd_dialog_t;
 

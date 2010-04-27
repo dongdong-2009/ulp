@@ -4,7 +4,7 @@
 #ifndef __STEPMOTOR_H_
 #define __STEPMOTOR_H_
 
-#include "osd/item.h"
+#include "osd/osd.h"
 
 extern const osd_dialog_t sm_dlg;
 
