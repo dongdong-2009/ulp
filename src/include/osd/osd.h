@@ -11,44 +11,40 @@
 #define ITEM_DRAW_INT	item_DrawInt
 
 typedef struct osd_command_s {
-	int cmd;
+	int event;
 	int (*func)(const struct osd_command_s *cmd);
 } osd_command_t;
 
-//group status
-enum {
-	GROUP_STATUS_NOTPRESENT = -3,
-	GROUP_STATUS_ERASE = -2,
-	GROUP_STATUS_VISIBLE = -1,
-};
-
 //group option
 enum {
-	GROUP_RUNTIME_STATUS, //indicates status is a func
+	GROUP_RUNTIME_STATUS = 1 << 0, //indicates status is a func
+	GROUP_DRAW_FULLSCREEN = 1 << 1, //indicates this group takes up whole screen
 };
 
 typedef struct osd_group_s {
 	const osd_item_t *items;
 	const osd_command_t *cmds;
-	int status; //focus order or group status or a status func, refer to group status
+	int order; //focus order or group status or a status func, refer to item/group status in item.h
 	int option;
 } osd_group_t;
+
+//dialog option
+enum {
+	DIALOG_DRAW_FULLSCREEN = 1 << 0, //indicates this dialog takes up the whole screen
+};
 
 typedef struct osd_dialog_s {
 	const osd_group_t *grps;
 	const osd_command_t *cmds;
 	int (*func)(const struct osd_dialog_s *dlg, int status); //init/close ...
-	int max_grps; //max scrollable groups
+	int option; //dialog option
 } osd_dialog_t;
-
-enum {
-	GROUP_NEXT = -1,
-	GROUP_PREV = -2,
-};
 
 void osd_Init(void);
 void osd_Update(void);
 int osd_ConstructDialog(const osd_dialog_t *dlg);
 int osd_SetActiveDialog(int handle); //enable cmd handling
-int osd_SelectGroup(int grp); //change focus, could be GROUP_NEXT or GROUP_PREV
+int osd_DestroyDialog(int handle);
+int osd_SelectNextGroup(void); //change focus
+int osd_SelectPrevGroup(void); //change focus
 #endif /*__OSD_H_*/
