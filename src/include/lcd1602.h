@@ -19,7 +19,9 @@
 #define LCD1602_COMMAND_SETCUSOR  0X0C
 
 int lcd1602_Init(void);
-int lcd1602_WriteChar(uint8_t row,uint8_t column,int8_t ch);
-int lcd1602_WriteString(uint8_t row,uint8_t column,char *s);
+int lcd1602_WriteChar(int row,int column,int8_t ch);
+int lcd1602_WriteString(int row,int column,char *s);
+int lcd1602_ClearScreen(void);
+int lcd1602_ClearRect(int row,int column,char *s);
 
 #endif /*__LCD1602_H_*/
