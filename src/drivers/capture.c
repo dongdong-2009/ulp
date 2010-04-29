@@ -15,6 +15,7 @@ void capture_Init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	
 	GPIO_InitTypeDef GPIO_InitStructure;
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
 	
 	/* Configure PA.8 as input floating */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
@@ -34,13 +35,16 @@ void capture_Init(void)
 	TIM_TIxExternalClockConfig(TIM1, TIM_TIxExternalCLK1Source_TI1ED,TIM_ExtTRGPolarity_NonInverted, 0);
 	TIM_SetCounter(TIM1,0);
 	
-	/*enable tim1 counter overflow interrupt*/
+	/*config and enable tim1 counter overflow interrupt*/
 	NVIC_InitTypeDef NVIC_InitStructure;
-	NVIC_InitStructure.NVIC_IRQChannel = TIM1_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannel = TIM1_UP_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
+	
+	TIM_ClearFlag(TIM1, TIM_FLAG_Update);
+	TIM_ITConfig(TIM1, TIM_IT_Update, ENABLE);
 }
 void capture_SetCounter(uint16_t count)
 {
