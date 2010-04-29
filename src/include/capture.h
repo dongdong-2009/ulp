@@ -8,7 +8,8 @@
 
 void capture_Init(void);
 void capture_SetCounter(uint16_t count);
-void capture_StartCmd(FunctionalState state);
-void capture_isr(void);
+void capture_Start(void);
+void capture_Stop(void);
+uint16_t capture_GetCounter(void);
 
 #endif /*__CAPTURE_H_*/
