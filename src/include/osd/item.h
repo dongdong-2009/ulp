@@ -21,7 +21,6 @@ enum {
 //	ITEM_RUNTIME_W = 1 << 2,
 //	ITEM_RUNTIME_H = 1 << 3,
 	ITEM_RUNTIME_V = 1 << 4,
-	ITEM_RUNTIME_O = 1 << 5,
 };
 
 //misc options
