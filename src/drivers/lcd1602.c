@@ -140,7 +140,7 @@ int lcd1602_WriteChar(int row,int column,int8_t ch)
 	return 0;
 }
 
-int lcd1602_WriteString(int row,int column,char *s)
+int lcd1602_WriteString(int row,int column,const char *s)
 {
 	uint8_t i=0,size;
 	size = (uint8_t)strlen(s);
@@ -189,9 +189,4 @@ int lcd1602_ClearScreen(void)
 	lcd1602_WriteCommand(LCD1602_COMMAND_CLRSCREEN);	//clear screeen
 
 	return 0;
-}
-
-int lcd1602_ClearRect(int row,int column,char *s)
-{
-	
 }
