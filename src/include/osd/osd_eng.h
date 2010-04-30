@@ -9,12 +9,14 @@
 typedef struct {
 	int w; //width
 	int h; //height
+	int (*init)(void);
 	int (*puts)(int x, int y, const char *str);
 	int (*clear_all)(void);
 	int (*clear_rect)(int x, int y, int w, int h);
 	int (*scroll)(int xoffset, int yoffset);
 } osd_engine_t;
 
+int osd_eng_init(void);
 int osd_eng_puts(int x, int y, const char *str);
 int osd_eng_clear_all(void);
 int osd_eng_clear_rect(int x, int y, int w, int h);
