@@ -336,8 +336,10 @@ static int osd_ShowGroup(osd_group_k *kgrp)
 			osd_ShowItem(item, status);
 	}
 	else {
-		for(kitem = kgrp->runtime_kitems; kitem != NULL; kitem = kitem->next)
+		for(kitem = kgrp->runtime_kitems; kitem != NULL; kitem = kitem->next) {
+			osd_HideItem(kitem->item);
 			osd_ShowItem(kitem->item, status);
+		}
 	}
 	
 	return 0;
