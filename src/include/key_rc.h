@@ -4,6 +4,8 @@
 #ifndef __KEY_RC_H_
 #define __KEY_RC_H_
 
+#include "key.h"
+
 int rckey_init(void);
 key_t rckey_getkey(void);
 void rckey_isr(void);
