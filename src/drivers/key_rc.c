@@ -231,14 +231,16 @@ static int rckey_capture_getpulsewidth(void)
 	int width = 0;
 	FlagStatus status;
 	
-	status = TIM_GetFlagStatus(TIM4, TIM_FLAG_CC3);
-	if(status == SET) {
-		width = TIM_GetCapture3(TIM4);
-	}
-	
 	status = TIM_GetFlagStatus(TIM4, TIM_FLAG_Update);
 	if(status == SET) {
 		width = -1;
+	}
+	
+	status = TIM_GetFlagStatus(TIM4, TIM_FLAG_CC3);
+	if(status == SET) {
+		width = TIM_GetCapture3(TIM4);
+		//reset tim4 counter
+		TIM_GenerateEvent(TIM4, TIM_EventSource_Update);
 	}
 	
 	TIM_ClearFlag(TIM4, TIM_FLAG_CC3);
