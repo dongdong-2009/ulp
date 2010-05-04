@@ -53,6 +53,8 @@ static osd_dialog_k *osd_active_kdlg;
 
 void osd_Init(void)
 {
+	osd_eng_init();
+	osd_event_init();
 	osd_active_kdlg = NULL;
 }
 
@@ -60,7 +62,7 @@ void osd_Update(void)
 {
 	osd_dialog_k *kdlg;
 	osd_group_k *kgrp;
-	int event, ret;
+	int event, ret = -1;
 	
 	kdlg = osd_active_kdlg;
 	if(kdlg == NULL)
@@ -68,6 +70,10 @@ void osd_Update(void)
 	
 	event = osd_event_get();
 	kgrp = kdlg->active_kgrp;
+	
+	if(event == KEY_NONE)
+		return;
+	
 	if(kgrp != NULL)
 		ret = osd_HandleCommand(event, kgrp->grp->cmds);
 	if(ret)

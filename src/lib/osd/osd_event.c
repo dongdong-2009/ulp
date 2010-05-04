@@ -4,8 +4,15 @@
 
 #include "config.h"
 #include "osd/osd_event.h"
+#include "key.h"
+
+int osd_event_init(void)
+{
+	key_Init();
+	return 0;
+}
 
 int osd_event_get(void)
 {
-	return 0;
+	return key_GetKey();
 }
