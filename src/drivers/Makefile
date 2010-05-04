@@ -16,3 +16,4 @@ obj-$(CONFIG_DRIVER_STEPPERMOTOR) += l6208.o
 obj-$(CONFIG_DRIVER_STEPPERMOTOR) += capture.o
 obj-$(CONFIG_DRIVER_KEYBOARD) += key.o
 obj-$(CONFIG_DRIVER_RCKEY) += key_rc.o
+obj-$(CONFIG_DRIVER_ADCKEY) += key_adc.o
