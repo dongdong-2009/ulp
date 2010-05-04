@@ -7,7 +7,6 @@
 #include "time.h"
 
 #define ADCKEY_IN GPIO_Pin_0
-#define ADCKEY_NOKEY 0x0
 
 //define adc jitter
 #define ADC_JITTER	0x04
@@ -20,15 +19,22 @@
 #define ADCKEY_4	(0x500>>ADC_JITTER)
 #define ADCKEY_5	(0x600>>ADC_JITTER)
 
-enum adckey_status_t{
- ADCKEY_RELEASE = 1,
+/*
+ *ADCKEY_IDLE:this state is no key event
+ *ADCKEY_DOWN:the key is just pressing down,is temp state
+ *ADCKEY_PRESS:the key has pressed down
+ *ADCKEY_UP:the key is just pressing up,is temp state
+ */
+enum {
+ ADCKEY_IDLE = 0,
  ADCKEY_DOWN,
- ADCKEY_PRESS
+ ADCKEY_PRESS,
+ ADCKEY_UP
 };
  
 /*static variable*/
-static key_t adckey_code; //this for up designer
-static enum adckey_status_t adckey_sm;
+static key_t adckey; //this for up designer
+static int adckey_sm;
 static int adckey_counter;
 static time_t key_jitter_timer;
 
@@ -40,7 +46,7 @@ static void adckey_Process(unsigned short key_code)
 	int left;
 	
 	switch(adckey_sm){
-	case ADCKEY_RELEASE :
+	case ADCKEY_IDLE :
 						if(key_code != ADCKEY_NO){
 							adckey_counter ++;
 							if(adckey_counter == 3){
@@ -49,6 +55,9 @@ static void adckey_Process(unsigned short key_code)
 								adckey_sm = ADCKEY_DOWN;
 							}
 						}
+						else{
+							adckey.flag_nokey = 1;
+						}
 						break;
 	case ADCKEY_DOWN :
 						left = time_left(key_jitter_timer);
@@ -56,36 +65,17 @@ static void adckey_Process(unsigned short key_code)
 							if(key_code != ADCKEY_NO)
 								adckey_sm = ADCKEY_PRESS;
 							else
-								adckey_sm = ADCKEY_RELEASE;
+								adckey_sm = ADCKEY_IDLE;
 						}
 						break;
 	case ADCKEY_PRESS :
 						if(key_code != ADCKEY_NO){
 							switch(key_code){
 							case ADCKEY_0:
-										adckey_code.data = 0;
-										adckey_code.flag_nokey = 0;
+										adckey.data = 0;
+										adckey.flag_nokey = 0;
 										break;
-							case ADCKEY_1:
-										adckey_code.data = 1;
-										adckey_code.flag_nokey = 0;
-										break;
-							case ADCKEY_2:
-										adckey_code.data = 2;
-										adckey_code.flag_nokey = 0;
-										break;
-							case ADCKEY_3:
-										adckey_code.data = 3;
-										adckey_code.flag_nokey = 0;
-										break;
-							case ADCKEY_4:
-										adckey_code.data = 4;
-										adckey_code.flag_nokey = 0;
-										break;
-							case ADCKEY_5: 
-										adckey_code.data = 5;
-										adckey_code.flag_nokey = 0;
-										break;
+
 							default :	break;	
 							}
 						}
@@ -143,8 +133,10 @@ int adckey_Init(void)
 	/* Check the end of ADC1 calibration */
 	while(ADC_GetCalibrationStatus(ADC1));
 
-	adckey_code.flag_nokey = 1; //init no key down
+	/*init related local variables*/
+	adckey.flag_nokey = 1; //init no key down
 	adckey_counter = 0; //reset adckey counter
+	adckey_sm = ADCKEY_IDLE;
 	
 	/*start sample*/
 	ADC_SoftwareStartConvCmd(ADC1, ENABLE);
@@ -166,5 +158,5 @@ void adckey_Update(void)
 }
 key_t adckey_GetKey(void)
 {
-	return adckey_code;
+	return adckey;
 }
