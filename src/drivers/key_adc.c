@@ -6,7 +6,7 @@
 #include "stm32f10x.h"
 #include "time.h"
 
-#define ADCKEY_IN GPIO_PIN_0
+#define ADCKEY_IN GPIO_Pin_0
 #define ADCKEY_NOKEY 0x0
 
 //define adc jitter
@@ -24,19 +24,21 @@ enum adckey_status_t{
  ADCKEY_RELEASE = 1,
  ADCKEY_DOWN,
  ADCKEY_PRESS
-}
+};
  
 /*static variable*/
 static key_t adckey_code; //this for up designer
-static adckey_status_t adckey_sm;
+static enum adckey_status_t adckey_sm;
 static int adckey_counter;
 static time_t key_jitter_timer;
 
 /*local static function*/
-static void adckey_Process(int key);
+static void adckey_Process(unsigned short key_code);
 
 static void adckey_Process(unsigned short key_code)
 {
+	int left;
+	
 	switch(adckey_sm){
 	case ADCKEY_RELEASE :
 						if(key_code != ADCKEY_NO){
@@ -85,9 +87,10 @@ static void adckey_Process(unsigned short key_code)
 										adckey_code.flag_nokey = 0;
 										break;
 							default :	break;	
+							}
 						}
 						else{
-							key_counter ++;
+							adckey_counter ++;
 							if(adckey_counter == 3){
 								adckey_counter = 0;
 								adckey_sm = ADCKEY_RELEASE;
@@ -97,19 +100,7 @@ static void adckey_Process(unsigned short key_code)
 	default :			break;
 	}
 }
-	int left;
-	if(adckey_code.data != key){
-		key_jitter_timer = time_get(100); //100ms delay
-		adckey_code.data = key;
-	}
-	else{
-		left = time_left(key_jitter_timer);
-		if(left < key){
-			adckey_code.data = key;
-			adckey_code.flag_nokey = 0;
-			ADC_SoftwareStartConvCmd(ADC1, ENABLE);
-		}
-	}
+
 /*
  *@initialize timer1 ch-1 to capture clock
  */
