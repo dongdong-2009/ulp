@@ -4,18 +4,25 @@
 # Written by miaofng@2010
 #
 
-bool "enable flash driver for stm32?" CONFIG_DRIVER_FLASH_STM32
-bool "enable spi bus driver for stm32?" CONFIG_DRIVER_SPI_STM32
-bool "enable all motor related drivers?" CONFIG_DRIVER_MOTOR
-bool "enable all stepper motor related drivers?" CONFIG_DRIVER_STEPPERMOTOR
-bool "enable all vvt related drivers?" CONFIG_DRIVER_VVT
+bool "bldc drivers?" CONFIG_DRIVER_MOTOR
+bool "vvt drivers" CONFIG_DRIVER_VVT
 if [ "$CONFIG_DRIVER_VVT" = "y" ]; then
-	define_bool CONFIG_DRIVER_AD9833 y
-	define_bool CONFIG_DRIVER_MCP41X y
-	define_bool CONFIG_DRIVER_DAC1X8S y
-	define_bool CONFIG_DRIVER_MCAO y
 	int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
 	int "vss dds mclk frequency Hz?" CONFIG_DRIVER_VSS_DDS_MCLK 25000000
 	int "knock dds mclk frequency Hz?" CONFIG_DRIVER_KNOCK_DDS_MCLK 25000000
 	int "max knock sensor out voltage mVpp?" CONFIG_DRIVER_KNOCK_MVPP_MAX 255
+fi
+bool "stepper motor drivers?" CONFIG_DRIVER_STEPPERMOTOR
+bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
+bool "spi bus driver for stm32?" CONFIG_DRIVER_SPI_STM32
+bool "dds chip ad9833" CONFIG_DRIVER_AD9833
+bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
+bool "spi 8 ch 10bit dac chip dac1x8s" CONFIG_DRIVER_DAC1X8S
+bool "lcd 1602 driver" CONFIG_DRIVER_LCD1602
+bool "general keyboard driver" CONFIG_DRIVER_KEYBOARD
+bool "general remote control driver" CONFIG_DRIVER_RCKEY
+if [ "$CONFIG_DRIVER_RCKEY" = "y" ]; then
+	choice 'remote control protocol'	" \
+		rc5	CONFIG_RCKEY_PROTOCOL_RC5 \
+	" rc5
 fi
