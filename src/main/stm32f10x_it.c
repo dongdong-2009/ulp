@@ -24,6 +24,7 @@
 #include "motor/motor.h"
 #include "vvt/vvt.h"
 #include "sys/system.h"
+#include "key_rc.h"
 #include <stdio.h>
 
 /* Private typedef -----------------------------------------------------------*/
@@ -500,6 +501,10 @@ void TIM3_IRQHandler(void)
 *******************************************************************************/
 void TIM4_IRQHandler(void)
 {
+#if CONFIG_DRIVER_RCKEY == 1
+	TIM_ClearITPendingBit(TIM4, TIM_IT_CC3 | TIM_IT_Update);
+	rckey_isr();
+#endif
 }
 
 /*******************************************************************************

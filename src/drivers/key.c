@@ -9,9 +9,17 @@
 #include "key.h"
 #include "time.h"
 #include <stddef.h>
+#include "key_rc.h"
 
-static keyboard_t *key_local;
-static keyboard_t *key_remote;
+#if CONFIG_DRIVER_RCKEY == 1
+static const keyboard_t key_rc = {
+	.init = rckey_init,
+	.getkey = rckey_getkey,
+};
+#endif
+
+static const keyboard_t *key_local;
+static const keyboard_t *key_remote;
 
 static const int *key_map; //for local keyboard usage
 static int key_map_len; //nr of keys, exclude KEY_NONE
@@ -24,6 +32,10 @@ int key_Init(void)
 {
 	key_local = NULL;
 	key_remote = NULL;
+
+#if CONFIG_DRIVER_RCKEY == 1
+	key_remote = &key_rc;
+#endif
 
 	key_map = NULL;
 	key_map_len = 0;
