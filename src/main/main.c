@@ -42,6 +42,12 @@ int main(void)
 	
 	//init funcs
 	sys_Init();
+#if CONFIG_TASK_SHELL == 1
+	shell_Init();
+#endif
+#if CONFIG_TASK_OSD == 1
+	osd_Init();
+#endif
 #if CONFIG_TASK_MOTOR == 1
 	motor_Init();
 #endif
@@ -51,16 +57,16 @@ int main(void)
 #if CONFIG_TASK_STEPMOTOR == 1
 	sm_Init();
 #endif
-#if CONFIG_TASK_SHELL == 1
-	shell_Init();
-#endif
-#if CONFIG_TASK_OSD == 1
-	osd_Init();
-#endif
 	
 	while(1) {
 		//update funcs
 		sys_Update();
+#if CONFIG_TASK_SHELL == 1
+		shell_Update();
+#endif
+#if CONFIG_TASK_OSD == 1
+		osd_Update();
+#endif
 #if CONFIG_TASK_MOTOR == 1
 		motor_Update();
 #endif
@@ -69,12 +75,6 @@ int main(void)
 #endif
 #if CONFIG_TASK_STEPMOTOR == 1
 		sm_Update();
-#endif
-#if CONFIG_TASK_SHELL == 1
-		shell_Update();
-#endif
-#if CONFIG_TASK_OSD == 1
-		osd_Update();
 #endif
 	}
 }
