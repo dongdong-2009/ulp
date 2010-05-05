@@ -78,3 +78,14 @@ clean: xconfig_clean
 	@rm -rf $(TOP_DIR)/projects/bldc/bldc.ewd
 
 distclean: clean iar_clr unconfig
+
+%_config:
+	@if test -r $(subst _config,.config,$@) ; \
+	then \
+		echo file $(subst _config,.config,$@) is used as template;\
+	else \
+		echo creating new file $(subst _config,.config,$@) from defconfig;\
+		cp defconfig $(subst _config,.config,$@); \
+	fi
+	@ln -s -f $(subst _config,.config,$@) .config ; \
+	make xconfig
