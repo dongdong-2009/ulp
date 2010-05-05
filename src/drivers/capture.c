@@ -48,7 +48,8 @@ void capture_Init(void)
 }
 void capture_SetCounter(uint16_t count)
 {
-	TIM_SetCounter(TIM1,count);
+	//Sets the TIMx Autoreload Register value
+	TIM_SetAutoreload(TIM1,count);
 }
 void capture_Start(void)
 {
