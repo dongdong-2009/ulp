@@ -8,16 +8,16 @@
 
 #define ADCKEY_IN GPIO_Pin_0
 
-//define adc jitter
-#define ADC_JITTER	0x04
+#define ADCKEY_NO	0xff
+#define ADCKEY_0	0x100
+#define ADCKEY_1	0x200
+#define ADCKEY_2	0x300
+#define ADCKEY_3	0x400
+#define ADCKEY_4	0x500
+#define ADCKEY_5	0x600
 
-#define ADCKEY_NO	(0x0>>ADC_JITTER)
-#define ADCKEY_0	(0x100>>ADC_JITTER)
-#define ADCKEY_1	(0x200>>ADC_JITTER)
-#define ADCKEY_2	(0x300>>ADC_JITTER)
-#define ADCKEY_3	(0x400>>ADC_JITTER)
-#define ADCKEY_4	(0x500>>ADC_JITTER)
-#define ADCKEY_5	(0x600>>ADC_JITTER)
+/* (0x40/4096)*3300 = 51mv */
+#define ADCKEY_JITTER 0x40 
 
 /*
  *ADCKEY_IDLE:this state is no key event
@@ -39,9 +39,9 @@ static int adckey_counter;
 static time_t key_jitter_timer;
 
 /*local static function*/
-static void adckey_Process(unsigned short key_code);
+static void adckey_Process(unsigned char key_code);
 
-static void adckey_Process(unsigned short key_code)
+static void adckey_Process(unsigned char key_code)
 {
 	int left;
 	
@@ -49,9 +49,9 @@ static void adckey_Process(unsigned short key_code)
 	case ADCKEY_IDLE :
 						if(key_code != ADCKEY_NO){
 							adckey_counter ++;
-							if(adckey_counter == 3){
+							if(adckey_counter > 2){
 								adckey_counter = 0; //reset adckey counter
-								key_jitter_timer = time_get(10); //10ms delay
+								key_jitter_timer = time_get(5); //5ms delay
 								adckey_sm = ADCKEY_DOWN;
 							}
 						}
@@ -70,21 +70,25 @@ static void adckey_Process(unsigned short key_code)
 						break;
 	case ADCKEY_PRESS :
 						if(key_code != ADCKEY_NO){
-							switch(key_code){
-							case ADCKEY_0:
-										adckey.data = 0;
-										adckey.flag_nokey = 0;
-										break;
-
-							default :	break;	
-							}
+							adckey.data = key_code;
+							adckey.flag_nokey = 1;
 						}
 						else{
 							adckey_counter ++;
-							if(adckey_counter == 3){
+							if(adckey_counter > 2){
 								adckey_counter = 0;
-								adckey_sm = ADCKEY_RELEASE;
+								key_jitter_timer = time_get(2); //2ms delay
+								adckey_sm = ADCKEY_UP;
 							}
+						}
+						break;
+	case ADCKEY_UP :
+						left = time_left(key_jitter_timer);
+						if(left < 0){	
+							if(key_code != ADCKEY_NO)
+								adckey_sm = ADCKEY_PRESS;
+							else
+								adckey_sm = ADCKEY_IDLE;
 						}
 						break;
 	default :			break;
@@ -147,13 +151,28 @@ int adckey_Init(void)
 void adckey_Update(void)
 {
 	unsigned short a;
+	unsigned char b;
 
 	//read conversion status,whether end of conversion
 	if(ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC)){
 		a = ADC_GetConversionValue(ADC1);
-		a = a >> ADC_JITTER; //remove jitter
 		
-		adckey_Process(a);
+		if(a < (ADCKEY_0 - ADCKEY_JITTER) && a > (ADCKEY_0 - ADCKEY_JITTER))
+			b = 0;
+		else if(a < (ADCKEY_1 - ADCKEY_JITTER) && a > (ADCKEY_1 - ADCKEY_JITTER))
+			b = 1;
+		else if(a < (ADCKEY_2 - ADCKEY_JITTER) && a > (ADCKEY_2 - ADCKEY_JITTER))
+			b = 2;
+		else if(a < (ADCKEY_3 - ADCKEY_JITTER) && a > (ADCKEY_3 - ADCKEY_JITTER))
+			b = 3;
+		else if(a < (ADCKEY_4 - ADCKEY_JITTER) && a > (ADCKEY_4 - ADCKEY_JITTER))
+			b = 4;
+		else if(a < (ADCKEY_5 - ADCKEY_JITTER) && a > (ADCKEY_5 - ADCKEY_JITTER))
+			b = 5;
+		else
+			b = ADCKEY_NO;
+		
+		adckey_Process(b);
 	}
 }
 key_t adckey_GetKey(void)
