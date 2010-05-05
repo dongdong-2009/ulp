@@ -7,6 +7,5 @@
 #include "key.h"
 
 int adckey_Init(void);
-void adckey_Update(void);
 key_t adckey_GetKey(void);
 #endif /*__ADCKEY_H_*/
