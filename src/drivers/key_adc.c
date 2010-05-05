@@ -46,52 +46,53 @@ static void adckey_Process(unsigned char key_code)
 	int left;
 	
 	switch(adckey_sm){
-	case ADCKEY_IDLE :
-						if(key_code != ADCKEY_NO){
-							adckey_counter ++;
-							if(adckey_counter > 2){
-								adckey_counter = 0; //reset adckey counter
-								key_jitter_timer = time_get(5); //5ms delay
-								adckey_sm = ADCKEY_DOWN;
-							}
-						}
-						else{
-							adckey.flag_nokey = 1;
-						}
-						break;
-	case ADCKEY_DOWN :
-						left = time_left(key_jitter_timer);
-						if(left < 0){
-							if(key_code != ADCKEY_NO)
-								adckey_sm = ADCKEY_PRESS;
-							else
-								adckey_sm = ADCKEY_IDLE;
-						}
-						break;
-	case ADCKEY_PRESS :
-						if(key_code != ADCKEY_NO){
-							adckey.data = key_code;
-							adckey.flag_nokey = 1;
-						}
-						else{
-							adckey_counter ++;
-							if(adckey_counter > 2){
-								adckey_counter = 0;
-								key_jitter_timer = time_get(2); //2ms delay
-								adckey_sm = ADCKEY_UP;
-							}
-						}
-						break;
-	case ADCKEY_UP :
-						left = time_left(key_jitter_timer);
-						if(left < 0){	
-							if(key_code != ADCKEY_NO)
-								adckey_sm = ADCKEY_PRESS;
-							else
-								adckey_sm = ADCKEY_IDLE;
-						}
-						break;
-	default :			break;
+	case ADCKEY_IDLE:
+		if(key_code != ADCKEY_NO){
+			adckey_counter ++;
+			if(adckey_counter > 2){
+				adckey_counter = 0; //reset adckey counter
+				key_jitter_timer = time_get(5); //5ms delay
+				adckey_sm = ADCKEY_DOWN;
+			}
+		}
+		else{
+			adckey.flag_nokey = 1;
+		}
+		break;
+	case ADCKEY_DOWN:
+		left = time_left(key_jitter_timer);
+		if(left < 0){
+			if(key_code != ADCKEY_NO)
+				adckey_sm = ADCKEY_PRESS;
+			else
+				adckey_sm = ADCKEY_IDLE;
+		}
+		break;
+	case ADCKEY_PRESS:
+		if(key_code != ADCKEY_NO){
+			adckey.data = key_code;
+			adckey.flag_nokey = 1;
+		}
+		else{
+			adckey_counter ++;
+			if(adckey_counter > 2){
+				adckey_counter = 0;
+				key_jitter_timer = time_get(2); //2ms delay
+				adckey_sm = ADCKEY_UP;
+			}
+		}
+		break;
+	case ADCKEY_UP:
+		left = time_left(key_jitter_timer);
+		if(left < 0){	
+			if(key_code != ADCKEY_NO)
+				adckey_sm = ADCKEY_PRESS;
+			else
+				adckey_sm = ADCKEY_IDLE;
+		}
+		break;
+	default:
+		break;
 	}
 }
 
@@ -175,6 +176,7 @@ void adckey_Update(void)
 		adckey_Process(b);
 	}
 }
+
 key_t adckey_GetKey(void)
 {
 	return adckey;
