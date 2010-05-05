@@ -25,7 +25,7 @@ static time_t adckey_timer;
 
 bool adckey_Process(bool pressed)
 {
-	bool update = 0;
+	bool update = FALSE;
 
 	switch(adckey_sm){
 	case ADCKEY_IDLE:
@@ -34,7 +34,7 @@ bool adckey_Process(bool pressed)
 			if(adckey_counter >= ADCKEY_DETECT_CNT) {
 				adckey_counter = 0;
 				adckey_sm = ADCKEY_PRESS;
-				update = 1;
+				update = TRUE;
 			}
 		}
 		else
@@ -46,7 +46,7 @@ bool adckey_Process(bool pressed)
 			if(adckey_counter >= ADCKEY_DETECT_CNT){
 				adckey_counter = 0;
 				adckey_sm = ADCKEY_IDLE;
-				update = 1;
+				update = TRUE;
 			}
 		}
 		else
@@ -79,7 +79,7 @@ int adckey_Init(void)
 
 	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
 	ADC_InitStructure.ADC_ScanConvMode = DISABLE;
-	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
+	ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
 	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
 	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
 	ADC_InitStructure.ADC_NbrOfChannel = 1;
@@ -113,10 +113,10 @@ int adckey_Init(void)
 
 void adckey_Update(void)
 {
-	int value;
+	unsigned short value;
 	bool update;
 
-	if(time_left(adckey_timer) < 0)
+	if(time_left(adckey_timer) > 0)
 		return;
 
 	adckey_timer = time_get(ADCKEY_UPDATE_MS);
@@ -124,10 +124,10 @@ void adckey_Update(void)
 		return;
 
 	value = ADC_GetConversionValue(ADC1);
-	update = adckey_Process(value > ADCKEY_JITTER);
+	update = adckey_Process(value > ADCKEY_JITTER?TRUE:FALSE);
 	if(update) {
-		value += ADCKEY_JITTER >> 1;
-		value &= (ADCKEY_JITTER - 1);
+		value += (ADCKEY_JITTER >> 1);
+		value &= ~(ADCKEY_JITTER - 1);
 		if(value & 0xff) { //error situation
 			value = 0;
 		}
@@ -136,12 +136,14 @@ void adckey_Update(void)
 		adckey.value = 0;
 		if(value == 0)
 			adckey.flag_nokey = 1;
-		else
-			adckey.code = value - 1;
+		else{
+			adckey.data = value - 1;
+			adckey.flag_nokey = 0;
+		}
 	}
 
 	//start adc convert again ...
-
+	ADC_SoftwareStartConvCmd(ADC1, ENABLE);
 }
 
 key_t adckey_GetKey(void)
