@@ -3,7 +3,7 @@
  */
 
 #include "capture.h"
-#include <string.h>
+#include "stm32f10x.h"
 
 /*
  *@initialize timer1 ch-1 to capture clock
@@ -46,11 +46,36 @@ void capture_Init(void)
 	TIM_ClearFlag(TIM1, TIM_FLAG_Update);
 	TIM_ITConfig(TIM1, TIM_IT_Update, ENABLE);
 }
+
 void capture_SetCounter(uint16_t count)
+{
+	TIM_Cmd(TIM1, DISABLE);
+	//Sets the TIMx Autoreload Register value
+	TIM_SetCounter(TIM1,count);
+	TIM_Cmd(TIM1, ENABLE);
+}
+
+unsigned short capture_GetCounter(void)
+{
+	return TIM_GetCounter(TIM1);
+}
+
+void capture_ResetCounter(void)
+{
+	TIM_GenerateEvent(TIM1,TIM_EventSource_Update);
+}
+
+void capture_SetAutoRelaod(unsigned short count)
 {
 	//Sets the TIMx Autoreload Register value
 	TIM_SetAutoreload(TIM1,count);
 }
+unsigned short capture_GetAutoReload(void)
+{
+	//direct return ARR
+	 return TIM1->ARR;
+}
+
 void capture_Start(void)
 {
 	TIM_Cmd(TIM1, ENABLE);
@@ -59,9 +84,4 @@ void capture_Start(void)
 void capture_Stop(void)
 {
 	TIM_Cmd(TIM1, DISABLE);
-}
-
-uint16_t capture_GetCounter(void)
-{
-	return TIM_GetCounter(TIM1);
 }
