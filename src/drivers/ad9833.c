@@ -29,7 +29,7 @@ void ad9833_Init(ad9833_t *chip)
 	chip->io.write_reg(0, REG_CTRL(RESET));
 	
 	opt |= B28;
-	chip->io.write_reg(0, REG_CTRL(opt));
+	chip->io.write_reg(0, REG_CTRL(opt | RESET));
 	chip->option = opt;
 }
 
@@ -58,4 +58,16 @@ void ad9833_SetFreq(ad9833_t *chip, unsigned fw)
 	}
 
 	chip->option = opt;
+}
+
+void ad9833_Enable(const ad9833_t *chip)
+{
+	int opt = chip->option;
+	chip->io.write_reg(0, REG_CTRL(opt));
+}
+
+void ad9833_Disable(const ad9833_t *chip)
+{
+	int opt = chip->option;
+	chip->io.write_reg(0, REG_CTRL(opt | RESET));
 }
