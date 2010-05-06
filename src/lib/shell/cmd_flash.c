@@ -30,7 +30,7 @@ static int cmd_flash_mr(int argc, char *argv[])
 
 	for(i = 0; i < data_size ; i++ )
 	{
-		flash_Read( i + offset , &readbuffer , 1);
+		flash_Read( (void *)(i + offset) , &readbuffer , 1);
 		printf("0x%2x, ",readbuffer);
 		if(i%4 == 3)
 			printf("\n");
@@ -63,7 +63,7 @@ static int cmd_flash_mw(int argc, char *argv[])
 	writebuffer[2] = (uint8_t)(data>>16);
 	writebuffer[3] = (uint8_t)(data>>24);
 
-	flash_Write(offset , writebuffer , 4);
+	flash_Write((void *)offset , writebuffer , 4);
 	
 	return 0;
 }
