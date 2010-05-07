@@ -25,6 +25,9 @@ const char str_status[] = "status";
 const char str_rpm[] = "rpm";
 const char str_cfg[] = "config";
 const char str_steps[] = "steps";
+const char str_manu[] = "manu";
+const char str_auto[] = "auto";
+const char str_err[] = "err";
 
 const osd_item_t items_status[] = {
 	{5, 0, 6, 1, (int)str_status, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
@@ -98,7 +101,22 @@ static int dlg_GetSteps(void)
 
 static int dlg_GetRunMode(void)
 {
-	return sm_GetRunMode();
+	const char *str;
+	int mode;
+	
+	mode = sm_GetRunMode();
+	switch (mode) {
+	case SM_RUNMODE_AUTO:
+		str = str_auto;
+		break;
+	case SM_RUNMODE_MANUAL:
+		str = str_manu;
+		break;
+	default:
+		str = str_err;
+	}
+
+	return (int) str;
 }
 
 static int dlg_GetRPM(void)
@@ -149,10 +167,16 @@ static int dlg_ResetStep(const osd_command_t *cmd)
 
 static int dlg_ChangeRunMode(const osd_command_t *cmd)
 {
-	if(cmd->event == KEY_ENTER)
-		sm_ChangeRunMode();
+	int ret;
+	int mode;
 	
-	return 0;
+	mode = sm_GetRunMode();
+	mode ++;
+	if(mode >= SM_RUNMODE_INVALID)
+		mode = 0;
+	
+	ret = sm_SetRunMode(mode);
+	return ret;
 }
 
 static int dlg_ChangeRPM(const osd_command_t *cmd)

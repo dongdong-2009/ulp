@@ -14,9 +14,7 @@
 #include "spi.h"
 
 //private varibles for run mode
-static int sm_runmode; //0 = manual, 1 = auto
-const char runmode_manual[] = "manual";
-const char runmode_auto[] = "auto";
+static int sm_runmode;
 
 //private members for auto steps
 static unsigned short sm_autosteps = 1000;
@@ -75,7 +73,7 @@ void sm_Init(void)
 	capture_Init();
 	
 	//init for variables
-	sm_runmode = 0;
+	sm_runmode = SM_RUNMODE_MANUAL;
 }
 
 void sm_Update(void)
@@ -167,15 +165,21 @@ unsigned short sm_GetAutoSteps(void)
 
 int sm_GetRunMode(void)
 {
-	if(sm_runmode)
-		return (int)runmode_auto;
-	else
-		return (int)runmode_manual;
+	return sm_runmode;
 }
 
-void sm_ChangeRunMode(void)
-{
-	sm_runmode = !sm_runmode;
+int sm_SetRunMode(int newmode)
+{	
+	/* sm state machine must be checked here!!! 
+	* mode cann't be changed when the motor is running
+	*/
+	if(1) {
+		if((newmode >= SM_RUNMODE_MANUAL) && (newmode < SM_RUNMODE_INVALID))
+			sm_runmode = newmode;
+	}
+	
+	/*success return 0*/
+	return (newmode != sm_runmode);
 }
 
 void sm_isr(void)

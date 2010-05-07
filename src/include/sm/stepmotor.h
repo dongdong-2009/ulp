@@ -6,7 +6,12 @@
 
 #include "osd/osd.h"
 
-extern osd_dialog_t sm_dlg;
+/*sm run modes*/
+typedef enum {
+	SM_RUNMODE_MANUAL = 0,
+	SM_RUNMODE_AUTO,
+	SM_RUNMODE_INVALID,
+};
 
 typedef enum{
 	RPM_INC = 0,
@@ -21,7 +26,8 @@ typedef enum{
 	STEP_RESET,
 	STEP_OK
 }sm_autostep_t;
- 
+
+extern osd_dialog_t sm_dlg;
 
 void sm_Init(void);
 void sm_Update(void);
@@ -34,6 +40,6 @@ void sm_ResetStep(void);
 unsigned short sm_GetAutoSteps(void);
 void sm_SetAutoSteps(sm_autostep_t autostep);
 int sm_GetRunMode(void);
-void sm_ChangeRunMode(void);
+int sm_SetRunMode(int newmode);
 void sm_isr(void);
 #endif /*__STEPMOTOR_H_*/
