@@ -115,7 +115,13 @@ int key_GetKey(void)
 
 int key_SetKeyScenario(int delay, int repeat)
 {
-	key_timer = time_get(delay);
-	key_time_repeat = repeat;
-	return 0;
+	int ret = -1;
+	
+	if(key_timer == 0) { //only the 1st time call takes effect
+		key_timer = time_get(delay);
+		key_time_repeat = repeat;
+		ret = 0;
+	}
+	
+	return ret;
 }
