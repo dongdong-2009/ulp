@@ -67,9 +67,6 @@ void sm_Init(void)
 	l6208_SetControlMode(DecaySlow); //enable decay slow mode
 	l6208_SetRotationDirection(Clockwise); //enable clockwise dir
 	
-	//init for lcd1602
-	lcd1602_Init();
-	
 	//handle osd display
 	int hdlg = osd_ConstructDialog(&sm_dlg);
 	osd_SetActiveDialog(hdlg);
