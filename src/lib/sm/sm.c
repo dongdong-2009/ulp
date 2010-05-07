@@ -17,9 +17,7 @@
 static int sm_status;
 static int sm_runmode;
 static int sm_speed; //unit: rpm
-
-//private members for auto steps
-static unsigned short sm_autosteps = 1000;
+static int sm_autosteps;
 
 //private members for ad9833
 static int sm_dds_write_reg(int reg, int val);
@@ -74,6 +72,7 @@ void sm_Init(void)
 	sm_status = SM_IDLE;
 	sm_runmode = SM_RUNMODE_MANUAL;
 	sm_speed = 10;
+	sm_autosteps = 1000;
 }
 
 void sm_Update(void)
@@ -84,6 +83,8 @@ void sm_Update(void)
 void sm_StartMotor(void)
 {
 	sm_status = SM_RUNNING;
+	capture_SetAutoRelaod(sm_autosteps);
+	capture_ResetCounter(); //clear counter and preload now
 	ad9833_Enable(&sm_dds);
 }
 
@@ -108,31 +109,23 @@ int sm_GetSpeed(void)
 	return sm_speed;
 }
 
-void sm_SetAutoSteps(sm_autostep_t autostep)
+int sm_SetAutoSteps(int steps);
 {
-	switch(autostep){
-	case STEP_DEC:
-		if(sm_autosteps>0)
-			sm_autosteps--;
-		else
-			sm_autosteps = 0;
-		break;
-	case STEP_INC:
-		if(sm_autosteps<65535)
-			sm_autosteps++;
-		else
-			sm_autosteps = 65535;
-		break;
-	case STEP_RESET:
-		sm_autosteps = 1000;
-		break;
-	case STEP_OK:
-		capture_SetAutoRelaod(sm_autosteps);
-		capture_ResetCounter(); //clear counter and preload now
-		break;
-	default:
-		break;
+	int result = -1;
+	
+	steps = (steps < 1) ? 1 : steps;
+	
+	if(sm_status == SM_IDLE) {
+		sm_autosteps = steps;
+		result = 0;
 	}
+	
+	return result;
+}
+
+int sm_GetAutoSteps(void)
+{
+	return sm_autosteps;
 }
 
 unsigned short sm_GetSteps(void)
@@ -143,16 +136,6 @@ unsigned short sm_GetSteps(void)
 void sm_ResetStep(void)
 {
 	capture_ResetCounter();
-}
-
-void sm_ResetAutoSteps(void)
-{
-	capture_ResetCounter();
-}
-
-unsigned short sm_GetAutoSteps(void)
-{
-	return capture_GetAutoReload();
 }
 
 int sm_GetRunMode(void)

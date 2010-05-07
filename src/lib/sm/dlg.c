@@ -212,22 +212,29 @@ static int dlg_ChangeRPM(const osd_command_t *cmd)
 
 static int dlg_ChangeAutoSteps(const osd_command_t *cmd)
 {
+	int result = -1;
+	int steps = sm_GetSteps();
+	
 	switch(cmd->event){
 	case KEY_LEFT:
-		sm_SetAutoSteps(STEP_DEC);
+		steps --;
+		result = sm_SetAutoSteps(steps);
+		key_SetKeyScenario(100, 10);
 		break;
 	case KEY_RIGHT:
-		sm_SetAutoSteps(STEP_INC);
+		steps ++;
+		result = sm_SetAutoSteps(steps);
+		key_SetKeyScenario(100, 10);
 		break;
 	case  KEY_RESET:
-		sm_SetAutoSteps(STEP_RESET);
+		/*get config from flash*/
 		break;
 	case KEY_ENTER:
-		sm_SetAutoSteps(STEP_OK);
+		/*store config to flash*/
 		break;
 	default:
 		break;
 	}
 	
-	return 0;
+	return result;
 }
