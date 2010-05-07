@@ -80,18 +80,26 @@ void sm_Update(void)
 
 }
 
-void sm_StartMotor(void)
+int sm_StartMotor(bool clockwise)
 {
+	// there should be a state machine operation here ....
+	
+	/*
 	sm_status = SM_RUNNING;
 	capture_SetAutoRelaod(sm_autosteps);
 	capture_ResetCounter(); //clear counter and preload now
 	ad9833_Enable(&sm_dds);
+	*/
+	return 0;
 }
 
 void sm_StopMotor(void)
 {
+	// there should be a state machine operation here ....
+	/*
 	sm_status = SM_IDLE;
 	ad9833_Disable(&sm_dds);
+	*/
 }
 
 int sm_SetSpeed(int rpm);

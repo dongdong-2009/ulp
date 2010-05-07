@@ -143,12 +143,10 @@ static int dlg_SelectGroup(const osd_command_t *cmd)
 
 static int dlg_Run(const osd_command_t *cmd)
 {
-	if(cmd->event == KEY_LEFT)
-		 sm_StartMotor();
-	if(cmd->event == KEY_RIGHT)
-		sm_StopMotor();
-
-	return 0;
+	if(sm_GetRunMode() == SM_RUNMODE_MANUAL) {
+		key_SetKeyScenario(0, 10);
+	}
+	return sm_StartMotor(cmd->event == KEY_RIGHT);
 }
 
 static int dlg_ResetStep(const osd_command_t *cmd)
