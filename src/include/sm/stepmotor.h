@@ -6,6 +6,12 @@
 
 #include "osd/osd.h"
 
+/*sm motor status*/
+enum {
+	SM_IDLE,
+	SM_RUNNING,
+};
+
 /*sm run modes*/
 enum {
 	SM_RUNMODE_MANUAL = 0,

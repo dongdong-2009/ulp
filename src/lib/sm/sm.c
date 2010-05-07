@@ -13,7 +13,8 @@
 #include "lcd1602.h"
 #include "spi.h"
 
-//private varibles for run mode
+//private varibles
+static int sm_status;
 static int sm_runmode;
 
 //private members for auto steps
@@ -73,6 +74,7 @@ void sm_Init(void)
 	capture_Init();
 	
 	//init for variables
+	sm_status = SM_IDLE;
 	sm_runmode = SM_RUNMODE_MANUAL;
 }
 
@@ -83,11 +85,13 @@ void sm_Update(void)
 
 void sm_StartMotor(void)
 {
+	sm_status = SM_RUNNING;
 	ad9833_Enable(&sm_dds);
 }
 
 void sm_StopMotor(void)
 {
+	sm_status = SM_IDLE;
 	ad9833_Disable(&sm_dds);
 }
 
@@ -169,11 +173,8 @@ int sm_GetRunMode(void)
 }
 
 int sm_SetRunMode(int newmode)
-{	
-	/* sm state machine must be checked here!!! 
-	* mode cann't be changed when the motor is running
-	*/
-	if(1) {
+{
+	if(sm_status == SM_IDLE) {
 		if((newmode >= SM_RUNMODE_MANUAL) && (newmode < SM_RUNMODE_INVALID))
 			sm_runmode = newmode;
 	}
