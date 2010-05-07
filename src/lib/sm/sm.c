@@ -16,13 +16,10 @@
 //private varibles
 static int sm_status;
 static int sm_runmode;
+static int sm_speed; //unit: rpm
 
 //private members for auto steps
 static unsigned short sm_autosteps = 1000;
-
-//private members for rpm
-static int sm_speed = 10; //10hz
-
 
 //private members for ad9833
 static int sm_dds_write_reg(int reg, int val);
@@ -76,6 +73,7 @@ void sm_Init(void)
 	//init for variables
 	sm_status = SM_IDLE;
 	sm_runmode = SM_RUNMODE_MANUAL;
+	sm_speed = 10;
 }
 
 void sm_Update(void)
@@ -95,24 +93,14 @@ void sm_StopMotor(void)
 	ad9833_Disable(&sm_dds);
 }
 
-void sm_SetSpeed(sm_rpm_t sm_rpm)
+int sm_SetSpeed(int rpm);
 {
-	switch(sm_rpm){
-	case RPM_DEC:
-		sm_speed--;
-		break;
-	case RPM_INC:
-		sm_speed++;
-		break;
-	case RPM_RESET:
-		sm_speed = 1000;
-		break;
-	case RPM_OK:
-		ad9833_SetFreq(&sm_dds,sm_speed);
-		break;
-	default:
-		break;
-	}
+	sm_speed = rpm;
+	
+	/*calculate the new freqword according to the motor para,
+	then setup the dds chip*/
+	//ad9833_SetFreq(&sm_dds,sm_speed);
+	return 0;
 }
 
 int sm_GetSpeed(void)

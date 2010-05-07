@@ -181,23 +181,32 @@ static int dlg_ChangeRunMode(const osd_command_t *cmd)
 
 static int dlg_ChangeRPM(const osd_command_t *cmd)
 {
+	int rpm = sm_GetSpeed();
+	
 	switch(cmd->event){
 	case KEY_LEFT:
-		sm_SetSpeed(RPM_DEC);
+		key_SetKeyScenario(100, 10);
+		rpm --;
+		rpm = (rpm < 1) ? 1 : rpm;
+		return sm_SetSpeed(rpm);
 		break;
 	case KEY_RIGHT:
-		sm_SetSpeed(RPM_INC);
+		key_SetKeyScenario(100, 10);
+		rpm ++;
+		/*add max rpm limit here*/
+		return sm_SetSpeed(rpm);
 		break;
 	case  KEY_RESET:
-		sm_SetSpeed(RPM_RESET);
+		/*need get config value from flash,
+		not supported yet*/
 		break;
 	case KEY_ENTER:
-		sm_SetSpeed(RPM_OK);
+		/*save current config value to flash now*/
 		break;
 	default:
 		break;
 	}
-		
+
 	return 0;
 }
 

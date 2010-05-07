@@ -20,13 +20,6 @@ enum {
 };
 
 typedef enum{
-	RPM_INC = 0,
-	RPM_DEC,
-	RPM_RESET,
-	RPM_OK
-}sm_rpm_t;
-
-typedef enum{
 	STEP_INC = 0,
 	STEP_DEC,
 	STEP_RESET,
@@ -39,7 +32,7 @@ void sm_Init(void);
 void sm_Update(void);
 void sm_StartMotor(void);
 void sm_StopMotor(void);
-void sm_SetSpeed(sm_rpm_t sm_rpm);
+int sm_SetSpeed(int rpm);
 int sm_GetSpeed(void);
 unsigned short sm_GetSteps(void);
 void sm_ResetStep(void);
