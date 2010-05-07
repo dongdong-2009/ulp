@@ -7,7 +7,7 @@
 #include "osd/osd.h"
 
 /*sm run modes*/
-typedef enum {
+enum {
 	SM_RUNMODE_MANUAL = 0,
 	SM_RUNMODE_AUTO,
 	SM_RUNMODE_INVALID,
