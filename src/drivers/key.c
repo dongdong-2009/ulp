@@ -118,7 +118,7 @@ int key_SetKeyScenario(int delay, int repeat)
 	int ret = -1;
 	
 	if(key_timer == 0) { //only the 1st time call takes effect
-		key_timer = time_get(delay);
+		key_timer = (delay != 0) ? time_get(delay) : time_get(repeat);
 		key_time_repeat = repeat;
 		ret = 0;
 	}
