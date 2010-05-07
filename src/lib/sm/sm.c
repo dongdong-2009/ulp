@@ -96,6 +96,9 @@ void sm_StopMotor(void)
 
 int sm_SetSpeed(int rpm);
 {
+	/*rpm min/max limit*/
+	rpm = (rpm < 1) ? 1 : rpm;
+	
 	sm_speed = rpm;
 	
 	/*calculate the new freqword according to the motor para,
