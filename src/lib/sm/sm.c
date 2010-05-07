@@ -8,11 +8,24 @@
 #include "stm32f10x.h"
 #include "capture.h"
 #include "ad9833.h"
+#include "capture.h"
 #include "l6208.h"
 #include "lcd1602.h"
 #include "spi.h"
 
-//private members define
+//private varibles for run mode
+static int sm_runmode; //0 = manual, 1 = auto
+const char runmode_manual[] = "manual";
+const char runmode_auto[] = "auto";
+
+//private members for auto steps
+static unsigned short sm_autosteps = 1000;
+
+//private members for rpm
+static int sm_speed = 10; //10hz
+
+
+//private members for ad9833
 static int sm_dds_write_reg(int reg, int val);
 
 static ad9833_t sm_dds = {
@@ -23,9 +36,6 @@ static ad9833_t sm_dds = {
 	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
 
-static unsigned sm_speed = 1000;
-
-//private functions
 static int sm_dds_write_reg(int reg, int val)
 {
 	int ret;
@@ -66,6 +76,9 @@ void sm_Init(void)
 	
 	//init for capture clock
 	capture_Init();
+	
+	//init for variables
+	sm_runmode = 0;
 }
 
 void sm_Update(void)
@@ -103,9 +116,69 @@ void sm_SetSpeed(sm_rpm_t sm_rpm)
 	}
 }
 
-unsigned int sm_GetSpeed(void)
+int sm_GetSpeed(void)
 {
 	return sm_speed;
+}
+
+void sm_SetAutoSteps(sm_autostep_t autostep)
+{
+	switch(autostep){
+	case STEP_DEC:
+		if(sm_autosteps>0)
+			sm_autosteps--;
+		else
+			sm_autosteps = 0;
+		break;
+	case STEP_INC:
+		if(sm_autosteps<65535)
+			sm_autosteps++;
+		else
+			sm_autosteps = 65535;
+		break;
+	case STEP_RESET:
+		sm_autosteps = 1000;
+		break;
+	case STEP_OK:
+		capture_SetAutoRelaod(sm_autosteps);
+		capture_ResetCounter(); //clear counter and preload now
+		break;
+	default:
+		break;
+	}
+}
+
+unsigned short sm_GetSteps(void)
+{
+	return capture_GetCounter();
+}
+
+void sm_ResetStep(void)
+{
+	capture_ResetCounter();
+}
+
+void sm_ResetAutoSteps(void)
+{
+	capture_ResetCounter();
+}
+
+unsigned short sm_GetAutoSteps(void)
+{
+	return capture_GetAutoReload();
+}
+
+int sm_GetRunMode(void)
+{
+	if(sm_runmode)
+		return (int)runmode_auto;
+	else
+		return (int)runmode_manual;
+}
+
+void sm_ChangeRunMode(void)
+{
+	sm_runmode = !sm_runmode;
 }
 
 void sm_isr(void)

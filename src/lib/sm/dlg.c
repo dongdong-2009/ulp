@@ -7,17 +7,6 @@
 #include "sm/stepmotor.h"
 #include "key.h"
 #include "stm32f10x.h"
-#include "capture.h"
-
-//private varibles for run mode
-static int sm_runmode = 0; //0 = manual, 1 = auto
-const char runmode_manual[] = "manual";
-const char runmode_auto[] = "auto";
-
-//private varibles for auto steps
-static unsigned short sm_autosteps = 1000;
-
-//private varibles for rpm config
 
 //private functions
 static int dlg_GetSteps(void);
@@ -104,26 +93,22 @@ osd_dialog_t sm_dlg = {
 
 static int dlg_GetSteps(void)
 {
-	return capture_GetCounter();
+	return sm_GetSteps();
 }
 
 static int dlg_GetRunMode(void)
 {
-	if(sm_runmode)
-		return (int)runmode_auto;
-	else
-		return (int)runmode_manual;
+	return sm_GetRunMode();
 }
 
 static int dlg_GetRPM(void)
 {
-	sm_GetSpeed();
-	return 0;
+	return sm_GetSpeed();
 }
 
 static int dlg_GetAutoSteps(void)
 {
-	return capture_GetAutoReload();
+	return sm_GetAutoSteps();
 }
 
 static int dlg_SelectGroup(const osd_command_t *cmd)
@@ -157,7 +142,7 @@ static int dlg_Run(const osd_command_t *cmd)
 static int dlg_ResetStep(const osd_command_t *cmd)
 {
 	if(cmd->event == KEY_RESET)
-		capture_ResetCounter();
+		sm_ResetStep();
 	
 	return 0;
 }
@@ -165,7 +150,7 @@ static int dlg_ResetStep(const osd_command_t *cmd)
 static int dlg_ChangeRunMode(const osd_command_t *cmd)
 {
 	if(cmd->event == KEY_ENTER)
-		sm_runmode = !sm_runmode;
+		sm_ChangeRunMode();
 	
 	return 0;
 }
@@ -196,23 +181,16 @@ static int dlg_ChangeAutoSteps(const osd_command_t *cmd)
 {
 	switch(cmd->event){
 	case KEY_LEFT:
-		if(sm_autosteps>0)
-			sm_autosteps--;
-		else
-			sm_autosteps = 0;
+		sm_SetAutoSteps(STEP_DEC);
 		break;
 	case KEY_RIGHT:
-		if(sm_autosteps<65535)
-			sm_autosteps++;
-		else
-			sm_autosteps = 65535;
+		sm_SetAutoSteps(STEP_INC);
 		break;
 	case  KEY_RESET:
-		sm_autosteps = 1000;
+		sm_SetAutoSteps(STEP_RESET);
 		break;
 	case KEY_ENTER:
-		capture_SetAutoRelaod(sm_autosteps);
-		capture_ResetCounter(); //clear counter and preload now
+		sm_SetAutoSteps(STEP_OK);
 		break;
 	default:
 		break;
