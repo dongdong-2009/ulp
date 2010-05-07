@@ -95,7 +95,7 @@ const osd_group_t sm_grps[] = {
 	NULL,
 };
 
-const osd_dialog_t sm_dlg = {
+osd_dialog_t sm_dlg = {
 	.grps = sm_grps,
 	.cmds = NULL,
 	.func = NULL,
@@ -110,13 +110,14 @@ static int dlg_GetSteps(void)
 static int dlg_GetRunMode(void)
 {
 	if(sm_runmode)
-		return runmode_auto;
+		return (int)runmode_auto;
 	else
-		return runmode_manual;
+		return (int)runmode_manual;
 }
 
 static int dlg_GetRPM(void)
 {
+	sm_GetSpeed();
 	return 0;
 }
 
@@ -128,16 +129,16 @@ static int dlg_GetAutoSteps(void)
 static int dlg_SelectGroup(const osd_command_t *cmd)
 {
 	if(cmd->event == KEY_UP){
-		if(sm_dlg->grps == &sm_grps[2])
-			sm_dlg->grps = sm_grps;
+		if(sm_dlg.grps == &sm_grps[2])
+			sm_dlg.grps = sm_grps;
 		else
-			sm_dlg->grps++;
+			sm_dlg.grps++;
 	}
 	if(cmd->event == KEY_DOWN){
-		if(sm_dlg->grps == sm_grps)
-			sm_dlg->grps = &sm_grps[2];
+		if(sm_dlg.grps == sm_grps)
+			sm_dlg.grps = &sm_grps[2];
 		else
-			sm_dlg->grps--;
+			sm_dlg.grps--;
 	}
 	
 	return 0;
@@ -146,10 +147,10 @@ static int dlg_SelectGroup(const osd_command_t *cmd)
 static int dlg_Run(const osd_command_t *cmd)
 {
 	if(cmd->event == KEY_LEFT)
-		ad9833_Disable(const ad9833_t * chip);
+		 sm_StartMotor();
 	if(cmd->event == KEY_RIGHT)
-		ad9833_Enable(const ad9833_t * chip);
-	
+		sm_StopMotor();
+
 	return 0;
 }
 
@@ -171,6 +172,23 @@ static int dlg_ChangeRunMode(const osd_command_t *cmd)
 
 static int dlg_ChangeRPM(const osd_command_t *cmd)
 {
+	switch(cmd->event){
+	case KEY_LEFT:
+		sm_SetSpeed(RPM_DEC);
+		break;
+	case KEY_RIGHT:
+		sm_SetSpeed(RPM_INC);
+		break;
+	case  KEY_RESET:
+		sm_SetSpeed(RPM_RESET);
+		break;
+	case KEY_ENTER:
+		sm_SetSpeed(RPM_OK);
+		break;
+	default:
+		break;
+	}
+		
 	return 0;
 }
 
