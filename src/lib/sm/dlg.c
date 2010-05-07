@@ -131,20 +131,14 @@ static int dlg_GetAutoSteps(void)
 
 static int dlg_SelectGroup(const osd_command_t *cmd)
 {
-	if(cmd->event == KEY_UP){
-		if(sm_dlg.grps == &sm_grps[2])
-			sm_dlg.grps = sm_grps;
-		else
-			sm_dlg.grps++;
-	}
-	if(cmd->event == KEY_DOWN){
-		if(sm_dlg.grps == sm_grps)
-			sm_dlg.grps = &sm_grps[2];
-		else
-			sm_dlg.grps--;
-	}
+	int result = -1;
 	
-	return 0;
+	if(cmd->event == KEY_UP)
+		result = osd_SelectPrevGroup();
+	else
+		result = osd_SelectNextGroup();
+	
+	return result;
 }
 
 static int dlg_Run(const osd_command_t *cmd)
