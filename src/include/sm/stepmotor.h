@@ -5,6 +5,7 @@
 #define __STEPMOTOR_H_
 
 #include "osd/osd.h"
+#include "stm32f10x.h"
 
 /*sm motor status*/
 enum {

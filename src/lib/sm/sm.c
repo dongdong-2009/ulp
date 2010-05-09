@@ -102,7 +102,7 @@ void sm_StopMotor(void)
 	*/
 }
 
-int sm_SetSpeed(int rpm);
+int sm_SetSpeed(int rpm)
 {
 	/*rpm min/max limit*/
 	rpm = (rpm < 1) ? 1 : rpm;
@@ -120,7 +120,7 @@ int sm_GetSpeed(void)
 	return sm_speed;
 }
 
-int sm_SetAutoSteps(int steps);
+int sm_SetAutoSteps(int steps)
 {
 	int result = -1;
 	
