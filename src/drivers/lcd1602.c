@@ -35,8 +35,7 @@ static lcd1602_status lcd1602_ReadStaus(void)
 
 static void lcd1602_WriteCommand(uint8_t command)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
-	uint16_t i=0;
+	GPIO_InitTypeDef GPIO_InitStructure;	
 	
 	/* Configure PC.0-PC.7 as Output push-pull */
 	GPIO_InitStructure.GPIO_Pin = LCD1602_PORT;
@@ -48,6 +47,7 @@ static void lcd1602_WriteCommand(uint8_t command)
 	GPIO_ResetBits(GPIOC,LCD1602_PORT&(~command));
 
 #if 0
+	uint16_t i=0;
 	i = GPIO_ReadOutputData(GPIOC);
 	i &= 0xff00;	
 	i |= command;
@@ -102,8 +102,7 @@ int lcd1602_Init(void)
 
 int lcd1602_WriteChar(int row,int column,int8_t ch)
 {
-	uint8_t i=0;
-	uint16_t j=0;
+	uint8_t i=0;	
 	
 	switch(row){
 		case 0: i = 0x80 + column;
@@ -113,6 +112,7 @@ int lcd1602_WriteChar(int row,int column,int8_t ch)
 		default:break;
 	}
 #if 0
+	uint16_t j=0;
 	i = row ? (0xc0 + column):(0x80 + column);
 #endif
 	//check the busy bit
