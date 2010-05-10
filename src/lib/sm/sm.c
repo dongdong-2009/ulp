@@ -7,59 +7,35 @@
 #include "osd/osd.h"
 #include "stm32f10x.h"
 #include "capture.h"
-#include "ad9833.h"
-#include "capture.h"
-#include "l6208.h"
-#include "lcd1602.h"
-#include "spi.h"
+#include "flash.h"
+#include "smctrl.h"
+#include "key.h"
+
+//private data read from or store to flash
+typedef struct{
+	int sm_rpm;//unit: rpm
+	int sm_autosteps;
+}sm_config_t;
 
 //private varibles
 static int sm_status;
 static int sm_runmode;
-static int sm_speed; //unit: rpm
-static int sm_autosteps;
+static sm_config_t sm_config;
 
-//private members for ad9833
-static int sm_dds_write_reg(int reg, int val);
-
-static ad9833_t sm_dds = {
-	.io = {
-		.write_reg = sm_dds_write_reg,
-		.read_reg = 0,
-	},
-	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
+static const int keymap[] = {
+	KEY_UP,
+	KEY_DOWN,
+	KEY_ENTER,
+	KEY_RESET,
+	KEY_RIGHT,
+	KEY_LEFT,	
+	KEY_NONE
 };
-
-static int sm_dds_write_reg(int reg, int val)
-{
-	int ret;
-	GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_RESET);
-	ret = spi_Write(1, val);
-	GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_SET);
-	return ret;
-}
-
 
 void sm_Init(void)
 {
-	//init for ad9833
-	GPIO_InitTypeDef GPIO_InitStructure;
-	
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_SET); // sm_dds = 1
-	ad9833_Init(&sm_dds);
-	
-	//init for l6208
-	l6208_Init();
-	l6208_StartCmd(ENABLE); //enable l6208
-	l6208_SelectMode(HalfMode); //enable half stepmode
-	l6208_SetHomeState(ENABLE); //enable home state
-	l6208_SetControlMode(DecaySlow); //enable decay slow mode
-	l6208_SetRotationDirection(Clockwise); //enable clockwise dir
+	//init for stepper clock
+	smctrl_Init();	
 	
 	//handle osd display
 	int hdlg = osd_ConstructDialog(&sm_dlg);
@@ -71,8 +47,13 @@ void sm_Init(void)
 	//init for variables
 	sm_status = SM_IDLE;
 	sm_runmode = SM_RUNMODE_MANUAL;
-	sm_speed = 10;
-	sm_autosteps = 1000;
+	
+	//read config from flash
+	sm_GetRPMFromFlash(&sm_config.sm_rpm);
+	sm_GetAutostepFromFlash(&sm_config.sm_autosteps);
+	
+	//set key map
+	key_SetLocalKeymap(keymap);
 }
 
 void sm_Update(void)
@@ -83,41 +64,36 @@ void sm_Update(void)
 int sm_StartMotor(bool clockwise)
 {
 	// there should be a state machine operation here ....
-	
-	/*
-	sm_status = SM_RUNNING;
-	capture_SetAutoRelaod(sm_autosteps);
+	capture_SetAutoRelaod(sm_config.sm_autosteps);
 	capture_ResetCounter(); //clear counter and preload now
-	ad9833_Enable(&sm_dds);
-	*/
+	
+	sm_SetRPM(sm_config.sm_rpm);
+	
+	sm_status = SM_RUNNING;
+	smctrl_Start();
 	return 0;
 }
 
 void sm_StopMotor(void)
 {
 	// there should be a state machine operation here ....
-	/*
 	sm_status = SM_IDLE;
-	ad9833_Disable(&sm_dds);
-	*/
+	smctrl_Stop();
 }
 
-int sm_SetSpeed(int rpm)
+int sm_SetRPM(int rpm)
 {
 	/*rpm min/max limit*/
-	rpm = (rpm < 1) ? 1 : rpm;
-	
-	sm_speed = rpm;
-	
-	/*calculate the new freqword according to the motor para,
-	then setup the dds chip*/
-	//ad9833_SetFreq(&sm_dds,sm_speed);
+	rpm = (rpm < 1) ? 1 : rpm;	
+	sm_config.sm_rpm = rpm;	
+	smctrl_SetRPM(rpm);
+
 	return 0;
 }
 
-int sm_GetSpeed(void)
+int sm_GetRPM(void)
 {
-	return sm_speed;
+	return sm_config.sm_rpm;
 }
 
 int sm_SetAutoSteps(int steps)
@@ -127,7 +103,7 @@ int sm_SetAutoSteps(int steps)
 	steps = (steps < 1) ? 1 : steps;
 	
 	if(sm_status == SM_IDLE) {
-		sm_autosteps = steps;
+		sm_config.sm_autosteps = steps;
 		result = 0;
 	}
 	
@@ -136,7 +112,7 @@ int sm_SetAutoSteps(int steps)
 
 int sm_GetAutoSteps(void)
 {
-	return sm_autosteps;
+	return sm_config.sm_autosteps;
 }
 
 unsigned short sm_GetSteps(void)
@@ -146,7 +122,8 @@ unsigned short sm_GetSteps(void)
 
 void sm_ResetStep(void)
 {
-	capture_ResetCounter();
+	if(sm_status == SM_IDLE)
+		capture_ResetCounter();
 }
 
 int sm_GetRunMode(void)
@@ -165,10 +142,34 @@ int sm_SetRunMode(int newmode)
 	return (newmode != sm_runmode);
 }
 
+int sm_GetRPMFromFlash(int *rpm)
+{
+	flash_Read((void *)rpm, (void const *)SM_USER_FLASH_ADDR, 4);
+        
+        return 0;
+}
+
+int sm_GetAutostepFromFlash(int *autostep)
+{
+	flash_Read((void *)autostep, (void const *)(SM_USER_FLASH_ADDR + 4), 4);
+        
+        return 0;
+}
+
+int sm_SaveConfigToFlash(void)
+{
+	flash_Erase((void *)SM_USER_FLASH_ADDR, 1);
+	flash_Write((void *)(&sm_config), (void const *)SM_USER_FLASH_ADDR,8);
+        
+        return 0;
+}
+
 void sm_isr(void)
 {
 	/* Clear TIM1 Update interrupt pending bit */
 	TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
-
+	
+	if(sm_status == SM_RUNMODE_AUTO)
+		sm_StopMotor();
 }
 

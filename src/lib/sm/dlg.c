@@ -121,7 +121,7 @@ static int dlg_GetRunMode(void)
 
 static int dlg_GetRPM(void)
 {
-	return sm_GetSpeed();
+	return sm_GetRPM();
 }
 
 static int dlg_GetAutoSteps(void)
@@ -146,7 +146,10 @@ static int dlg_Run(const osd_command_t *cmd)
 	if(sm_GetRunMode() == SM_RUNMODE_MANUAL) {
 		key_SetKeyScenario(0, 10);
 	}
-	return sm_StartMotor(cmd->event == KEY_RIGHT);
+	
+	sm_StartMotor((cmd->event == KEY_RIGHT)?TRUE:FALSE);
+	
+	return 0;
 }
 
 static int dlg_ResetStep(const osd_command_t *cmd)
@@ -174,24 +177,27 @@ static int dlg_ChangeRunMode(const osd_command_t *cmd)
 static int dlg_ChangeRPM(const osd_command_t *cmd)
 {
 	int result = -1;
-	int rpm = sm_GetSpeed();
+	int rpm = sm_GetRPM();
 	
 	switch(cmd->event){
 	case KEY_LEFT:
 		rpm --;
-		result = sm_SetSpeed(rpm);
+		result = sm_SetRPM(rpm);
 		key_SetKeyScenario(100, 10);
 		break;
 	case KEY_RIGHT:
 		rpm ++;
-		result = sm_SetSpeed(rpm);
+		result = sm_SetRPM(rpm);
 		key_SetKeyScenario(100, 10);
 		break;
 	case  KEY_RESET:
 		/*get config from flash*/
+		sm_GetRPMFromFlash(&rpm);
+		result = sm_SetRPM(rpm);
 		break;
 	case KEY_ENTER:
 		/*store config to flash*/
+		sm_SaveConfigToFlash();
 		break;
 	default:
 		break;
@@ -218,9 +224,12 @@ static int dlg_ChangeAutoSteps(const osd_command_t *cmd)
 		break;
 	case  KEY_RESET:
 		/*get config from flash*/
+		sm_GetAutostepFromFlash(&steps);
+		result = sm_SetAutoSteps(steps);
 		break;
 	case KEY_ENTER:
 		/*store config to flash*/
+		sm_SaveConfigToFlash();
 		break;
 	default:
 		break;

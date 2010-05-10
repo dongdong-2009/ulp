@@ -7,6 +7,9 @@
 #include "osd/osd.h"
 #include "stm32f10x.h"
 
+//126k,127k
+#define SM_USER_FLASH_ADDR 0x0801f800
+
 /*sm motor status*/
 enum {
 	SM_IDLE,
@@ -26,13 +29,16 @@ void sm_Init(void);
 void sm_Update(void);
 int sm_StartMotor(bool clockwise);
 void sm_StopMotor(void);
-int sm_SetSpeed(int rpm);
-int sm_GetSpeed(void);
+int sm_SetRPM(int rpm);
+int sm_GetRPM(void);
 unsigned short sm_GetSteps(void);
 void sm_ResetStep(void);
 int sm_GetAutoSteps(void);
 int sm_SetAutoSteps(int steps);
 int sm_GetRunMode(void);
 int sm_SetRunMode(int newmode);
+int sm_GetRPMFromFlash(int *rpm);
+int sm_GetAutostepFromFlash(int *autostep);
+int sm_SaveConfigToFlash(void);
 void sm_isr(void);
 #endif /*__STEPMOTOR_H_*/
