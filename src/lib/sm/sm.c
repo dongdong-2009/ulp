@@ -21,6 +21,8 @@ typedef struct{
 static int sm_status;
 static int sm_runmode;
 static sm_config_t sm_config;
+static bool sm_startevent;
+static bool sm_stopevent;
 
 static const int keymap[] = {
 	KEY_UP,
@@ -32,28 +34,66 @@ static const int keymap[] = {
 	KEY_NONE
 };
 
+static bool sm_Process(void);
+
+static bool sm_Process(void)
+{
+	bool result;
+	
+	switch(sm_status){
+	case SM_IDLE:
+		if(sm_startevent){
+			sm_status = SM_RUNNING;
+			capture_SetAutoRelaod(sm_config.sm_autosteps);
+			sm_startevent = FALSE;
+			result = TRUE;
+		}
+		else
+			result = FALSE;
+		break;
+	case SM_RUNNING:
+		if(sm_stopevent){
+			sm_status = SM_IDLE;
+			sm_stopevent = FALSE;
+			result = TRUE;
+		}
+		else
+			result = FALSE;
+		break;
+	default:
+		break;
+	}
+
+	return result;
+}
+
 void sm_Init(void)
 {
-	//init for stepper clock
-	smctrl_Init();	
-	
 	//handle osd display
 	int hdlg = osd_ConstructDialog(&sm_dlg);
 	osd_SetActiveDialog(hdlg);
+
+	//set key map
+	key_SetLocalKeymap(keymap);
+
+	//init for stepper clock
+	smctrl_Init();
 	
 	//init for capture clock
 	capture_Init();
+		
+	//read config from flash and config device
+	sm_GetRPMFromFlash(&sm_config.sm_rpm);
+	sm_GetAutostepFromFlash(&sm_config.sm_autosteps);
+
+	capture_SetAutoRelaod(sm_config.sm_autosteps);
+	sm_SetRPM(sm_config.sm_rpm);
 	
 	//init for variables
 	sm_status = SM_IDLE;
 	sm_runmode = SM_RUNMODE_MANUAL;
-	
-	//read config from flash
-	sm_GetRPMFromFlash(&sm_config.sm_rpm);
-	sm_GetAutostepFromFlash(&sm_config.sm_autosteps);
-	
-	//set key map
-	key_SetLocalKeymap(keymap);
+	sm_startevent = FALSE;
+	sm_stopevent = FALSE;
 }
 
 void sm_Update(void)
@@ -64,21 +104,21 @@ void sm_Update(void)
 int sm_StartMotor(bool clockwise)
 {
 	// there should be a state machine operation here ....
-	capture_SetAutoRelaod(sm_config.sm_autosteps);
-	capture_ResetCounter(); //clear counter and preload now
-	
-	sm_SetRPM(sm_config.sm_rpm);
-	
-	sm_status = SM_RUNNING;
-	smctrl_Start();
+	sm_startevent = TRUE;
+	if(sm_Process()){
+		smctrl_SetRotationDirection(clockwise);
+		smctrl_Start();
+	}
 	return 0;
 }
 
 void sm_StopMotor(void)
 {
 	// there should be a state machine operation here ....
-	sm_status = SM_IDLE;
-	smctrl_Stop();
+	sm_stopevent = TRUE;
+	if(sm_Process()){
+		smctrl_Stop();
+	}
 }
 
 int sm_SetRPM(int rpm)
@@ -169,7 +209,9 @@ void sm_isr(void)
 	/* Clear TIM1 Update interrupt pending bit */
 	TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
 	
-	if(sm_status == SM_RUNMODE_AUTO)
-		sm_StopMotor();
+	sm_stopevent = TRUE;
+	if(sm_Process()){
+		smctrl_Stop();
+	}
 }
 
