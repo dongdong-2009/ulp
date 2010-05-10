@@ -24,6 +24,7 @@
 #include "motor/motor.h"
 #include "vvt/vvt.h"
 #include "sys/system.h"
+#include "sm/stepmotor.h"
 #include "key_rc.h"
 #include <stdio.h>
 
@@ -445,6 +446,11 @@ void TIM1_BRK_IRQHandler(void)
 *******************************************************************************/
 void TIM1_UP_IRQHandler(void)
 {
+#if CONFIG_TASK_STEPMOTOR == 1
+	/* Clear TIM1 Update interrupt pending bit */
+	TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
+	sm_isr();
+#endif
 }
 
 /*******************************************************************************

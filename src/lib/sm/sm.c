@@ -206,9 +206,6 @@ int sm_SaveConfigToFlash(void)
 
 void sm_isr(void)
 {
-	/* Clear TIM1 Update interrupt pending bit */
-	TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
-	
 	sm_stopevent = TRUE;
 	if(sm_Process()){
 		smctrl_Stop();
