@@ -42,6 +42,7 @@ void smctrl_Init(void)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 	GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_SET); // sm_dds = 1
 	ad9833_Init(&sm_dds);
+	ad9833_Disable(&sm_dds);
 	
 	//init for l6208
 	l6208_Init();
