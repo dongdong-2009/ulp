@@ -8,6 +8,7 @@
 #include "l6208.h"
 #include "ad9833.h"
 #include "spi.h"
+#include "smpwm.h"
 #include <string.h>
 
 //private members for ad9833
@@ -60,6 +61,10 @@ void smctrl_Init(void)
 #else
 l6208_SetControlMode(DecaySlow); //enable decay slow mode
 #endif
+
+	//init for sm pwm
+	smpwm_Init();
+	smpwm_SetDuty(50); //duty is 50%
 }
 
 void smctrl_SetRPM(int rpm)
