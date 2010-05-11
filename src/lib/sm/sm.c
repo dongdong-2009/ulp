@@ -10,6 +10,7 @@
 #include "flash.h"
 #include "smctrl.h"
 #include "key.h"
+#include "time.h"
 
 //private data read from or store to flash
 typedef struct{
@@ -23,6 +24,7 @@ static int sm_runmode;
 static sm_config_t sm_config;
 static bool sm_startevent;
 static bool sm_stopevent;
+static time_t manual_overflow;
 
 static const int keymap[] = {
 	KEY_UP,
@@ -44,7 +46,10 @@ static bool sm_Process(void)
 	case SM_IDLE:
 		if(sm_startevent){
 			sm_status = SM_RUNNING;
-			capture_SetAutoRelaod(sm_config.sm_autosteps);
+			if(sm_runmode == SM_RUNMODE_MANUAL)
+				capture_SetAutoRelaod(65535);
+			else
+				capture_SetAutoRelaod(sm_config.sm_autosteps);
 			sm_startevent = FALSE;
 			result = TRUE;
 		}
@@ -98,7 +103,10 @@ void sm_Init(void)
 
 void sm_Update(void)
 {
-
+	if(sm_runmode == SM_RUNMODE_MANUAL){
+		if(time_left(manual_overflow) < 0)
+			sm_StopMotor();
+	}
 }
 
 int sm_StartMotor(bool clockwise)
@@ -109,6 +117,10 @@ int sm_StartMotor(bool clockwise)
 		smctrl_SetRotationDirection(clockwise);
 		smctrl_Start();
 	}
+
+	if(sm_status == SM_RUNMODE_MANUAL)
+		manual_overflow = time_get(20); //20ms delay
+		
 	return 0;
 }
 
