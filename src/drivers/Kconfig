@@ -13,6 +13,12 @@ if [ "$CONFIG_DRIVER_VVT" = "y" ]; then
 	int "max knock sensor out voltage mVpp?" CONFIG_DRIVER_KNOCK_MVPP_MAX 255
 fi
 bool "stepper motor drivers?" CONFIG_DRIVER_STEPPERMOTOR
+if [ "$CONFIG_DRIVER_STEPPERMOTOR" = "y" ]; then
+	int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
+	int "steppermotor steps per round?" CONFIG_STEPPERMOTOR_SPM 200
+	bool "config step mode, half?" CONFIG_STEPPERMOTOR_HALFSTEP
+	bool "config decay mode, fast?" CONFIG_STEPPERMOTOR_FASTDECAYSTEP
+fi
 bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
 bool "spi bus driver for stm32?" CONFIG_DRIVER_SPI_STM32
 bool "dds chip ad9833" CONFIG_DRIVER_AD9833
