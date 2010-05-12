@@ -125,3 +125,48 @@ int key_SetKeyScenario(int delay, int repeat)
 	
 	return ret;
 }
+
+#if 1
+#include "shell/cmd.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+static int cmd_delay, cmd_repeat;
+static int cmd_key_save;
+static int cmd_key_func(int argc, char *argv[])
+{
+	int key;
+	const char usage[] = { \
+		" usage:\n" \
+		" key delay repeat	unit: mS\n" \
+	};
+	 
+	if(argc > 0 && argc != 3) {
+		printf(usage);
+		return 0;
+	}
+	
+	if(argc == 3) { //first time call
+		cmd_key_save = KEY_NONE;
+		cmd_delay = atoi(argv[1]);
+		cmd_repeat = atoi(argv[2]);
+		key_Init();
+		return 1;
+	}
+	
+	key = key_GetKey();
+	if(key != KEY_NONE) {
+		if(key != cmd_key_save) {
+			cmd_key_save = key;
+			printf("\n");
+		}
+		
+		key_SetKeyScenario(cmd_delay, cmd_repeat);
+		printf("%08X ", key);
+	}
+	
+	return 1;
+}
+const cmd_t cmd_key = {"key", cmd_key_func, "common key driver debug"};
+DECLARE_SHELL_CMD(cmd_key)
+#endif
