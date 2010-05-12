@@ -47,9 +47,9 @@ static bool sm_Process(void)
 		if(sm_startevent){
 			sm_status = SM_RUNNING;
 			if(sm_runmode == SM_RUNMODE_MANUAL)
-				capture_SetAutoRelaod(65535);
+				capture_SetAutoReload(65535);
 			else
-				capture_SetAutoRelaod(sm_config.sm_autosteps);
+				capture_SetAutoReload(sm_config.sm_autosteps);
 			sm_startevent = FALSE;
 			result = TRUE;
 		}

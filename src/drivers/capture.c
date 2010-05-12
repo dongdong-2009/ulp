@@ -65,7 +65,7 @@ void capture_ResetCounter(void)
 	TIM_GenerateEvent(TIM1,TIM_EventSource_Update);
 }
 
-void capture_SetAutoRelaod(unsigned short count)
+void capture_SetAutoReload(unsigned short count)
 {
 	//Sets the TIMx Autoreload Register value
 	TIM_SetAutoreload(TIM1,count);
