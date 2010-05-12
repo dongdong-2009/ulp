@@ -31,35 +31,33 @@ static const int keymap[] = {
 	KEY_ENTER,
 	KEY_RESET,
 	KEY_RIGHT,
-	KEY_LEFT,	
+	KEY_LEFT,
 	KEY_NONE
 };
 
 void sm_Init(void)
 {
+#ifdef CONFIG_TASK_OSD
 	//handle osd display
 	int hdlg = osd_ConstructDialog(&sm_dlg);
 	osd_SetActiveDialog(hdlg);
 
 	//set key map
 	key_SetLocalKeymap(keymap);
-
+#endif
 	//init for stepper clock
 	smctrl_Init();
 	
 	//init for capture clock
 	capture_Init();
-		
+	
 	//read config from flash and config device
-	sm_GetRPMFromFlash(&sm_config.rpm);
-	sm_GetAutostepFromFlash(&sm_config.autosteps);
-
-	capture_SetAutoRelaod(sm_config.autosteps);
+	sm_GetConfigFromFlash();
+	capture_SetAutoReload(sm_config.autosteps);
 	sm_SetRPM(sm_config.rpm);
 	
 	//init for variables
 	sm_status = SM_IDLE;
-	sm_config.runmode = SM_RUNMODE_MANUAL;
 }
 
 void sm_Update(void)
@@ -167,26 +165,18 @@ int sm_SetRunMode(int newmode)
 	return (newmode != sm_config.runmode);
 }
 
-int sm_GetRPMFromFlash(int *rpm)
+int sm_GetConfigFromFlash(void)
 {
-	flash_Read((void *)rpm, (void const *)SM_USER_FLASH_ADDR, 4);
+	flash_Read((void *)(&sm_config), (void const *)SM_USER_FLASH_ADDR, sizeof(sm_config_t));
         
-        return 0;
+	return 0;
 }
-
-int sm_GetAutostepFromFlash(int *autostep)
-{
-	flash_Read((void *)autostep, (void const *)(SM_USER_FLASH_ADDR + 4), 4);
-        
-        return 0;
-}
-
 int sm_SaveConfigToFlash(void)
 {
 	flash_Erase((void *)SM_USER_FLASH_ADDR, 1);
-	flash_Write((void *)(&sm_config), (void const *)SM_USER_FLASH_ADDR,8);
-        
-        return 0;
+	flash_Write((void *)(&sm_config), (void const *)SM_USER_FLASH_ADDR, sizeof(sm_config_t));
+	
+	return 0;
 }
 
 void sm_isr(void)

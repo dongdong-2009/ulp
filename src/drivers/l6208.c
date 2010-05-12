@@ -60,7 +60,7 @@ void l6208_Init(void)
 /*
  *set the stepper motor direction
  */
-void l6208_SetRotationDirection(l6208_direction dir)
+void l6208_SetRotationDirection(int dir)
 {
 	if(dir == Clockwise ){
 		GPIO_SetBits(GPIOB, L6208_DIR);
