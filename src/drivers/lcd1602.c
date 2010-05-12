@@ -131,13 +131,13 @@ int lcd1602_WriteString(int row,int column,const char *s)
 	uint8_t i=0,size;
 	size = (uint8_t)strlen(s);
 	
-#if 1
+#if 0
 	for( i = 0 ; i < size ; i++){
 		lcd1602_WriteChar(row, column + i, *(s++));
 	}
 #endif
 
-#if 0
+#if 1
 	i = row ? (0xc0 + column):(0x80 + column);
 
 	//check the busy bit
