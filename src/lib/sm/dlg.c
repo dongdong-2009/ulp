@@ -192,7 +192,8 @@ static int dlg_ChangeRPM(const osd_command_t *cmd)
 		break;
 	case  KEY_RESET:
 		/*get config from flash*/
-		sm_GetRPMFromFlash(&rpm);
+		sm_GetConfigFromFlash();
+		rpm = sm_GetRPM();
 		result = sm_SetRPM(rpm);
 		break;
 	case KEY_ENTER:
@@ -224,7 +225,8 @@ static int dlg_ChangeAutoSteps(const osd_command_t *cmd)
 		break;
 	case  KEY_RESET:
 		/*get config from flash*/
-		sm_GetAutostepFromFlash(&steps);
+		sm_GetConfigFromFlash();
+		steps = sm_GetSteps();
 		result = sm_SetAutoSteps(steps);
 		break;
 	case KEY_ENTER:

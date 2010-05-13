@@ -27,7 +27,7 @@ extern osd_dialog_t sm_dlg;
 
 void sm_Init(void);
 void sm_Update(void);
-int sm_StartMotor(bool clockwise);
+int sm_StartMotor(int clockwise);
 void sm_StopMotor(void);
 int sm_SetRPM(int rpm);
 int sm_GetRPM(void);
