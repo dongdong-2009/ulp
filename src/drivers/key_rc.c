@@ -10,6 +10,9 @@
 #include "key_rc.h"
 #include "time.h"
 #include <stddef.h>
+#include <stdio.h>
+
+#define dbg if(0)
 
 /* TIM4 CH3, PB8
 rc5:
@@ -55,15 +58,20 @@ void rc5_rx_bits(int pulsewidth)
 
 	//error handling
 	width = pulsewidth;
-	if(pulsewidth > 0) {
-		pulsewidth += (T_err >> 1);
-		pulsewidth &= ~(T_err - 1);
-		width = pulsewidth / T;
+	if(width > 0) {
+		width += (T_err >> 1);
+		width /= T;
+		dbg {
+			printf(">%d", width);
+		}
 	}
 
 	//state machine
 	switch(rckey_sm) {
 		case SM_IDLE:
+			dbg {
+				printf("\n");
+			}
 			rckey_idl = 0;
 			rckey_bits = 0;
 			rckey_bits_shift = 0;
@@ -134,6 +142,12 @@ void rc5_rx_bits(int pulsewidth)
 			rckey_sm = SM_IDLE;
 	}
 
+	if (rckey_sm == SM_ERROR) {
+		dbg {
+			printf("%d-%d ", pulsewidth, width);
+		}
+	}
+	
 	if(rckey_sm != SM_READY)
 		return;
 
@@ -213,6 +227,7 @@ static int rckey_capture_init(void)
 	TIM_ICInit(TIM4, &TIM_ICInitStruct);
 	
 	TIM_Cmd(TIM4, ENABLE);
+	TIM_UpdateRequestConfig(TIM4, TIM_UpdateSource_Global); //Setting UG won't lead to an UEV
 
 	//irq init
 	TIM_ClearFlag(TIM4, TIM_FLAG_CC3 | TIM_FLAG_Update);
