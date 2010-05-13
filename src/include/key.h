@@ -20,6 +20,7 @@ typedef union {
 		union {
 			struct {
 				int data : 6;
+				int edata: 1;
 				int system : 5;
 			} rc5;
 			short int code; //key code

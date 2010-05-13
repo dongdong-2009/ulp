@@ -176,6 +176,8 @@ void rc5_rx_bits(int pulsewidth)
 	rckey.rc5.system = rckey_bits_shift & 0x1f; /*5 bits custom code*/
 	rckey_bits_shift >>= 5;
 	rckey.flag_toggle = rckey_bits_shift & 0x01; /*1bit toggle flag*/
+	rckey_bits_shift >>= 1;
+	rckey.rc5.edata = rckey_bits_shift & 0x01; /*1bit extend data bit*/
 }
 #else
 #define rc5_rx_bits
