@@ -171,9 +171,9 @@ void rc5_rx_bits(int pulsewidth)
 	}
 	
 	rckey.value = 0;
-	rckey.data = rckey_bits_shift & 0x3f; /*6 bits data code*/
+	rckey.rc5.data = rckey_bits_shift & 0x3f; /*6 bits data code*/
 	rckey_bits_shift >>= 6;
-	rckey.data = rckey_bits_shift & 0x1f; /*5 bits custom code*/
+	rckey.rc5.system = rckey_bits_shift & 0x1f; /*5 bits custom code*/
 	rckey_bits_shift >>= 5;
 	rckey.flag_toggle = rckey_bits_shift & 0x01; /*1bit toggle flag*/
 }

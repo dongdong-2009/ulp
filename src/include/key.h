@@ -19,9 +19,9 @@ typedef union {
 	struct {
 		union {
 			struct {
-				int data : 8;
-				int system : 8;
-			};
+				int data : 6;
+				int system : 5;
+			} rc5;
 			short int code; //key code
 		};
 		int flag_toggle : 1;
