@@ -30,7 +30,7 @@ static int cmd_flash_mr(int argc, char *argv[])
 
 	for(i = 0; i < data_size ; i++ )
 	{
-		flash_Read( (void *)(i + offset) , &readbuffer , 1);
+		flash_Read( (void *)&readbuffer, (const void *)(offset + i), 1);
 		printf("0x%2x, ",readbuffer);
 		if(i%4 == 3)
 			printf("\n");
@@ -63,9 +63,29 @@ static int cmd_flash_mw(int argc, char *argv[])
 	writebuffer[2] = (uint8_t)(data>>16);
 	writebuffer[3] = (uint8_t)(data>>24);
 
-	flash_Write((void *)offset , writebuffer , 4);
+	flash_Write((void *)offset, writebuffer, 4);
 	
 	return 0;
 }
 const cmd_t cmd_flmw = {"flmw", cmd_flash_mw, "for writing user flash memory"};
 DECLARE_SHELL_CMD(cmd_flmw)
+
+/*for flash erase*/
+static int cmd_flash_erase(int argc, char *argv[])
+{
+	uint32_t offset;
+	
+	if(argc != 2){
+		printf("uasge:\n");
+		printf("flerase offset(0x)\n");
+		return 0;
+	}
+	
+	sscanf(argv[1],"%x",&offset);
+	
+	 flash_Erase((void *)offset, 1);
+	
+	return 0;
+}
+const cmd_t cmd_flerase = {"flerase", cmd_flash_erase, "for erase user flash memory"};
+DECLARE_SHELL_CMD(cmd_flerase)
