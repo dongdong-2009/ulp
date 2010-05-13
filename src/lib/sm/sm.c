@@ -11,6 +11,7 @@
 #include "smctrl.h"
 #include "key.h"
 #include "time.h"
+#include "stdio.h"
 
 //private data read from or store to flash
 typedef struct{
@@ -20,10 +21,16 @@ typedef struct{
 	int runmode : 1;
 }sm_config_t;
 
+enum {
+	COUNTER_UP,
+	COUNTER_DOWN
+};
+
 //private varibles
 static int sm_status;
 static sm_config_t sm_config;
 static time_t sm_stoptimer;
+static int counter_mode;
 
 static const int keymap[] = {
 	KEY_UP,
@@ -50,6 +57,7 @@ void sm_Init(void)
 	
 	//init for capture clock
 	capture_Init();
+	capture_Start();
 	
 	//read config from flash and config device
 	sm_GetConfigFromFlash();
@@ -58,6 +66,17 @@ void sm_Init(void)
 	
 	//init for variables
 	sm_status = SM_IDLE;
+	counter_mode = COUNTER_UP;
+#if 1
+	sm_config.runmode = SM_RUNMODE_MANUAL;
+	sm_config.rpm = 60;
+	sm_config.autosteps = 2000;
+	sm_config.dir = 1;
+	capture_SetAutoReload(sm_config.autosteps);
+	sm_SetRPM(sm_config.rpm);
+	
+#endif
+	smctrl_Stop();
 }
 
 void sm_Update(void)
@@ -83,6 +102,7 @@ void sm_Update(void)
 		if((mode == SM_RUNMODE_MANUAL) && (left <= 0)) {
 			sm_StopMotor();
 		}
+		printf("counter: %d \n",capture_GetCounter());
 		break;
 
 	default:
@@ -90,8 +110,22 @@ void sm_Update(void)
 	}
 }
 
-int sm_StartMotor(bool clockwise)
+int sm_StartMotor(int clockwise)
 {
+	if (sm_config.runmode == SM_RUNMODE_MANUAL) {
+		if (clockwise != sm_config.dir) {
+			if (counter_mode == COUNTER_UP ) {
+				capture_SetCounterModeDown();
+				counter_mode = COUNTER_DOWN;
+			} else {
+				capture_SetCounterModeUp();
+					counter_mode = COUNTER_UP;
+			}
+		
+		}
+	
+	}
+	
 	sm_config.dir = clockwise;
 	sm_stoptimer = time_get(20); //20ms delay
 	return 0;
@@ -174,13 +208,50 @@ int sm_GetConfigFromFlash(void)
 int sm_SaveConfigToFlash(void)
 {
 	flash_Erase((void *)SM_USER_FLASH_ADDR, 1);
-	flash_Write((void *)(&sm_config), (void const *)SM_USER_FLASH_ADDR, sizeof(sm_config_t));
+	flash_Write((void *)SM_USER_FLASH_ADDR, (void const *)(&sm_config), sizeof(sm_config_t));
 	
 	return 0;
 }
 
 void sm_isr(void)
 {
+	if (sm_config.runmode == SM_RUNMODE_MANUAL) {
+		capture_SetCounterModeUp();
+	}
 	sm_StopMotor();
 }
 
+
+#if 1
+#include "shell/cmd.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static int cmd_sm_func(int argc, char *argv[])
+{
+#if 0
+	const char usage[] = { \
+		" usage:\n" \
+		" sm start,stop\n" \
+	};
+
+	if (argc > 0 && argc != 2) {
+		printf(usage);
+		return 0;
+	}
+
+	if (strcmp(argv[1],"start") == 0) {
+		sm_StartMotor(1);
+	}
+
+	if (strcmp(argv[1],"save") == 0) {
+		sm_SaveConfigToFlash();
+	}
+#endif
+	sm_StartMotor(1);
+	return 1;
+}
+const cmd_t cmd_sm = {"sm", cmd_sm_func, "stepper motor debug"};
+DECLARE_SHELL_CMD(cmd_sm)
+#endif

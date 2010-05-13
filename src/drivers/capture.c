@@ -28,11 +28,11 @@ void capture_Init(void)
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
 	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
 	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
-	TIM_ARRPreloadConfig(TIM1, ENABLE);
+	//TIM_ARRPreloadConfig(TIM1, ENABLE);
 	
 	/*external clock mode 1 ,prescaler is off,clock edge is rising clock,input source is TI1_ED*/
 	//TIM_ETRClockMode1Config(TIM1, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_NonInverted,0);	
-	TIM_TIxExternalClockConfig(TIM1, TIM_TIxExternalCLK1Source_TI1ED,TIM_ExtTRGPolarity_NonInverted, 0);
+	TIM_TIxExternalClockConfig(TIM1, TIM_TIxExternalCLK1Source_TI1ED,TIM_ICPolarity_Rising, 0);
 	TIM_SetCounter(TIM1,0);
 	
 	/*config and enable tim1 counter overflow interrupt*/
@@ -84,4 +84,14 @@ void capture_Start(void)
 void capture_Stop(void)
 {
 	TIM_Cmd(TIM1, DISABLE);
+}
+
+void capture_SetCounterModeUp(void)
+{
+	TIM1->CR1 &= 0xEF;
+}
+
+void capture_SetCounterModeDown(void)
+{
+	TIM1->CR1 |= 0x10;
 }
