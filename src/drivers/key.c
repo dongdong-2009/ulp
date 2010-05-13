@@ -135,7 +135,7 @@ int key_SetKeyScenario(int delay, int repeat)
 	return ret;
 }
 
-#if 1
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -171,7 +171,7 @@ static int cmd_key_func(int argc, char *argv[])
 		}
 		
 		key_SetKeyScenario(cmd_delay, cmd_repeat);
-		printf("%08X ", key);
+		printf("%X ", key);
 	}
 	
 	return 1;
