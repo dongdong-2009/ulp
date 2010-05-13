@@ -45,7 +45,6 @@ static short rckey_idl; //counter for nokey detection
 #if CONFIG_RCKEY_PROTOCOL_RC5 == 1
 enum {
 	SM_IDLE,
-	RC5_SM_SYNC, /*sync pulse 11 has been received ..*/
 	RC5_SM_1, /*last received bit is '1' */
 	RC5_SM_00, /*last received bits is '00' */
 	SM_ERROR,
@@ -62,7 +61,7 @@ void rc5_rx_bits(int pulsewidth)
 		width += (T_err >> 1);
 		width /= T;
 		dbg {
-			printf(">%d", width);
+			printf("<%d>", width);
 		}
 	}
 
@@ -75,26 +74,16 @@ void rc5_rx_bits(int pulsewidth)
 			rckey_idl = 0;
 			rckey_bits = 0;
 			rckey_bits_shift = 0;
-			rckey_sm = RC5_SM_SYNC;
-			break;
-
-		case RC5_SM_SYNC: /*sync pulse has been received*/
-			if(width == 4) {
-				rckey_bits_shift = 0x03;
-				rckey_bits += 2;
-				rckey_sm = RC5_SM_1;
-			}
-			else if(width < 0) {
-				rckey_idl ++;
-				if(rckey_idl > N_idl) {
-					rckey_idl = 0;
-					rckey.value = 0;
-					rckey.flag_nokey = 1;
-				}
-			}
+			rckey_sm = RC5_SM_1;
 			break;
 
 		case RC5_SM_1:
+			if(width > 0 && rckey_bits == 0) { /*sync pulse received*/
+				rckey_bits_shift = 1;
+				rckey_bits = 1;
+				break;
+			}
+			
 			if(width == 4) {  /*2X2T width pulse, 1->1 has been received*/
 				rckey_bits_shift <<= 1;
 				rckey_bits_shift |= 0x01;
@@ -104,16 +93,28 @@ void rc5_rx_bits(int pulsewidth)
 				rckey_bits_shift <<= 2;
 				rckey_bits_shift |= 0x00;
 				rckey_bits += 2;
+				rckey_sm = RC5_SM_00;
 			}
 			else if(width == 8) { /*4X2T width pulse, 1->01 has been received*/
 				rckey_bits_shift <<= 2;
 				rckey_bits_shift |= 0x01;
 				rckey_bits += 2;
 			}
-			else if(width < 0)
-				rckey_sm = SM_READY;
-			else
+			else if(width < 0) {
+				if(rckey_bits > 1)
+					rckey_sm = SM_READY;
+				else {
+					rckey_idl ++;
+					if(rckey_idl > N_idl) {
+						rckey_idl = 0;
+						rckey.value = 0;
+						rckey.flag_nokey = 1;
+					}
+				}
+			}
+			else {
 				rckey_sm = SM_ERROR;
+			}
 			break;
 
 		case RC5_SM_00:
@@ -126,6 +127,7 @@ void rc5_rx_bits(int pulsewidth)
 				rckey_bits_shift <<= 1;
 				rckey_bits_shift |= 0x01;
 				rckey_bits += 1;
+				rckey_sm = RC5_SM_1;
 			}
 			else if(width < 0)
 				rckey_sm = SM_READY;
@@ -164,6 +166,10 @@ void rc5_rx_bits(int pulsewidth)
 		return;
 
 	/*a complete 14bit rc5 frame is received*/
+	dbg {
+		printf("%02X", rckey_bits_shift);
+	}
+	
 	rckey.value = 0;
 	rckey.data = rckey_bits_shift & 0x3f; /*6 bits data code*/
 	rckey_bits_shift >>= 6;
