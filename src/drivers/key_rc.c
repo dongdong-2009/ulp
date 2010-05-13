@@ -12,7 +12,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define dbg if(0)
+#define dbg(force) if(0|force)
 
 /* TIM4 CH3, PB8
 rc5:
@@ -60,7 +60,7 @@ void rc5_rx_bits(int pulsewidth)
 	if(width > 0) {
 		width += (T_err >> 1);
 		width /= T;
-		dbg {
+		dbg(0) {
 			printf("<%d>", width);
 		}
 	}
@@ -68,7 +68,7 @@ void rc5_rx_bits(int pulsewidth)
 	//state machine
 	switch(rckey_sm) {
 		case SM_IDLE:
-			dbg {
+			dbg(0) {
 				printf("\n");
 			}
 			rckey_idl = 0;
@@ -145,7 +145,7 @@ void rc5_rx_bits(int pulsewidth)
 	}
 
 	if (rckey_sm == SM_ERROR) {
-		dbg {
+		dbg(0) {
 			printf("%d-%d ", pulsewidth, width);
 		}
 	}
@@ -166,7 +166,7 @@ void rc5_rx_bits(int pulsewidth)
 		return;
 
 	/*a complete 14bit rc5 frame is received*/
-	dbg {
+	dbg(0) {
 		printf("%02X", rckey_bits_shift);
 	}
 	
