@@ -81,7 +81,7 @@ void smctrl_SetRPM(int rpm)
 	ad9833_SetFreq(&sm_dds,fw);
 }
 
-void smctrl_SetRotationDirection(bool dir)
+void smctrl_SetRotationDirection(int dir)
 {
 	if(dir)
 		l6208_SetRotationDirection(CounterClockwise);

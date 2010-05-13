@@ -29,6 +29,14 @@ static lcd1602_status lcd1602_ReadStaus(void)
 	
 	i = GPIO_ReadInputData(GPIOC);
 	status = (i&0x0080) ? Bit_Busy : Bit_Ok;
+
+	GPIO_ResetBits(GPIOC, LCD1602_E);
+
+	/* Configure PC.0-PC.7 as Output push-pull */
+	GPIO_InitStructure.GPIO_Pin = LCD1602_PORT;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
 	
 	return status;
 }
@@ -46,14 +54,6 @@ static void lcd1602_WriteCommand(uint8_t command)
 	GPIO_SetBits(GPIOC,LCD1602_PORT&command);
 	GPIO_ResetBits(GPIOC,LCD1602_PORT&(~command));
 
-#if 0
-	uint16_t i=0;
-	i = GPIO_ReadOutputData(GPIOC);
-	i &= 0xff00;	
-	i |= command;
-	GPIO_Write(GPIOC, i);
-#endif
-	
 	GPIO_ResetBits(GPIOC, LCD1602_RS);
 	GPIO_ResetBits(GPIOC, LCD1602_RW);
 	GPIO_SetBits(GPIOC, LCD1602_E);
@@ -73,6 +73,8 @@ int lcd1602_Init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	GPIO_ResetBits(GPIOC, LCD1602_E);
 
 	mdelay(15);
 	lcd1602_WriteCommand(LCD1602_COMMAND_SETMODE);
@@ -102,19 +104,10 @@ int lcd1602_Init(void)
 
 int lcd1602_WriteChar(int row,int column,int8_t ch)
 {
-	uint8_t i=0;	
-	
-	switch(row){
-		case 0: i = 0x80 + column;
-				break;
-		case 1: i = 0xc0 + column;
-				break;
-		default:break;
-	}
-#if 0
-	uint16_t j=0;
+	uint8_t i=0;
+
 	i = row ? (0xc0 + column):(0x80 + column);
-#endif
+
 	//check the busy bit
 	while(lcd1602_ReadStaus());
 	lcd1602_WriteCommand(i);
@@ -123,13 +116,6 @@ int lcd1602_WriteChar(int row,int column,int8_t ch)
 	while(lcd1602_ReadStaus());
 	GPIO_SetBits(GPIOC,LCD1602_PORT&ch);
 	GPIO_ResetBits(GPIOC,LCD1602_PORT&(~ch));
-	
-#if 0
-	j = GPIO_ReadOutputData(GPIOC);
-	j &= 0xff00;	
-	j |= command;
-	GPIO_Write(GPIOC, j);
-#endif
 	
 	GPIO_SetBits(GPIOC, LCD1602_RS);
 	GPIO_ResetBits(GPIOC, LCD1602_RW);
@@ -147,21 +133,13 @@ int lcd1602_WriteString(int row,int column,const char *s)
 	
 #if 0
 	for( i = 0 ; i < size ; i++){
-		lcd1602_WriteChar(row,column,*(s++));
+		lcd1602_WriteChar(row, column + i, *(s++));
 	}
 #endif
 
-	switch(row){
-		case 0: i = 0x80 + column;
-				break;
-		case 1: i = 0xc0 + column;
-				break;
-		default:break;
-	}
-	
-#if 0
+#if 1
 	i = row ? (0xc0 + column):(0x80 + column);
-#endif
+
 	//check the busy bit
 	while(lcd1602_ReadStaus());
 	lcd1602_WriteCommand(i);
@@ -177,7 +155,9 @@ int lcd1602_WriteString(int row,int column,const char *s)
 		GPIO_SetBits(GPIOC, LCD1602_E);
 		udelay(1);
 		GPIO_ResetBits(GPIOC, LCD1602_E);
+		s++;
 	}
+#endif
 
 	return 0;	
 }

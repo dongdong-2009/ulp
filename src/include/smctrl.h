@@ -9,7 +9,7 @@
 
 void smctrl_Init(void);
 void smctrl_SetRPM(int rpm);
-void smctrl_SetRotationDirection(bool dir);
+void smctrl_SetRotationDirection(int dir);
 void smctrl_Start(void);
 void smctrl_Stop(void);
 #endif /*__SMCTRL_H_*/

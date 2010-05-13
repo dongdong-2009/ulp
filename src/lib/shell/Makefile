@@ -4,3 +4,4 @@ obj-$(CONFIG_SHELL_MOTOR) += cmd_motor.o
 obj-$(CONFIG_SHELL_MOTOR_DEBUG) += cmd_debug.o
 obj-$(CONFIG_SHELL_VVT) += cmd_vvt.o
 obj-$(CONFIG_SHELL_FLASH_STM32) += cmd_flash.o
+obj-$(CONFIG_SHELL_LCD1602) += cmd_lcd1602.o

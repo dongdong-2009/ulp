@@ -37,8 +37,7 @@ int sm_GetAutoSteps(void);
 int sm_SetAutoSteps(int steps);
 int sm_GetRunMode(void);
 int sm_SetRunMode(int newmode);
-int sm_GetRPMFromFlash(int *rpm);
-int sm_GetAutostepFromFlash(int *autostep);
+int sm_GetConfigFromFlash(void);
 int sm_SaveConfigToFlash(void);
 void sm_isr(void);
 #endif /*__STEPMOTOR_H_*/

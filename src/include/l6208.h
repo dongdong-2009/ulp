@@ -40,7 +40,7 @@ typedef enum{
 }l6208_controlmode;
 
 void l6208_Init(void);
-void l6208_SetRotationDirection(l6208_direction dir);
+void l6208_SetRotationDirection(int dir);
 void l6208_SelectMode(l6208_stepmode stepmode);
 void l6208_SetHomeState(FunctionalState state);
 void l6208_SetControlMode(l6208_controlmode controlmode);
