@@ -78,7 +78,7 @@ void rc5_rx_bits(int pulsewidth)
 			break;
 
 		case RC5_SM_1:
-			if(width > 0 && rckey_bits == 0) { /*sync pulse received*/
+			if(width >= 0 && rckey_bits == 0) { /*sync pulse received*/
 				rckey_bits_shift = 1;
 				rckey_bits = 1;
 				break;
@@ -229,7 +229,7 @@ static int rckey_capture_init(void)
 	TIM_ICInitStruct.TIM_ICPolarity = TIM_ICPolarity_Falling;
 	TIM_ICInitStruct.TIM_ICSelection = TIM_ICSelection_DirectTI;
 	TIM_ICInitStruct.TIM_ICPrescaler = TIM_ICPSC_DIV1;
-	TIM_ICInitStruct.TIM_ICFilter = 0;
+	TIM_ICInitStruct.TIM_ICFilter = 0x0f;
 	TIM_ICInit(TIM4, &TIM_ICInitStruct);
 	
 	TIM_Cmd(TIM4, ENABLE);
