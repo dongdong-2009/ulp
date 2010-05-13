@@ -12,6 +12,7 @@ unsigned short capture_GetCounter(void);
 void capture_ResetCounter(void);
 void capture_SetAutoReload(unsigned short count);
 unsigned short capture_GetAutoReload(void);
-
+void capture_SetCounterModeUp(void);
+void capture_SetCounterModeDown(void);
 
 #endif /*__CAPTURE_H_*/
