@@ -8,9 +8,9 @@
 #include "time.h"
 
 #define ADCKEY_PIN GPIO_Pin_0
-#define ADCKEY_JITTER (1 << 7) /* (0x40/4096)*3300 = +/-51mv */
+#define ADCKEY_JITTER (1 << 8) /* +/- 128 */
 #define ADCKEY_UPDATE_MS (10)
-#define ADCKEY_DETECT_CNT (5) /*detect time = ADCKEY_DETECT_CNT * ADCKEY_UPDATE_MS*/
+#define ADCKEY_DETECT_CNT (10) /*detect time = ADCKEY_DETECT_CNT * ADCKEY_UPDATE_MS*/
 
 enum {
  ADCKEY_IDLE = 0, /*key is released*/
@@ -86,7 +86,7 @@ int adckey_Init(void)
 	ADC_Init(ADC1, &ADC_InitStructure);
 
 	/* ADC1 regular channel_0 configuration */
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_55Cycles5);
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_239Cycles5);
 	/* Enable ADC1 */
 	ADC_Cmd(ADC1, ENABLE);
 
@@ -124,6 +124,7 @@ void adckey_Update(void)
 		return;
 
 	value = ADC_GetConversionValue(ADC1);
+	value &= 0x0fff;
 	update = adckey_Process(value > ADCKEY_JITTER?TRUE:FALSE);
 	if(update) {
 		value += (ADCKEY_JITTER >> 1);
@@ -137,7 +138,7 @@ void adckey_Update(void)
 		if(value == 0)
 			adckey.flag_nokey = 1;
 		else{
-			adckey.data = value - 1;
+			adckey.code = value - 1;
 			adckey.flag_nokey = 0;
 		}
 	}

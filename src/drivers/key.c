@@ -10,11 +10,19 @@
 #include "time.h"
 #include <stddef.h>
 #include "key_rc.h"
+#include "key_adc.h"
 
 #if CONFIG_DRIVER_RCKEY == 1
 static const keyboard_t key_rc = {
 	.init = rckey_init,
 	.getkey = rckey_getkey,
+};
+#endif
+
+#if CONFIG_DRIVER_ADCKEY == 1
+static const keyboard_t key_adc = {
+	.init = adckey_Init,
+	.getkey = adckey_GetKey,
 };
 #endif
 
@@ -35,6 +43,10 @@ int key_Init(void)
 {
 	key_local = NULL;
 	key_remote = NULL;
+
+#if CONFIG_DRIVER_ADCKEY == 1
+	key_local= &key_adc;
+#endif
 
 #if CONFIG_DRIVER_RCKEY == 1
 	key_remote = &key_rc;
