@@ -123,16 +123,17 @@ int osd_SelectNextGroup(void) //change focus
 	if(kdlg == NULL)
 		return 0;
 	
-	kgrp_old = (kdlg->active_kgrp == NULL) ? kdlg->kgrps : kdlg->active_kgrp;
-	
 	//find next and set focus tag
-	for(kgrp = kgrp_old->next; kgrp != NULL; kgrp = kgrp->next)
+	kgrp_old = kdlg->active_kgrp;
+	kgrp = (kgrp_old == NULL) ? kdlg->kgrps : kgrp_old->next;
+	for(; kgrp != NULL; kgrp = kgrp->next)
 	{
 		if(kgrp->status >= STATUS_NORMAL) {
 			//found a new one
 			kgrp->focus = 1;
 			kdlg->active_kgrp = kgrp;
-			kgrp_old->focus = 0;
+			if(kgrp_old != NULL)
+				kgrp_old->focus = 0;
 			flag = 1;
 			break;
 		}
