@@ -27,7 +27,7 @@ static int dlg_ChangeAutoSteps(const osd_command_t *cmd);
 const char str_status[] = "status";
 const char str_rpm[] = "rpm";
 const char str_cfg[] = "config";
-const char str_steps[] = "steps";
+const char str_autosteps[] = "autosteps";
 const char str_manu[] = "manu";
 const char str_auto[] = "auto";
 const char str_err[] = "err";
@@ -48,7 +48,7 @@ const osd_item_t items_rpm[] = {
 
 const osd_item_t items_steps[] = {
 	{5, 4, 6, 1, (int)str_cfg, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{0, 5, 5, 1, (int)str_steps, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{0, 5, 9, 1, (int)str_autosteps, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
 	{8, 5, 8, 1, (int)dlg_GetAutoSteps, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
