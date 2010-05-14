@@ -60,6 +60,8 @@ const osd_command_t cmds_status[] = {
 	{.event = KEY_LEFT, .func = dlg_Run},
 	{.event = KEY_RESET, .func = dlg_ResetStep},
 	{.event = KEY_ENTER, .func = dlg_ChangeRunMode},
+	{.event = KEY_MENU, .func = dlg_ResetStep},
+	{.event = KEY_OSD, .func = dlg_ChangeRunMode},
 	NULL,
 };
 
@@ -70,6 +72,8 @@ const osd_command_t cmds_rpm[] = {
 	{.event = KEY_LEFT, .func = dlg_ChangeRPM},
 	{.event = KEY_RESET, .func = dlg_ChangeRPM},
 	{.event = KEY_ENTER, .func = dlg_ChangeRPM},
+	{.event = KEY_MENU, .func = dlg_ChangeRPM},
+	{.event = KEY_OSD, .func = dlg_ChangeRPM},
 	NULL,
 };
 
@@ -80,6 +84,8 @@ const osd_command_t cmds_steps[] = {
 	{.event = KEY_LEFT, .func = dlg_ChangeAutoSteps},
 	{.event = KEY_RESET, .func = dlg_ChangeAutoSteps},
 	{.event = KEY_ENTER, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_MENU, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_OSD, .func = dlg_ChangeAutoSteps},
 	NULL,
 };
 
