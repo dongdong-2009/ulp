@@ -27,6 +27,9 @@ static int key_map_len; //nr of keys, exclude KEY_NONE
 static key_t key_previous;
 static time_t key_timer; //delay or repeat key timer
 static int key_time_repeat;
+static struct {
+	int firstkey : 1;
+} key_flag;
 
 int key_Init(void)
 {
@@ -92,6 +95,7 @@ int key_GetKey(void)
 
 	//key scenario handling
 	if(key.value == key_previous.value) { //held or repeated key
+		key_flag.firstkey = 0;
 		if(key_timer != 0) {
 			if(time_left(key_timer) < 0) {
 				pass = 1;
@@ -104,6 +108,7 @@ int key_GetKey(void)
 	}
 	else { //first key
 		pass = 1;
+		key_flag.firstkey = 1;
 		key_previous = key;
 		key_timer = 0;
 		key_time_repeat = 0;
@@ -117,8 +122,12 @@ int key_SetKeyScenario(int delay, int repeat)
 {
 	int ret = -1;
 	
-	if(key_timer == 0) { //only the 1st time call takes effect
-		key_timer = (delay != 0) ? time_get(delay) : time_get(repeat);
+	if(key_flag.firstkey) {
+		if (delay != 0)
+			key_timer = time_get(delay);
+		else
+			key_timer = (repeat != 0) ? time_get(repeat) : 0;
+
 		key_time_repeat = repeat;
 		ret = 0;
 	}
@@ -126,7 +135,7 @@ int key_SetKeyScenario(int delay, int repeat)
 	return ret;
 }
 
-#if 1
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -162,7 +171,7 @@ static int cmd_key_func(int argc, char *argv[])
 		}
 		
 		key_SetKeyScenario(cmd_delay, cmd_repeat);
-		printf("%08X ", key);
+		printf("%X ", key);
 	}
 	
 	return 1;

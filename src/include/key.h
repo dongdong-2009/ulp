@@ -4,24 +4,61 @@
 #ifndef __KEY_H_
 #define __KEY_H_
 
+#include "config.h"
+
 //virtual key code table
 enum {
 	KEY_NONE,
 	KEY_RESET,
+	KEY_ENTER,
+#if CONFIG_RCKEY_PROTOCOL_RC5 == 1
+	KEY_UP = 0x10, /*10*/
+	KEY_DOWN = 0x11,
+	KEY_MENU = 0x12,
+	KEY_LEFT = 0x15,
+	KEY_RIGHT = 0x16,
+	KEY_SURF = 0x39,
+	KEY_0 = 0x40,
+	KEY_1,
+	KEY_2,
+	KEY_3,
+	KEY_4,
+	KEY_5,
+	KEY_6,
+	KEY_7,
+	KEY_8,
+	KEY_9 = 0x49,
+	KEY_POWER = 0x4c,
+	KEY_MUTE = 0x4d,
+	KEY_OSD = 0x4f,
+	KEY_VOL_PLUS = 0x50,
+	KEY_VOL_MINUS = 0x51,
+	KEY_SMART_SOUND = 0x54,
+	KEY_SMART_PICTURE = 0x55,
+	KEY_CH_PLUS = 0x60,
+	KEY_CH_MINUS = 0x61,
+	KEY_STERO = 0x63,
+	KEY_SURROUND = 0x64,
+	KEY_SLEEP = 0x66,
+	KEY_TIMER = 0x6f,
+	KEY_AV = 0x78,
+	KEY_CC = 0x7a,
+#else
 	KEY_LEFT,
 	KEY_RIGHT,
-	KEY_ENTER,
 	KEY_UP,
 	KEY_DOWN,
+#endif
 };
 
 typedef union {
 	struct {
 		union {
 			struct {
-				int data : 8;
-				int system : 8;
-			};
+				int data : 6;
+				int edata: 1;
+				int system : 5;
+			} rc5;
 			short int code; //key code
 		};
 		int flag_toggle : 1;

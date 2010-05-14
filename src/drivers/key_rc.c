@@ -10,6 +10,9 @@
 #include "key_rc.h"
 #include "time.h"
 #include <stddef.h>
+#include <stdio.h>
+
+#define dbg(force) if(0|force)
 
 /* TIM4 CH3, PB8
 rc5:
@@ -42,7 +45,6 @@ static short rckey_idl; //counter for nokey detection
 #if CONFIG_RCKEY_PROTOCOL_RC5 == 1
 enum {
 	SM_IDLE,
-	RC5_SM_SYNC, /*sync pulse 11 has been received ..*/
 	RC5_SM_1, /*last received bit is '1' */
 	RC5_SM_00, /*last received bits is '00' */
 	SM_ERROR,
@@ -55,38 +57,33 @@ void rc5_rx_bits(int pulsewidth)
 
 	//error handling
 	width = pulsewidth;
-	if(pulsewidth > 0) {
-		pulsewidth += (T_err >> 1);
-		pulsewidth &= ~(T_err - 1);
-		width = pulsewidth / T;
+	if(width > 0) {
+		width += (T_err >> 1);
+		width /= T;
+		dbg(0) {
+			printf("<%d>", width);
+		}
 	}
 
 	//state machine
 	switch(rckey_sm) {
 		case SM_IDLE:
+			dbg(0) {
+				printf("\n");
+			}
 			rckey_idl = 0;
 			rckey_bits = 0;
 			rckey_bits_shift = 0;
-			rckey_sm = RC5_SM_SYNC;
-			break;
-
-		case RC5_SM_SYNC: /*sync pulse has been received*/
-			if(width == 4) {
-				rckey_bits_shift = 0x03;
-				rckey_bits += 2;
-				rckey_sm = RC5_SM_1;
-			}
-			else if(width < 0) {
-				rckey_idl ++;
-				if(rckey_idl > N_idl) {
-					rckey_idl = 0;
-					rckey.value = 0;
-					rckey.flag_nokey = 1;
-				}
-			}
+			rckey_sm = RC5_SM_1;
 			break;
 
 		case RC5_SM_1:
+			if(width >= 0 && rckey_bits == 0) { /*sync pulse received*/
+				rckey_bits_shift = 1;
+				rckey_bits = 1;
+				break;
+			}
+			
 			if(width == 4) {  /*2X2T width pulse, 1->1 has been received*/
 				rckey_bits_shift <<= 1;
 				rckey_bits_shift |= 0x01;
@@ -96,16 +93,28 @@ void rc5_rx_bits(int pulsewidth)
 				rckey_bits_shift <<= 2;
 				rckey_bits_shift |= 0x00;
 				rckey_bits += 2;
+				rckey_sm = RC5_SM_00;
 			}
 			else if(width == 8) { /*4X2T width pulse, 1->01 has been received*/
 				rckey_bits_shift <<= 2;
 				rckey_bits_shift |= 0x01;
 				rckey_bits += 2;
 			}
-			else if(width < 0)
-				rckey_sm = SM_READY;
-			else
+			else if(width < 0) {
+				if(rckey_bits > 1)
+					rckey_sm = SM_READY;
+				else {
+					rckey_idl ++;
+					if(rckey_idl > N_idl) {
+						rckey_idl = 0;
+						rckey.value = 0;
+						rckey.flag_nokey = 1;
+					}
+				}
+			}
+			else {
 				rckey_sm = SM_ERROR;
+			}
 			break;
 
 		case RC5_SM_00:
@@ -118,6 +127,7 @@ void rc5_rx_bits(int pulsewidth)
 				rckey_bits_shift <<= 1;
 				rckey_bits_shift |= 0x01;
 				rckey_bits += 1;
+				rckey_sm = RC5_SM_1;
 			}
 			else if(width < 0)
 				rckey_sm = SM_READY;
@@ -134,6 +144,12 @@ void rc5_rx_bits(int pulsewidth)
 			rckey_sm = SM_IDLE;
 	}
 
+	if (rckey_sm == SM_ERROR) {
+		dbg(0) {
+			printf("%d-%d ", pulsewidth, width);
+		}
+	}
+	
 	if(rckey_sm != SM_READY)
 		return;
 
@@ -150,12 +166,18 @@ void rc5_rx_bits(int pulsewidth)
 		return;
 
 	/*a complete 14bit rc5 frame is received*/
+	dbg(0) {
+		printf("%02X", rckey_bits_shift);
+	}
+	
 	rckey.value = 0;
-	rckey.data = rckey_bits_shift & 0x3f; /*6 bits data code*/
+	rckey.rc5.data = rckey_bits_shift & 0x3f; /*6 bits data code*/
 	rckey_bits_shift >>= 6;
-	rckey.data = rckey_bits_shift & 0x1f; /*5 bits custom code*/
+	rckey.rc5.system = rckey_bits_shift & 0x1f; /*5 bits custom code*/
 	rckey_bits_shift >>= 5;
 	rckey.flag_toggle = rckey_bits_shift & 0x01; /*1bit toggle flag*/
+	rckey_bits_shift >>= 1;
+	rckey.rc5.edata = rckey_bits_shift & 0x01; /*1bit extend data bit*/
 }
 #else
 #define rc5_rx_bits
@@ -190,7 +212,7 @@ static int rckey_capture_init(void)
 	TIM_ICInitTypeDef TIM_ICInitStruct;
 	NVIC_InitTypeDef NVIC_InitStructure;
 
-	RCC_APB2PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
@@ -209,10 +231,11 @@ static int rckey_capture_init(void)
 	TIM_ICInitStruct.TIM_ICPolarity = TIM_ICPolarity_Falling;
 	TIM_ICInitStruct.TIM_ICSelection = TIM_ICSelection_DirectTI;
 	TIM_ICInitStruct.TIM_ICPrescaler = TIM_ICPSC_DIV1;
-	TIM_ICInitStruct.TIM_ICFilter = 0;
+	TIM_ICInitStruct.TIM_ICFilter = 0x0f;
 	TIM_ICInit(TIM4, &TIM_ICInitStruct);
 	
 	TIM_Cmd(TIM4, ENABLE);
+	TIM_UpdateRequestConfig(TIM4, TIM_UpdateSource_Global); //Setting UG won't lead to an UEV
 
 	//irq init
 	TIM_ClearFlag(TIM4, TIM_FLAG_CC3 | TIM_FLAG_Update);
