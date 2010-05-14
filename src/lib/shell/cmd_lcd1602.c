@@ -41,7 +41,7 @@ static int cmd_lcd_puts(int argc, char *argv[])
 	
 	sscanf(argv[1],"%d",&row);
 	
-	lcd1602_WriteString(row,0,argv[2]);
+	lcd1602_WriteString(0,row,argv[2]);
 	
 	return 0;
 }
