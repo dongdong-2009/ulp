@@ -42,7 +42,7 @@ const osd_item_t items_status[] = {
 const osd_item_t items_rpm[] = {
 	{5, 2, 6, 1, (int)str_cfg, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
 	{0, 3, 3, 1, (int)str_rpm, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{12, 3, 4, 1, (int)dlg_GetRPM, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{8, 3, 8, 1, (int)dlg_GetRPM, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
@@ -74,6 +74,16 @@ const osd_command_t cmds_rpm[] = {
 	{.event = KEY_ENTER, .func = dlg_ChangeRPM},
 	{.event = KEY_MENU, .func = dlg_ChangeRPM},
 	{.event = KEY_OSD, .func = dlg_ChangeRPM},
+	{.event = KEY_0, .func = dlg_ChangeRPM},
+	{.event = KEY_1, .func = dlg_ChangeRPM},
+	{.event = KEY_2, .func = dlg_ChangeRPM},
+	{.event = KEY_3, .func = dlg_ChangeRPM},
+	{.event = KEY_4, .func = dlg_ChangeRPM},
+	{.event = KEY_5, .func = dlg_ChangeRPM},
+	{.event = KEY_6, .func = dlg_ChangeRPM},
+	{.event = KEY_7, .func = dlg_ChangeRPM},
+	{.event = KEY_8, .func = dlg_ChangeRPM},
+	{.event = KEY_9, .func = dlg_ChangeRPM},
 	NULL,
 };
 
@@ -86,6 +96,16 @@ const osd_command_t cmds_steps[] = {
 	{.event = KEY_ENTER, .func = dlg_ChangeAutoSteps},
 	{.event = KEY_MENU, .func = dlg_ChangeAutoSteps},
 	{.event = KEY_OSD, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_0, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_1, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_2, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_3, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_4, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_5, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_6, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_7, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_8, .func = dlg_ChangeAutoSteps},
+	{.event = KEY_9, .func = dlg_ChangeAutoSteps},
 	NULL,
 };
 
@@ -199,17 +219,21 @@ static int dlg_ChangeRPM(const osd_command_t *cmd)
 		result = sm_SetRPM(rpm);
 		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
 		break;
-	case  KEY_RESET:
+	case KEY_RESET:
+	case KEY_MENU:
 		/*get config from flash*/
 		sm_GetConfigFromFlash();
 		rpm = sm_GetRPM();
 		result = sm_SetRPM(rpm);
 		break;
 	case KEY_ENTER:
+	case KEY_OSD:
 		/*store config to flash*/
 		sm_SaveConfigToFlash();
 		break;
 	default:
+		rpm = key_SetEntryAndGetDigit();
+		result = sm_SetRPM(rpm);
 		break;
 	}
 
@@ -232,17 +256,21 @@ static int dlg_ChangeAutoSteps(const osd_command_t *cmd)
 		result = sm_SetAutoSteps(steps);
 		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
 		break;
-	case  KEY_RESET:
+	case KEY_RESET:
+	case KEY_MENU:
 		/*get config from flash*/
 		sm_GetConfigFromFlash();
 		steps = sm_GetAutoSteps();
 		result = sm_SetAutoSteps(steps);
 		break;
 	case KEY_ENTER:
+	case KEY_OSD:
 		/*store config to flash*/
 		sm_SaveConfigToFlash();
 		break;
 	default:
+		steps = key_SetEntryAndGetDigit();
+		result = sm_SetAutoSteps(steps);
 		break;
 	}
 	
