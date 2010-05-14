@@ -90,6 +90,7 @@ static int osd_HandleCommand(int event, const osd_command_t *cmds)
 	while(cmds->func != NULL) {
 		if(event == cmds->event)
 			return cmds->func(cmds);
+		cmds ++;
 	}
 	
 	return -1;
