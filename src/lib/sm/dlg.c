@@ -8,6 +8,9 @@
 #include "key.h"
 #include "stm32f10x.h"
 
+#define DELAY_MS 1000
+#define REPEAT_MS 10
+
 //private functions
 static int dlg_GetSteps(void);
 static int dlg_GetRunMode(void);
@@ -144,7 +147,7 @@ static int dlg_SelectGroup(const osd_command_t *cmd)
 static int dlg_Run(const osd_command_t *cmd)
 {
 	if(sm_GetRunMode() == SM_RUNMODE_MANUAL) {
-		key_SetKeyScenario(0, 10);
+		key_SetKeyScenario(0, REPEAT_MS);
 	}
 	
 	sm_StartMotor((cmd->event == KEY_RIGHT)?TRUE:FALSE);
@@ -183,12 +186,12 @@ static int dlg_ChangeRPM(const osd_command_t *cmd)
 	case KEY_LEFT:
 		rpm --;
 		result = sm_SetRPM(rpm);
-		key_SetKeyScenario(100, 10);
+		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
 		break;
 	case KEY_RIGHT:
 		rpm ++;
 		result = sm_SetRPM(rpm);
-		key_SetKeyScenario(100, 10);
+		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
 		break;
 	case  KEY_RESET:
 		/*get config from flash*/
@@ -216,12 +219,12 @@ static int dlg_ChangeAutoSteps(const osd_command_t *cmd)
 	case KEY_LEFT:
 		steps --;
 		result = sm_SetAutoSteps(steps);
-		key_SetKeyScenario(100, 10);
+		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
 		break;
 	case KEY_RIGHT:
 		steps ++;
 		result = sm_SetAutoSteps(steps);
-		key_SetKeyScenario(100, 10);
+		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
 		break;
 	case  KEY_RESET:
 		/*get config from flash*/
