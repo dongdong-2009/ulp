@@ -332,7 +332,7 @@ static int osd_ShowGroup(osd_group_k *kgrp)
 		status = get_status(grp);
 	}
 	else
-		status = grp->order;
+		status = STATUS_NORMAL; //grp->order;
 
 	if(kgrp->focus)
 		status = STATUS_FOCUSED;
