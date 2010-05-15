@@ -58,10 +58,10 @@ int item_DrawInt(const osd_item_t *item, int status)
 	}
 	
 	//convert int to string & width limit
-	len = item->w;
-	buf = malloc(len + 1);
-	len = snprintf(buf, len, "%d", value);
-	buf[len] = 0;
+	len = item->w + 1;
+	buf = malloc(len);
+	snprintf(buf, len, "%d", value);
+	len = strlen(buf);
 	
 	//align
 	x = item->x;

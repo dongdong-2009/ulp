@@ -90,6 +90,7 @@ static int osd_HandleCommand(int event, const osd_command_t *cmds)
 	while(cmds->func != NULL) {
 		if(event == cmds->event)
 			return cmds->func(cmds);
+		cmds ++;
 	}
 	
 	return -1;
@@ -122,16 +123,17 @@ int osd_SelectNextGroup(void) //change focus
 	if(kdlg == NULL)
 		return 0;
 	
-	kgrp_old = (kdlg->active_kgrp == NULL) ? kdlg->kgrps : kdlg->active_kgrp;
-	
 	//find next and set focus tag
-	for(kgrp = kgrp_old->next; kgrp != NULL; kgrp = kgrp->next)
+	kgrp_old = kdlg->active_kgrp;
+	kgrp = (kgrp_old == NULL) ? kdlg->kgrps : kgrp_old->next;
+	for(; kgrp != NULL; kgrp = kgrp->next)
 	{
 		if(kgrp->status >= STATUS_NORMAL) {
 			//found a new one
 			kgrp->focus = 1;
 			kdlg->active_kgrp = kgrp;
-			kgrp_old->focus = 0;
+			if(kgrp_old != NULL)
+				kgrp_old->focus = 0;
 			flag = 1;
 			break;
 		}
@@ -331,7 +333,7 @@ static int osd_ShowGroup(osd_group_k *kgrp)
 		status = get_status(grp);
 	}
 	else
-		status = grp->order;
+		status = STATUS_NORMAL; //grp->order;
 
 	if(kgrp->focus)
 		status = STATUS_FOCUSED;

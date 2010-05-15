@@ -12,6 +12,8 @@
 #include "key_rc.h"
 #include "key_adc.h"
 
+#define DIGIT_ENTRY_TIMEOUT	500 /*unit: mS*/
+
 #if CONFIG_DRIVER_RCKEY == 1
 static const keyboard_t key_rc = {
 	.init = rckey_init,
@@ -35,6 +37,9 @@ static int key_map_len; //nr of keys, exclude KEY_NONE
 static key_t key_previous;
 static time_t key_timer; //delay or repeat key timer
 static int key_time_repeat;
+static int key_digit;
+static time_t key_digit_timer;
+
 static struct {
 	int firstkey : 1;
 } key_flag;
@@ -59,6 +64,8 @@ int key_Init(void)
 	key_previous.flag_nokey = 1;
 	key_timer = 0;
 	key_time_repeat = 0;
+	key_digit = 0;
+	key_digit_timer = 0;
 
 	//hardware keyboard driver init
 	if(key_local != NULL)
@@ -126,6 +133,15 @@ int key_GetKey(void)
 		key_time_repeat = 0;
 	}
 
+	//check digit key entry timeout
+	if(key_digit_timer != 0) {
+		if(time_left(key_digit_timer) < 0 || \
+			((!key.flag_nokey) && (key.code < KEY_0 || key.code > KEY_9)) ) {
+			key_digit_timer = 0;
+			key_digit = 0;
+		}
+	}
+	
 	//return key.code
 	return (pass == 1) ? key.code : KEY_NONE;
 }
@@ -145,6 +161,17 @@ int key_SetKeyScenario(int delay, int repeat)
 	}
 	
 	return ret;
+}
+
+int key_SetEntryAndGetDigit(void)
+{
+	int key = key_previous.code;
+	
+	key -= KEY_0;
+	key_digit *= 10;
+	key_digit += key;
+	key_digit_timer = time_get(DIGIT_ENTRY_TIMEOUT);
+	return key_digit;
 }
 
 #if 0

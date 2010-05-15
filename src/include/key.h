@@ -76,5 +76,6 @@ int key_Init(void);
 int key_SetLocalKeymap(const int *keymap); //keymap must be ended with KEY_NONE
 int key_GetKey(void);
 int key_SetKeyScenario(int delay, int repeat); //unit: mS
+int key_SetEntryAndGetDigit(void);
 
 #endif /*__KEY_H_*/
