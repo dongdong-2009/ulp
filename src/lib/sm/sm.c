@@ -21,24 +21,25 @@ typedef struct{
 	int runmode : 1;
 }sm_config_t;
 
-enum {
-	COUNTER_UP,
-	COUNTER_DOWN
+enum{
+	Clockwise = 0,
+	CounterClockwise
 };
 
 //private varibles
 static int sm_status;
 static sm_config_t sm_config;
 static time_t sm_stoptimer;
-static int counter_mode;
+static int sm_dirswitch;
+static int sm_stepcounter;
 
 static const int keymap[] = {
 	KEY_UP,
 	KEY_DOWN,
 	KEY_ENTER,
-	KEY_RESET,
 	KEY_RIGHT,
 	KEY_LEFT,
+	KEY_RESET,
 	KEY_NONE
 };
 
@@ -63,20 +64,21 @@ void sm_Init(void)
 	sm_GetConfigFromFlash();
 	capture_SetAutoReload(sm_config.autosteps);
 	sm_SetRPM(sm_config.rpm);
+	smctrl_Stop();
 	
 	//init for variables
 	sm_status = SM_IDLE;
-	counter_mode = COUNTER_UP;
-#if 1
+	sm_dirswitch = 0;
+	sm_stepcounter = 0;
+#if 0
 	sm_config.runmode = SM_RUNMODE_MANUAL;
 	sm_config.rpm = 60;
 	sm_config.autosteps = 2000;
 	sm_config.dir = 1;
 	capture_SetAutoReload(sm_config.autosteps);
-	sm_SetRPM(sm_config.rpm);
-	
+	sm_SetRPM(sm_config.rpm);	
 #endif
-	smctrl_Stop();
+	
 }
 
 void sm_Update(void)
@@ -102,7 +104,7 @@ void sm_Update(void)
 		if((mode == SM_RUNMODE_MANUAL) && (left <= 0)) {
 			sm_StopMotor();
 		}
-		printf("counter: %d \n",capture_GetCounter());
+		//printf("counter: %d \n",capture_GetCounter());
 		break;
 
 	default:
@@ -113,20 +115,13 @@ void sm_Update(void)
 int sm_StartMotor(int clockwise)
 {
 	if (sm_config.runmode == SM_RUNMODE_MANUAL) {
-		if (clockwise != sm_config.dir) {
-			if (counter_mode == COUNTER_UP ) {
-				capture_SetCounterModeDown();
-				counter_mode = COUNTER_DOWN;
-			} else {
-				capture_SetCounterModeUp();
-					counter_mode = COUNTER_UP;
-			}
-		
-		}
-	
+		if (clockwise != sm_config.dir) 
+			sm_dirswitch = 1;
+		else
+			sm_dirswitch = 0;
 	}
 	
-	sm_config.dir = clockwise;
+	//sm_config.dir = clockwise;
 	sm_stoptimer = time_get(20); //20ms delay
 	return 0;
 }
@@ -141,8 +136,8 @@ void sm_StopMotor(void)
 int sm_SetRPM(int rpm)
 {
 	/*rpm min/max limit*/
-	rpm = (rpm < 1) ? 1 : rpm;	
-	sm_config.rpm = rpm;	
+	rpm = (rpm < 1) ? 1 : rpm;
+	sm_config.rpm = rpm;
 	smctrl_SetRPM(rpm);
 
 	return 0;
@@ -172,15 +167,48 @@ int sm_GetAutoSteps(void)
 	return sm_config.autosteps;
 }
 
-unsigned short sm_GetSteps(void)
+int sm_GetSteps(void)
 {
-	return capture_GetCounter();
+	int temp;
+
+	switch (sm_config.dir) {
+	case Clockwise:
+		if (sm_dirswitch == 1) {
+			sm_stepcounter += capture_GetCounter();
+			temp = sm_stepcounter;
+			capture_ResetCounter();
+			sm_config.dir = CounterClockwise;
+			sm_dirswitch = 0;
+		}
+		else
+			temp = sm_stepcounter + capture_GetCounter();
+		break;
+		
+	case CounterClockwise:
+		if(sm_dirswitch == 1) {
+			sm_stepcounter -= capture_GetCounter();
+			temp = sm_stepcounter;
+			capture_ResetCounter();
+			sm_config.dir = Clockwise;
+			sm_dirswitch = 0;
+		}
+		else
+			temp = sm_stepcounter - capture_GetCounter();
+		break;
+		
+	default:
+		break;
+	}
+	
+	return temp;
 }
 
 void sm_ResetStep(void)
 {
-	if(sm_status == SM_IDLE)
+	if (sm_status == SM_IDLE) {
+		sm_stepcounter = 0;
 		capture_ResetCounter();
+	}
 }
 
 int sm_GetRunMode(void)
@@ -216,13 +244,13 @@ int sm_SaveConfigToFlash(void)
 void sm_isr(void)
 {
 	if (sm_config.runmode == SM_RUNMODE_MANUAL) {
-		capture_SetCounterModeUp();
+		sm_stepcounter = 0;
 	}
 	sm_StopMotor();
 }
 
 
-#if 1
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
