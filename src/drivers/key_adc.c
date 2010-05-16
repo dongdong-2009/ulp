@@ -125,7 +125,7 @@ void adckey_Update(void)
 
 	value = ADC_GetConversionValue(ADC1);
 	value &= 0x0fff;
-	update = adckey_Process(value > ADCKEY_JITTER?TRUE:FALSE);
+	update = adckey_Process(value > (ADCKEY_JITTER >> 1)?TRUE:FALSE);
 	if(update) {
 		value += (ADCKEY_JITTER >> 1);
 		value &= ~(ADCKEY_JITTER - 1);
