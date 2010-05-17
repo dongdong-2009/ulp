@@ -65,6 +65,7 @@ void sm_Init(void)
 	capture_SetAutoReload(sm_config.autosteps);
 	sm_SetRPM(sm_config.rpm);
 	smctrl_Stop();
+	capture_ResetCounter();
 	
 	//init for variables
 	sm_status = SM_IDLE;
@@ -120,6 +121,8 @@ int sm_StartMotor(int clockwise)
 		else
 			sm_dirswitch = 0;
 	}
+	else
+		sm_config.dir = clockwise;
 	
 	//sm_config.dir = clockwise;
 	sm_stoptimer = time_get(20); //20ms delay
@@ -171,36 +174,42 @@ int sm_GetSteps(void)
 {
 	int temp;
 
-	switch (sm_config.dir) {
-	case Clockwise:
-		if (sm_dirswitch == 1) {
-			sm_stepcounter += capture_GetCounter();
-			temp = sm_stepcounter;
-			capture_ResetCounter();
-			sm_config.dir = CounterClockwise;
-			sm_dirswitch = 0;
+	if (sm_config.runmode == SM_RUNMODE_MANUAL) {
+		switch (sm_config.dir) {
+		case Clockwise:
+			if (sm_dirswitch == 1) {
+				sm_stepcounter += capture_GetCounter();
+				temp = sm_stepcounter;
+				capture_ResetCounter();
+				sm_config.dir = CounterClockwise;
+				sm_dirswitch = 0;
+			}
+			else
+				temp = sm_stepcounter + capture_GetCounter();
+			break;
+			
+		case CounterClockwise:
+			if(sm_dirswitch == 1) {
+				sm_stepcounter -= capture_GetCounter();
+				temp = sm_stepcounter;
+				capture_ResetCounter();
+				sm_config.dir = Clockwise;
+				sm_dirswitch = 0;
+			}
+			else
+				temp = sm_stepcounter - capture_GetCounter();
+			break;
+			
+		default:
+			break;
 		}
-		else
-			temp = sm_stepcounter + capture_GetCounter();
-		break;
 		
-	case CounterClockwise:
-		if(sm_dirswitch == 1) {
-			sm_stepcounter -= capture_GetCounter();
-			temp = sm_stepcounter;
-			capture_ResetCounter();
-			sm_config.dir = Clockwise;
-			sm_dirswitch = 0;
-		}
-		else
-			temp = sm_stepcounter - capture_GetCounter();
-		break;
-		
-	default:
-		break;
+		return temp;
+
+	} else {
+		return sm_config.dir == Clockwise ? capture_GetCounter() : (-capture_GetCounter());
 	}
 	
-	return temp;
 }
 
 void sm_ResetStep(void)
