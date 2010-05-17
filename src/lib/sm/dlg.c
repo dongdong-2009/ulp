@@ -183,8 +183,7 @@ static int dlg_Run(const osd_command_t *cmd)
 
 static int dlg_ResetStep(const osd_command_t *cmd)
 {
-	if(cmd->event == KEY_RESET)
-		sm_ResetStep();
+	sm_ResetStep();
 	
 	return 0;
 }
