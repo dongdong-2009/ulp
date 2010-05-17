@@ -31,7 +31,7 @@ int sm_StartMotor(int clockwise);
 void sm_StopMotor(void);
 int sm_SetRPM(int rpm);
 int sm_GetRPM(void);
-unsigned short sm_GetSteps(void);
+int sm_GetSteps(void);
 void sm_ResetStep(void);
 int sm_GetAutoSteps(void);
 int sm_SetAutoSteps(int steps);
