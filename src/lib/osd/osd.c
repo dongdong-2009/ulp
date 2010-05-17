@@ -148,7 +148,7 @@ int osd_SelectNextGroup(void) //change focus
 		//hardware scroll is not supported, redraw all
 		osd_HideDialog(kdlg);
 		osd_eng_scroll(0, kgrp->grp->items->y);
-		osd_ShowDialog(kdlg);
+		osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERFOCUSCHANGE);
 	}
 	return 0;
 }
@@ -185,7 +185,7 @@ int osd_SelectPrevGroup(void) //change focus
 		//hardware scroll is not supported, redraw all
 		osd_HideDialog(kdlg);
 		osd_eng_scroll(0, kgrp->grp->items->y);
-		osd_ShowDialog(kdlg);
+		osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERFOCUSCHANGE);
 	}
 	
 	return 0;
@@ -224,7 +224,7 @@ int osd_ConstructDialog(const osd_dialog_t *dlg)
 		}
 	}
 
-	osd_ShowDialog(kdlg);
+	osd_ShowDialog(kdlg, ITEM_UPDATE_NEVER);
 	return (int)kdlg;
 }
 
