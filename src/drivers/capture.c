@@ -62,7 +62,11 @@ unsigned short capture_GetCounter(void)
 
 void capture_ResetCounter(void)
 {
-	TIM_GenerateEvent(TIM1,TIM_EventSource_Update);
+	//TIM_GenerateEvent(TIM1,TIM_EventSource_Update);
+	TIM_Cmd(TIM1, DISABLE);
+	//Sets the TIMx Autoreload Register value
+	TIM_SetCounter(TIM1,0);
+	TIM_Cmd(TIM1, ENABLE);
 }
 
 void capture_SetAutoReload(unsigned short count)
