@@ -448,7 +448,8 @@ void TIM1_UP_IRQHandler(void)
 {
 #if CONFIG_TASK_STEPMOTOR == 1
 	/* Clear TIM1 Update interrupt pending bit */
-	TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
+	//TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
+	TIM1->SR = (uint16_t)~TIM_IT_Update;
 	sm_isr();
 #endif
 }
