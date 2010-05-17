@@ -33,14 +33,14 @@ typedef struct {
 } osd_dialog_k;
 
 //dialog ops
-static int osd_ShowDialog(osd_dialog_k *kdlg);
+static int osd_ShowDialog(osd_dialog_k *kdlg, int update);
 static int osd_HideDialog(osd_dialog_k *kdlg);
 static int osd_HandleCommand(int event, const osd_command_t *cmds);
 
 //group ops
 static int osd_ConstructGroup(const osd_group_t *grp);
 static int osd_DestroyGroup(osd_group_k *kgrp);
-static int osd_ShowGroup(osd_group_k *kgrp);
+static int osd_ShowGroup(osd_group_k *kgrp, int update);
 static int osd_HideGroup(osd_group_k *kgrp);
 
 //item ops
@@ -63,6 +63,7 @@ void osd_Update(void)
 	osd_dialog_k *kdlg;
 	osd_group_k *kgrp;
 	int event, ret = -1;
+	int update = ITEM_UPDATE_ALWAYS;
 	
 	kdlg = osd_active_kdlg;
 	if(kdlg == NULL)
@@ -71,15 +72,15 @@ void osd_Update(void)
 	event = osd_event_get();
 	kgrp = kdlg->active_kgrp;
 	
-	if(event == KEY_NONE)
-		return;
+	if(event != KEY_NONE) {
+		update = ITEM_UPDATE_AFTERCOMMAND;
+		if(kgrp != NULL)
+			ret = osd_HandleCommand(event, kgrp->grp->cmds);
+		if(ret)
+			osd_HandleCommand(event, kdlg->dlg->cmds);
+	}
 	
-	if(kgrp != NULL)
-		ret = osd_HandleCommand(event, kgrp->grp->cmds);
-	if(ret)
-		osd_HandleCommand(event, kdlg->dlg->cmds);
-		
-	osd_ShowDialog(kdlg);
+	osd_ShowDialog(kdlg, update);
 }
 
 static int osd_HandleCommand(int event, const osd_command_t *cmds)
@@ -247,13 +248,13 @@ int osd_DestroyDialog(int handle)
 	return 0;
 }
 
-int osd_ShowDialog(osd_dialog_k *kdlg)
+int osd_ShowDialog(osd_dialog_k *kdlg, int update)
 {
 	osd_group_k *kgrp;
 	
 	//show groups
 	for(kgrp = kdlg->kgrps; kgrp != NULL; kgrp = kgrp->next)
-		osd_ShowGroup(kgrp);
+		osd_ShowGroup(kgrp, update);
 	
 	return (int)kdlg;
 }
@@ -318,7 +319,7 @@ static int osd_DestroyGroup(osd_group_k *kgrp)
 	return 0;
 }
 
-static int osd_ShowGroup(osd_group_k *kgrp)
+static int osd_ShowGroup(osd_group_k *kgrp, int update)
 {
 	int status;
 	int (*get_status)(const osd_group_t *grp);
@@ -340,13 +341,18 @@ static int osd_ShowGroup(osd_group_k *kgrp)
 		
 	if(status != kgrp->status) { //all items needs to be redraw
 		kgrp->status = status;
-		for(item = grp->items; (item != NULL) && (item->draw != NULL); item ++)
+		for(item = grp->items; (item != NULL) && (item->draw != NULL); item ++) {
+			osd_HideItem(item);
 			osd_ShowItem(item, status);
+		}
 	}
 	else {
 		for(kitem = kgrp->runtime_kitems; kitem != NULL; kitem = kitem->next) {
-			osd_HideItem(kitem->item);
-			osd_ShowItem(kitem->item, status);
+			item = kitem->item;
+			if(item->update >= update) {
+				osd_HideItem(kitem->item);
+				osd_ShowItem(kitem->item, status);
+			}
 		}
 	}
 	
