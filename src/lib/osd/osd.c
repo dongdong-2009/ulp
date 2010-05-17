@@ -92,16 +92,20 @@ void osd_Update(void)
 
 static int osd_HandleCommand(int event, const osd_command_t *cmds)
 {
+	int handled = -1;
+	
 	if(cmds == NULL)
-		return -1;
+		return handled;
 	
 	while(cmds->func != NULL) {
-		if(event == cmds->event)
-			return cmds->func(cmds);
+		if(event == cmds->event) {
+			cmds->func(cmds);
+			handled = 0;
+		}
 		cmds ++;
 	}
 	
-	return -1;
+	return handled;
 }
 
 int osd_SetActiveDialog(int handle)
