@@ -55,14 +55,14 @@ typedef union {
 	struct {
 		union {
 			struct {
-				int data : 6;
-				int edata: 1;
-				int system : 5;
+				short data : 6;
+				short edata: 1;
+				short system : 5;
 			} rc5;
-			short int code; //key code
+			short code; //key code
 		};
-		int flag_toggle : 1;
-		int flag_nokey : 1;
+		short flag_toggle : 1;
+		short flag_nokey : 1;
 	};
 	int value;
 } key_t;
