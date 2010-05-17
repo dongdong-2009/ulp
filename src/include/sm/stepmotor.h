@@ -10,6 +10,9 @@
 //126k,127k
 #define SM_USER_FLASH_ADDR 0x0801f800
 
+/*define max RPM value*/
+#define SM_MAX_RPM 1000
+
 /*sm motor status*/
 enum {
 	SM_IDLE,
