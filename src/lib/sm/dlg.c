@@ -176,7 +176,7 @@ static int dlg_Run(const osd_command_t *cmd)
 		key_SetKeyScenario(0, REPEAT_MS);
 	}
 	
-	sm_StartMotor((cmd->event == KEY_RIGHT)?TRUE:FALSE);
+	sm_StartMotor((cmd->event == KEY_RIGHT)? 0 : 1);
 	
 	return 0;
 }

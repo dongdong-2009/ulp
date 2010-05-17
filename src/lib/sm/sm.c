@@ -12,6 +12,7 @@
 #include "key.h"
 #include "time.h"
 #include "stdio.h"
+#include "led.h"
 
 //private data read from or store to flash
 typedef struct{
@@ -62,10 +63,9 @@ void sm_Init(void)
 	
 	//read config from flash and config device
 	sm_GetConfigFromFlash();
-	capture_SetAutoReload(sm_config.autosteps);
-	sm_SetRPM(sm_config.rpm);
-	smctrl_Stop();
-	capture_ResetCounter();
+
+	//green led flash
+	led_flash(LED_GREEN);
 	
 	//init for variables
 	sm_status = SM_IDLE;
@@ -96,15 +96,18 @@ void sm_Update(void)
 		if(left > 0) {
 			capture_SetAutoReload(reload);
 			smctrl_SetRotationDirection(dir);
+			smctrl_SetRPM(sm_config.rpm);
 			smctrl_Start();
 			sm_status = SM_RUNNING;
 		}
+		led_off(LED_RED);
 		break;
 
 	case SM_RUNNING:
 		if((mode == SM_RUNMODE_MANUAL) && (left <= 0)) {
 			sm_StopMotor();
 		}
+		led_on(LED_RED);
 		//printf("counter: %d \n",capture_GetCounter());
 		break;
 
@@ -140,8 +143,14 @@ int sm_SetRPM(int rpm)
 {
 	/*rpm min/max limit*/
 	rpm = (rpm < 1) ? 1 : rpm;
-	sm_config.rpm = rpm;
-	smctrl_SetRPM(rpm);
+	rpm = (rpm > SM_MAX_RPM) ? SM_MAX_RPM : rpm;
+
+	if (sm_status == SM_IDLE) {
+		sm_config.rpm = rpm;
+	} else {
+		sm_config.rpm = rpm;
+		smctrl_SetRPM(rpm);
+	}
 
 	return 0;
 }
@@ -174,42 +183,36 @@ int sm_GetSteps(void)
 {
 	int temp;
 
-	if (sm_config.runmode == SM_RUNMODE_MANUAL) {
-		switch (sm_config.dir) {
-		case Clockwise:
-			if (sm_dirswitch == 1) {
-				sm_stepcounter += capture_GetCounter();
-				temp = sm_stepcounter;
-				capture_ResetCounter();
-				sm_config.dir = CounterClockwise;
-				sm_dirswitch = 0;
-			}
-			else
-				temp = sm_stepcounter + capture_GetCounter();
-			break;
-			
-		case CounterClockwise:
-			if(sm_dirswitch == 1) {
-				sm_stepcounter -= capture_GetCounter();
-				temp = sm_stepcounter;
-				capture_ResetCounter();
-				sm_config.dir = Clockwise;
-				sm_dirswitch = 0;
-			}
-			else
-				temp = sm_stepcounter - capture_GetCounter();
-			break;
-			
-		default:
-			break;
+	switch (sm_config.dir) {
+	case Clockwise:
+		if (sm_dirswitch == 1) {
+			sm_stepcounter += capture_GetCounter();
+			temp = sm_stepcounter;
+			capture_ResetCounter();
+			sm_config.dir = CounterClockwise;
+			sm_dirswitch = 0;
 		}
-		
-		return temp;
-
-	} else {
-		return sm_config.dir == Clockwise ? capture_GetCounter() : (-capture_GetCounter());
+		else
+			temp = sm_stepcounter + capture_GetCounter();
+		break;
+			
+	case CounterClockwise:
+		if(sm_dirswitch == 1) {
+			sm_stepcounter -= capture_GetCounter();
+			temp = sm_stepcounter;
+			capture_ResetCounter();
+			sm_config.dir = Clockwise;
+			sm_dirswitch = 0;
+		}
+		else
+			temp = sm_stepcounter - capture_GetCounter();
+		break;
+			
+	default:
+		break;
 	}
-	
+		
+	return temp;
 }
 
 void sm_ResetStep(void)
@@ -228,8 +231,14 @@ int sm_GetRunMode(void)
 int sm_SetRunMode(int newmode)
 {
 	if(sm_status == SM_IDLE) {
-		if((newmode >= SM_RUNMODE_MANUAL) && (newmode < SM_RUNMODE_INVALID))
+		if ((newmode >= SM_RUNMODE_MANUAL) && (newmode < SM_RUNMODE_INVALID)) {
+			if ((sm_config.dir == Clockwise))
+				sm_stepcounter += capture_GetCounter();
+			else
+				sm_stepcounter -= capture_GetCounter();
+			capture_ResetCounter();
 			sm_config.runmode = newmode;
+		}
 	}
 	
 	/*success return 0*/
@@ -254,8 +263,14 @@ void sm_isr(void)
 {
 	if (sm_config.runmode == SM_RUNMODE_MANUAL) {
 		sm_stepcounter = 0;
+	} else {
+		if ((sm_config.dir == Clockwise))
+			sm_stepcounter += sm_config.autosteps;
+		else
+			sm_stepcounter -= sm_config.autosteps;
 	}
-	sm_StopMotor();
+	sm_StopMotor();	
+	capture_ResetCounter();
 }
 
 
