@@ -10,6 +10,7 @@
 #include "osd/osd_eng.h"
 #include "osd/osd_event.h"
 #include <stdlib.h>
+#include "time.h"
 
 //osd kernel data object, RAM
 typedef struct osd_item_ks {
@@ -50,6 +51,9 @@ static int osd_ShowItem(const osd_item_t *item, int status);
 static int osd_HideItem(const osd_item_t *item);
 
 static osd_dialog_k *osd_active_kdlg;
+static time_t osd_update_always_timer;
+
+#define OSD_UPDATE_ALWAYS_MS	500
 
 void osd_Init(void)
 {
@@ -63,7 +67,6 @@ void osd_Update(void)
 	osd_dialog_k *kdlg;
 	osd_group_k *kgrp;
 	int event, ret = -1;
-	int update = ITEM_UPDATE_ALWAYS;
 	
 	kdlg = osd_active_kdlg;
 	if(kdlg == NULL)
@@ -73,14 +76,18 @@ void osd_Update(void)
 	kgrp = kdlg->active_kgrp;
 	
 	if(event != KEY_NONE) {
-		update = ITEM_UPDATE_AFTERCOMMAND;
 		if(kgrp != NULL)
 			ret = osd_HandleCommand(event, kgrp->grp->cmds);
 		if(ret)
 			osd_HandleCommand(event, kdlg->dlg->cmds);
+		osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERCOMMAND);
 	}
-	
-	osd_ShowDialog(kdlg, update);
+	else { //update always
+		if(time_left(osd_update_always_timer) < 0) {
+			osd_update_always_timer = time_get(OSD_UPDATE_ALWAYS_MS);
+			osd_ShowDialog(kdlg, ITEM_UPDATE_ALWAYS);
+		}
+	}
 }
 
 static int osd_HandleCommand(int event, const osd_command_t *cmds)
