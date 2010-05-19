@@ -73,8 +73,26 @@ void cpu_Init(void)
 		/* PCLK1 = HCLK/2 */
 		RCC_PCLK1Config(RCC_HCLK_Div2);
 
-		/* PLLCLK = 8MHz * 9 = 72 MHz */
+#ifndef STM32F10X_CL
+		/* PLLCLK = 12MHz * 9 = 72 MHz */
 		RCC_PLLConfig(RCC_PLLSource_HSE_Div1, RCC_PLLMul_6);
+#else
+	/* Configure PLLs *********************************************************/
+	/* PLL2 configuration: PLL2CLK = (HSE / 5) * 8 = 40 MHz,HSE = 25M */
+	RCC_PREDIV2Config(RCC_PREDIV2_Div5);
+	RCC_PLL2Config(RCC_PLL2Mul_8);
+	
+	/* Enable PLL2 */
+	RCC_PLL2Cmd(ENABLE);
+
+	/* Wait till PLL2 is ready */
+	while (RCC_GetFlagStatus(RCC_FLAG_PLL2RDY) == RESET)
+	{}
+
+	/* PLL configuration: PLLCLK = (PLL2 / 5) * 9 = 72 MHz */ 
+	RCC_PREDIV1Config(RCC_PREDIV1_Source_PLL2, RCC_PREDIV1_Div5);
+	RCC_PLLConfig(RCC_PLLSource_PREDIV1, RCC_PLLMul_9);
+#endif
 
 		/* Enable PLL */ 
 		RCC_PLLCmd(ENABLE);

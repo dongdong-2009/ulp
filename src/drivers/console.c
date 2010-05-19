@@ -12,9 +12,25 @@ void console_Init(void)
 	USART_InitTypeDef uartinfo;
 	
 	/* Enable GPIOA clock */
+#ifdef STM32F10X_CL
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD | RCC_APB2Periph_AFIO, ENABLE);
+	GPIO_PinRemapConfig(GPIO_Remap_USART2, ENABLE);
+#else
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+#endif
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
 
+#ifdef STM32F10X_CL
+	/*configure PD5<uart2.tx>, PD6<uart2.rx>*/
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+#else
 	/*configure PA2<uart2.tx>, PA3<uart2.rx>*/
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -24,6 +40,7 @@ void console_Init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
+#endif
 
 	/*init serial port*/
 	USART_StructInit(&uartinfo);
