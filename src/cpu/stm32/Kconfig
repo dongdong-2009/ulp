@@ -13,3 +13,6 @@ bool "use stm32 std periph driver?" CONFIG_USE_STDPERIPH_DRIVER y
 if [ "$CONFIG_USE_STDPERIPH_DRIVER" = "y"]; then
 	int "high speed external clk freq?" CONFIG_HSE_VALUE 12000000
 fi
+if [ "$CONFIG_STM32F10X_CL" = "y"]; then
+	bool "use stm32 std ethernet driver?" CONFIG_USE_STDETHERNET_DRIVER y
+fi
