@@ -1,0 +1,14 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+bool "enable task of 'motor'?" CONFIG_TASK_MOTOR
+bool "enable task of 'stepmotor'?" CONFIG_TASK_STEPMOTOR
+bool "enable task of 'vvt'?" CONFIG_TASK_VVT
+
+mainmenu_option next_comment
+	comment 'tasks detail configuration'
+	source src/tasks/Kconfig.submenu
+endmenu

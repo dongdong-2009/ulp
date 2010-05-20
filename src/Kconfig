@@ -20,3 +20,8 @@ mainmenu_option next_comment
   comment 'lib'
   source src/lib/Kconfig
 endmenu
+
+mainmenu_option next_comment
+  comment 'tasks'
+  source src/tasks/Kconfig
+endmenu
