@@ -1,0 +1,16 @@
+obj-y += ipv4/
+obj-y += snmp/
+obj-y += dhcp.o
+obj-y += dns.o
+obj-y += init.o
+obj-y += mem.o
+obj-y += memp.o
+obj-y += netif.o
+obj-y += pbuf.o
+obj-y += raw.o
+obj-y += stats.o
+obj-y += sys.o
+obj-y += tcp.o
+obj-y += tcp_in.o
+obj-y += tcp_out.o
+obj-y += udp.o

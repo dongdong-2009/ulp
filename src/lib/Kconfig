@@ -11,6 +11,7 @@ choice 'stm32 toolchain select'	" \
 
 bool "enable library of 'shell'?" CONFIG_TASK_SHELL
 bool "enable library of 'osd'?" CONFIG_TASK_OSD
+bool "enable library of 'lwip'?" CONFIG_LIB_LWIP
 
 mainmenu_option next_comment
 	comment 'library detail configuration'
