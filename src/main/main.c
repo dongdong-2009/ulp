@@ -22,6 +22,7 @@
 #include "shell/shell.h"
 #include "sm/stepmotor.h"
 #include "osd/osd.h"
+#include "eth_demo/eth_demo.h"
 
 /*******************************************************************************
 * Function Name  : main
@@ -57,6 +58,9 @@ int main(void)
 #if CONFIG_TASK_STEPMOTOR == 1
 	sm_Init();
 #endif
+#if CONFIG_TASK_ETHDEMO == 1
+	eth_demo_Init();
+#endif
 	
 	while(1) {
 		//update funcs
@@ -75,6 +79,9 @@ int main(void)
 #endif
 #if CONFIG_TASK_STEPMOTOR == 1
 		sm_Update();
+#endif
+#if CONFIG_TASK_ETHDEMO == 1
+		eth_demo_Update();
 #endif
 	}
 }
