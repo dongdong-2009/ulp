@@ -19,6 +19,10 @@ iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/cmsis/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/StdPeriph/inc/
+	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/STM32_ETH_Driver/inc/
+	$(IAR_TOOL) inc $(IAR_FILE) src/lib/lwip/src/include/
+	$(IAR_TOOL) inc $(IAR_FILE) src/lib/lwip/src/include/ipv4/
+	$(IAR_TOOL) inc $(IAR_FILE) src/lib/lwip/port/
 iar_add:
 	@echo target=$@ M=$(M): obj-y = $(obj-y)
 	@$(IAR_TOOL) add $(IAR_FILE) $(M) $(obj-y)
