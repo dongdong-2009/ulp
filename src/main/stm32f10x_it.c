@@ -21,11 +21,13 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
+#include "stm32_eth.h"
 #include "motor/motor.h"
 #include "vvt/vvt.h"
 #include "sys/system.h"
 #include "sm/stepmotor.h"
 #include "key_rc.h"
+#include "eth_demo/eth_demo.h"
 #include <stdio.h>
 
 /* Private typedef -----------------------------------------------------------*/
@@ -146,8 +148,11 @@ void PendSVC(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void SysTickHandler(void)
+void SysTick_Handler(void)
 {
+#if CONFIG_TASK_ETHDEMO == 1
+	eth_demo_systick_isr();
+#endif
 }
 
 /*******************************************************************************
@@ -646,4 +651,24 @@ void USBWakeUp_IRQHandler(void)
 {
 }
 
+/*******************************************************************************
+* Function Name  : ETH_IRQHandler
+* Description    : This function handles ETH interrupt request.
+* Input          : None
+* Output         : None
+* Return         : None
+*******************************************************************************/
+void ETH_IRQHandler(void)
+{
+#if CONFIG_TASK_ETHDEMO == 1
+	/* Handles all the received frames */
+	while (ETH_GetRxPktSize() != 0) {
+		eth_demo_isr();
+	}
+
+	/* Clear the Eth DMA Rx IT pending bits */
+	ETH_DMAClearITPendingBit(ETH_DMA_IT_R);
+	ETH_DMAClearITPendingBit(ETH_DMA_IT_NIS);
+#endif
+}
 /******************* (C) COPYRIGHT 2007 STMicroelectronics *****END OF FILE****/
