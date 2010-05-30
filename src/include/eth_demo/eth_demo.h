@@ -5,7 +5,7 @@
 #ifndef __ETH_DEMO_H__
 #define __ETH_DEMO_H__
 
-#define SYSTEMTICK_PERIOD_MS  10
+#define SYSTEMTICK_PERIOD_MS  50
 
 int eth_demo_Init(void);
 int eth_demo_Update(void);
