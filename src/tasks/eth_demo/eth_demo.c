@@ -25,20 +25,16 @@
 
 /* Private variables */
 struct netif netif;
-__IO uint32_t TCPTimer = 0;
-__IO uint32_t ARPTimer = 0;
+static __IO uint32_t TCPTimer = 0;
+static __IO uint32_t ARPTimer = 0;
 
 #ifdef LWIP_DHCP
-__IO uint32_t DHCPfineTimer = 0;
-__IO uint32_t DHCPcoarseTimer = 0;
+static __IO uint32_t DHCPfineTimer = 0;
+static __IO uint32_t DHCPcoarseTimer = 0;
 static uint32_t IPaddress = 0;
 #endif
 
-__IO uint32_t LocalTime = 0;
-
-/* public function prototypes */
-extern void client_init(void);
-extern void server_init(void);
+static __IO uint32_t LocalTime = 0;
 
 /* public function prototypes */
 static void LwIP_Periodic_Handle(__IO uint32_t localtime);
@@ -52,10 +48,8 @@ int eth_demo_Init(void)
 
 	/* Initializes the dynamic memory heap defined by MEM_SIZE.*/
 	mem_init();
-
 	/* Initializes the memory pools defined by MEMP_NUM_x.*/
 	memp_init();
-
 
 #if LWIP_DHCP
 	ipaddr.addr = 0;
@@ -101,10 +95,10 @@ void eth_demo_systick_isr(void)
 {
 	LocalTime += SYSTEMTICK_PERIOD_MS;
 }
+
 /*============ private functions ======================*/
 static void LwIP_Periodic_Handle(__IO uint32_t localtime)
 {
-
 	/* TCP periodic process every 250 ms */
 	if (localtime - TCPTimer >= TCP_TMR_INTERVAL) {
 		TCPTimer =  localtime;
@@ -128,5 +122,4 @@ static void LwIP_Periodic_Handle(__IO uint32_t localtime)
 		dhcp_coarse_tmr();
 	}
 #endif
-
 }
