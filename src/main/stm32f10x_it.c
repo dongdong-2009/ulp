@@ -150,8 +150,10 @@ void PendSVC(void)
 *******************************************************************************/
 void SysTick_Handler(void)
 {
+#if 0
 #if CONFIG_TASK_ETHDEMO == 1
 	eth_demo_systick_isr();
+#endif
 #endif
 }
 

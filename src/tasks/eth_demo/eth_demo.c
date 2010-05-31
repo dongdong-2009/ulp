@@ -14,6 +14,7 @@
 #include "lwip/dhcp.h"
 #include "stm32_mac.h"
 #include <stdio.h>
+#include "time.h"
 
 /* Private typedef */
 #define MAX_DHCP_TRIES        4
@@ -35,6 +36,7 @@ static uint32_t IPaddress = 0;
 #endif
 
 static __IO uint32_t LocalTime = 0;
+static time_t lwip_timer;
 
 /* public function prototypes */
 static void LwIP_Periodic_Handle(__IO uint32_t localtime);
@@ -71,6 +73,8 @@ int eth_demo_Init(void)
 
 	/*  When the netif is fully configured this function must be called.*/
 	netif_set_up(&netif);
+
+	lwip_timer = time_get(SYSTEMTICK_PERIOD_MS);
 	
 	/* Initilaize the HelloWorld module */
 	HelloWorld_init();
@@ -79,9 +83,14 @@ int eth_demo_Init(void)
 	
 	return 0;
 }
+
 int eth_demo_Update(void)
 {
-	LwIP_Periodic_Handle(LocalTime);
+	if (time_left(lwip_timer) < 0) {
+		lwip_timer = time_get(SYSTEMTICK_PERIOD_MS);
+		LocalTime += SYSTEMTICK_PERIOD_MS;
+		LwIP_Periodic_Handle(LocalTime);
+	}
 	
 	return 0;
 }
@@ -89,11 +98,6 @@ int eth_demo_Update(void)
 void eth_demo_isr(void)
 {
 	ethernetif_input(&netif);
-}
-
-void eth_demo_systick_isr(void)
-{
-	LocalTime += SYSTEMTICK_PERIOD_MS;
 }
 
 /*============ private functions ======================*/
