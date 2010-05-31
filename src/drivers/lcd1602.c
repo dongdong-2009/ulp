@@ -41,6 +41,27 @@ static lcd1602_status lcd1602_ReadStaus(void)
 	return status;
 }
 
+static char lcd1602_fail;
+static int lcd1602_wait(void)
+{
+	int ret = -1;
+	time_t ms = time_get(10); //timeout = 10mS
+	
+	while(lcd1602_fail == 0) {
+		if(!lcd1602_ReadStaus()) {
+			ret = 0;
+			break;
+		}
+		
+		if(time_left(ms) < 0) {
+			lcd1602_fail = 1;
+			break;
+		}
+	}
+	
+	return ret;
+}
+
 static void lcd1602_WriteCommand(uint8_t command)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;	
@@ -84,19 +105,19 @@ int lcd1602_Init(void)
 	lcd1602_WriteCommand(LCD1602_COMMAND_SETMODE);	
 	
 	//check the busy bit
-	while(lcd1602_ReadStaus());
+	lcd1602_wait();
 	lcd1602_WriteCommand(LCD1602_COMMAND_SETMODE);		//set mode
 	//check the busy bit
-	while(lcd1602_ReadStaus());
+	lcd1602_wait();
 	lcd1602_WriteCommand(LCD1602_COMMAND_OFFSCREEN);	//turn off screen
 	//check the busy bit
-	while(lcd1602_ReadStaus());
+	lcd1602_wait();
 	lcd1602_WriteCommand(LCD1602_COMMAND_CLRSCREEN);	//clear screeen
 	//check the busy bit
-	while(lcd1602_ReadStaus());
+	lcd1602_wait();
 	lcd1602_WriteCommand(LCD1602_COMMAND_SETPTMOVE);	//set lcd1602 ram pointer
 	//check the busy bit
-	while(lcd1602_ReadStaus());
+	lcd1602_wait();
 	lcd1602_WriteCommand(LCD1602_COMMAND_SETCUSOR);		//set screen display
 	
 	return 0;
@@ -109,11 +130,11 @@ int lcd1602_WriteChar(int row,int column,int8_t ch)
 	i = row ? (0xc0 + column):(0x80 + column);
 
 	//check the busy bit
-	while(lcd1602_ReadStaus());
+	lcd1602_wait();
 	lcd1602_WriteCommand(i);
 	
 	//check the busy bit
-	while(lcd1602_ReadStaus());
+	lcd1602_wait();
 	GPIO_SetBits(GPIOC,LCD1602_PORT&ch);
 	GPIO_ResetBits(GPIOC,LCD1602_PORT&(~ch));
 	
@@ -141,12 +162,12 @@ int lcd1602_WriteString(int column, int row, const char *s)
 	i = row ? (0xc0 + column):(0x80 + column);
 
 	//check the busy bit
-	while(lcd1602_ReadStaus());
+	lcd1602_wait();
 	lcd1602_WriteCommand(i);
 	
 	for( i = 0 ; i < size ; i++){
 		//check the busy bit
-		while(lcd1602_ReadStaus());
+		lcd1602_wait();
 		GPIO_SetBits(GPIOC,LCD1602_PORT&(*s));
 		GPIO_ResetBits(GPIOC,LCD1602_PORT&(~(*s)));
 	
@@ -165,7 +186,7 @@ int lcd1602_WriteString(int column, int row, const char *s)
 int lcd1602_ClearScreen(void)
 {
 	//check the busy bit
-	while(lcd1602_ReadStaus());
+	lcd1602_wait();
 	lcd1602_WriteCommand(LCD1602_COMMAND_CLRSCREEN);	//clear screeen
 
 	return 0;
