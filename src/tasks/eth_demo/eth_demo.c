@@ -28,7 +28,7 @@ struct netif netif;
 static __IO uint32_t TCPTimer = 0;
 static __IO uint32_t ARPTimer = 0;
 
-#ifdef LWIP_DHCP
+#if LWIP_DHCP == 1
 static __IO uint32_t DHCPfineTimer = 0;
 static __IO uint32_t DHCPcoarseTimer = 0;
 static uint32_t IPaddress = 0;
