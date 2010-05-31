@@ -47,7 +47,7 @@ void smctrl_Init(void)
 	//init for l6208
 	l6208_Init();
 	l6208_StartCmd(ENABLE); //enable l6208
-	l6208_SetHomeState(ENABLE); //enable home state
+	l6208_SetHomeState(); //enable home state
 	
 #ifdef CONFIG_STEPPERMOTOR_HALFSTEP
 	l6208_SelectMode(HalfMode); //enable half stepmode

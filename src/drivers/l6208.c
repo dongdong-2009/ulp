@@ -86,14 +86,12 @@ void l6208_SelectMode(l6208_stepmode stepmode)
 /*
  *set the stepper motor to home state
  */
-void l6208_SetHomeState(FunctionalState state)
+void l6208_SetHomeState(void)
 {
-	if(state == DISABLE){
-		GPIO_SetBits(GPIOB,L6208_RST);
-	}
-	else{
-		GPIO_ResetBits(GPIOB,L6208_RST);
-	}
+	int us = 1;
+	GPIO_ResetBits(GPIOB,L6208_RST);
+	while(us > 0) us--;
+	GPIO_SetBits(GPIOB,L6208_RST);
 }
 
 /*
