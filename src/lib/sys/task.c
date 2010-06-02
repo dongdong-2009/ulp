@@ -21,7 +21,7 @@ void task_Init(void)
 	}
 }
 
-static void sys_update(void)
+static void task_update(void)
 {
 	void (**update)(void);
 	void (**end)(void);
@@ -38,5 +38,5 @@ static void sys_update(void)
 
 void task_Update(void)
 {
-	sys_update();
+	task_update();
 }
