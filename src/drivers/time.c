@@ -29,6 +29,17 @@ void time_Init(void)
 	
 	RTC_WaitForLastTask();
 	RTC_SetCounter(0);
+	
+#if 1
+	RCC_ClocksTypeDef RCC_Clocks;
+	/* SystTick configuration: an interrupt every 5ms */
+	RCC_GetClocksFreq(&RCC_Clocks);
+	SysTick_Config(RCC_Clocks.SYSCLK_Frequency / 200);
+
+	/* Update the SysTick IRQ priority should be higher than the Ethernet IRQ */
+	/* The Localtime should be updated during the Ethernet packets processing */
+	NVIC_SetPriority (SysTick_IRQn, 1);  
+#endif
 }
 
 void time_Update(void)

@@ -73,15 +73,6 @@ void stm32mac_Init(void)
 	mac_NVIC_Configuration();
 	mac_GPIO_Configuration();
 	mac_Ethernet_Configuration();
-#if 0
-	/* SystTick configuration: an interrupt every 50ms */
-	RCC_GetClocksFreq(&RCC_Clocks);
-	SysTick_Config(RCC_Clocks.SYSCLK_Frequency / 20);
-
-	/* Update the SysTick IRQ priority should be higher than the Ethernet IRQ */
-	/* The Localtime should be updated during the Ethernet packets processing */
-	NVIC_SetPriority (SysTick_IRQn, 1);  
-#endif
 }
 
 /*

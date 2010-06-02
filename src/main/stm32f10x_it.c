@@ -27,7 +27,7 @@
 #include "sys/system.h"
 #include "sm/stepmotor.h"
 #include "key_rc.h"
-#include "eth_demo/eth_demo.h"
+#include "sys/task.h"
 #include <stdio.h>
 
 /* Private typedef -----------------------------------------------------------*/
@@ -150,11 +150,7 @@ void PendSVC(void)
 *******************************************************************************/
 void SysTick_Handler(void)
 {
-#if 0
-#if CONFIG_TASK_ETHDEMO == 1
-	eth_demo_systick_isr();
-#endif
-#endif
+	task_Isr();
 }
 
 /*******************************************************************************
