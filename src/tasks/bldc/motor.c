@@ -3,7 +3,7 @@
  */
 
 #include "config.h"
-#include "sys/system.h"
+#include "sys/task.h"
 #include "motor/motor.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -133,6 +133,8 @@ void motor_Update(void)
 			printf("SYSTEM ERROR!!!\n");
 	}
 }
+
+DECLARE_TASK(motor_Init, motor_Update)
 
 void motor_SetSpeed(short speed)
 {

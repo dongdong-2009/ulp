@@ -15,14 +15,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "config.h"
-#include "debug.h"
-#include "sys/system.h"
-#include "motor/motor.h"
-#include "vvt/vvt.h"
-#include "shell/shell.h"
-#include "sm/stepmotor.h"
-#include "osd/osd.h"
-#include "eth_demo/eth_demo.h"
+#include "sys/task.h"
 
 /*******************************************************************************
 * Function Name  : main
@@ -32,56 +25,9 @@
 * Return         : None
 *******************************************************************************/
 int main(void)
-{
-#if CONFIG_SYS_DEBUG == 1
-	sys_Debug();
-#endif
-
-#if CONFIG_MOTOR_DEBUG == 1
-	motor_Debug();
-#endif
-	
-	//init funcs
-	sys_Init();
-#if CONFIG_TASK_SHELL == 1
-	shell_Init();
-#endif
-#if CONFIG_TASK_OSD == 1
-	osd_Init();
-#endif
-#if CONFIG_TASK_MOTOR == 1
-	motor_Init();
-#endif
-#if CONFIG_TASK_VVT == 1
-	vvt_Init();
-#endif
-#if CONFIG_TASK_STEPMOTOR == 1
-	sm_Init();
-#endif
-#if CONFIG_TASK_ETHDEMO == 1
-	eth_demo_Init();
-#endif
-	
+{	
+	task_Init();
 	while(1) {
-		//update funcs
-		sys_Update();
-#if CONFIG_TASK_SHELL == 1
-		shell_Update();
-#endif
-#if CONFIG_TASK_OSD == 1
-		osd_Update();
-#endif
-#if CONFIG_TASK_MOTOR == 1
-		motor_Update();
-#endif
-#if CONFIG_TASK_VVT == 1
-		vvt_Update();
-#endif
-#if CONFIG_TASK_STEPMOTOR == 1
-		sm_Update();
-#endif
-#if CONFIG_TASK_ETHDEMO == 1
-		eth_demo_Update();
-#endif
+		task_Update();
 	}
 }

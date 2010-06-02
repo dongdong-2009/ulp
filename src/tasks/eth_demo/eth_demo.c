@@ -41,7 +41,7 @@ static time_t lwip_timer;
 /* public function prototypes */
 static void LwIP_Periodic_Handle(__IO uint32_t localtime);
 
-int eth_demo_Init(void)
+void eth_demo_Init(void)
 {
 	struct ip_addr ipaddr;
 	struct ip_addr netmask;
@@ -80,20 +80,18 @@ int eth_demo_Init(void)
 	HelloWorld_init();
 	
 	tcpserver_Init();
-	
-	return 0;
 }
 
-int eth_demo_Update(void)
+void eth_demo_Update(void)
 {
 	if (time_left(lwip_timer) < 0) {
 		lwip_timer = time_get(SYSTEMTICK_PERIOD_MS);
 		LocalTime += SYSTEMTICK_PERIOD_MS;
 		LwIP_Periodic_Handle(LocalTime);
 	}
-	
-	return 0;
 }
+
+DECLARE_TASK(eth_demo_Init, eth_demo_Update)
 
 void eth_demo_isr(void)
 {

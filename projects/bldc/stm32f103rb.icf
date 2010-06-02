@@ -31,3 +31,5 @@ place in RAM_region   { readwrite,
                         block CSTACK, block HEAP };
 place in RAM_region   { section .shell.cmd };
 keep { section .shell.cmd };
+place in RAM_region   { section .sys.task };
+keep { section .sys.task };

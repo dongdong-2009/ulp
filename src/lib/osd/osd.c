@@ -11,6 +11,7 @@
 #include "osd/osd_event.h"
 #include <stdlib.h>
 #include "time.h"
+#include "sys/task.h"
 
 //osd kernel data object, RAM
 typedef struct osd_item_ks {
@@ -89,6 +90,8 @@ void osd_Update(void)
 		}
 	}
 }
+
+DECLARE_TASK(osd_Init, osd_Update)
 
 static int osd_HandleCommand(int event, const osd_command_t *cmds)
 {

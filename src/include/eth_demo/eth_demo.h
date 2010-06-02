@@ -7,8 +7,8 @@
 
 #define SYSTEMTICK_PERIOD_MS  50
 
-int eth_demo_Init(void);
-int eth_demo_Update(void);
+void eth_demo_Init(void);
+void eth_demo_Update(void);
 void eth_demo_isr(void);
 void eth_demo_systick_isr(void);
 

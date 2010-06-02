@@ -97,6 +97,8 @@ void vvt_Update(void)
 	pss_SetSpeed(tmp);
 }
 
+DECLARE_TASK(vvt_Init, vvt_Update)
+
 void vvt_isr(void)
 {
 	vvt_gear ++;

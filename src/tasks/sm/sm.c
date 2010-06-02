@@ -13,6 +13,7 @@
 #include "time.h"
 #include "stdio.h"
 #include "led.h"
+#include "sys/task.h"
 
 //private data read from or store to flash
 typedef struct{
@@ -115,6 +116,8 @@ void sm_Update(void)
 		sm_status = SM_IDLE;
 	}
 }
+
+DECLARE_TASK(sm_Init, sm_Update)
 
 int sm_StartMotor(int clockwise)
 {

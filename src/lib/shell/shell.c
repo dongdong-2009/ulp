@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "sys/system.h"
+#include "sys/task.h"
 #include "shell/cmd.h"
 #include "console.h"
 
@@ -48,6 +48,8 @@ void shell_Update(void)
 	shell_Parse();
 	cmd_Exec(argc, argv);
 }
+
+DECLARE_TASK(shell_Init, shell_Update)
 
 /*read a line of string from console*/
 static int shell_ReadLine(void)
