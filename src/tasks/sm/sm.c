@@ -32,7 +32,6 @@ enum{
 static int sm_status;
 static sm_config_t sm_config;
 static time_t sm_stoptimer;
-static int sm_dirswitch;
 static int sm_stepcounter;
 
 static const int keymap[] = {
@@ -55,13 +54,15 @@ void sm_Init(void)
 	//set key map
 	key_SetLocalKeymap(keymap);
 #endif
+
 	//init for stepper clock
 	smctrl_Init();
-	
+
 	//init for capture clock
 	capture_Init();
 	capture_Start();
-	
+	capture_SetCounter(0);
+
 	//read config from flash and config device
 	sm_GetConfigFromFlash();
 
@@ -70,17 +71,7 @@ void sm_Init(void)
 	
 	//init for variables
 	sm_status = SM_IDLE;
-	sm_dirswitch = 0;
 	sm_stepcounter = 0;
-#if 0
-	sm_config.runmode = SM_RUNMODE_MANUAL;
-	sm_config.rpm = 60;
-	sm_config.autosteps = 2000;
-	sm_config.dir = 1;
-	capture_SetAutoReload(sm_config.autosteps);
-	sm_SetRPM(sm_config.rpm);	
-#endif
-	
 }
 
 void sm_Update(void)
@@ -109,7 +100,6 @@ void sm_Update(void)
 			sm_StopMotor();
 		}
 		led_on(LED_RED);
-		//printf("counter: %d \n",capture_GetCounter());
 		break;
 
 	default:
@@ -121,25 +111,24 @@ DECLARE_TASK(sm_Init, sm_Update)
 
 int sm_StartMotor(int clockwise)
 {
-	if (sm_config.runmode == SM_RUNMODE_MANUAL) {
-		if (clockwise != sm_config.dir) 
-			sm_dirswitch = 1;
-		else
-			sm_dirswitch = 0;
-	}
-	else
-		sm_config.dir = clockwise;
-	
-	//sm_config.dir = clockwise;
+	sm_config.dir = clockwise;
 	sm_stoptimer = time_get(20); //20ms delay
 	return 0;
 }
 
 void sm_StopMotor(void)
 {
+	int step_cap;
+	
 	smctrl_Stop();
 	sm_status = SM_IDLE;
 	sm_stoptimer = 0;
+	step_cap = capture_GetCounter();
+	capture_SetCounter(0);
+	if(sm_config.runmode != SM_RUNMODE_MANUAL)
+		step_cap += sm_config.autosteps;
+	step_cap = (sm_config.dir == Clockwise) ? step_cap : -step_cap;
+	sm_stepcounter += step_cap;
 }
 
 int sm_SetRPM(int rpm)
@@ -148,10 +137,8 @@ int sm_SetRPM(int rpm)
 	rpm = (rpm < 1) ? 1 : rpm;
 	rpm = (rpm > SM_MAX_RPM) ? SM_MAX_RPM : rpm;
 
-	if (sm_status == SM_IDLE) {
-		sm_config.rpm = rpm;
-	} else {
-		sm_config.rpm = rpm;
+	sm_config.rpm = rpm;
+	if (sm_status == SM_RUNNING) { /*dynamic change the speed of the motor*/
 		smctrl_SetRPM(rpm);
 	}
 
@@ -184,45 +171,17 @@ int sm_GetAutoSteps(void)
 
 int sm_GetSteps(void)
 {
-	int temp;
-
-	switch (sm_config.dir) {
-	case Clockwise:
-		if (sm_dirswitch == 1) {
-			sm_stepcounter += capture_GetCounter();
-			temp = sm_stepcounter;
-			capture_ResetCounter();
-			sm_config.dir = CounterClockwise;
-			sm_dirswitch = 0;
-		}
-		else
-			temp = sm_stepcounter + capture_GetCounter();
-		break;
-			
-	case CounterClockwise:
-		if(sm_dirswitch == 1) {
-			sm_stepcounter -= capture_GetCounter();
-			temp = sm_stepcounter;
-			capture_ResetCounter();
-			sm_config.dir = Clockwise;
-			sm_dirswitch = 0;
-		}
-		else
-			temp = sm_stepcounter - capture_GetCounter();
-		break;
-			
-	default:
-		break;
-	}
-		
-	return temp;
+	int step_cap;
+	
+	step_cap = capture_GetCounter();
+	step_cap = (sm_config.dir == Clockwise) ? step_cap : -step_cap;
+	return sm_stepcounter + step_cap;
 }
 
 void sm_ResetStep(void)
 {
 	if (sm_status == SM_IDLE) {
 		sm_stepcounter = 0;
-		capture_ResetCounter();
 	}
 }
 
@@ -234,46 +193,28 @@ int sm_GetRunMode(void)
 int sm_SetRunMode(int newmode)
 {
 	if(sm_status == SM_IDLE) {
-		if ((newmode >= SM_RUNMODE_MANUAL) && (newmode < SM_RUNMODE_INVALID)) {
-			if ((sm_config.dir == Clockwise))
-				sm_stepcounter += capture_GetCounter();
-			else
-				sm_stepcounter -= capture_GetCounter();
-			capture_ResetCounter();
-			sm_config.runmode = newmode;
-		}
+		sm_config.runmode = newmode;
 	}
 	
-	/*success return 0*/
-	return (newmode != sm_config.runmode);
+	return 0;
 }
 
 int sm_GetConfigFromFlash(void)
 {
 	flash_Read((void *)(&sm_config), (void const *)SM_USER_FLASH_ADDR, sizeof(sm_config_t));
-        
 	return 0;
 }
 int sm_SaveConfigToFlash(void)
 {
 	flash_Erase((void *)SM_USER_FLASH_ADDR, 1);
 	flash_Write((void *)SM_USER_FLASH_ADDR, (void const *)(&sm_config), sizeof(sm_config_t));
-	
 	return 0;
 }
 
 void sm_isr(void)
 {
-	if (sm_config.runmode == SM_RUNMODE_MANUAL) {
-		sm_stepcounter = 0;
-	} else {
-		if ((sm_config.dir == Clockwise))
-			sm_stepcounter += sm_config.autosteps;
-		else
-			sm_stepcounter -= sm_config.autosteps;
-	}
-	sm_StopMotor();	
-	capture_ResetCounter();
+	/*warnning: manual mode may also reach this point, in case of steps >= 65535*/
+	sm_StopMotor();
 }
 
 
