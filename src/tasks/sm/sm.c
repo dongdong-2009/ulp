@@ -111,7 +111,8 @@ DECLARE_TASK(sm_Init, sm_Update)
 
 int sm_StartMotor(int clockwise)
 {
-	sm_config.dir = clockwise;
+	if(sm_status == SM_IDLE)
+		sm_config.dir = clockwise;
 	sm_stoptimer = time_get(20); //20ms delay
 	return 0;
 }
