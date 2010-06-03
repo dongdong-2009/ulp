@@ -113,7 +113,7 @@ int sm_StartMotor(int clockwise)
 {
 	if(sm_status == SM_IDLE)
 		sm_config.dir = clockwise;
-	sm_stoptimer = time_get(20); //20ms delay
+	sm_stoptimer = time_get(13);
 	return 0;
 }
 
