@@ -32,7 +32,7 @@ void capture_Init(void)
 	
 	/*external clock mode 1 ,prescaler is off,clock edge is rising clock,input source is TI1_ED*/
 	//TIM_ETRClockMode1Config(TIM1, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_NonInverted,0);	
-	TIM_TIxExternalClockConfig(TIM1, TIM_TIxExternalCLK1Source_TI1ED,TIM_ICPolarity_Rising, 0);
+	TIM_TIxExternalClockConfig(TIM1, TIM_TIxExternalCLK1Source_TI1,TIM_ICPolarity_Rising, 0);
 	TIM_SetCounter(TIM1,0);
 	
 	/*config and enable tim1 counter overflow interrupt*/
