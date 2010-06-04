@@ -66,7 +66,7 @@ void l6208_SetRotationDirection(int dir)
 		GPIO_SetBits(GPIOB, L6208_DIR);
 	}
 	else{   
-		GPIO_ResetBits(GPIOB, GPIO_Pin_6);
+		GPIO_ResetBits(GPIOB, L6208_DIR);
 	}
 }
 
