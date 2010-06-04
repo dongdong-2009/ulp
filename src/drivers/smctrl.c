@@ -58,12 +58,16 @@ void smctrl_Init(void)
 #ifdef CONFIG_STEPPERMOTOR_FASTDECAYSTEP
 	l6208_SetControlMode(DecayFast); //enable decay slow mode
 #else
-l6208_SetControlMode(DecaySlow); //enable decay slow mode
+	l6208_SetControlMode(DecaySlow); //enable decay slow mode
 #endif
 
 	//init for sm pwm
 	smpwm_Init();
 	smpwm_SetDuty(50); //duty is 50%
+
+#if CONFIG_STEPPERMOTOR_IDLE_POWEROFF == 1
+	l6208_StartCmd(DISABLE);
+#endif
 }
 
 void smctrl_SetRPM(int rpm)
@@ -90,12 +94,18 @@ void smctrl_SetRotationDirection(int dir)
 
 void smctrl_Start(void)
 {
+#if CONFIG_STEPPERMOTOR_IDLE_POWEROFF == 1
+	l6208_StartCmd(ENABLE);
+#endif
 	ad9833_Enable(&sm_dds);
 }
 
 void smctrl_Stop(void)
 {
 	ad9833_Disable(&sm_dds);
+#if CONFIG_STEPPERMOTOR_IDLE_POWEROFF == 1
+	l6208_StartCmd(DISABLE);
+#endif
 }
 
 

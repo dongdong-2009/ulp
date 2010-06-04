@@ -19,6 +19,7 @@ if [ "$CONFIG_DRIVER_STEPPERMOTOR" = "y" ]; then
 	int "steppermotor steps per round?" CONFIG_STEPPERMOTOR_SPM 200
 	bool "config step mode, half?" CONFIG_STEPPERMOTOR_HALFSTEP
 	bool "config decay mode, fast?" CONFIG_STEPPERMOTOR_FASTDECAYSTEP
+	bool "poweroff motor when in idle state?" CONFIG_STEPPERMOTOR_IDLE_POWEROFF
 fi
 bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
 bool "mac drivers of stm32" CONFIG_DRIVER_MAC_STM32
