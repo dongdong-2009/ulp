@@ -15,6 +15,7 @@
 #include "stm32_mac.h"
 #include <stdio.h>
 #include "time.h"
+#include "sys/task.h"
 
 /* Private typedef */
 #define MAX_DHCP_TRIES        4
@@ -26,12 +27,12 @@
 
 /* Private variables */
 struct netif netif;
-static __IO uint32_t TCPTimer = 0;
-static __IO uint32_t ARPTimer = 0;
+static uint32_t TCPTimer = 0;
+static uint32_t ARPTimer = 0;
 
 #if LWIP_DHCP == 1
-static __IO uint32_t DHCPfineTimer = 0;
-static __IO uint32_t DHCPcoarseTimer = 0;
+static uint32_t DHCPfineTimer = 0;
+static uint32_t DHCPcoarseTimer = 0;
 static uint32_t IPaddress = 0;
 #endif
 
