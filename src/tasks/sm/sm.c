@@ -46,6 +46,9 @@ static const int keymap[] = {
 
 void sm_Init(void)
 {
+	//read config from flash and config device
+	sm_GetConfigFromFlash();
+	
 #ifdef CONFIG_TASK_OSD
 	//handle osd display
 	int hdlg = osd_ConstructDialog(&sm_dlg);
@@ -62,9 +65,6 @@ void sm_Init(void)
 	capture_Init();
 	capture_Start();
 	capture_SetCounter(0);
-
-	//read config from flash and config device
-	sm_GetConfigFromFlash();
 
 	//green led flash
 	led_flash(LED_GREEN);
@@ -188,7 +188,8 @@ void sm_ResetStep(void)
 
 int sm_GetRunMode(void)
 {
-	return sm_config.runmode;
+	int mode = (sm_config.runmode) ? SM_RUNMODE_AUTO : SM_RUNMODE_MANUAL;
+	return mode;
 }
 
 int sm_SetRunMode(int newmode)
