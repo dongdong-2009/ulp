@@ -19,6 +19,7 @@ iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/cmsis/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/cmsis/
+	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/lm3s/cmsis/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/StdPeriph/inc/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/STM32_ETH_Driver/inc/
 	$(IAR_TOOL) inc $(IAR_FILE) src/lib/lwip/src/include/

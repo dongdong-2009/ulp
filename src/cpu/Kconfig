@@ -3,7 +3,16 @@
 #
 # Written by miaofng@2010
 #
-bool "Enable cpu STM32 support?" CONFIG_CPU_STM32 y
+
+choice 'cpu family select'	" \
+	stm32	CONFIG_CPU_STM32 \
+	lm3s	CONFIG_CPU_LM3S \
+" stm32
+
 if [ "$CONFIG_CPU_STM32" = "y"]; then
 	source src/cpu/stm32/Kconfig
+fi
+
+if [ "$CONFIG_CPU_LM3S" = "y"]; then
+	source src/cpu/lm3s/Kconfig
 fi
