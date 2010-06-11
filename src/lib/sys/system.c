@@ -9,11 +9,6 @@
 #include "stm32_mac.h"
 #include "spi.h"
 
-/* Private function prototypes -----------------------------------------------*/
-void RCC_Configuration(void);
-void NVIC_Configuration(void);
-void cpu_Init(void);
-
 void sys_Init(void)
 {
 	SystemInit();
