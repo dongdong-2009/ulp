@@ -3,3 +3,5 @@
 #
 # Written by miaofng@2010
 #
+
+bool "use TI driverlib?" CONFIG_USE_TI_DRIVER_LIB y
