@@ -7,5 +7,8 @@
 void sys_Init(void);
 void sys_Update(void);
 
+/*normally this routine will be provided by cpu/xxx/cmsis/system_xxx.c*/
+extern void SystemInit (void);
+
 #include "time.h"
 #endif /*__SYSTEM_H_*/

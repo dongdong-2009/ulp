@@ -9,6 +9,9 @@ choice 'cpu family select'	" \
 	lm3s	CONFIG_CPU_LM3S \
 " stm32
 
+int "high speed external clk freq?" CONFIG_HSE_VALUE 12000000
+int "low speed external clk freq?" CONFIG_LSE_VALUE 32768
+
 if [ "$CONFIG_CPU_STM32" = "y"]; then
 	source src/cpu/stm32/Kconfig
 fi
