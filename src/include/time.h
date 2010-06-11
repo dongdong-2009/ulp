@@ -8,6 +8,7 @@ typedef int time_t;
 
 void time_Init(void);
 void time_Update(void);
+void time_isr(void);
 time_t time_get(int delay); //unit: ms
 int time_left(time_t deadline); //unit: ms
 void udelay(int us);

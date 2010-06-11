@@ -6,72 +6,35 @@
 #include "stm32f10x.h"
 #include "time.h"
 
+void time_hwInit(void);
+
+static time_t jiffies;
+
 /*use RTC as timebase, tick period = 1ms*/
 void time_Init(void)
 {
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
-	PWR_BackupAccessCmd(ENABLE);
-#if 1
-	RCC_LSICmd(ENABLE);
-	while(RCC_GetFlagStatus(RCC_FLAG_LSIRDY) == RESET);
-	RCC_RTCCLKConfig(RCC_RTCCLKSource_LSI);
-#else
-	RCC_LSEConfig(RCC_LSE_ON);
-	while(RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET);
-	RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
-#endif
-	
-	RCC_RTCCLKCmd(ENABLE);
-	
-	RTC_WaitForSynchro();
-	RTC_WaitForLastTask();
-	RTC_SetPrescaler(40000/1000 - 1); /*tick = 1Khz*/
-	
-	RTC_WaitForLastTask();
-	RTC_SetCounter(0);
-	
-#if 1
-	RCC_ClocksTypeDef RCC_Clocks;
-	/* SystTick configuration: an interrupt every 5ms */
-	RCC_GetClocksFreq(&RCC_Clocks);
-	SysTick_Config(RCC_Clocks.HCLK_Frequency / CONFIG_DRIVER_SYSTICK_HZ);
-
-	/* Update the SysTick IRQ priority should be higher than the Ethernet IRQ */
-	/* The Localtime should be updated during the Ethernet packets processing */
-	NVIC_SetPriority (SysTick_IRQn, 1);  
-#endif
+	jiffies = 0;
+	time_hwInit();
 }
 
 void time_Update(void)
 {
-#if 0
-	int val;
-	RTC_WaitForLastTask();
-	val = RTC_GetCounter();
-#endif
+}
+
+void time_isr(void)
+{
+	jiffies ++;
 }
 
 /*unit: ms*/
 time_t time_get(int delay)
 {
-	int val,deadline;
-	
-	RTC_WaitForLastTask();
-	val = RTC_GetCounter();
-	deadline = (unsigned)val + delay;
-	
-	return (time_t)deadline;
+	return (time_t)(jiffies + delay);
 }
 
 int time_left(time_t deadline)
 {
-	int val, left;
-	
-	RTC_WaitForLastTask();
-	val = RTC_GetCounter();
-	left = (int)deadline - val;
-	
-	return left;
+	return (int)(deadline - jiffies);
 }
 
 void udelay(int us)
@@ -90,3 +53,40 @@ void sdelay(int ss)
 	time_t deadline = time_get(ss*1000);
 	while(time_left(deadline) > 0);
 }
+
+#if CONFIG_CPU_STM32
+void time_hwInit(void)
+{
+	RCC_ClocksTypeDef RCC_Clocks;
+	RCC_GetClocksFreq(&RCC_Clocks);
+	SysTick_Config(RCC_Clocks.HCLK_Frequency / 1000); /*1000Hz, 1ms per tick*/
+
+	/* Update the SysTick IRQ priority should be higher than the Ethernet IRQ */
+	/* The Localtime should be updated during the Ethernet packets processing */
+	NVIC_SetPriority (SysTick_IRQn, 1);
+
+	/*RTC init*/
+#if 0
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
+	PWR_BackupAccessCmd(ENABLE);
+#if 1
+	RCC_LSICmd(ENABLE);
+	while(RCC_GetFlagStatus(RCC_FLAG_LSIRDY) == RESET);
+	RCC_RTCCLKConfig(RCC_RTCCLKSource_LSI);
+#else
+	RCC_LSEConfig(RCC_LSE_ON);
+	while(RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET);
+	RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
+#endif
+
+	RCC_RTCCLKCmd(ENABLE);
+
+	RTC_WaitForSynchro();
+	RTC_WaitForLastTask();
+	RTC_SetPrescaler(40000/1000 - 1); /*tick = 1Khz*/
+
+	RTC_WaitForLastTask();
+	RTC_SetCounter(0);
+#endif
+}
+#endif

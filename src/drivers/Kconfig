@@ -4,7 +4,6 @@
 # Written by miaofng@2010
 #
 
-int "systick frequency in Hz?" CONFIG_DRIVER_SYSTICK_HZ 200
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
 bool "vvt drivers" CONFIG_DRIVER_VVT
 if [ "$CONFIG_DRIVER_VVT" = "y" ]; then

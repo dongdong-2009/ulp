@@ -5,7 +5,9 @@
 #include "config.h"
 #include "sys/task.h"
 #include "sys/system.h"
+#include "time.h"
 
+static time_t task_timer;
 static void (*task_foreground)(void);
 
 void task_Init(void)
@@ -13,6 +15,7 @@ void task_Init(void)
 	void (**init)(void);
 	void (**end)(void);
 	
+	task_timer = 0;
 	task_foreground = 0;
 	
 	sys_Init();
@@ -50,8 +53,13 @@ void task_Update(void)
 
 void task_Isr(void)
 {
-	if(task_foreground)
-		task_update();
+	time_isr();
+	if(task_foreground) {
+		if(time_left(task_timer) < 0) {
+			task_timer = time_get(CONFIG_SYSTEM_UPDATE_MS);
+			task_update();
+		}
+	}
 }
 
 void task_SetForeground(void (*task)(void))

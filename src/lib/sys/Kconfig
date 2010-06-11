@@ -7,3 +7,4 @@
 bool "enable sys debug?" CONFIG_SYSTEM_DEBUG
 bool "enable bus spi1?" CONFIG_SYSTEM_SPI1
 bool "enable bus spi2?" CONFIG_SYSTEM_SPI2
+int "background tasks update period in ms?" CONFIG_SYSTEM_UPDATE_MS 5
