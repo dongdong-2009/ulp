@@ -18,14 +18,20 @@ iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) ./
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/cmsis/
+ifeq ($(CONFIG_CPU_STM32),y)
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/cmsis/
-	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/lm3s/cmsis/
-	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/lm3s/driverlib/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/StdPeriph/inc/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/STM32_ETH_Driver/inc/
+endif
+ifeq ($(CONFIG_CPU_LM3S),y)
+	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/lm3s/cmsis/
+	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/lm3s/
+endif
+ifeq ($(CONFIG_LIB_LWIP), y)
 	$(IAR_TOOL) inc $(IAR_FILE) src/lib/lwip/src/include/
 	$(IAR_TOOL) inc $(IAR_FILE) src/lib/lwip/src/include/ipv4/
 	$(IAR_TOOL) inc $(IAR_FILE) src/lib/lwip/port/
+endif
 iar_add:
 	@echo target=$@ M=$(M): obj-y = $(obj-y)
 	@$(IAR_TOOL) add $(IAR_FILE) $(M) $(obj-y)
