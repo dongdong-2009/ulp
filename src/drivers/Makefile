@@ -1,4 +1,4 @@
-obj-y += console.o
+obj-$(CONFIG_CPU_STM32) += console_stm32.o
 obj-y += time.o
 obj-y += led.o
 obj-$(CONFIG_DRIVER_MOTOR) += dbg.o
