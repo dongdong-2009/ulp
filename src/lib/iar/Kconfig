@@ -1,0 +1,6 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+bool "redirect iar std-io to console driver?" CONFIG_IAR_REDIRECT

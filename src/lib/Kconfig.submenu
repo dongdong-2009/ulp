@@ -3,6 +3,12 @@
 #
 # Written by miaofng@2010
 #
+if [ "$CONFIG_TOOLCHAIN_IAR" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'iar'
+		source src/lib/iar/Kconfig
+	endmenu	
+fi
 
 mainmenu_option next_comment
 	comment 'sys'
