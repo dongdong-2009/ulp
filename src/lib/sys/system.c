@@ -13,7 +13,9 @@ void sys_Init(void)
 	SystemInit();
 	time_Init();
 	led_Init();
+#if (CONFIG_IAR_REDIRECT == 1) || (CONFIG_TASK_SHELL == 1)
 	console_Init();
+#endif
 #if CONFIG_SYSTEM_SPI1 == 1
 	spi_Init(1, SPI_MODE_POL_1| SPI_MODE_PHA_0| SPI_MODE_BW_16 | SPI_MODE_MSB);
 #endif
