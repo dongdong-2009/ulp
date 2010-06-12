@@ -5,6 +5,7 @@
 #include "config.h"
 #include "led.h"
 #include "time.h"
+#include "lm3s.h"
 
 void led_hwInit(void)
 {
