@@ -31,6 +31,9 @@ void sys_Init(void)
 	led_on(LED_GREEN);
 	mdelay(100);
 	led_off(LED_GREEN);
+	
+	//indicates system works well
+	led_flash(LED_GREEN);
 }
 
 void sys_Update(void)
