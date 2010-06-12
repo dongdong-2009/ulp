@@ -9,11 +9,20 @@ M ?= src/
 -include $(AUTOCONFIG_MAKE_FILE)
 -include $(M)Makefile
 
-iar: detect_config iar_clr iar_inc iar_add
+iar: detect_config iar_clr iar_cfg iar_inc iar_add
 	@echo "projects/bldc/bldc.ewp has been created!"
 
+iar_help:
+	$(IAR_TOOL)
 iar_clr:
 	$(IAR_TOOL) clr $(IAR_FILE)
+iar_cfg:
+ifeq ($(CONFIG_CPU_STM32),y)
+	$(IAR_TOOL) cfg $(IAR_FILE) 'STM32F10xxB	ST STM32F10xxB' 'stm32f103rb.icf'
+endif
+ifeq ($(CONFIG_CPU_LM3S),y)
+	$(IAR_TOOL) cfg $(IAR_FILE) 'LM3Sx9xx	Luminary LM3Sx9xx' 'lm3s.icf'
+endif
 iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) ./
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/

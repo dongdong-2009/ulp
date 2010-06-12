@@ -14,6 +14,7 @@ dir_prefix = "$PROJ_DIR$/../../"
 def usage():
 	print "usage:"
 	print "iar clr test.ewp"
+	print "iar cfg test.ewp cpu icf"
 	print "iar inc test.ewp src/include/"
 	print "iar add test.ewp src/lib/ iar/ motor/ shell/ sys/ ..."
 
@@ -53,6 +54,39 @@ def iar_clr():
 			stat = stats[j];
 			print 'Include Path', stat.text, 'is removed!'
 			opt.remove(stat)
+	#write to original file
+	iar.write(fname)
+
+
+#iar cfg stm32/lm3s
+def iar_cfg():
+	#print 'iar_cfg()'
+	if(nr_para < 4):
+		usage();
+		quit();
+	fname = argv[2];
+	#config cpu
+	cpu = argv[3];
+	dname = path.join(dir_prefix, path.dirname(argv[3]));
+	iar = etree.parse(fname);
+	root = iar.getroot();
+	#find chip select option
+	states = root.xpath("//option/name[text()='OGChipSelectEditMenu']/../state");
+	nr_states = len(states);
+	for i in range(nr_states):
+		state = states[i];
+		print 'cfg cpu:', state.text, '->', cpu
+		state.text = cpu;
+	#config icf file
+	if(nr_para > 4):
+		icf = path.join("$PROJ_DIR$/", argv[4]);
+		#find icf option
+		states = root.xpath("//option/name[text()='IlinkIcfFile']/../state");
+		nr_states = len(states);
+		for i in range(nr_states):
+			state = states[i];
+			print 'cfg icf:', state.text, '->', icf
+			state.text = icf;
 	#write to original file
 	iar.write(fname)
 
@@ -151,6 +185,8 @@ if(nr_para < 2):
 
 if (argv[1] == 'clr'):
 	iar_clr()
+elif (argv[1] == 'cfg'):
+	iar_cfg()
 elif (argv[1] == 'add'):
 	iar_add()
 elif (argv[1] == 'inc'):
