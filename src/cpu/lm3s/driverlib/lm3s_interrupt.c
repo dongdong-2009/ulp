@@ -96,7 +96,7 @@ IntDefaultHandler(void)
 // address given in the corresponding location in this list.
 //
 //*****************************************************************************
-#if defined(ewarm)
+#if defined(__ICCARM__)
 static __no_init void (*g_pfnRAMVectors[NUM_INTERRUPTS])(void) @ "VTABLE";
 #elif defined(sourcerygxx)
 static __attribute__((section(".cs3.region-head.ram")))

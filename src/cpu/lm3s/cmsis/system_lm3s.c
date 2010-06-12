@@ -43,7 +43,7 @@ __INLINE static uint32_t getOscClk (uint32_t xtal, uint32_t oscSrc);
 #define XTAL30K     (   30000UL)            /* Internal 30K oscillator freq */
 #define XTAL32K     (   32768UL)            /* external 32K oscillator freq */
 
-#define PLL_CLK    (200000000UL)
+#define PLL_CLK    (400000000UL)
 #define ADC_CLK     (PLL_CLK/25)
 #define CAN_CLK     (PLL_CLK/50)
 
