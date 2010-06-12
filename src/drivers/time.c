@@ -55,6 +55,8 @@ void sdelay(int ss)
 
 #if CONFIG_CPU_STM32 == 1
 #include "stm32f10x.h"
+#elif CONFIG_CPU_LM3S == 1
+#include "lm3s.h"
 #endif
 
 void time_hwInit(void)
