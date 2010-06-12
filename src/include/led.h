@@ -25,4 +25,8 @@ void led_on(led_t led);
 void led_off(led_t led);
 void led_inv(led_t led);
 void led_flash(led_t led);
+
+/*hw led driver routines*/
+void led_hwInit(void);
+void led_hwSetStatus(led_t led, led_status_t status);
 #endif /*__LED_H_*/
