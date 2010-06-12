@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "led.h"
+#include "time.h"
 
 void led_hwInit(void)
 {
@@ -11,9 +12,10 @@ void led_hwInit(void)
 		LED5	PA4
 		LED6	PA5
 	*/
-    SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOA;
-    GPIO_PORTA_DIR_R |= (1 << 4) | (1 << 5);
-    GPIO_PORTA_DEN_R |= (1 << 4) | (1 << 5);
+	SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOA;
+	udelay(10);
+	GPIO_PORTA_DIR_R |= (1 << 4) | (1 << 5);
+	GPIO_PORTA_DEN_R |= (1 << 4) | (1 << 5);
 }
 
 void led_hwSetStatus(led_t led, led_status_t status)
