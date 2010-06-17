@@ -4,6 +4,7 @@
 # Written by miaofng@2010
 #
 bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
+bool "enable network mac drivers?" CONFIG_DRIVER_MAC
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
 bool "vvt drivers" CONFIG_DRIVER_VVT
 if [ "$CONFIG_DRIVER_VVT" = "y" ]; then
