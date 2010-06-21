@@ -2,6 +2,8 @@
 *	dusk@2010 initial version
 */
 
+#include "driver.h"
+#include "lcd.h"
 #include "lcd1602.h"
 #include "time.h"
 #include <string.h>
@@ -191,3 +193,19 @@ int lcd1602_ClearScreen(void)
 
 	return 0;
 }
+
+static const lcd_t lcd1602 = {
+	.w = 16,
+	.h = 2,
+	.init = lcd1602_Init,
+	.puts = lcd1602_WriteString,
+	.clear_all = lcd1602_ClearScreen,
+	.clear_rect = NULL,
+	.scroll = NULL,
+};
+
+static void lcd1602_reg(void)
+{
+	lcd_add(&lcd1602);
+}
+driver_init(lcd1602_reg);
