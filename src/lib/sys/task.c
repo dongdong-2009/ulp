@@ -6,6 +6,7 @@
 #include "sys/task.h"
 #include "sys/system.h"
 #include "time.h"
+#include "driver.h"
 
 static time_t task_timer;
 static void (*task_foreground)(void);
@@ -26,6 +27,9 @@ void task_Init(void)
 		init ++;
 		init ++;
 	}
+	
+	/*plug-and-play driver init*/
+	drv_Init();
 }
 
 static void task_update(void)

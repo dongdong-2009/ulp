@@ -1,3 +1,4 @@
+obj-y += driver.o
 obj-y += time.o
 obj-y += led.o
 obj-y += led/
