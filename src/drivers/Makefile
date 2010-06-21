@@ -1,6 +1,5 @@
 obj-y += driver.o
 obj-y += time.o
-obj-y += led.o
 obj-y += led/
 obj-$(CONFIG_DRIVER_CONSOLE) += console/
 obj-$(CONFIG_DRIVER_NET) += mac/
