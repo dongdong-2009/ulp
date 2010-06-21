@@ -9,24 +9,8 @@
 #include "key.h"
 #include "time.h"
 #include <stddef.h>
-#include "key_rc.h"
-#include "key_adc.h"
 
 #define DIGIT_ENTRY_TIMEOUT	500 /*unit: mS*/
-
-#if CONFIG_DRIVER_RCKEY == 1
-static const keyboard_t key_rc = {
-	.init = rckey_init,
-	.getkey = rckey_getkey,
-};
-#endif
-
-#if CONFIG_DRIVER_ADCKEY == 1
-static const keyboard_t key_adc = {
-	.init = adckey_Init,
-	.getkey = adckey_GetKey,
-};
-#endif
 
 static const keyboard_t *key_local;
 static const keyboard_t *key_remote;
@@ -46,17 +30,6 @@ static struct {
 
 int key_Init(void)
 {
-	key_local = NULL;
-	key_remote = NULL;
-
-#if CONFIG_DRIVER_ADCKEY == 1
-	key_local= &key_adc;
-#endif
-
-#if CONFIG_DRIVER_RCKEY == 1
-	key_remote = &key_rc;
-#endif
-
 	key_map = NULL;
 	key_map_len = 0;
 
@@ -172,6 +145,17 @@ int key_SetEntryAndGetDigit(void)
 	key_digit += key;
 	key_digit_timer = time_get(DIGIT_ENTRY_TIMEOUT);
 	return key_digit;
+}
+
+int keyboard_Add(const keyboard_t *kb, int kt)
+{
+	if(kt == KEYBOARD_TYPE_LOCAL)
+		key_local = kb;
+	else
+		key_remote = kb;
+	
+	kb->init();
+	return 0;
 }
 
 #if 0

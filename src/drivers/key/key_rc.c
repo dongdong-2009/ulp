@@ -7,7 +7,7 @@
 #include "config.h"
 #include "stm32f10x.h"
 #include "key.h"
-#include "key_rc.h"
+#include "driver.h"
 #include "time.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -270,3 +270,14 @@ static int rckey_capture_getpulsewidth(void)
 	TIM_ClearFlag(TIM4, TIM_FLAG_Update);
 	return width;
 }
+
+static const keyboard_t key_rc = {
+	.init = rckey_init,
+	.getkey = rckey_getkey,
+};
+
+void rckey_reg(void)
+{
+	keyboard_Add(&key_rc, KEYBOARD_TYPE_REMOTE);
+}
+driver_init(rckey_reg);

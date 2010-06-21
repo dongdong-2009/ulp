@@ -67,6 +67,11 @@ typedef union {
 	int value;
 } key_t;
 
+enum {
+	KEYBOARD_TYPE_LOCAL,
+	KEYBOARD_TYPE_REMOTE,
+};
+
 typedef struct {
 	int (*init)(void);
 	key_t (*getkey)(void);
@@ -77,5 +82,7 @@ int key_SetLocalKeymap(const int *keymap); //keymap must be ended with KEY_NONE
 int key_GetKey(void);
 int key_SetKeyScenario(int delay, int repeat); //unit: mS
 int key_SetEntryAndGetDigit(void);
+
+int keyboard_Add(const keyboard_t *kb, int kt);
 
 #endif /*__KEY_H_*/

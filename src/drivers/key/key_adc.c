@@ -3,7 +3,8 @@
  *	miaofng@2010 state machine change
  */
 
-#include "key_adc.h"
+#include "key.h"
+#include "driver.h"
 #include "stm32f10x.h"
 #include "time.h"
 
@@ -152,3 +153,14 @@ key_t adckey_GetKey(void)
 	adckey_Update();
 	return adckey;
 }
+
+static const keyboard_t key_adc = {
+	.init = adckey_Init,
+	.getkey = adckey_GetKey,
+};
+
+void adckey_reg(void)
+{
+	keyboard_Add(&key_adc, KEYBOARD_TYPE_LOCAL);
+}
+driver_init(adckey_reg);

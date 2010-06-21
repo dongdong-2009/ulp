@@ -26,7 +26,6 @@
 #include "vvt/vvt.h"
 #include "sys/system.h"
 #include "sm/stepmotor.h"
-#include "key_rc.h"
 #include "sys/task.h"
 #include <stdio.h>
 
@@ -509,6 +508,7 @@ void TIM3_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
+extern void rckey_isr(void);
 void TIM4_IRQHandler(void)
 {
 #if CONFIG_DRIVER_RCKEY == 1

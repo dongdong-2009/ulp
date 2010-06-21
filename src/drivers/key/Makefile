@@ -1,0 +1,3 @@
+obj-y += key.o
+obj-$(CONFIG_DRIVER_RCKEY) += key_rc.o
+obj-$(CONFIG_DRIVER_ADCKEY) += key_adc.o
