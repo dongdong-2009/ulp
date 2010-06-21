@@ -20,6 +20,8 @@ void task_Init(void)
 	task_foreground = 0;
 	
 	sys_Init();
+	drv_Init();
+	
 	init = __section_begin(".sys.task");
 	end = __section_end(".sys.task");
 	while(init < end) {
@@ -27,9 +29,6 @@ void task_Init(void)
 		init ++;
 		init ++;
 	}
-	
-	/*plug-and-play driver init*/
-	drv_Init();
 }
 
 static void task_update(void)
