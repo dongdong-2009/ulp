@@ -2,7 +2,7 @@
  * 	dusk@2010 initial version
  */
 #include "eth_demo/eth_demo.h"
-#include "eth_demo/lwipopts.h"
+#include "lwipopts.h"
 #include "eth_demo/helloworld.h"
 #include "eth_demo/tcpserver.h"
 
@@ -12,7 +12,8 @@
 #include "lwip/udp.h"
 #include "netif/etharp.h"
 #include "lwip/dhcp.h"
-#include "stm32_mac.h"
+
+#include "ethernetif.h"
 #include <stdio.h>
 #include "time.h"
 #include "sys/task.h"
@@ -47,7 +48,6 @@ void eth_demo_Init(void)
 	struct ip_addr ipaddr;
 	struct ip_addr netmask;
 	struct ip_addr gw;
-	uint8_t macaddress[6]={0xA4,0xBA,0xDB,0xEE,0x5E,0x38};
 
 	/* Initializes the dynamic memory heap defined by MEM_SIZE.*/
 	mem_init();
@@ -64,7 +64,6 @@ void eth_demo_Init(void)
 	IP4_ADDR(&gw, 192, 168, 1, 254);
 #endif
 
-	Set_MAC_Address(macaddress);
 	netif_add(&netif, &ipaddr, &netmask, &gw, NULL, &ethernetif_init, &ethernet_input);
 	netif_set_default(&netif);
 
