@@ -22,7 +22,6 @@ if [ "$CONFIG_DRIVER_STEPPERMOTOR" = "y" ]; then
 	bool "poweroff motor when in idle state?" CONFIG_STEPPERMOTOR_IDLE_POWEROFF
 fi
 bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
-bool "mac drivers of stm32" CONFIG_DRIVER_MAC_STM32
 bool "spi bus driver for stm32?" CONFIG_DRIVER_SPI_STM32
 bool "dds chip ad9833" CONFIG_DRIVER_AD9833
 bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
