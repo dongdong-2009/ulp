@@ -45,10 +45,6 @@
 #ifndef __STELLARISIF_H__
 #define __STELLARISIF_H__
 
-extern int stellarisif_input(struct netif *netif);
-extern err_t stellarisif_init(struct netif *netif);
-extern void stellarisif_interrupt(struct netif *netif);
-
 #if NETIF_DEBUG
 void stellarisif_debug_print(struct pbuf *p);
 #else

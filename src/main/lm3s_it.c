@@ -23,7 +23,9 @@
 //
 //*****************************************************************************
 
+#include "config.h"
 #include "sys/task.h"
+#include "lm3s.h"
 
 //*****************************************************************************
 //
@@ -68,6 +70,25 @@ typedef union
     unsigned long ulPtr;
 }
 uVectorEntry;
+
+#if CONFIG_TASK_ETHDEMO == 1
+extern void eth_demo_isr(void);
+static void eth_isr(void)
+{
+	unsigned long ulStatus;
+
+	// Read and Clear the interrupt.
+	ulStatus = EthernetIntStatus(ETH_BASE, false);
+	EthernetIntClear(ETH_BASE, ulStatus);
+	
+	if(ulStatus) {
+		eth_demo_isr();
+	}
+}
+#define ETH_ISR	eth_isr
+#else
+#define ETH_ISR IntDefaultHandler
+#endif
 
 //*****************************************************************************
 //
@@ -136,7 +157,7 @@ __root const uVectorEntry __vector_table[] @ ".intvec" =
     IntDefaultHandler,                      // CAN0
     IntDefaultHandler,                      // CAN1
     IntDefaultHandler,                      // CAN2
-    IntDefaultHandler,                      // Ethernet
+    ETH_ISR,                                // Ethernet
     IntDefaultHandler                       // Hibernate
 };
 

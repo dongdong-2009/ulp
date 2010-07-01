@@ -53,30 +53,8 @@
 #include <lwip/snmp.h>
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
-#include "netif/stellarisif.h"
-
-/**
- * Sanity Check:  This interface driver will NOT work if the following defines
- * are incorrect.
- *
- */
-#if (PBUF_LINK_HLEN != 16)
-#error "PBUF_LINK_HLEN must be 16 for this interface driver!"
-#endif
-#if (ETH_PAD_SIZE != 2)
-#error "ETH_PAD_SIZE must be 2 for this interface driver!"
-#endif
-#if (!SYS_LIGHTWEIGHT_PROT)
-#error "SYS_LIGHTWEIGHT_PROT must be enabled for this interface driver!"
-#endif
-
-/**
- * Number of pbufs supported in low-level tx/rx pbuf queue.
- *
- */
-#ifndef STELLARIS_NUM_PBUF_QUEUE
-#define STELLARIS_NUM_PBUF_QUEUE    20
-#endif
+#include "stellarisif.h"
+#include "ethernetif.h"
 
 /**
  * Setup processing for PTP (IEEE-1588).
@@ -94,134 +72,7 @@ extern void lwIPHostGetTime(u32_t *time_s, u32_t *time_ns);
 #include "inc/hw_ints.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
-#include "driverlib/ethernet.h"
-#include "driverlib/interrupt.h"
-#include "driverlib/sysctl.h"
-
-/* Define those to better describe your network interface. */
-#define IFNAME0 'l'
-#define IFNAME1 'm'
-
-/* Helper struct to hold a queue of pbufs for transmit and receive. */
-struct pbufq {
-  struct pbuf *pbuf[STELLARIS_NUM_PBUF_QUEUE];
-  unsigned long qwrite;
-  unsigned long qread;
-  unsigned long overflow;
-};
-
-/* Helper macros for accessing pbuf queues. */
-#define PBUF_QUEUE_EMPTY(q) \
-    (((q)->qwrite == (q)->qread) ? true : false)
-
-#define PBUF_QUEUE_FULL(q) \
-    ((((((q)->qwrite + 1) % STELLARIS_NUM_PBUF_QUEUE)) == (q)->qread) ? \
-    true : false )
-
-/**
- * Helper struct to hold private data used to operate your ethernet interface.
- * Keeping the ethernet address of the MAC in this struct is not necessary
- * as it is already kept in the struct netif.
- * But this is only an example, anyway...
- */
-struct stellarisif {
-  struct eth_addr *ethaddr;
-  /* Add whatever per-interface state that is needed here. */
-  struct pbufq txq;
-};
-
-/**
- * Global variable for this interface's private data.  Needed to allow
- * the interrupt handlers access to this information outside of the
- * context of the lwIP netif.
- *
- */
-static struct stellarisif stellarisif_data;
-
-/**
- * Pop a pbuf packet from a pbuf packet queue
- *
- * @param q is the packet queue from which to pop the pbuf.
- *
- * @return pointer to pbuf packet if available, NULL otherswise.
- */
-static struct pbuf *
-dequeue_packet(struct pbufq *q)
-{
-  struct pbuf *pBuf;
-  SYS_ARCH_DECL_PROTECT(lev);
-
-  /**
-   * This entire function must run within a "critical section" to preserve
-   * the integrity of the transmit pbuf queue.
-   *
-   */
-  SYS_ARCH_PROTECT(lev);
-
-  if(PBUF_QUEUE_EMPTY(q)) {
-    /* Return a NULL pointer if the queue is empty. */
-    pBuf = (struct pbuf *)NULL;
-  }
-  else {
-    /**
-     * The queue is not empty so return the next frame from it
-     * and adjust the read pointer accordingly.
-     *
-     */
-    pBuf = q->pbuf[q->qread];
-    q->qread = ((q->qread + 1) % STELLARIS_NUM_PBUF_QUEUE);
-  }
-
-  /* Return to prior interrupt state and return the pbuf pointer. */
-  SYS_ARCH_UNPROTECT(lev);
-  return(pBuf);
-}
-
-/**
- * Push a pbuf packet onto a pbuf packet queue
- *
- * @param p is the pbuf to push onto the packet queue.
- * @param q is the packet queue.
- *
- * @return 1 if successful, 0 if q is full.
- */
-static int
-enqueue_packet(struct pbuf *p, struct pbufq *q)
-{
-  SYS_ARCH_DECL_PROTECT(lev);
-  int ret;
-
-  /**
-   * This entire function must run within a "critical section" to preserve
-   * the integrity of the transmit pbuf queue.
-   *
-   */
-  SYS_ARCH_PROTECT(lev);
-
-  if(!PBUF_QUEUE_FULL(q)) {
-    /**
-     * The queue isn't full so we add the new frame at the current
-     * write position and move the write pointer.
-     *
-     */
-    q->pbuf[q->qwrite] = p;
-    q->qwrite = ((q->qwrite + 1) % STELLARIS_NUM_PBUF_QUEUE);
-    ret = 1;
-  }
-  else {
-    /**
-     * The stack is full so we are throwing away this value.  Keep track
-     * of the number of times this happens.
-     *
-     */
-    q->overflow++;
-    ret = 0;
-  }
-
-  /* Return to prior interrupt state and return the pbuf pointer. */
-  SYS_ARCH_UNPROTECT(lev);
-  return(ret);
-}
+#include "lm3s.h"
 
 /**
  * In this function, the hardware should be initialized.
@@ -386,63 +237,6 @@ stellarisif_transmit(struct netif *netif, struct pbuf *p)
 }
 
 /**
- * This function with either place the packet into the Stellaris transmit fifo,
- * or will place the packet in the interface PBUF Queue for subsequent
- * transmission when the transmitter becomes idle.
- *
- * @param netif the lwip network interface structure for this ethernetif
- * @param p the MAC packet to send (e.g. IP packet including MAC addresses and type)
- * @return ERR_OK if the packet could be sent
- *         an err_t value if the packet couldn't be sent
- *
- */
-static err_t
-stellarisif_output(struct netif *netif, struct pbuf *p)
-{
-  struct stellarisif *stellarisif = netif->state;
-  SYS_ARCH_DECL_PROTECT(lev);
-
-  /**
-   * This entire function must run within a "critical section" to preserve
-   * the integrity of the transmit pbuf queue.
-   *
-   */
-  SYS_ARCH_PROTECT(lev);
-
-  /**
-   * Bump the reference count on the pbuf to prevent it from being
-   * freed till we are done with it.
-   *
-   */
-  pbuf_ref(p);
-
-  /**
-   * If the transmitter is idle, and there is nothing on the queue,
-   * send the pbuf now.
-   *
-   */
-  if(PBUF_QUEUE_EMPTY(&stellarisif->txq) &&
-    ((HWREG(ETH_BASE + MAC_O_TR) & MAC_TR_NEWTX) == 0)) {
-    stellarisif_transmit(netif, p);
-  }
-
-  /* Otherwise place the pbuf on the transmit queue. */
-  else {
-    /* Add to transmit packet queue */
-    if(!enqueue_packet(p, &(stellarisif->txq))) {
-      /* if no room on the queue, free the pbuf reference and return error. */
-      pbuf_free(p);
-      SYS_ARCH_UNPROTECT(lev);
-      return (ERR_MEM);
-    }
-  }
-
-  /* Return to prior interrupt state and return. */
-  SYS_ARCH_UNPROTECT(lev);
-  return ERR_OK;
-}
-
-/**
  * This function will read a single packet from the Stellaris ethernet
  * interface, if available, and return a pointer to a pbuf.  The timestamp
  * of the packet will be placed into the pbuf structure.
@@ -537,115 +331,35 @@ stellarisif_receive(struct netif *netif)
   return(p);
 }
 
-/**
- * Should be called at the beginning of the program to set up the
- * network interface. It calls the function stellarisif_hwinit() to do the
- * actual setup of the hardware.
- *
- * This function should be passed as a parameter to netif_add().
- *
- * @param netif the lwip network interface structure for this ethernetif
- * @return ERR_OK if the loopif is initialized
- *         ERR_MEM if private data couldn't be allocated
- *         any other err_t on error
- */
-err_t
-stellarisif_init(struct netif *netif)
+/*add by miaofng*/
+void low_level_init(struct netif *netif)
 {
-  LWIP_ASSERT("netif != NULL", (netif != NULL));
+	//
+	// Enable and Reset the Ethernet Controller.
+	//
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_ETH);
+	SysCtlPeripheralReset(SYSCTL_PERIPH_ETH);
+	
+	//
+	// Enable Port F for Ethernet LEDs.
+	//  LED0        Bit 3   Output
+	//  LED1        Bit 2   Output
+	//
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+	GPIOPinTypeEthernetLED(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3);
 
-#if LWIP_NETIF_HOSTNAME
-  /* Initialize interface hostname */
-  netif->hostname = "lwip";
-#endif /* LWIP_NETIF_HOSTNAME */
-
-  /*
-   * Initialize the snmp variables and counters inside the struct netif.
-   * The last argument should be replaced with your link speed, in units
-   * of bits per second.
-   */
-  NETIF_INIT_SNMP(netif, snmp_ifType_ethernet_csmacd, 1000000);
-
-  netif->state = &stellarisif_data;
-  netif->name[0] = IFNAME0;
-  netif->name[1] = IFNAME1;
-  /* We directly use etharp_output() here to save a function call.
-   * You can instead declare your own function an call etharp_output()
-   * from it if you have to do some checks before sending (e.g. if link
-   * is available...) */
-  netif->output = etharp_output;
-  netif->linkoutput = stellarisif_output;
-
-  stellarisif_data.ethaddr = (struct eth_addr *)&(netif->hwaddr[0]);
-  stellarisif_data.txq.qread = stellarisif_data.txq.qwrite = 0;
-  stellarisif_data.txq.overflow = 0;
-
-  /* initialize the hardware */
-  stellarisif_hwinit(netif);
-
-  return ERR_OK;
+	/* initialize the hardware */
+	stellarisif_hwinit(netif);
 }
 
-/**
- * Process tx and rx packets at the low-level interrupt.
- *
- * Should be called from the Stellaris Ethernet Interrupt Handler.  This
- * function will read packets from the Stellaris Ethernet fifo and place them
- * into a pbuf queue.  If the transmitter is idle and there is at least one packet
- * on the transmit queue, it will place it in the transmit fifo and start the
- * transmitter.
- *
- */
-void
-stellarisif_interrupt(struct netif *netif)
+err_t low_level_output(struct netif *netif, struct pbuf *p)
 {
-  struct stellarisif *stellarisif;
-  struct pbuf *p;
+	return stellarisif_transmit(netif, p);
+}
 
-  /* setup pointer to the if state data */
-  stellarisif = netif->state;
-
-  /**
-   * Process the transmit and receive queues as long as there is receive
-   * data available
-   *
-   */
-  p = stellarisif_receive(netif);
-  while(p != NULL) {
-    /* process the packet */
-#if NO_SYS
-    if(ethernet_input(p, netif)!=ERR_OK) {
-#else
-    if(tcpip_input(p, netif)!=ERR_OK) {
-#endif
-      /* drop the packet */
-      LWIP_DEBUGF(NETIF_DEBUG, ("stellarisif_input: input error\n"));
-      pbuf_free(p);
-
-      /* Adjust the link statistics */
-      LINK_STATS_INC(link.memerr);
-      LINK_STATS_INC(link.drop);
-    }
-
-    /* Check if TX fifo is empty and packet available */
-    if((HWREG(ETH_BASE + MAC_O_TR) & MAC_TR_NEWTX) == 0) {
-      p = dequeue_packet(&stellarisif->txq);
-      if(p != NULL) {
-        stellarisif_transmit(netif, p);
-      }
-    }
-
-    /* Read another packet from the RX fifo */
-    p = stellarisif_receive(netif);
-  }
-
-  /* One more check of the transmit queue/fifo */
-  if((HWREG(ETH_BASE + MAC_O_TR) & MAC_TR_NEWTX) == 0) {
-    p = dequeue_packet(&stellarisif->txq);
-    if(p != NULL) {
-      stellarisif_transmit(netif, p);
-    }
-  }
+struct pbuf *low_level_input(struct netif *netif)
+{
+	return stellarisif_receive(netif);
 }
 
 #if NETIF_DEBUG
