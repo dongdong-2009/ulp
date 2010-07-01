@@ -12,19 +12,13 @@
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
 
+#include "ethernetif.h"
 #include "stm32_mac.h"
 #include "stm32_eth.h"
 #include <string.h>
 
 /* TCP and ARP timeouts */
 volatile int tcp_end_time, arp_end_time;
-
-struct ethernetif
-{
-  struct eth_addr *ethaddr;
-  /* Add whatever per-interface state that is needed here. */
-  int unused;
-};
 
 typedef struct{
 u32 length;
@@ -36,7 +30,6 @@ extern ETH_DMADESCTypeDef  *DMATxDescToSet;
 extern ETH_DMADESCTypeDef  *DMARxDescToGet;
 
 /*================ Private varibles =============================*/
-uint8_t MACaddr[6];
 /* Ethernet Rx & Tx DMA Descriptors */
 ETH_DMADESCTypeDef  DMARxDscrTab[ETH_RXBUFNB], DMATxDscrTab[ETH_TXBUFNB];
 /* Ethernet buffers */
@@ -52,14 +45,9 @@ static void mac_Ethernet_Configuration(void);
 static FrameTypeDef ETH_RxPkt_ChainMode(void);
 static u32 ETH_GetCurrentTxBuffer(void);
 static u32 ETH_TxPkt_ChainMode(u16 FrameLength);
-static void low_level_init(struct netif *netif);
-static err_t low_level_output(struct netif *netif, struct pbuf *p);
-static struct pbuf * low_level_input(struct netif *netif);
 
 void stm32mac_Init(void)
 {
-	RCC_ClocksTypeDef RCC_Clocks;
-
 	/* Enable USART2 clock */
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
 	/* Enable ETHERNET clock  */
@@ -76,124 +64,25 @@ void stm32mac_Init(void)
 }
 
 /*
- * Setting the MAC address.
- */
-void Set_MAC_Address(uint8_t* macadd)
-{
-	MACaddr[0] = macadd[0];
-	MACaddr[1] = macadd[1];
-	MACaddr[2] = macadd[2];
-	MACaddr[3] = macadd[3];
-	MACaddr[4] = macadd[4];
-	MACaddr[5] = macadd[5];
-  
-	ETH_MACAddressConfig(ETH_MAC_Address0, macadd);  
-}
-
-/*
- * This function should be called when a packet is ready to be read
- * from the interface. It uses the function low_level_input() that
- * should handle the actual reception of bytes from the network
- * interface. Then the type of the received packet is determined and
- * the appropriate input function is called.
- *
- * @param netif the lwip network interface structure for this ethernetif
- */
-err_t ethernetif_input(struct netif *netif)
-{
-	err_t err;
-	struct pbuf *p;
-
-	/* move received packet into a new pbuf */
-	p = low_level_input(netif);
-
-	/* no packet could be read, silently ignore this */
-	if (p == NULL) return ERR_MEM;
-
-	err = netif->input(p, netif);
-	if (err != ERR_OK) {
-		LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
-		pbuf_free(p);
-		p = NULL;
-	}
-
-	return err;
-}
-
-/*
- * Should be called at the beginning of the program to set up the
- * network interface. It calls the function low_level_init() to do the
- * actual setup of the hardware.
- *
- * This function should be passed as a parameter to netif_add().
- *
- * @param netif the lwip network interface structure for this ethernetif
- * @return ERR_OK if the loopif is initialized
- *         ERR_MEM if private data couldn't be allocated
- *         any other err_t on error
- */
-err_t ethernetif_init(struct netif *netif)
-{
-	struct ethernetif *ethernetif;
-
-	LWIP_ASSERT("netif != NULL", (netif != NULL));
-
-	ethernetif = mem_malloc(sizeof(struct ethernetif));
-	if (ethernetif == NULL) {
-		LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_init: out of memory\n"));
-		return ERR_MEM;
-	}
-
-#if LWIP_NETIF_HOSTNAME
-	/* Initialize interface hostname */
-	netif->hostname = "lwip";
-#endif /* LWIP_NETIF_HOSTNAME */
-
-	/*
-	* Initialize the snmp variables and counters inside the struct netif.
-	* The last argument should be replaced with your link speed, in units
-	* of bits per second.
-	*/
-	NETIF_INIT_SNMP(netif, snmp_ifType_ethernet_csmacd, 100000000);
-
-	netif->state = ethernetif;
-	netif->name[0] = IFNAME0;
-	netif->name[1] = IFNAME1;
-	/* We directly use etharp_output() here to save a function call.
-	* You can instead declare your own function an call etharp_output()
-	* from it if you have to do some checks before sending (e.g. if link
-	* is available...) */
-	netif->output = etharp_output;
-	netif->linkoutput = low_level_output;
-
-	ethernetif->ethaddr = (struct eth_addr *)&(netif->hwaddr[0]);
-
-	/* initialize the hardware */
-	low_level_init(netif);
-
-	return ERR_OK;
-}
-
-/*====================private functions============================*/
-
-/*
  * In this function, the hardware should be initialized.
  * Called from ethernetif_init().
  * @param netif the already initialized lwip network interface structure
  *        for this ethernetif
  */
-static void low_level_init(struct netif *netif)
-{
+void low_level_init(struct netif *netif)
+{	
+	stm32mac_Init();
 	/* set MAC hardware address length */
 	netif->hwaddr_len = ETHARP_HWADDR_LEN;
 
 	/* set MAC hardware address */
-	netif->hwaddr[0] =  MACaddr[0];
-	netif->hwaddr[1] =  MACaddr[1];
-	netif->hwaddr[2] =  MACaddr[2];
-	netif->hwaddr[3] =  MACaddr[3];
-	netif->hwaddr[4] =  MACaddr[4];
-	netif->hwaddr[5] =  MACaddr[5];
+	netif->hwaddr[0] =  MAC_ADDR_BYTE0;
+	netif->hwaddr[1] =  MAC_ADDR_BYTE1;
+	netif->hwaddr[2] =  MAC_ADDR_BYTE2;
+	netif->hwaddr[3] =  MAC_ADDR_BYTE3;
+	netif->hwaddr[4] =  MAC_ADDR_BYTE4;
+	netif->hwaddr[5] =  MAC_ADDR_BYTE5;
+	ETH_MACAddressConfig(ETH_MAC_Address0, netif->hwaddr);
 
 	/* maximum transfer unit */
 	netif->mtu = 1500;
@@ -242,7 +131,7 @@ static void low_level_init(struct netif *netif)
  *       to become availale since the stack doesn't retry to send a packet
  *       dropped because of memory failure (except for the TCP timers).
  */
-static err_t low_level_output(struct netif *netif, struct pbuf *p)
+err_t low_level_output(struct netif *netif, struct pbuf *p)
 {
 	struct pbuf *q;
 	int l = 0;
@@ -266,7 +155,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
  * @return a pbuf filled with the received packet (including MAC header)
  *         NULL on memory error
  */
-static struct pbuf * low_level_input(struct netif *netif)
+struct pbuf * low_level_input(struct netif *netif)
 {
 	struct pbuf *p, *q;
 	u16_t len;
