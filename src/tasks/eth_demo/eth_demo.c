@@ -6,7 +6,6 @@
 #include "eth_demo/helloworld.h"
 #include "eth_demo/tcpserver.h"
 
-#include "stm32f10x.h"
 #include "lwip/memp.h"
 #include "lwip/tcp.h"
 #include "lwip/udp.h"
@@ -28,20 +27,20 @@
 
 /* Private variables */
 struct netif netif;
-static uint32_t TCPTimer = 0;
-static uint32_t ARPTimer = 0;
+static unsigned TCPTimer = 0;
+static unsigned ARPTimer = 0;
 
 #if LWIP_DHCP == 1
-static uint32_t DHCPfineTimer = 0;
-static uint32_t DHCPcoarseTimer = 0;
-static uint32_t IPaddress = 0;
+static unsigned DHCPfineTimer = 0;
+static unsigned DHCPcoarseTimer = 0;
+static unsigned IPaddress = 0;
 #endif
 
-static __IO uint32_t LocalTime = 0;
+static unsigned LocalTime = 0;
 static time_t lwip_timer;
 
 /* public function prototypes */
-static void LwIP_Periodic_Handle(__IO uint32_t localtime);
+static void LwIP_Periodic_Handle(unsigned localtime);
 
 void eth_demo_Init(void)
 {
@@ -99,7 +98,7 @@ void eth_demo_isr(void)
 }
 
 /*============ private functions ======================*/
-static void LwIP_Periodic_Handle(__IO uint32_t localtime)
+static void LwIP_Periodic_Handle(unsigned localtime)
 {
 	/* TCP periodic process every 250 ms */
 	if (localtime - TCPTimer >= TCP_TMR_INTERVAL) {
