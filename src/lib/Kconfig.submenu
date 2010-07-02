@@ -28,3 +28,10 @@ if [ "$CONFIG_TASK_OSD" = "y" ]; then
 		source src/lib/osd/Kconfig
 	endmenu	
 fi
+
+if [ "$CONFIG_LIB_LWIP" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'lwip'
+		source src/lib/lwip/Kconfig
+	endmenu	
+fi

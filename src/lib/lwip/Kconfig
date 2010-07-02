@@ -1,0 +1,10 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+bool "non-OS based support(NO_SYS)?" NO_SYS
+int "bytes reserved before ethernet header(ETH_PAD_SIZE)" ETH_PAD_SIZE 0
+int "bytes of a link level header(PBUF_LINK_HLEN)?" PBUF_LINK_HLEN 14
+

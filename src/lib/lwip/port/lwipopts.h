@@ -23,6 +23,8 @@
 #ifndef __LWIPOPTS_H__
 #define __LWIPOPTS_H__
 
+#include "config.h"
+
 /* added by dusk */
 #define LWIP_NOASSERT	1
 /**
@@ -36,7 +38,9 @@
  * NO_SYS==1: Provides VERY minimal functionality. Otherwise,
  * use lwIP facilities.
  */
-#define NO_SYS                  1
+#ifndef NO_SYS
+#define NO_SYS                  0
+#endif
 
 /* ---------- Memory options ---------- */
 /* MEM_ALIGNMENT: should be set to the alignment of the CPU for which
