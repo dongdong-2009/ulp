@@ -154,6 +154,12 @@ ethernetif_init(struct netif *netif)
   netif->output = etharp_output;
   netif->linkoutput = low_level_output;
   
+  netif->hwaddr[0] =  MAC_ADDR_BYTE0;
+  netif->hwaddr[1] =  MAC_ADDR_BYTE1;
+  netif->hwaddr[2] =  MAC_ADDR_BYTE2;
+  netif->hwaddr[3] =  MAC_ADDR_BYTE3;
+  netif->hwaddr[4] =  MAC_ADDR_BYTE4;
+  netif->hwaddr[5] =  MAC_ADDR_BYTE5;
   ethernetif->ethaddr = (struct eth_addr *)&(netif->hwaddr[0]);
   
   /* initialize the hardware */

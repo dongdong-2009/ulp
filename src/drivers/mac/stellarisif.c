@@ -91,7 +91,7 @@ stellarisif_hwinit(struct netif *netif)
   netif->hwaddr_len = ETHARP_HWADDR_LEN;
 
   /* set MAC hardware address */
-  EthernetMACAddrGet(ETH_BASE, &(netif->hwaddr[0]));
+  EthernetMACAddrSet(ETH_BASE, &(netif->hwaddr[0]));
 
   /* maximum transfer unit */
   netif->mtu = 1500;
