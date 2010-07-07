@@ -6,6 +6,7 @@
 /*-----------------------------------------------------------------------*/
 
 #include "diskio.h"
+#include "mass_mal.h"
 
 /*-----------------------------------------------------------------------*/
 /* Correspondence between physical drive number and physical drive.      */
@@ -37,8 +38,10 @@ DSTATUS disk_initialize (
 
 	case MMC :
 		result = MMC_disk_initialize();
-		// translate the reslut code here
-
+		if (!result)
+			stat = RES_OK;
+		else
+			stat = RES_ERROR;
 		return stat;
 
 	case USB :
@@ -47,6 +50,7 @@ DSTATUS disk_initialize (
 
 		return stat;
 	}
+
 	return STA_NOINIT;
 }
 
@@ -72,8 +76,10 @@ DSTATUS disk_status (
 
 	case MMC :
 		result = MMC_disk_status();
-		// translate the reslut code here
-
+		if (!result)
+			stat = RES_OK;
+		else
+			stat = RES_ERROR;
 		return stat;
 
 	case USB :
@@ -110,8 +116,10 @@ DRESULT disk_read (
 
 	case MMC :
 		result = MMC_disk_read(buff, sector, count);
-		// translate the reslut code here
-
+		if (!result)
+			res = RES_OK;
+		else
+			res = RES_ERROR;
 		return res;
 
 	case USB :
@@ -154,8 +162,10 @@ DRESULT disk_write (
 
 	case MMC :
 		result = MMC_disk_write(buff, sector, count);
-		// translate the reslut code here
-
+		if (!result)
+			res = RES_OK;
+		else
+			res = RES_ERROR;
 		return res;
 
 	case USB :
@@ -196,8 +206,10 @@ DRESULT disk_ioctl (
 		// pre-process here
 
 		result = MMC_disk_ioctl(ctrl, buff);
-		// post-process here
-
+		if (!result)
+			res = RES_OK;
+		else
+			res = RES_ERROR;
 		return res;
 
 	case USB :
