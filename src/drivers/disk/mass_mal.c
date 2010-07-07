@@ -38,6 +38,9 @@ __IO uint32_t Status = 0;
 SD_CardInfo SDCardInfo;
 #endif
 
+extern mmc_t spi_card;
+static mmc_t *pMMC;
+
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 /*******************************************************************************
@@ -47,13 +50,10 @@ SD_CardInfo SDCardInfo;
 * Output         : None
 * Return         : None
 *******************************************************************************/
-uint16_t MAL_Init(uint8_t lun)
+int MAL_Init()
 {
-  uint16_t status = MAL_OK;
+	int status = 0;
 
-  switch (lun)
-  {
-    case 0:
 #ifdef USE_STM3210E_EVAL
       Status = SD_Init();
       Status = SD_GetCardInfo(&SDCardInfo);
@@ -61,18 +61,11 @@ uint16_t MAL_Init(uint8_t lun)
       Status = SD_EnableWideBusOperation(SDIO_BusWide_4b);
       Status = SD_SetDeviceMode(SD_DMA_MODE);
 #else
-      MSD_Init();
+	pMMC = &spi_card;
+	pMMC->init();
 #endif
-      break;
-#ifdef USE_STM3210E_EVAL
-    case 1:
-      status = NAND_Init();
-      break;
-#endif
-    default:
-      return MAL_FAIL;
-  }
-  return status;
+
+	return status;
 }
 /*******************************************************************************
 * Function Name  : MAL_Write
@@ -81,12 +74,8 @@ uint16_t MAL_Init(uint8_t lun)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-uint16_t MAL_Write(uint8_t lun, uint32_t Memory_Offset, uint32_t *Writebuff, uint16_t Transfer_Length)
+int MAL_Write(unsigned char *buff, unsigned int sector, unsigned char count)
 {
-
-  switch (lun)
-  {
-    case 0:
 #ifdef USE_STM3210E_EVAL
       Status = SD_WriteBlock(Memory_Offset, Writebuff, Transfer_Length);
       if ( Status != SD_OK )
@@ -94,18 +83,10 @@ uint16_t MAL_Write(uint8_t lun, uint32_t Memory_Offset, uint32_t *Writebuff, uin
         return MAL_FAIL;
       }      
 #else
-      MSD_WriteBlock((uint8_t*)Writebuff, Memory_Offset, Transfer_Length);
+	pMMC->writebuf(buff, sector, count);
 #endif
-      break;
-#ifdef USE_STM3210E_EVAL
-    case 1:
-      NAND_Write(Memory_Offset, Writebuff, Transfer_Length);
-      break;
-#endif
-    default:
-      return MAL_FAIL;
-  }
-  return MAL_OK;
+
+	return 0;
 }
 
 /*******************************************************************************
@@ -117,10 +98,6 @@ uint16_t MAL_Write(uint8_t lun, uint32_t Memory_Offset, uint32_t *Writebuff, uin
 *******************************************************************************/
 uint16_t MAL_Read(uint8_t lun, uint32_t Memory_Offset, uint32_t *Readbuff, uint16_t Transfer_Length)
 {
-
-  switch (lun)
-  {
-    case 0:
 #ifdef USE_STM3210E_EVAL
       Status = SD_ReadBlock(Memory_Offset, Readbuff, Transfer_Length);
       if ( Status != SD_OK )
@@ -128,19 +105,10 @@ uint16_t MAL_Read(uint8_t lun, uint32_t Memory_Offset, uint32_t *Readbuff, uint1
         return MAL_FAIL;
       }
 #else
-      MSD_ReadBlock((uint8_t*)Readbuff, Memory_Offset, Transfer_Length);
+	pMMC->readbuf(buff, sector, count);
 #endif
-      break;
-#ifdef USE_STM3210E_EVAL
-    case 1:
-      NAND_Read(Memory_Offset, Readbuff, Transfer_Length);
-      ;
-      break;
-#endif
-    default:
-      return MAL_FAIL;
-  }
-  return MAL_OK;
+
+	return 0;
 }
 
 /*******************************************************************************
@@ -150,83 +118,9 @@ uint16_t MAL_Read(uint8_t lun, uint32_t Memory_Offset, uint32_t *Readbuff, uint1
 * Output         : None
 * Return         : None
 *******************************************************************************/
-uint16_t MAL_GetStatus (uint8_t lun)
+int MAL_GetStatus (uint8_t lun)
 {
-#ifdef USE_STM3210E_EVAL
-  NAND_IDTypeDef NAND_ID;
-  uint32_t DeviceSizeMul = 0, NumberOfBlocks = 0;
-#else
-  uint32_t temp_block_mul = 0;
-  sMSD_CSD MSD_csd;
-  uint32_t DeviceSizeMul = 0;
-#endif
-
-
-  if (lun == 0)
-  {
-#ifdef USE_STM3210E_EVAL
-    if (SD_Init() == SD_OK)
-    {
-      SD_GetCardInfo(&SDCardInfo);
-      SD_SelectDeselect((uint32_t) (SDCardInfo.RCA << 16));
-      DeviceSizeMul = (SDCardInfo.SD_csd.DeviceSizeMul + 2);
-
-      if(SDCardInfo.CardType == SDIO_HIGH_CAPACITY_SD_CARD)
-      {
-        Mass_Block_Count[0] = (SDCardInfo.SD_csd.DeviceSize + 1) * 1024;
-      }
-      else
-      {
-        NumberOfBlocks  = ((1 << (SDCardInfo.SD_csd.RdBlockLen)) / 512);
-        Mass_Block_Count[0] = ((SDCardInfo.SD_csd.DeviceSize + 1) * (1 << DeviceSizeMul) << (NumberOfBlocks/2));
-      }
-      Mass_Block_Size[0]  = 512;
-
-      Status = SD_SelectDeselect((uint32_t) (SDCardInfo.RCA << 16)); 
-      Status = SD_EnableWideBusOperation(SDIO_BusWide_4b); 
-      if ( Status != SD_OK )
-      {
-        return MAL_FAIL;
-      }
-       
-      Status = SD_SetDeviceMode(SD_DMA_MODE);         
-      if ( Status != SD_OK )
-      {
-        return MAL_FAIL;
-      } 
-     
-#else
-    MSD_GetCSDRegister(&MSD_csd);
-    DeviceSizeMul = MSD_csd.DeviceSizeMul + 2;
-    temp_block_mul = (1 << MSD_csd.RdBlockLen)/ 512;
-    Mass_Block_Count[0] = ((MSD_csd.DeviceSize + 1) * (1 << (DeviceSizeMul))) * temp_block_mul;
-    Mass_Block_Size[0] = 512;
-    Mass_Memory_Size[0] = (Mass_Block_Count[0] * Mass_Block_Size[0]);
-#endif
-      Mass_Memory_Size[0] = Mass_Block_Count[0] * Mass_Block_Size[0];
-      STM_EVAL_LEDOn(LED2);
-      return MAL_OK;
-
-#ifdef USE_STM3210E_EVAL
-    }
-#endif
-  }
-#ifdef USE_STM3210E_EVAL
-  else
-  {
-    FSMC_NAND_ReadID(&NAND_ID);
-    if (NAND_ID.Device_ID != 0 )
-    {
-      /* only one zone is used */
-      Mass_Block_Count[1] = NAND_ZONE_SIZE * NAND_BLOCK_SIZE * NAND_MAX_ZONE ;
-      Mass_Block_Size[1]  = NAND_PAGE_SIZE;
-      Mass_Memory_Size[1] = (Mass_Block_Count[1] * Mass_Block_Size[1]);
-      return MAL_OK;
-    }
-  }
-#endif
-  STM_EVAL_LEDOn(LED2);
-  return MAL_FAIL;
+	return 0;
 }
 
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/

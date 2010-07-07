@@ -17,20 +17,25 @@
 #ifndef __MASS_MAL_H
 #define __MASS_MAL_H
 
-/* Includes ------------------------------------------------------------------*/
-/* Exported types ------------------------------------------------------------*/
-/* Exported constants --------------------------------------------------------*/
-#define MAL_OK   0
-#define MAL_FAIL 1
-#define MAX_LUN  1
+typedef struct {
+	void (*init)(void);
+	void (*readbuf)(unsigned char *, unsigned int, unsigned short);
+	void (*writebuf)(unsigned char *, unsigned int, unsigned short)
+} mmc_t;
+
+#define MMC_disk_initialize MAL_Init
+#define MMC_disk_status MAL_GetStatus
+#define MMC_disk_read MAL_Read
+#define MMC_disk_write MAL_Write
+
 
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
 
-uint16_t MAL_Init (uint8_t lun);
-uint16_t MAL_GetStatus (uint8_t lun);
-uint16_t MAL_Read(uint8_t lun, uint32_t Memory_Offset, uint32_t *Readbuff, uint16_t Transfer_Length);
-uint16_t MAL_Write(uint8_t lun, uint32_t Memory_Offset, uint32_t *Writebuff, uint16_t Transfer_Length);
+int MAL_Init ();
+int MAL_GetStatus ();
+int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count);
+int MAL_Write(unsigned char *buff, unsigned int sector, unsigned char count);
 #endif /* __MASS_MAL_H */
 
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/
