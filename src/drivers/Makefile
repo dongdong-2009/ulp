@@ -19,3 +19,4 @@ obj-$(CONFIG_DRIVER_STEPPERMOTOR) += smctrl.o
 obj-$(CONFIG_DRIVER_STEPPERMOTOR) += smpwm.o
 obj-$(CONFIG_DRIVER_STEPPERMOTOR) += capture.o
 obj-$(CONFIG_DRIVER_KEYBOARD) += key/
+obj-$(CONFIG_DRIVER_DISK) += disk/

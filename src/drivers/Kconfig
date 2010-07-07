@@ -4,6 +4,9 @@
 # Written by miaofng@2010
 #
 bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
+if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
+	bool "enable USART1 as console?" CONFIG_DRIVER_STM32_USART1
+fi
 bool "enable network mac drivers?" CONFIG_DRIVER_MAC
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
 bool "vvt drivers" CONFIG_DRIVER_VVT
@@ -37,4 +40,8 @@ if [ "$CONFIG_DRIVER_RCKEY" = "y" ]; then
 	choice 'remote control protocol'	" \
 		rc5	CONFIG_RCKEY_PROTOCOL_RC5 \
 	" rc5
+fi
+bool "general disk support for fatfs?" CONFIG_DRIVER_DISK
+if [ "$CONFIG_DRIVER_DISK" = "y" ]; then
+	bool "spi sdcard driver support" CONFIG_DRIVER_SPISDCARD
 fi
