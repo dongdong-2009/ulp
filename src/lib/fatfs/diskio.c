@@ -32,8 +32,10 @@ DSTATUS disk_initialize (
 	switch (drv) {
 	case ATA :
 		result = ATA_disk_initialize();
-		// translate the reslut code here
-
+		if (!result)
+			stat = RES_OK;
+		else
+			stat = RES_ERROR;
 		return stat;
 
 	case MMC :
@@ -46,8 +48,10 @@ DSTATUS disk_initialize (
 
 	case USB :
 		result = USB_disk_initialize();
-		// translate the reslut code here
-
+		if (!result)
+			stat = RES_OK;
+		else
+			stat = RES_ERROR;
 		return stat;
 	}
 
@@ -70,8 +74,10 @@ DSTATUS disk_status (
 	switch (drv) {
 	case ATA :
 		result = ATA_disk_status();
-		// translate the reslut code here
-
+		if (!result)
+			stat = RES_OK;
+		else
+			stat = RES_ERROR;
 		return stat;
 
 	case MMC :
@@ -84,8 +90,10 @@ DSTATUS disk_status (
 
 	case USB :
 		result = USB_disk_status();
-		// translate the reslut code here
-
+		if (!result)
+			stat = RES_OK;
+		else
+			stat = RES_ERROR;
 		return stat;
 	}
 	return STA_NOINIT;
@@ -110,8 +118,10 @@ DRESULT disk_read (
 	switch (drv) {
 	case ATA :
 		result = ATA_disk_read(buff, sector, count);
-		// translate the reslut code here
-
+		if (!result)
+			res = RES_OK;
+		else
+			res = RES_ERROR;
 		return res;
 
 	case MMC :
@@ -124,8 +134,10 @@ DRESULT disk_read (
 
 	case USB :
 		result = USB_disk_read(buff, sector, count);
-		// translate the reslut code here
-
+		if (!result)
+			res = RES_OK;
+		else
+			res = RES_ERROR;
 		return res;
 	}
 	return RES_PARERR;
@@ -156,8 +168,10 @@ DRESULT disk_write (
 	switch (drv) {
 	case ATA :
 		result = ATA_disk_write(buff, sector, count);
-		// translate the reslut code here
-
+		if (!result)
+			res = RES_OK;
+		else
+			res = RES_ERROR;
 		return res;
 
 	case MMC :
@@ -170,8 +184,10 @@ DRESULT disk_write (
 
 	case USB :
 		result = USB_disk_write(buff, sector, count);
-		// translate the reslut code here
-
+		if (!result)
+			res = RES_OK;
+		else
+			res = RES_ERROR;
 		return res;
 	}
 	return RES_PARERR;
@@ -198,8 +214,10 @@ DRESULT disk_ioctl (
 		// pre-process here
 
 		result = ATA_disk_ioctl(ctrl, buff);
-		// post-process here
-
+		if (!result)
+			res = RES_OK;
+		else
+			res = RES_ERROR;
 		return res;
 
 	case MMC :
@@ -216,8 +234,10 @@ DRESULT disk_ioctl (
 		// pre-process here
 
 		result = USB_disk_ioctl(ctrl, buff);
-		// post-process here
-
+		if (!result)
+			res = RES_OK;
+		else
+			res = RES_ERROR;
 		return res;
 	}
 	return RES_PARERR;
