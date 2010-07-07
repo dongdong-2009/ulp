@@ -20,16 +20,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x.h"
 
-/* Private define ------------------------------------------------------------*/
-
-/* Uncomment the line corresponding to the STMicroelectronics evaluation board
-   used to run the example */
-#if !defined (USE_STM3210B_EVAL) &&  !defined (USE_STM3210E_EVAL) && !defined (USE_STM3210C_EVAL)
- //#define USE_STM3210B_EVAL
- //#define USE_STM3210E_EVAL 
- #define USE_STM3210C_EVAL
-#endif
-
 /* Pins related Hardware Configuration defines */
 #if defined (USE_STM3210B_EVAL)
 
@@ -39,9 +29,9 @@
 #define MSD_SPI_PIN_SCK               GPIO_Pin_5
 #define MSD_SPI_PIN_MISO              GPIO_Pin_6
 #define MSD_SPI_PIN_MOSI              GPIO_Pin_7
-#define MSD_CS_PORT                   GPIOC
-#define MSD_CS_GPIO_PORT_CLOCK        RCC_APB2Periph_GPIOC
-#define MSD_CS_PIN                    GPIO_Pin_12
+#define MSD_CS_PORT                   GPIOA
+#define MSD_CS_GPIO_PORT_CLOCK        RCC_APB2Periph_GPIOA
+#define MSD_CS_PIN                    GPIO_Pin_4
 
 
 #elif defined (USE_STM3210E_EVAL)
@@ -77,8 +67,6 @@
 #define MSD_CS_PIN                    GPIO_Pin_4
 
 #endif /* USE_STM3210B_EVAL */
-
-
 
 /* Block Size */
 #define BLOCK_SIZE    512
@@ -209,8 +197,8 @@ sMSD_CID;
 uint8_t MSD_Init(void);
 uint8_t MSD_WriteBlock(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite);
 uint8_t MSD_ReadBlock(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRead);
-uint8_t MSD_WriteBuffer(uint8_t* pBuffer, uint32_t WriteAddr, uint32_t NumByteToWrite);
-uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint32_t NumByteToRead);
+uint8_t MSD_WriteBuffer(const uint8_t* pBuffer, uint32_t WriteAddr, uint8_t NbrOfBlock);
+uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint8_t NbrOfBlock);
 uint8_t MSD_GetCSDRegister(sMSD_CSD* MSD_csd);
 uint8_t MSD_GetCIDRegister(sMSD_CID* MSD_cid);
 

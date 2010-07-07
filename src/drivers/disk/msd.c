@@ -26,6 +26,7 @@
 *******************************************************************************/
 
 /* Includes ------------------------------------------------------------------*/
+#include "mass_mal.h"
 #include "msd.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,9 +37,14 @@
 /* Deselect MSD Card: ChipSelect pin high */
 #define MSD_CS_HIGH()    GPIO_SetBits(MSD_CS_PORT, MSD_CS_PIN)
 
+mmc_t spi_card = {
+	MSD_Init,
+	MSD_ReadBuffer,
+	MSD_WriteBuffer,
+};
+
 /* Private function prototypes -----------------------------------------------*/
 static void SPI_Config(void);
-/* Private functions ---------------------------------------------------------*/
 
 /*******************************************************************************
 * Function Name  : MSD_Init
@@ -184,13 +190,11 @@ uint8_t MSD_ReadBlock(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRea
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_WriteBuffer(uint8_t* pBuffer, uint32_t WriteAddr, uint32_t NumByteToWrite)
+uint8_t MSD_WriteBuffer(const uint8_t* pBuffer, uint32_t WriteAddr, uint8_t NbrOfBlock)
 {
-  uint32_t i = 0, NbrOfBlock = 0, Offset = 0;
+  uint32_t i = 0, Offset = 0;
   uint8_t rvalue = MSD_RESPONSE_FAILURE;
 
-  /* Calculate number of blocks to write */
-  NbrOfBlock = NumByteToWrite / BLOCK_SIZE;
   /* MSD chip select low */
   MSD_CS_LOW();
 
@@ -254,13 +258,11 @@ uint8_t MSD_WriteBuffer(uint8_t* pBuffer, uint32_t WriteAddr, uint32_t NumByteTo
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint32_t NumByteToRead)
+uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint8_t NbrOfBlock)
 {
-  uint32_t i = 0, NbrOfBlock = 0, Offset = 0;
+  uint32_t i = 0, Offset = 0;
   uint8_t rvalue = MSD_RESPONSE_FAILURE;
 
-  /* Calculate number of blocks to read */
-  NbrOfBlock = NumByteToRead / BLOCK_SIZE;
   /* MSD chip select low */
   MSD_CS_LOW();
 
@@ -739,7 +741,7 @@ uint8_t MSD_ReadByte(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void SPI_Config(void)
+static void SPI_Config(void)
 {
   GPIO_InitTypeDef  GPIO_InitStructure;
   SPI_InitTypeDef   SPI_InitStructure;

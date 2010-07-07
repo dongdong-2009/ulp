@@ -17,11 +17,24 @@
 #ifndef __MASS_MAL_H
 #define __MASS_MAL_H
 
+#include "stm32f10x.h"
+
 typedef struct {
-	void (*init)(void);
-	void (*readbuf)(unsigned char *, unsigned int, unsigned short);
-	void (*writebuf)(unsigned char *, unsigned int, unsigned short)
+	unsigned char (*init)(void);
+	unsigned char (*readbuf)(unsigned char *, unsigned int, unsigned char);
+	unsigned char(*writebuf)(const unsigned char *, unsigned int, unsigned char);
 } mmc_t;
+
+#define ATA_disk_initialize() void()
+#define USB_disk_initialize() NULL
+#define ATA_disk_status() NULL
+#define USB_disk_status() NULL
+#define USB_disk_read(buff, sector, count) NULL
+#define ATA_disk_read(buff, sector, count) NULL
+#define ATA_disk_write(buff, sector, count) NULL
+#define USB_disk_write(buff, sector, count) NULL
+#define ATA_disk_ioctl(ctrl, buff) NULL
+#define USB_disk_ioctl(ctrl, buff) NULL
 
 #define MMC_disk_initialize MAL_Init
 #define MMC_disk_status MAL_GetStatus
@@ -38,7 +51,8 @@ typedef struct {
 int MAL_Init ();
 int MAL_GetStatus ();
 int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count);
-int MAL_Write(unsigned char *buff, unsigned int sector, unsigned char count);
+int MAL_Write(const unsigned char *buff, unsigned int sector, unsigned char count);
+int MMC_disk_ioctl(unsigned ctrl, void *buff);
 #endif /* __MASS_MAL_H */
 
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/

@@ -61,7 +61,7 @@ int MAL_Init()
 * Output         : None
 * Return         : None
 *******************************************************************************/
-int MAL_Write(unsigned char *buff, unsigned int sector, unsigned char count)
+int MAL_Write(const unsigned char *buff, unsigned int sector, unsigned char count)
 {
 #ifdef USE_STM3210E_EVAL
       Status = SD_WriteBlock(Memory_Offset, Writebuff, Transfer_Length);
@@ -83,7 +83,7 @@ int MAL_Write(unsigned char *buff, unsigned int sector, unsigned char count)
 * Output         : None
 * Return         : Buffer pointer
 *******************************************************************************/
-uint16_t MAL_Read(uint8_t lun, uint32_t Memory_Offset, uint32_t *Readbuff, uint16_t Transfer_Length)
+int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count)
 {
 #ifdef USE_STM3210E_EVAL
       Status = SD_ReadBlock(Memory_Offset, Readbuff, Transfer_Length);
@@ -105,7 +105,12 @@ uint16_t MAL_Read(uint8_t lun, uint32_t Memory_Offset, uint32_t *Readbuff, uint1
 * Output         : None
 * Return         : None
 *******************************************************************************/
-int MAL_GetStatus (uint8_t lun)
+int MAL_GetStatus ()
+{
+	return 0;
+}
+
+int MMC_disk_ioctl(unsigned ctrl, void *buff)
 {
 	return 0;
 }
