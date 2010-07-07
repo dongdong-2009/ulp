@@ -28,6 +28,9 @@ typedef struct {
 #define MMC_disk_read MAL_Read
 #define MMC_disk_write MAL_Write
 
+#define USE_STM3210B_EVAL
+#undef USE_STM3210E_EVAL
+
 
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */

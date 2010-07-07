@@ -14,25 +14,12 @@
 *******************************************************************************/
 
 /* Includes ------------------------------------------------------------------*/
-#include "platform_config.h"
 #ifdef USE_STM3210E_EVAL
  #include "sdcard.h"
 #else
  #include "msd.h"
 #endif /* USE_STM3210E_EVAL */
-#include "fsmc_nand.h"
-#include "nand_if.h"
 #include "mass_mal.h"
-#include "stm32_eval.h"
-
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-uint32_t Mass_Memory_Size[2];
-uint32_t Mass_Block_Size[2];
-uint32_t Mass_Block_Count[2];
-__IO uint32_t Status = 0;
 
 #ifdef USE_STM3210E_EVAL
 SD_CardInfo SDCardInfo;
