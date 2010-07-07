@@ -12,8 +12,8 @@
 /* Correspondence between physical drive number and physical drive.      */
 /*-----------------------------------------------------------------------*/
 
-#define ATA		0
-#define MMC		1
+#define ATA		1
+#define MMC		0
 #define USB		2
 
 
