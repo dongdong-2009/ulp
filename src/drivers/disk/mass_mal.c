@@ -115,4 +115,136 @@ int MMC_disk_ioctl(unsigned ctrl, void *buff)
 	return 0;
 }
 
+int NOP(void)
+{
+	return 0;
+}
+
+
+#if 1
+#include "shell/cmd.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "ff.h"
+
+static FATFS fs;
+
+static int cmd_ff_mount(int argc, char *argv[])
+{
+	const char usage[] = { \
+		" usage:\n" \
+		" mount ,mount a disk " \
+	};
+	
+	if(argc > 0 && argc != 1) {
+		printf(usage);
+		return 0;
+	}
+	
+	if(!f_mount(0, &fs))
+		printf("mount ok!\n\r");
+	else
+		printf("mount fail!\n\r");
+
+	return 0;	
+}
+const cmd_t cmd_mount = {"mount", cmd_ff_mount, "mount a disk"};
+DECLARE_SHELL_CMD(cmd_mount)
+
+static int cmd_ff_umount(int argc, char *argv[])
+{
+	const char usage[] = { \
+		" usage:\n" \
+		" umount ,umount a disk " \
+	};
+	
+	if(argc > 0 && argc != 1) {
+		printf(usage);
+		return 0;
+	}
+	
+	if(!f_mount(0, NULL))
+		printf("umount ok!\n\r");
+	else
+		printf("umount fail!\n\r");
+
+	return 0;	
+}
+const cmd_t cmd_umount = {"umount", cmd_ff_umount, "umount a disk"};
+DECLARE_SHELL_CMD(cmd_umount)
+
+static int cmd_ff_fopen(int argc, char *argv[])
+{
+
+	const char usage[] = { \
+		" usage:\n" \
+		" fopen, open file" \
+	};
+	 
+	if(argc > 0 && argc != 2) {
+		printf(usage);
+		return 0;
+	}
+	
+	FRESULT res;
+	FIL file;
+	unsigned int br;
+	char buffer[100];
+
+	printf("%s \n\r",argv[1]);
+
+	res = f_open(&file, "0:dusk.txt", FA_OPEN_EXISTING | FA_READ);
+	if (res == FR_OK) {
+		for (;;) {
+			res = f_read(&file, buffer, sizeof(buffer), &br);
+			if (res || br == 0) break; /* error or eof */
+			printf("%s",buffer);
+		}
+	} else {
+		printf("operation failed!\n\r");
+	}
+	f_close(&file);
+
+	return 0;
+}
+const cmd_t cmd_fopen = {"fopen", cmd_ff_fopen, "open file"};
+DECLARE_SHELL_CMD(cmd_fopen)
+
+static int cmd_ff_ls(int argc, char *argv[])
+{
+
+	const char usage[] = { \
+		" usage:\n" \
+		" dir, display files" \
+	};
+	 
+	if(argc > 0 && argc != 1) {
+		printf(usage);
+		return 0;
+	}
+	
+	FRESULT res;
+	FILINFO fileinfo;
+	DIR fdir;
+	char *filename;
+	char path[] = "0:";
+
+	res = f_opendir(&fdir, path);
+	if (res == FR_OK) {
+		for (;;) {
+			res = f_readdir(&fdir, &fileinfo);
+			if (res != FR_OK || fileinfo.fname[0] == 0) break;
+			if (fileinfo.fname[0] == '.') continue;
+			filename = fileinfo.fname;
+			printf("%s/%s \n\r",path, filename);
+		}
+	} else {
+		printf("operation failed!\n\r");
+	}
+
+	return 0;
+}
+const cmd_t cmd_ls = {"ls", cmd_ff_ls, "display files"};
+DECLARE_SHELL_CMD(cmd_ls)
+#endif
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/
