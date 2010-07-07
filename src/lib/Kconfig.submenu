@@ -35,3 +35,10 @@ if [ "$CONFIG_LIB_LWIP" = "y" ]; then
 		source src/lib/lwip/Kconfig
 	endmenu	
 fi
+
+if [ "$CONFIG_LIB_FATFS" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'fatfs'
+		source src/lib/fatfs/Kconfig
+	endmenu	
+fi
