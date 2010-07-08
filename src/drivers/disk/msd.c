@@ -707,6 +707,12 @@ void MSD_WriteByte(uint8_t Data)
   while (SPI_I2S_GetFlagStatus(MSD_SPI, SPI_I2S_FLAG_TXE) == RESET);
   /* Send the byte */
   SPI_I2S_SendData(MSD_SPI, Data);
+
+  /* Wait until a data is received */
+  while (SPI_I2S_GetFlagStatus(MSD_SPI, SPI_I2S_FLAG_RXNE) == RESET);
+  /* Get the received data */
+  SPI_I2S_ReceiveData(MSD_SPI);
+  
 }
 
 /*******************************************************************************
@@ -781,7 +787,7 @@ static void SPI_Config(void)
   SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
   SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge; 
   SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-  SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
+  SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;
   SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
   SPI_InitStructure.SPI_CRCPolynomial = 7;
   SPI_Init(MSD_SPI, &SPI_InitStructure);
@@ -789,5 +795,31 @@ static void SPI_Config(void)
   /* MSD_SPI enable */
   SPI_Cmd(MSD_SPI, ENABLE);
 }
+
+
+#if 1
+#include "shell/cmd.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+static int cmd_sd_init(int argc, char *argv[])
+{
+	const char usage[] = { \
+		" usage:\n" \
+		" mount ,mount a disk " \
+	};
+	
+	if(argc > 0 && argc != 1) {
+		printf(usage);
+		return 0;
+	}
+	
+	printf("%d \n",MSD_Init());
+
+	return 0;	
+}
+const cmd_t cmd_init = {"init", cmd_sd_init, "mount a disk"};
+DECLARE_SHELL_CMD(cmd_init)
+#endif
 
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/
