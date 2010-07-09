@@ -35,15 +35,18 @@ DSTATUS disk_initialize (
 		if (!result)
 			stat = RES_OK;
 		else
-			stat = RES_ERROR;
+			stat = STA_NOINIT;
 		return stat;
 
 	case MMC :
 		result = MMC_disk_initialize();
-		if (!result)
+		if (!result) {
 			stat = RES_OK;
-		else
-			stat = RES_ERROR;
+		} else {
+			stat = STA_NOINIT;
+		}
+		if(MAL_GetCardInfo())
+			stat = STA_NOINIT;
 		return stat;
 
 	case USB :
@@ -51,7 +54,7 @@ DSTATUS disk_initialize (
 		if (!result)
 			stat = RES_OK;
 		else
-			stat = RES_ERROR;
+			stat = STA_NOINIT;
 		return stat;
 	}
 
@@ -77,7 +80,7 @@ DSTATUS disk_status (
 		if (!result)
 			stat = RES_OK;
 		else
-			stat = RES_ERROR;
+			stat = STA_NOINIT;
 		return stat;
 
 	case MMC :
@@ -85,7 +88,7 @@ DSTATUS disk_status (
 		if (!result)
 			stat = RES_OK;
 		else
-			stat = RES_ERROR;
+			stat = STA_NODISK;
 		return stat;
 
 	case USB :
@@ -93,7 +96,7 @@ DSTATUS disk_status (
 		if (!result)
 			stat = RES_OK;
 		else
-			stat = RES_ERROR;
+			stat = STA_NOINIT;
 		return stat;
 	}
 	return STA_NOINIT;
@@ -125,6 +128,8 @@ DRESULT disk_read (
 		return res;
 
 	case MMC :
+		if(MMC_disk_status())
+			return RES_NOTRDY;
 		result = MMC_disk_read(buff, sector, count);
 		if (!result)
 			res = RES_OK;
@@ -175,6 +180,8 @@ DRESULT disk_write (
 		return res;
 
 	case MMC :
+		if(MMC_disk_status())
+			return RES_NOTRDY;
 		result = MMC_disk_write(buff, sector, count);
 		if (!result)
 			res = RES_OK;
@@ -242,4 +249,22 @@ DRESULT disk_ioctl (
 	}
 	return RES_PARERR;
 }
+
+/*-----------------------------------------------------------------------*/
+/* User defined function to give a current time to fatfs module          */
+/* 31-25: Year(0-127 org.1980), 24-21: Month(1-12), 20-16: Day(1-31) */                                                                                                                                                                                                                                          
+/* 15-11: Hour(0-23), 10-5: Minute(0-59), 4-0: Second(0-29 *2) */                                                                                                                                                                                                                                                
+DWORD get_fattime (void)
+{
+#if 1
+	return	((2010UL-1980) << 25)	      // Year = 2006
+			| (7UL << 21)	      // Month = 7
+			| (9UL << 16)	      // Day = 9
+			| (12U << 11)	      // Hour = 12
+			| (0U << 5)	      // Min = 0
+			| (0U >> 1)	      // Sec = 0
+			;
+#endif
+}
+
 
