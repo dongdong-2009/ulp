@@ -90,6 +90,7 @@ typedef struct {
 	unsigned char (*init)(void);
 	unsigned char (*readbuf)(unsigned char *, unsigned int, unsigned char);
 	unsigned char(*writebuf)(const unsigned char *, unsigned int, unsigned char);
+	unsigned char(*getcardinfo)(SD_CardInfo *);
 } mmc_t;
 
 #define ATA_disk_initialize() NOP()

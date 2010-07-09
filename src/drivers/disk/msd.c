@@ -41,6 +41,7 @@ mmc_t spi_card = {
 	MSD_Init,
 	MSD_ReadBuffer,
 	MSD_WriteBuffer,
+	MSD_GetCardInfo,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -500,6 +501,25 @@ uint8_t MSD_GetCIDRegister(SD_CID* MSD_cid)
 
   /* Return the reponse */
   return rvalue;
+}
+
+uint8_t MSD_GetCardInfo(SD_CardInfo * pSDCardInfo)
+{
+	unsigned char status = 0;
+
+	status = MSD_GetCSDRegister(&pSDCardInfo->SD_csd);
+	status = MSD_GetCIDRegister(&pSDCardInfo->SD_cid);
+
+	pSDCardInfo->CardCapacity = (pSDCardInfo->SD_csd.DeviceSize + 1) ;
+ 	pSDCardInfo->CardCapacity *= (1 << (pSDCardInfo->SD_csd.DeviceSizeMul + 2));
+	pSDCardInfo->CardBlockSize = 1 << (pSDCardInfo->SD_csd.RdBlockLen);
+	pSDCardInfo->CardCapacity *= pSDCardInfo->CardBlockSize;
+	
+	pSDCardInfo->CardBlockSize = 512;
+	pSDCardInfo->RCA = 0;
+	pSDCardInfo->CardType = 0;
+
+	return status;
 }
 
 /*******************************************************************************

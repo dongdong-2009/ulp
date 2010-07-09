@@ -143,6 +143,7 @@ uint8_t MSD_WriteBuffer(const uint8_t* pBuffer, uint32_t WriteAddr, uint8_t NbrO
 uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint8_t NbrOfBlock);
 uint8_t MSD_GetCSDRegister(SD_CSD* MSD_csd);
 uint8_t MSD_GetCIDRegister(SD_CID* MSD_cid);
+uint8_t MSD_GetCardInfo(SD_CardInfo * pSDCardInfo);
 
 /*----- Medium layer function -----*/
 void MSD_SendCmd(uint8_t Cmd, uint32_t Arg, uint8_t Crc);

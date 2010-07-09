@@ -14,11 +14,6 @@
 *******************************************************************************/
 
 /* Includes ------------------------------------------------------------------*/
-#ifdef USE_STM3210E_EVAL
- #include "sdcard.h"
-#else
- #include "msd.h"
-#endif /* USE_STM3210E_EVAL */
 #include "mass_mal.h"
 
 static SD_CardInfo SDCardInfo;
@@ -117,17 +112,7 @@ int MAL_GetCardInfo(void)
 {
 	int status = 0;
 #ifdef USE_STM3210B_EVAL
-	status = MSD_GetCSDRegister(&SDCardInfo.SD_csd);
-	status = MSD_GetCIDRegister(&SDCardInfo.SD_cid);
-
-	SDCardInfo.CardCapacity = (SDCardInfo.SD_csd.DeviceSize + 1) ;
- 	SDCardInfo.CardCapacity *= (1 << (SDCardInfo.SD_csd.DeviceSizeMul + 2));
-	SDCardInfo.CardBlockSize = 1 << (SDCardInfo.SD_csd.RdBlockLen);
-	SDCardInfo.CardCapacity *= SDCardInfo.CardBlockSize;
-	
-	SDCardInfo.CardBlockSize = 512;
-	SDCardInfo.RCA = 0;
-	SDCardInfo.CardType = 0;	
+	status = pMMC->getcardinfo(&SDCardInfo);
 #endif
 	return status;
 }
