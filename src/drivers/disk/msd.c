@@ -797,7 +797,7 @@ static void SPI_Config(void)
 }
 
 
-#if 1
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -820,7 +820,7 @@ static int cmd_sd_init(int argc, char *argv[])
 
 	return 0;	
 }
-const cmd_t cmd_init = {"init", cmd_sd_init, "mount a disk"};
+const cmd_t cmd_init = {"init", cmd_sd_init, "init sd card"};
 DECLARE_SHELL_CMD(cmd_init)
 
 static int cmd_sd_read(int argc, char *argv[])
@@ -860,7 +860,7 @@ static int cmd_sd_write(int argc, char *argv[])
 	int sector;
 	const char usage[] = { \
 		" usage:\n" \
-		" read bsector ,read a sector \n\r " \
+		" read bsector ,write a sector \n\r " \
 	};
 	
 	if(argc > 0 && argc != 2) {
