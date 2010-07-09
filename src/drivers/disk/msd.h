@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x.h"
+#include "mass_mal.h"
 
 /* Pins related Hardware Configuration defines */
 #if defined (USE_STM3210B_EVAL)
@@ -130,65 +131,6 @@
 #define MSD_READ_OCR               39  /* CMD39=0x67 */
 #define MSD_CRC_ON_OFF             40  /* CMD40=0x68 */
 
-/* Exported types ------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-typedef struct _MSD_CSD      /*Card Specific Data*/
-{
-  __IO uint8_t  CSDStruct;            /* CSD structure */
-  __IO uint8_t  SysSpecVersion;       /* System specification version */
-  __IO uint8_t  Reserved1;            /* Reserved */
-  __IO uint8_t  TAAC;                 /* Data read access-time 1 */
-  __IO uint8_t  NSAC;                 /* Data read access-time 2 in CLK cycles */
-  __IO uint8_t  MaxBusClkFrec;        /* Max. bus clock frequency */
-  __IO uint16_t CardComdClasses;      /* Card command classes */
-  __IO uint8_t  RdBlockLen;           /* Max. read data block length */
-  __IO uint8_t  PartBlockRead;        /* Partial blocks for read allowed */
-  __IO uint8_t  WrBlockMisalign;      /* Write block misalignment */
-  __IO uint8_t  RdBlockMisalign;      /* Read block misalignment */
-  __IO uint8_t  DSRImpl;              /* DSR implemented */
-  __IO uint8_t  Reserved2;            /* Reserved */
-  __IO uint16_t DeviceSize;           /* Device Size */
-  __IO uint8_t  MaxRdCurrentVDDMin;   /* Max. read current @ VDD min */
-  __IO uint8_t  MaxRdCurrentVDDMax;   /* Max. read current @ VDD max */
-  __IO uint8_t  MaxWrCurrentVDDMin;   /* Max. write current @ VDD min */
-  __IO uint8_t  MaxWrCurrentVDDMax;   /* Max. write current @ VDD max */
-  __IO uint8_t  DeviceSizeMul;        /* Device size multiplier */
-  __IO uint8_t  EraseGrSize;          /* Erase group size */
-  __IO uint8_t  EraseGrMul;           /* Erase group size multiplier */
-  __IO uint8_t  WrProtectGrSize;      /* Write protect group size */
-  __IO uint8_t  WrProtectGrEnable;    /* Write protect group enable */
-  __IO uint8_t  ManDeflECC;           /* Manufacturer default ECC */
-  __IO uint8_t  WrSpeedFact;          /* Write speed factor */
-  __IO uint8_t  MaxWrBlockLen;        /* Max. write data block length */
-  __IO uint8_t  WriteBlockPaPartial;  /* Partial blocks for write allowed */
-  __IO uint8_t  Reserved3;            /* Reserded */
-  __IO uint8_t  ContentProtectAppli;  /* Content protection application */
-  __IO uint8_t  FileFormatGrouop;     /* File format group */
-  __IO uint8_t  CopyFlag;             /* Copy flag (OTP) */
-  __IO uint8_t  PermWrProtect;        /* Permanent write protection */
-  __IO uint8_t  TempWrProtect;        /* Temporary write protection */
-  __IO uint8_t  FileFormat;           /* File Format */
-  __IO uint8_t  ECC;                  /* ECC code */
-  __IO uint8_t  msd_CRC;                  /* CRC */
-  __IO uint8_t  Reserved4;            /* always 1*/
-}
-sMSD_CSD;
-
-typedef struct _MSD_CID      /*Card Identification Data*/
-{
-  __IO uint8_t  ManufacturerID;       /* ManufacturerID */
-  __IO uint16_t OEM_AppliID;          /* OEM/Application ID */
-  __IO uint32_t ProdName1;            /* Product Name part1 */
-  __IO uint8_t  ProdName2;            /* Product Name part2*/
-  __IO uint8_t  ProdRev;              /* Product Revision */
-  __IO uint32_t ProdSN;               /* Product Serial Number */
-  __IO uint8_t  Reserved1;            /* Reserved1 */
-  __IO uint16_t ManufactDate;         /* Manufacturing Date */
-  __IO uint8_t  msd_CRC;                  /* CRC */
-  __IO uint8_t  Reserved2;            /* always 1*/
-}
-sMSD_CID;
-
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
@@ -199,8 +141,8 @@ uint8_t MSD_WriteBlock(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 uint8_t MSD_ReadBlock(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRead);
 uint8_t MSD_WriteBuffer(const uint8_t* pBuffer, uint32_t WriteAddr, uint8_t NbrOfBlock);
 uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint8_t NbrOfBlock);
-uint8_t MSD_GetCSDRegister(sMSD_CSD* MSD_csd);
-uint8_t MSD_GetCIDRegister(sMSD_CID* MSD_cid);
+uint8_t MSD_GetCSDRegister(SD_CSD* MSD_csd);
+uint8_t MSD_GetCIDRegister(SD_CID* MSD_cid);
 
 /*----- Medium layer function -----*/
 void MSD_SendCmd(uint8_t Cmd, uint32_t Arg, uint8_t Crc);
