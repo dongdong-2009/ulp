@@ -41,6 +41,9 @@ ifeq ($(CONFIG_LIB_LWIP), y)
 	$(IAR_TOOL) inc $(IAR_FILE) src/lib/lwip/src/include/ipv4/
 	$(IAR_TOOL) inc $(IAR_FILE) src/lib/lwip/port/
 endif
+ifeq ($(CONFIG_LIB_FATFS), y)
+	$(IAR_TOOL) inc $(IAR_FILE) src/lib/fatfs/
+endif
 iar_add:
 	@echo target=$@ M=$(M): obj-y = $(obj-y)
 	@$(IAR_TOOL) add $(IAR_FILE) $(M) $(obj-y)
