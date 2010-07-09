@@ -207,12 +207,12 @@ static int cmd_ff_umount(int argc, char *argv[])
 const cmd_t cmd_umount = {"umount", cmd_ff_umount, "umount a disk"};
 DECLARE_SHELL_CMD(cmd_umount)
 
-static int cmd_ff_fopen(int argc, char *argv[])
+static int cmd_ff_fread(int argc, char *argv[])
 {
 
 	const char usage[] = { \
 		" usage:\n" \
-		" fopen, open file" \
+		" fread filename, read a file" \
 	};
 	 
 	if(argc > 0 && argc != 2) {
@@ -225,15 +225,15 @@ static int cmd_ff_fopen(int argc, char *argv[])
 	unsigned int br;
 	char buffer[100];
 
-	printf("%s \n\r",argv[1]);
-
-	res = f_open(&file, "dusk", FA_OPEN_EXISTING | FA_READ);
+	res = f_open(&file, argv[1], FA_OPEN_EXISTING | FA_READ);
 	if (res == FR_OK) {
 		for (;;) {
 			res = f_read(&file, buffer, sizeof(buffer), &br);
 			if (res || br == 0) break; /* error or eof */
+			buffer[br] = '\0';
 			printf("%s",buffer);
 		}
+		printf("\n\r");
 	} else {
 		printf("operation failed!\n\r");
 	}
@@ -241,8 +241,39 @@ static int cmd_ff_fopen(int argc, char *argv[])
 
 	return 0;
 }
-const cmd_t cmd_fopen = {"fopen", cmd_ff_fopen, "open file"};
-DECLARE_SHELL_CMD(cmd_fopen)
+const cmd_t cmd_fread = {"fread", cmd_ff_fread, "read a file"};
+DECLARE_SHELL_CMD(cmd_fread)
+
+static int cmd_ff_fwrite(int argc, char *argv[])
+{
+
+	const char usage[] = { \
+		" usage:\n" \
+		" fwrite filename, write a file" \
+	};
+	 
+	if(argc > 0 && argc != 2) {
+		printf(usage);
+		return 0;
+	}
+	
+	FRESULT res;
+	FIL file;
+	unsigned int br;
+	char Context[] = "this is new file,created by dusk!";
+
+	res = f_open(&file, argv[1], FA_CREATE_ALWAYS |FA_WRITE);
+	if (res == FR_OK) {
+			res = f_write(&file, Context, sizeof(Context), &br);
+	} else {
+		printf("operation failed!\n\r");
+	}
+	f_close(&file);
+
+	return 0;
+}
+const cmd_t cmd_fwrite = {"fwrite", cmd_ff_fwrite, "write a file"};
+DECLARE_SHELL_CMD(cmd_fwrite)
 
 static int cmd_ff_ls(int argc, char *argv[])
 {
