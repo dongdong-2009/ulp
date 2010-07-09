@@ -21,10 +21,7 @@
 #endif /* USE_STM3210E_EVAL */
 #include "mass_mal.h"
 
-#ifdef USE_STM3210E_EVAL
-SD_CardInfo SDCardInfo;
-#endif
-
+static SD_CardInfo SDCardInfo;
 extern mmc_t spi_card;
 static mmc_t *pMMC;
 
@@ -42,14 +39,15 @@ int MAL_Init()
 	int status = 0;
 
 #ifdef USE_STM3210E_EVAL
-      Status = SD_Init();
-      Status = SD_GetCardInfo(&SDCardInfo);
-      Status = SD_SelectDeselect((uint32_t) (SDCardInfo.RCA << 16));
-      Status = SD_EnableWideBusOperation(SDIO_BusWide_4b);
-      Status = SD_SetDeviceMode(SD_DMA_MODE);
+      status = SD_Init();
+      status = SD_GetCardInfo(&SDCardInfo);
+      status = SD_SelectDeselect((uint32_t) (SDCardInfo.RCA << 16));
+      status = SD_EnableWideBusOperation(SDIO_BusWide_4b);
+      status = SD_SetDeviceMode(SD_DMA_MODE);
 #else
 	pMMC = &spi_card;
-	pMMC->init();
+	status = pMMC->init();
+	
 #endif
 
 	return status;
@@ -63,6 +61,8 @@ int MAL_Init()
 *******************************************************************************/
 int MAL_Write(const unsigned char *buff, unsigned int sector, unsigned char count)
 {
+	int status = 0;
+	sector <<= 9;
 #ifdef USE_STM3210E_EVAL
       Status = SD_WriteBlock(Memory_Offset, Writebuff, Transfer_Length);
       if ( Status != SD_OK )
@@ -70,10 +70,10 @@ int MAL_Write(const unsigned char *buff, unsigned int sector, unsigned char coun
         return MAL_FAIL;
       }      
 #else
-	pMMC->writebuf(buff, sector, count);
+	status = pMMC->writebuf(buff, sector, count);
 #endif
 
-	return 0;
+	return status;
 }
 
 /*******************************************************************************
@@ -85,6 +85,8 @@ int MAL_Write(const unsigned char *buff, unsigned int sector, unsigned char coun
 *******************************************************************************/
 int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count)
 {
+	int status = 0;
+	sector <<= 9;
 #ifdef USE_STM3210E_EVAL
       Status = SD_ReadBlock(Memory_Offset, Readbuff, Transfer_Length);
       if ( Status != SD_OK )
@@ -92,10 +94,10 @@ int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count)
         return MAL_FAIL;
       }
 #else
-	pMMC->readbuf(buff, sector, count);
+	status = pMMC->readbuf(buff, sector, count);
 #endif
 
-	return 0;
+	return status;
 }
 
 /*******************************************************************************
@@ -107,12 +109,44 @@ int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count)
 *******************************************************************************/
 int MAL_GetStatus ()
 {
+	//detect the card
 	return 0;
+}
+
+int MAL_GetCardInfo(void)
+{
+	int status = 0;
+#ifdef USE_STM3210B_EVAL
+	status = MSD_GetCSDRegister(&SDCardInfo.SD_csd);
+	status = MSD_GetCIDRegister(&SDCardInfo.SD_cid);
+
+	SDCardInfo.CardCapacity = (SDCardInfo.SD_csd.DeviceSize + 1) ;
+ 	SDCardInfo.CardCapacity *= (1 << (SDCardInfo.SD_csd.DeviceSizeMul + 2));
+	SDCardInfo.CardBlockSize = 1 << (SDCardInfo.SD_csd.RdBlockLen);
+	SDCardInfo.CardCapacity *= SDCardInfo.CardBlockSize;
+	
+	SDCardInfo.CardBlockSize = 512;
+	SDCardInfo.RCA = 0;
+	SDCardInfo.CardType = 0;	
+#endif
+	return status;
 }
 
 int MMC_disk_ioctl(unsigned ctrl, void *buff)
 {
-	return 0;
+	switch(ctrl) {
+		case CTRL_SYNC:
+			return RES_OK;
+			
+		case GET_BLOCK_SIZE:
+			*(unsigned short*)buff = (unsigned short)SDCardInfo.CardBlockSize;
+			return RES_OK;
+
+		case GET_SECTOR_COUNT:
+			*(unsigned int*)buff = SDCardInfo.CardCapacity;
+			return RES_OK;
+	}
+	return RES_PARERR;
 }
 
 int NOP(void)
@@ -193,7 +227,7 @@ static int cmd_ff_fopen(int argc, char *argv[])
 
 	printf("%s \n\r",argv[1]);
 
-	res = f_open(&file, "0:dusk.txt", FA_OPEN_EXISTING | FA_READ);
+	res = f_open(&file, "dusk", FA_OPEN_EXISTING | FA_READ);
 	if (res == FR_OK) {
 		for (;;) {
 			res = f_read(&file, buffer, sizeof(buffer), &br);
@@ -246,5 +280,25 @@ static int cmd_ff_ls(int argc, char *argv[])
 }
 const cmd_t cmd_ls = {"ls", cmd_ff_ls, "display files"};
 DECLARE_SHELL_CMD(cmd_ls)
+
+static int cmd_sd_getinfo(int argc, char *argv[])
+{
+
+	const char usage[] = { \
+		" usage:\n" \
+		" dir, display files" \
+	};
+	 
+	if(argc > 0 && argc != 1) {
+		printf(usage);
+		return 0;
+	}
+
+	if( MAL_GetCardInfo())
+		printf("get error!\n\r");
+	return 0;
+}
+const cmd_t cmd_getinfo = {"getinfo", cmd_sd_getinfo, "display files"};
+DECLARE_SHELL_CMD(cmd_getinfo)
 #endif
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/
