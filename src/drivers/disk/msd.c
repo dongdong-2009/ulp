@@ -320,7 +320,7 @@ uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint8_t NbrOfBlock)
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_GetCSDRegister(sMSD_CSD* MSD_csd)
+uint8_t MSD_GetCSDRegister(SD_CSD* MSD_csd)
 {
   uint32_t i = 0;
   uint8_t rvalue = MSD_RESPONSE_FAILURE;
@@ -411,7 +411,7 @@ uint8_t MSD_GetCSDRegister(sMSD_CSD* MSD_csd)
   MSD_csd->FileFormat = (CSD_Tab[14] & 0x0C) >> 2;
   MSD_csd->ECC = (CSD_Tab[14] & 0x03);
   /* Byte 15 */
-  MSD_csd->msd_CRC = (CSD_Tab[15] & 0xFE) >> 1;
+  MSD_csd->CSD_CRC = (CSD_Tab[15] & 0xFE) >> 1;
   MSD_csd->Reserved4 = 1;
 
   /* Return the reponse */
@@ -428,7 +428,7 @@ uint8_t MSD_GetCSDRegister(sMSD_CSD* MSD_csd)
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_GetCIDRegister(sMSD_CID* MSD_cid)
+uint8_t MSD_GetCIDRegister(SD_CID* MSD_cid)
 {
   uint32_t i = 0;
   uint8_t rvalue = MSD_RESPONSE_FAILURE;
@@ -495,7 +495,7 @@ uint8_t MSD_GetCIDRegister(sMSD_CID* MSD_cid)
   /* Byte 15 */
   MSD_cid->ManufactDate |= CID_Tab[14];
   /* Byte 16 */
-  MSD_cid->msd_CRC = (CID_Tab[15] & 0xFE) >> 1;
+  MSD_cid->CID_CRC = (CID_Tab[15] & 0xFE) >> 1;
   MSD_cid->Reserved2 = 1;
 
   /* Return the reponse */
@@ -802,6 +802,8 @@ static void SPI_Config(void)
 #include <stdio.h>
 #include <stdlib.h>
 
+static unsigned char SDBuf[512];
+
 static int cmd_sd_init(int argc, char *argv[])
 {
 	const char usage[] = { \
@@ -820,6 +822,61 @@ static int cmd_sd_init(int argc, char *argv[])
 }
 const cmd_t cmd_init = {"init", cmd_sd_init, "mount a disk"};
 DECLARE_SHELL_CMD(cmd_init)
+
+static int cmd_sd_read(int argc, char *argv[])
+{
+	int i;
+	int sector;
+	const char usage[] = { \
+		" usage:\n" \
+		" read bsector ,read a sector \n\r " \
+	};
+	
+	if(argc > 0 && argc != 2) {
+		printf(usage);
+		return 0;
+	}
+	
+	sscanf(argv[1],"%d",&sector);
+	
+	if (MSD_ReadBuffer(SDBuf, sector<<9, 1)) {
+		printf("read error!\n\r");
+	} else {
+		for (i = 0; i < 512; i++) {
+			if(!(i%16))
+				printf("\n");
+			printf("0x%.2x  ",SDBuf[i]);
+		}
+		printf("\n\r");
+	}
+
+	return 0;
+}
+const cmd_t cmd_read = {"read", cmd_sd_read, "read a sector"};
+DECLARE_SHELL_CMD(cmd_read)
+
+static int cmd_sd_write(int argc, char *argv[])
+{
+	int sector;
+	const char usage[] = { \
+		" usage:\n" \
+		" read bsector ,read a sector \n\r " \
+	};
+	
+	if(argc > 0 && argc != 2) {
+		printf(usage);
+		return 0;
+	}
+	
+	sscanf(argv[1],"%d",&sector);
+	
+	if(MSD_WriteBuffer(SDBuf, sector<<9, 1))
+		printf("write error!\n\r");
+
+	return 0;
+}
+const cmd_t cmd_write = {"write", cmd_sd_write, "write a sector"};
+DECLARE_SHELL_CMD(cmd_write)
 #endif
 
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/
