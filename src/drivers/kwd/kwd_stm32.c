@@ -1,34 +1,30 @@
 /*
  * 	miaofng@2010 initial version
- *		This file is used to provide data link and phy level i/f for ISO14230/keyword2000 protocol
+ *		This file is used to provide phy level i/f for ISO14230/keyword2000 protocol
  *		send: DMA irq mode
  *		recv: DMA poll mode
  */
 
 #include "config.h"
-#include "kwp.h"
+#include "kwd.h"
 #include "time.h"
 #include "stm32f10x.h"
 
 #define __DEBUG
-//#undef __DEBUG
 
-static time_t kwp_timer;
-static char kwp_stm;
-static char *kwp_buf;
-static char kwp_kbyte;
+static void kwd_SetupTxDMA(void *p, size_t n);
+static void kwd_SetupRxDMA(void *p, size_t n);
 
-static void kwp_SetupTxDMA(void *p, size_t n);
-static void kwp_SetupRxDMA(void *p, size_t n);
-
-void kwp_init(void)
+void kwd_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef uartinfo;
+	NVIC_InitTypeDef NVIC_InitStructure;
 
 	/* Enable GPIOA clock */
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 
 	/*configure PA9<uart1.tx>, PA10<uart1.rx>*/
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
@@ -45,97 +41,84 @@ void kwp_init(void)
 #ifdef __DEBUG
 	uartinfo.USART_BaudRate = 115200;
 #else
-	uartinfo.USART_BaudRate = KWP_BAUD;
+	uartinfo.USART_BaudRate = KWD_BAUD;
 #endif
 	USART_Init(USART1, &uartinfo);
+	USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);
+	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);
 	USART_Cmd(USART1, ENABLE);
 
-	kwp_stm = KWP_STM_IDLE;
-	kwp_kbyte = 0xEA; //0 1 0 1,  0 1  1 1, force 4 byte header mode
+	/* Enable DMA Interrupt */
+	DMA_ITConfig(DMA1_Channel4, DMA_IT_TC, ENABLE);
+	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel4_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
 }
 
-int kwp_wake(void)
+int kwd_wake(int hi)
 {
+#ifndef __DEBUG
 	GPIO_InitTypeDef GPIO_InitStructure;
 
+if(!hi) {
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9; //uart1.tx
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	GPIO_WriteBit(GPIOA, GPIO_Pin_9, BIT_RESET);
-	kwp_timer = time_get(KWP_FAST_INIT_LOW_MS);
-	kwp_stm = KWP_STM_WAKE_LO;
+}
+	GPIO_WriteBit(GPIOA, GPIO_Pin_9, hi);
+
+if(hi) {
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+}
+#endif
+	return 0;
 }
 
-int kwp_isready(void)
+/* whole kwd_transfer procedure
+1) disable uart
+2) setup uart tx/rx dma
+3) enable uart tx
+4) ...dma isr()-> enable uart rx
+5) ...poll() rx finish?
+*/
+int kwd_transfer(char *tbuf, size_t tn, char *rbuf, size_t rn)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
-
-	switch(kwp_stm) {
-		case KWP_STM_WAKE_LO:
-		if(time_left(kwp_timer) < 0) {
-			GPIO_WriteBit(GPIOA, GPIO_Pin_9, BIT_SET);
-			kwp_timer = KWP_STM_WAKE_HI;
-			kwp_stm = KWP_STM_WAKE_HI;
-		}
-		break;
-		case KWP_STM_WAKE_HI:
-		if(time_left(kwp_timer) < 0) {
-			GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-			GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-			GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-			GPIO_Init(GPIOA, &GPIO_InitStructure);
-			kwp_stm = KWP_STM_START_COMM;
-		}
-		break;
-		case KWP_STM_START_COMM:
-		kwp_buf = kwp_malloc(1);
-		kwp_buf[0] = SCR;
-		kwp_trans(kwp_buf, 1);
-		kwp_stm = KWP_STM_READ_KBYTES;
-		break;
-		case KWP_STM_READ_KBYTES:
-		if(kwp_poll()) {
-			kwp_kbyte = kwp_buf[0];
-			kwp_free(kwp_buf);
-			kwp_stm = KWP_STM_READY;
-		}
-		break;
-		default:
-		break;
-	}
-
-	return (kwp_stm == KWP_STM_READY);
+	//setup tx/rx phy engine
+	kwd_SetupTxDMA(tbuf, tn);
+	kwd_SetupRxDMA(rbuf, rn);
+	USART_ReceiverWakeUpCmd(USART1, DISABLE);
+	return 0;
 }
 
-/*format: sizeof_buf(4bytes) + kwp_head(4bytes?) + kwp_data(?) + cksum(1byte)*/
-void *kwp_malloc(size_t n)
+/*tx transfer: dma irq mode*/
+void kwd_isr(void)
 {
-	int *p = malloc(sizeof(int) + sizeof(kwp_head_t) + 1 + n);
-	*p = n;
-	return (char *)p + sizeof(int) + sizeof(kwp_head_t);
+	DMA_ClearITPendingBit(DMA1_IT_TC4 | DMA1_IT_GL4);
+	USART_ReceiverWakeUpCmd(USART1, ENABLE);
 }
 
-void kwp_free(void *p)
+/*rx transfer: dma poll mode*/
+int kwd_poll(int rx)
 {
-	p = (char *)p - sizeof(kwp_head_t) - sizeof(int);
-	free(p);
+	if(rx)
+		return DMA_GetCurrDataCounter(DMA1_Channel5);
+	else
+		return DMA_GetCurrDataCounter(DMA1_Channel4);
 }
 
-int kwp_transfer(char *buf, size_t n)
-{
-}
-
-int kwp_poll(void)
-{
-}
-
-static void kwp_SetupTxDMA(void *p, size_t n)
+static void kwd_SetupTxDMA(void *p, size_t n)
 {
 	DMA_InitTypeDef DMA_InitStructure;
 
+	DMA_Cmd(DMA1_Channel4, DISABLE);
 	DMA_DeInit(DMA1_Channel4); //uart1 tx dma
-	DMA_InitStructure.DMA_PeripheralBaseAddr = &USART1->DR;
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (int)(&USART1->DR);
 	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)p;
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
 	DMA_InitStructure.DMA_BufferSize = n;
@@ -147,14 +130,16 @@ static void kwp_SetupTxDMA(void *p, size_t n)
 	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel4, &DMA_InitStructure);
+	DMA_Cmd(DMA1_Channel4, ENABLE);
 }
 
-static void kwp_SetupRxDMA(void *p, size_t n)
+static void kwd_SetupRxDMA(void *p, size_t n)
 {
 	DMA_InitTypeDef DMA_InitStructure;
 
+	DMA_Cmd(DMA1_Channel5, DISABLE);
 	DMA_DeInit(DMA1_Channel5); //uart1 rx dma
-	DMA_InitStructure.DMA_PeripheralBaseAddr = &USART1->DR;
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (int)(&USART1->DR);
 	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)p;
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
 	DMA_InitStructure.DMA_BufferSize = n;
@@ -166,4 +151,5 @@ static void kwp_SetupRxDMA(void *p, size_t n)
 	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel5, &DMA_InitStructure);
+	DMA_Cmd(DMA1_Channel5, ENABLE);
 }
