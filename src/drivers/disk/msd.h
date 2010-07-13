@@ -105,31 +105,35 @@
 #define MSD_DATA_OTHER_ERROR       0xFF
 
 /* Commands: CMDxx = CMD-number | 0x40 */
-#define MSD_GO_IDLE_STATE          0   /* CMD0=0x40 */
-#define MSD_SEND_OP_COND           1   /* CMD1=0x41 */
-#define MSD_SEND_CSD               9   /* CMD9=0x49 */
-#define MSD_SEND_CID               10  /* CMD10=0x4A */
-#define MSD_STOP_TRANSMISSION      12  /* CMD12=0x4C */
-#define MSD_SEND_STATUS            13  /* CMD13=0x4D */
-#define MSD_SET_BLOCKLEN           16  /* CMD16=0x50 */
-#define MSD_READ_SINGLE_BLOCK      17  /* CMD17=0x51 */
-#define MSD_READ_MULTIPLE_BLOCK    18  /* CMD18=0x52 */
-#define MSD_SET_BLOCK_COUNT        23  /* CMD23=0x57 */
-#define MSD_WRITE_BLOCK            24  /* CMD24=0x58 */
-#define MSD_WRITE_MULTIPLE_BLOCK   25  /* CMD25=0x59 */
-#define MSD_PROGRAM_CSD            27  /* CMD27=0x5B */
-#define MSD_SET_WRITE_PROT         28  /* CMD28=0x5C */
-#define MSD_CLR_WRITE_PROT         29  /* CMD29=0x5D */
-#define MSD_SEND_WRITE_PROT        30  /* CMD30=0x5E */
-#define MSD_TAG_SECTOR_START       32  /* CMD32=0x60 */
-#define MSD_TAG_SECTOR_END         33  /* CMD33=0x61 */
-#define MSD_UNTAG_SECTOR           34  /* CMD34=0x62 */
-#define MSD_TAG_ERASE_GROUP_START  35  /* CMD35=0x63 */
-#define MSD_TAG_ERASE_GROUP_END    36  /* CMD36=0x64 */
-#define MSD_UNTAG_ERASE_GROUP      37  /* CMD37=0x65 */
-#define MSD_ERASE                  38  /* CMD38=0x66 */
-#define MSD_READ_OCR               39  /* CMD39=0x67 */
-#define MSD_CRC_ON_OFF             40  /* CMD40=0x68 */
+#define MSD_GO_IDLE_STATE          (0x40+0)   /* CMD0=0x40 */
+#define	MSD_SEND_OP_COND           (0x40+1)   /* CMD1=0x41 */
+#define	MSD_SEND_IF_COND           (0x40+8)   /* SEND_IF_COND */
+#define MSD_SEND_CSD               (0x40+9)   /* CMD9=0x49 */
+#define MSD_SEND_CID               (0x40+10)  /* CMD10=0x4A */
+#define MSD_STOP_TRANSMISSION      (0x40+12)  /* CMD12=0x4C */
+#define MSD_SEND_STATUS            (0x40+13)  /* CMD13=0x4D */
+#define MSD_SET_BLOCKLEN           (0x40+16)  /* CMD16=0x50 */
+#define MSD_READ_SINGLE_BLOCK      (0x40+17)  /* CMD17=0x51 */
+#define MSD_READ_MULTIPLE_BLOCK    (0x40+18)  /* CMD18=0x52 */
+#define MSD_SET_BLOCK_COUNT        (0x40+23)  /* CMD23=0x57 */
+#define MSD_WRITE_BLOCK            (0x40+24)  /* CMD24=0x58 */
+#define MSD_WRITE_MULTIPLE_BLOCK   (0x40+25)  /* CMD25=0x59 */
+#define MSD_PROGRAM_CSD            (0x40+27)  /* CMD27=0x5B */
+#define MSD_SET_WRITE_PROT         (0x40+28)  /* CMD28=0x5C */
+#define MSD_CLR_WRITE_PROT         (0x40+29)  /* CMD29=0x5D */
+#define MSD_SEND_WRITE_PROT        (0x40+30)  /* CMD30=0x5E */
+#define MSD_TAG_SECTOR_START       (0x40+32)  /* CMD32=0x60 */
+#define MSD_TAG_SECTOR_END         (0x40+33)  /* CMD33=0x61 */
+#define MSD_UNTAG_SECTOR           (0x40+34)  /* CMD34=0x62 */
+#define MSD_TAG_ERASE_GROUP_START  (0x40+35)  /* CMD35=0x63 */
+#define MSD_TAG_ERASE_GROUP_END    (0x40+36)  /* CMD36=0x64 */
+#define MSD_UNTAG_ERASE_GROUP      (0x40+37)  /* CMD37=0x65 */
+#define MSD_ERASE                  (0x40+38)  /* CMD38=0x66 */
+#define MSD_READ_OCR               (0x40+39)  /* CMD39=0x67 */
+#define MSD_CRC_ON_OFF             (0x40+40)  /* CMD40=0x68 */
+#define MSD_APP_CMD                (0x40+55)  /* APP_CMD */
+#define MSD_APP_READ_OCR           (0x40+58)  /* APP_READ_OCR */
+#define MSD_SEND_ACMD41            (0x40+41)  /* send app operation condition SDC*/
 
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/

@@ -44,6 +44,8 @@ mmc_t spi_card = {
 	MSD_GetCardInfo,
 };
 
+static unsigned char MSD_CardType;
+
 /* Private function prototypes -----------------------------------------------*/
 static void SPI_Config(void);
 
@@ -57,22 +59,151 @@ static void SPI_Config(void);
 *******************************************************************************/
 uint8_t MSD_Init(void)
 {
-  uint32_t i = 0;
+	uint32_t i = 0;
+	unsigned char buff[4];
 
-  /* Initialize MSD_SPI */
-  SPI_Config();
-  /* MSD chip select high */
-  MSD_CS_HIGH();
-  /* Send dummy byte 0xFF, 10 times with CS high*/
-  /* rise CS and MOSI for 80 clocks cycles */
-  for (i = 0; i <= 9; i++)
-  {
-    /* Send dummy byte 0xFF */
-    MSD_WriteByte(DUMMY);
-  }
-  /*------------Put MSD in SPI mode--------------*/
-  /* MSD initialized and set to SPI mode properly */
-  return (MSD_GoIdleState());
+	/* Initialize MSD_SPI */
+	SPI_Config();
+	/* MSD chip select high */
+	MSD_CS_HIGH();
+	/* Send dummy byte 0xFF, 10 times with CS high*/
+	/* rise CS and MOSI for 80 clocks cycles */
+	for (i = 0; i <= 9; i++) {
+		/* Send dummy byte 0xFF */
+		MSD_WriteByte(DUMMY);
+	}	
+	/*------------Put MSD in SPI mode--------------*/
+	/* MSD initialized and set to SPI mode properly */
+	if(MSD_GoIdleState())
+		return 1;
+	
+	MSD_WriteByte(DUMMY);
+	MSD_CS_LOW();
+	
+	MSD_SendCmd(MSD_SEND_IF_COND, 0x1AA, 0x87);
+	if (MSD_GetResponse(0x01) == 0) {				//SDHC or SDV2
+		// 4Bytes returned after CMD8 sent
+		buff[0] = MSD_ReadByte();					//should be 0x00
+		buff[1] = MSD_ReadByte();					//should be 0x00
+		buff[2] = MSD_ReadByte();					//should be 0x01
+		buff[3] = MSD_ReadByte();					//should be 0xAA
+		
+		MSD_CS_HIGH();
+		MSD_WriteByte(DUMMY);
+
+		// Check voltage range be 2.7-3.6V
+		if (buff[2] == 0x01 && buff[3] == 0xAA) {
+			for (i = 0; i < 0xfff; i++) {			
+				MSD_WriteByte(DUMMY);
+				MSD_CS_LOW();
+				
+				MSD_SendCmd(MSD_APP_CMD, 0, 0);
+				if(MSD_GetResponse(0x01))
+					return 1;
+				MSD_SendCmd(MSD_SEND_ACMD41, 0X40000000, 0);
+				if (MSD_GetResponse(0x0) == 0) {
+					i = 0;
+					break;
+				}
+				MSD_CS_HIGH();
+				MSD_WriteByte(DUMMY);
+				
+			}
+			if (i == 0xfff)
+				return 1;			
+		}
+
+		MSD_WriteByte(DUMMY);
+		MSD_CS_LOW();
+		
+		MSD_SendCmd(MSD_APP_READ_OCR, 0, 0xff);
+		if (MSD_GetResponse(0x0) == 0) {
+			for(i = 0; i < 4; i++)
+				buff[i] = MSD_ReadByte();	
+
+			MSD_CS_HIGH();
+			MSD_WriteByte(DUMMY);	
+			
+			if (buff[0] & 0x40) {
+				MSD_CardType = CARDTYPE_SDV2HC;
+			} else {
+				MSD_CardType = CARDTYPE_SDV2;
+			}
+		}
+	} else {
+		MSD_CS_HIGH();
+		MSD_WriteByte(DUMMY);
+		
+		MSD_CardType = CARDTYPE_SDV1;
+		
+		// SD1.0/MMC start initialize
+		// Send CMD55+ACMD41, No-response is a MMC card, 
+		// otherwise is a SD1.0 card
+		for (i = 0; i < 0xfff; i++) {
+			MSD_WriteByte(DUMMY);
+			MSD_CS_LOW();
+
+			MSD_SendCmd(MSD_APP_CMD, 0, 0);
+			if (MSD_GetResponse(0x01))
+				return 1;
+				
+			MSD_CS_HIGH();
+			MSD_WriteByte(DUMMY);
+			
+			MSD_WriteByte(DUMMY);
+			MSD_CS_LOW();
+			MSD_SendCmd(MSD_SEND_ACMD41, 0, 0);
+			if (MSD_GetResponse(0x00) == 0) {
+				i = 0;
+				break;
+			}
+
+			MSD_CS_HIGH();
+			MSD_WriteByte(DUMMY);
+		}		
+		
+		//MMC Card initialize start
+		if (i == 0xfff) {
+			MSD_CardType = CARDTYPE_SDV1;
+			for (i = 0; i < 0xfff; i++) {
+				MSD_WriteByte(DUMMY);
+				MSD_CS_LOW();
+
+				MSD_SendCmd(MSD_SEND_OP_COND, 0, 0);
+				if (MSD_GetResponse(0x00) == 0) {
+					i = 0;
+					break;
+				}
+
+				MSD_CS_HIGH();
+				MSD_WriteByte(DUMMY);
+			}
+			
+			if(i == 0xfff)
+				return 1;
+		} else {
+			for(i = 0; i < 0xfff; i++) {
+				MSD_WriteByte(DUMMY);
+				MSD_CS_LOW();
+
+				MSD_SendCmd(MSD_SEND_OP_COND, 0, 0xff);
+				if (MSD_GetResponse(0x00) == 0) {
+					i = 0;
+					break;
+				}
+
+				MSD_CS_HIGH();
+				MSD_WriteByte(DUMMY);
+			}
+			if(i == 0xfff)
+				return 1;
+		}
+	}
+	
+	MSD_CS_HIGH();
+	MSD_WriteByte(DUMMY);
+	
+	return 0;
 }
 
 /*******************************************************************************
@@ -517,7 +648,7 @@ uint8_t MSD_GetCardInfo(SD_CardInfo * pSDCardInfo)
 	
 	pSDCardInfo->CardBlockSize = 512;
 	pSDCardInfo->RCA = 0;
-	pSDCardInfo->CardType = 0;
+	pSDCardInfo->CardType = MSD_CardType;
 
 	return status;
 }
@@ -537,7 +668,7 @@ void MSD_SendCmd(uint8_t Cmd, uint32_t Arg, uint8_t Crc)
   uint8_t Frame[6];
 
   /* Construct byte1 */
-  Frame[0] = (Cmd | 0x40);
+  Frame[0] = Cmd;
   /* Construct byte2 */
   Frame[1] = (uint8_t)(Arg >> 24);
   /* Construct byte3 */
@@ -689,6 +820,7 @@ uint8_t MSD_GoIdleState(void)
     /* No Idle State Response: return response failue */
     return MSD_RESPONSE_FAILURE;
   }
+#if 0
   /*----------Activates the card initialization process-----------*/
   do
   {
@@ -705,6 +837,7 @@ uint8_t MSD_GoIdleState(void)
     /* Wait for no error Response (R1 Format) equal to 0x00 */
   }
   while (MSD_GetResponse(MSD_RESPONSE_NO_ERROR));
+#endif
 
   /* MSD chip select high */
   MSD_CS_HIGH();
@@ -817,7 +950,7 @@ static void SPI_Config(void)
 }
 
 
-#if 0
+#if 1
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -851,15 +984,18 @@ static int cmd_sd_read(int argc, char *argv[])
 		" usage:\n" \
 		" read bsector ,read a sector \n\r " \
 	};
-	
+
 	if(argc > 0 && argc != 2) {
 		printf(usage);
 		return 0;
 	}
-	
+
 	sscanf(argv[1],"%d",&sector);
-	
-	if (MSD_ReadBuffer(SDBuf, sector<<9, 1)) {
+
+	if( MSD_CardType != CARDTYPE_SDV2HC)
+		sector <<= 9;
+
+	if (MSD_ReadBuffer(SDBuf, sector, 1)) {
 		printf("read error!\n\r");
 	} else {
 		for (i = 0; i < 512; i++) {
@@ -882,15 +1018,18 @@ static int cmd_sd_write(int argc, char *argv[])
 		" usage:\n" \
 		" read bsector ,write a sector \n\r " \
 	};
-	
+
 	if(argc > 0 && argc != 2) {
 		printf(usage);
 		return 0;
 	}
-	
+
 	sscanf(argv[1],"%d",&sector);
-	
-	if(MSD_WriteBuffer(SDBuf, sector<<9, 1))
+
+	if( MSD_CardType != CARDTYPE_SDV2HC)
+		sector <<= 9;
+
+	if(MSD_WriteBuffer(SDBuf, sector, 1))
 		printf("write error!\n\r");
 
 	return 0;

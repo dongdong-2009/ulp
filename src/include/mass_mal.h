@@ -85,13 +85,17 @@ typedef struct
   uint8_t CardType;
 } SD_CardInfo;
 
-
 typedef struct {
 	unsigned char (*init)(void);
 	unsigned char (*readbuf)(unsigned char *, unsigned int, unsigned char);
 	unsigned char(*writebuf)(const unsigned char *, unsigned int, unsigned char);
 	unsigned char(*getcardinfo)(SD_CardInfo *);
 } mmc_t;
+
+#define CARDTYPE_MMC			0x00
+#define CARDTYPE_SDV1			0x01
+#define CARDTYPE_SDV2			0x02
+#define CARDTYPE_SDV2HC			0x04
 
 #define ATA_disk_initialize() NOP()
 #define USB_disk_initialize() NOP()

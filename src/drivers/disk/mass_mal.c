@@ -57,7 +57,10 @@ int MAL_Init()
 int MAL_Write(const unsigned char *buff, unsigned int sector, unsigned char count)
 {
 	int status = 0;
-	sector <<= 9;
+	// if ver = SD2.0 HC, sector need <<9
+	if(SDCardInfo.CardType != CARDTYPE_SDV2HC)
+		sector = sector<<9;
+
 #ifdef USE_STM3210E_EVAL
       Status = SD_WriteBlock(Memory_Offset, Writebuff, Transfer_Length);
       if ( Status != SD_OK )
@@ -81,7 +84,10 @@ int MAL_Write(const unsigned char *buff, unsigned int sector, unsigned char coun
 int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count)
 {
 	int status = 0;
-	sector <<= 9;
+	// if ver = SD2.0 HC, sector need <<9
+	if(SDCardInfo.CardType != CARDTYPE_SDV2HC)
+		sector = sector<<9;
+
 #ifdef USE_STM3210E_EVAL
       Status = SD_ReadBlock(Memory_Offset, Readbuff, Transfer_Length);
       if ( Status != SD_OK )
