@@ -93,13 +93,17 @@ uint8_t MSD_Init(void)
 
 		// Check voltage range be 2.7-3.6V
 		if (buff[2] == 0x01 && buff[3] == 0xAA) {
-			for (i = 0; i < 0xfff; i++) {			
+			for (i = 0; i < 0xfff; i++) {
 				MSD_WriteByte(DUMMY);
-				MSD_CS_LOW();
-				
+				MSD_CS_LOW();				
 				MSD_SendCmd(MSD_APP_CMD, 0, 0);
 				if(MSD_GetResponse(0x01))
 					return 1;
+				MSD_CS_HIGH();
+				MSD_WriteByte(DUMMY);
+			
+				MSD_WriteByte(DUMMY);
+				MSD_CS_LOW();
 				MSD_SendCmd(MSD_SEND_ACMD41, 0X40000000, 0);
 				if (MSD_GetResponse(0x0) == 0) {
 					i = 0;
@@ -110,8 +114,10 @@ uint8_t MSD_Init(void)
 				
 			}
 			if (i == 0xfff)
-				return 1;			
+				return 1;
 		}
+		MSD_CS_HIGH();
+		MSD_WriteByte(DUMMY);
 
 		MSD_WriteByte(DUMMY);
 		MSD_CS_LOW();
@@ -119,10 +125,10 @@ uint8_t MSD_Init(void)
 		MSD_SendCmd(MSD_APP_READ_OCR, 0, 0xff);
 		if (MSD_GetResponse(0x0) == 0) {
 			for(i = 0; i < 4; i++)
-				buff[i] = MSD_ReadByte();	
+				buff[i] = MSD_ReadByte();
 
 			MSD_CS_HIGH();
-			MSD_WriteByte(DUMMY);	
+			MSD_WriteByte(DUMMY);
 			
 			if (buff[0] & 0x40) {
 				MSD_CardType = CARDTYPE_SDV2HC;
@@ -157,10 +163,12 @@ uint8_t MSD_Init(void)
 				i = 0;
 				break;
 			}
-
 			MSD_CS_HIGH();
 			MSD_WriteByte(DUMMY);
-		}		
+		}
+		
+		MSD_CS_HIGH();
+		MSD_WriteByte(DUMMY);
 		
 		//MMC Card initialize start
 		if (i == 0xfff) {
@@ -168,17 +176,14 @@ uint8_t MSD_Init(void)
 			for (i = 0; i < 0xfff; i++) {
 				MSD_WriteByte(DUMMY);
 				MSD_CS_LOW();
-
 				MSD_SendCmd(MSD_SEND_OP_COND, 0, 0);
 				if (MSD_GetResponse(0x00) == 0) {
 					i = 0;
 					break;
 				}
-
 				MSD_CS_HIGH();
 				MSD_WriteByte(DUMMY);
 			}
-			
 			if(i == 0xfff)
 				return 1;
 		} else {
@@ -191,7 +196,6 @@ uint8_t MSD_Init(void)
 					i = 0;
 					break;
 				}
-
 				MSD_CS_HIGH();
 				MSD_WriteByte(DUMMY);
 			}
@@ -199,7 +203,6 @@ uint8_t MSD_Init(void)
 				return 1;
 		}
 	}
-	
 	MSD_CS_HIGH();
 	MSD_WriteByte(DUMMY);
 	
@@ -520,11 +523,11 @@ uint8_t MSD_GetCSDRegister(SD_CSD* MSD_csd)
   MSD_csd->DeviceSizeMul = (CSD_Tab[9] & 0x03) << 1;
   /* Byte 10 */
   MSD_csd->DeviceSizeMul |= (CSD_Tab[10] & 0x80) >> 7;
-  MSD_csd->EraseGrSize = (CSD_Tab[10] & 0x7C) >> 2;
-  MSD_csd->EraseGrMul = (CSD_Tab[10] & 0x03) << 3;
+  MSD_csd->EraseGrSize = (CSD_Tab[10] & 0x40) >> 6;
+  MSD_csd->EraseGrMul = (CSD_Tab[10] & 0x3F) << 1;
   /* Byte 11 */
-  MSD_csd->EraseGrMul |= (CSD_Tab[11] & 0xE0) >> 5;
-  MSD_csd->WrProtectGrSize = (CSD_Tab[11] & 0x1F);
+  MSD_csd->EraseGrMul |= (CSD_Tab[11] & 0x80) >> 7;
+  MSD_csd->WrProtectGrSize = (CSD_Tab[11] & 0x7F);
   /* Byte 12 */
   MSD_csd->WrProtectGrEnable = (CSD_Tab[12] & 0x80) >> 7;
   MSD_csd->ManDeflECC = (CSD_Tab[12] & 0x60) >> 5;
