@@ -9,7 +9,7 @@
 #ifndef _FFCONF
 #define _FFCONF 8085	/* Revision ID */
 
-
+#include "config.h"
 /*---------------------------------------------------------------------------/
 / Function and Buffer Configurations
 /----------------------------------------------------------------------------*/
@@ -19,8 +19,11 @@
 /  object instead of the sector buffer in the individual file object for file
 /  data transfer. This reduces memory consumption 512 bytes each file object. */
 
-
-#define _FS_READONLY	0	/* 0:Read/Write or 1:Read only */
+#ifdef CONFIG_FATFS_READONLY
+#define _FS_READONLY	1	/* 0:Read/Write or 1:Read only */
+#else
+#define _FS_READONLY	0
+#endif
 /* Setting _FS_READONLY to 1 defines read only configuration. This removes
 /  writing functions, f_write, f_sync, f_unlink, f_mkdir, f_chmod, f_rename,
 /  f_truncate and useless f_getfree. */
@@ -109,8 +112,11 @@
 /* To switch the character code set on FatFs API to Unicode,
 /  enable LFN feature and set _LFN_UNICODE to 1. */
 
-
-#define _FS_RPATH	0		/* 0:Disable or 1:Enable */
+#ifdef CONFIG_FATFS_RPATH
+#define _FS_RPATH	1		/* 0:Disable or 1:Enable */
+#else
+#define _FS_RPATH	0
+#endif
 /* When _FS_RPATH is set to 1, relative path feature is enabled and f_chdir,
 /  f_chdrive function are available.
 /  Note that output of the f_readdir fnction is affected by this option. */
