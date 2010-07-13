@@ -146,7 +146,7 @@ int NOP(void)
 }
 
 
-#if 1
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -305,7 +305,6 @@ DECLARE_SHELL_CMD(cmd_ls)
 
 static int cmd_sd_getinfo(int argc, char *argv[])
 {
-
 	const char usage[] = { \
 		" usage:\n" \
 		" dir, display files" \
@@ -316,8 +315,15 @@ static int cmd_sd_getinfo(int argc, char *argv[])
 		return 0;
 	}
 
-	if( MAL_GetCardInfo())
+	if( MAL_GetCardInfo()) {
 		printf("get error!\n\r");
+	} else {
+		printf("SD Card type is %s\n\r", SDCardInfo.CardType == CARDTYPE_SDV2HC? "SD High Capacity":"SD NOMAL");
+		if(SDCardInfo.CardType == CARDTYPE_SDV2HC)
+			printf("SD Capacity is %d MBytes\n\r", SDCardInfo.CardCapacity>>10);
+		else
+			printf("SD Capacity is %d MBytes\n\r", SDCardInfo.CardCapacity>>20);
+	}
 	return 0;
 }
 const cmd_t cmd_getinfo = {"getinfo", cmd_sd_getinfo, "display files"};

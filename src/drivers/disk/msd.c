@@ -510,6 +510,8 @@ uint8_t MSD_GetCSDRegister(SD_CSD* MSD_csd)
   MSD_csd->RdBlockMisalign = (CSD_Tab[6] & 0x20) >> 5;
   MSD_csd->DSRImpl = (CSD_Tab[6] & 0x10) >> 4;
   MSD_csd->Reserved2 = 0; /* Reserved */
+  
+  if (MSD_CardType != CARDTYPE_SDV2HC) {
   MSD_csd->DeviceSize = (CSD_Tab[6] & 0x03) << 10;
   /* Byte 7 */
   MSD_csd->DeviceSize |= (CSD_Tab[7]) << 2;
@@ -523,8 +525,18 @@ uint8_t MSD_GetCSDRegister(SD_CSD* MSD_csd)
   MSD_csd->DeviceSizeMul = (CSD_Tab[9] & 0x03) << 1;
   /* Byte 10 */
   MSD_csd->DeviceSizeMul |= (CSD_Tab[10] & 0x80) >> 7;
+  } else {
+  /* Byte 7 */
+  MSD_csd->DeviceSize = (CSD_Tab[7] & 0x3F) << 16;
+  /* Byte 8 */
+  MSD_csd->DeviceSize |= (CSD_Tab[8] << 8);
+  /* Byte 9 */
+  MSD_csd->DeviceSize |= (CSD_Tab[9]);
+  }
+  
   MSD_csd->EraseGrSize = (CSD_Tab[10] & 0x40) >> 6;
   MSD_csd->EraseGrMul = (CSD_Tab[10] & 0x3F) << 1;
+  
   /* Byte 11 */
   MSD_csd->EraseGrMul |= (CSD_Tab[11] & 0x80) >> 7;
   MSD_csd->WrProtectGrSize = (CSD_Tab[11] & 0x7F);
@@ -643,13 +655,18 @@ uint8_t MSD_GetCardInfo(SD_CardInfo * pSDCardInfo)
 
 	status = MSD_GetCSDRegister(&pSDCardInfo->SD_csd);
 	status = MSD_GetCIDRegister(&pSDCardInfo->SD_cid);
+	if (MSD_CardType != CARDTYPE_SDV2HC) {
+		pSDCardInfo->CardCapacity = (pSDCardInfo->SD_csd.DeviceSize + 1) ;
+		pSDCardInfo->CardCapacity *= (1 << (pSDCardInfo->SD_csd.DeviceSizeMul + 2));
+		pSDCardInfo->CardBlockSize = 1 << (pSDCardInfo->SD_csd.RdBlockLen);
+		pSDCardInfo->CardCapacity *= pSDCardInfo->CardBlockSize;
+		pSDCardInfo->CardBlockSize = 512;
+	} else {
+		//pSDCardInfo->CardCapacity = (pSDCardInfo->SD_csd.DeviceSize + 1) * 512 * 1024;
+		pSDCardInfo->CardCapacity = (pSDCardInfo->SD_csd.DeviceSize + 1) << 9;
+		pSDCardInfo->CardBlockSize = 512;
+	}
 
-	pSDCardInfo->CardCapacity = (pSDCardInfo->SD_csd.DeviceSize + 1) ;
- 	pSDCardInfo->CardCapacity *= (1 << (pSDCardInfo->SD_csd.DeviceSizeMul + 2));
-	pSDCardInfo->CardBlockSize = 1 << (pSDCardInfo->SD_csd.RdBlockLen);
-	pSDCardInfo->CardCapacity *= pSDCardInfo->CardBlockSize;
-	
-	pSDCardInfo->CardBlockSize = 512;
 	pSDCardInfo->RCA = 0;
 	pSDCardInfo->CardType = MSD_CardType;
 
@@ -953,7 +970,7 @@ static void SPI_Config(void)
 }
 
 
-#if 1
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
