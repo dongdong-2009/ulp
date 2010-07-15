@@ -3,3 +3,5 @@
 #
 # Written by dusk@2010
 #
+bool "fatfs support only read?" CONFIG_FATFS_READONLY
+bool "fatfs support relative path?" CONFIG_FATFS_RPATH

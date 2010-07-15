@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x.h"
+#include "mass_mal.h"
 
 /* Pins related Hardware Configuration defines */
 #if defined (USE_STM3210B_EVAL)
@@ -104,90 +105,35 @@
 #define MSD_DATA_OTHER_ERROR       0xFF
 
 /* Commands: CMDxx = CMD-number | 0x40 */
-#define MSD_GO_IDLE_STATE          0   /* CMD0=0x40 */
-#define MSD_SEND_OP_COND           1   /* CMD1=0x41 */
-#define MSD_SEND_CSD               9   /* CMD9=0x49 */
-#define MSD_SEND_CID               10  /* CMD10=0x4A */
-#define MSD_STOP_TRANSMISSION      12  /* CMD12=0x4C */
-#define MSD_SEND_STATUS            13  /* CMD13=0x4D */
-#define MSD_SET_BLOCKLEN           16  /* CMD16=0x50 */
-#define MSD_READ_SINGLE_BLOCK      17  /* CMD17=0x51 */
-#define MSD_READ_MULTIPLE_BLOCK    18  /* CMD18=0x52 */
-#define MSD_SET_BLOCK_COUNT        23  /* CMD23=0x57 */
-#define MSD_WRITE_BLOCK            24  /* CMD24=0x58 */
-#define MSD_WRITE_MULTIPLE_BLOCK   25  /* CMD25=0x59 */
-#define MSD_PROGRAM_CSD            27  /* CMD27=0x5B */
-#define MSD_SET_WRITE_PROT         28  /* CMD28=0x5C */
-#define MSD_CLR_WRITE_PROT         29  /* CMD29=0x5D */
-#define MSD_SEND_WRITE_PROT        30  /* CMD30=0x5E */
-#define MSD_TAG_SECTOR_START       32  /* CMD32=0x60 */
-#define MSD_TAG_SECTOR_END         33  /* CMD33=0x61 */
-#define MSD_UNTAG_SECTOR           34  /* CMD34=0x62 */
-#define MSD_TAG_ERASE_GROUP_START  35  /* CMD35=0x63 */
-#define MSD_TAG_ERASE_GROUP_END    36  /* CMD36=0x64 */
-#define MSD_UNTAG_ERASE_GROUP      37  /* CMD37=0x65 */
-#define MSD_ERASE                  38  /* CMD38=0x66 */
-#define MSD_READ_OCR               39  /* CMD39=0x67 */
-#define MSD_CRC_ON_OFF             40  /* CMD40=0x68 */
-
-/* Exported types ------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-typedef struct _MSD_CSD      /*Card Specific Data*/
-{
-  __IO uint8_t  CSDStruct;            /* CSD structure */
-  __IO uint8_t  SysSpecVersion;       /* System specification version */
-  __IO uint8_t  Reserved1;            /* Reserved */
-  __IO uint8_t  TAAC;                 /* Data read access-time 1 */
-  __IO uint8_t  NSAC;                 /* Data read access-time 2 in CLK cycles */
-  __IO uint8_t  MaxBusClkFrec;        /* Max. bus clock frequency */
-  __IO uint16_t CardComdClasses;      /* Card command classes */
-  __IO uint8_t  RdBlockLen;           /* Max. read data block length */
-  __IO uint8_t  PartBlockRead;        /* Partial blocks for read allowed */
-  __IO uint8_t  WrBlockMisalign;      /* Write block misalignment */
-  __IO uint8_t  RdBlockMisalign;      /* Read block misalignment */
-  __IO uint8_t  DSRImpl;              /* DSR implemented */
-  __IO uint8_t  Reserved2;            /* Reserved */
-  __IO uint16_t DeviceSize;           /* Device Size */
-  __IO uint8_t  MaxRdCurrentVDDMin;   /* Max. read current @ VDD min */
-  __IO uint8_t  MaxRdCurrentVDDMax;   /* Max. read current @ VDD max */
-  __IO uint8_t  MaxWrCurrentVDDMin;   /* Max. write current @ VDD min */
-  __IO uint8_t  MaxWrCurrentVDDMax;   /* Max. write current @ VDD max */
-  __IO uint8_t  DeviceSizeMul;        /* Device size multiplier */
-  __IO uint8_t  EraseGrSize;          /* Erase group size */
-  __IO uint8_t  EraseGrMul;           /* Erase group size multiplier */
-  __IO uint8_t  WrProtectGrSize;      /* Write protect group size */
-  __IO uint8_t  WrProtectGrEnable;    /* Write protect group enable */
-  __IO uint8_t  ManDeflECC;           /* Manufacturer default ECC */
-  __IO uint8_t  WrSpeedFact;          /* Write speed factor */
-  __IO uint8_t  MaxWrBlockLen;        /* Max. write data block length */
-  __IO uint8_t  WriteBlockPaPartial;  /* Partial blocks for write allowed */
-  __IO uint8_t  Reserved3;            /* Reserded */
-  __IO uint8_t  ContentProtectAppli;  /* Content protection application */
-  __IO uint8_t  FileFormatGrouop;     /* File format group */
-  __IO uint8_t  CopyFlag;             /* Copy flag (OTP) */
-  __IO uint8_t  PermWrProtect;        /* Permanent write protection */
-  __IO uint8_t  TempWrProtect;        /* Temporary write protection */
-  __IO uint8_t  FileFormat;           /* File Format */
-  __IO uint8_t  ECC;                  /* ECC code */
-  __IO uint8_t  msd_CRC;                  /* CRC */
-  __IO uint8_t  Reserved4;            /* always 1*/
-}
-sMSD_CSD;
-
-typedef struct _MSD_CID      /*Card Identification Data*/
-{
-  __IO uint8_t  ManufacturerID;       /* ManufacturerID */
-  __IO uint16_t OEM_AppliID;          /* OEM/Application ID */
-  __IO uint32_t ProdName1;            /* Product Name part1 */
-  __IO uint8_t  ProdName2;            /* Product Name part2*/
-  __IO uint8_t  ProdRev;              /* Product Revision */
-  __IO uint32_t ProdSN;               /* Product Serial Number */
-  __IO uint8_t  Reserved1;            /* Reserved1 */
-  __IO uint16_t ManufactDate;         /* Manufacturing Date */
-  __IO uint8_t  msd_CRC;                  /* CRC */
-  __IO uint8_t  Reserved2;            /* always 1*/
-}
-sMSD_CID;
+#define MSD_GO_IDLE_STATE          (0x40+0)   /* CMD0=0x40 */
+#define	MSD_SEND_OP_COND           (0x40+1)   /* CMD1=0x41 */
+#define	MSD_SEND_IF_COND           (0x40+8)   /* SEND_IF_COND */
+#define MSD_SEND_CSD               (0x40+9)   /* CMD9=0x49 */
+#define MSD_SEND_CID               (0x40+10)  /* CMD10=0x4A */
+#define MSD_STOP_TRANSMISSION      (0x40+12)  /* CMD12=0x4C */
+#define MSD_SEND_STATUS            (0x40+13)  /* CMD13=0x4D */
+#define MSD_SET_BLOCKLEN           (0x40+16)  /* CMD16=0x50 */
+#define MSD_READ_SINGLE_BLOCK      (0x40+17)  /* CMD17=0x51 */
+#define MSD_READ_MULTIPLE_BLOCK    (0x40+18)  /* CMD18=0x52 */
+#define MSD_SET_BLOCK_COUNT        (0x40+23)  /* CMD23=0x57 */
+#define MSD_WRITE_BLOCK            (0x40+24)  /* CMD24=0x58 */
+#define MSD_WRITE_MULTIPLE_BLOCK   (0x40+25)  /* CMD25=0x59 */
+#define MSD_PROGRAM_CSD            (0x40+27)  /* CMD27=0x5B */
+#define MSD_SET_WRITE_PROT         (0x40+28)  /* CMD28=0x5C */
+#define MSD_CLR_WRITE_PROT         (0x40+29)  /* CMD29=0x5D */
+#define MSD_SEND_WRITE_PROT        (0x40+30)  /* CMD30=0x5E */
+#define MSD_TAG_SECTOR_START       (0x40+32)  /* CMD32=0x60 */
+#define MSD_TAG_SECTOR_END         (0x40+33)  /* CMD33=0x61 */
+#define MSD_UNTAG_SECTOR           (0x40+34)  /* CMD34=0x62 */
+#define MSD_TAG_ERASE_GROUP_START  (0x40+35)  /* CMD35=0x63 */
+#define MSD_TAG_ERASE_GROUP_END    (0x40+36)  /* CMD36=0x64 */
+#define MSD_UNTAG_ERASE_GROUP      (0x40+37)  /* CMD37=0x65 */
+#define MSD_ERASE                  (0x40+38)  /* CMD38=0x66 */
+#define MSD_READ_OCR               (0x40+39)  /* CMD39=0x67 */
+#define MSD_CRC_ON_OFF             (0x40+40)  /* CMD40=0x68 */
+#define MSD_APP_CMD                (0x40+55)  /* APP_CMD */
+#define MSD_APP_READ_OCR           (0x40+58)  /* APP_READ_OCR */
+#define MSD_SEND_ACMD41            (0x40+41)  /* send app operation condition SDC*/
 
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
@@ -199,8 +145,9 @@ uint8_t MSD_WriteBlock(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 uint8_t MSD_ReadBlock(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRead);
 uint8_t MSD_WriteBuffer(const uint8_t* pBuffer, uint32_t WriteAddr, uint8_t NbrOfBlock);
 uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint8_t NbrOfBlock);
-uint8_t MSD_GetCSDRegister(sMSD_CSD* MSD_csd);
-uint8_t MSD_GetCIDRegister(sMSD_CID* MSD_cid);
+uint8_t MSD_GetCSDRegister(SD_CSD* MSD_csd);
+uint8_t MSD_GetCIDRegister(SD_CID* MSD_cid);
+uint8_t MSD_GetCardInfo(SD_CardInfo * pSDCardInfo);
 
 /*----- Medium layer function -----*/
 void MSD_SendCmd(uint8_t Cmd, uint32_t Arg, uint8_t Crc);
