@@ -12,11 +12,17 @@
 
 #define __DEBUG
 
+static short kwd_tn;
+static short kwd_rn;
+
 static void kwd_SetupTxDMA(void *p, size_t n);
 static void kwd_SetupRxDMA(void *p, size_t n);
 
 void kwd_init(void)
 {
+	kwd_tn = 0;
+	kwd_rn = 0;
+	
 	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef uartinfo;
 	NVIC_InitTypeDef NVIC_InitStructure;
@@ -89,6 +95,9 @@ if(hi) {
 */
 int kwd_transfer(char *tbuf, size_t tn, char *rbuf, size_t rn)
 {
+	kwd_tn = (short)tn;
+	kwd_rn = (short)rn;
+
 	//setup tx/rx phy engine
 	kwd_SetupTxDMA(tbuf, tn);
 	kwd_SetupRxDMA(rbuf, rn);
@@ -106,10 +115,15 @@ void kwd_isr(void)
 /*rx transfer: dma poll mode*/
 int kwd_poll(int rx)
 {
-	if(rx)
-		return DMA_GetCurrDataCounter(DMA1_Channel5);
-	else
-		return DMA_GetCurrDataCounter(DMA1_Channel4);
+	int n = 0;
+
+	if(rx && kwd_rn)
+		n = (int)kwd_rn - DMA_GetCurrDataCounter(DMA1_Channel5);
+	
+	if(!rx && kwd_tn)
+		n = (int)kwd_tn - DMA_GetCurrDataCounter(DMA1_Channel4);
+
+	return n;
 }
 
 static void kwd_SetupTxDMA(void *p, size_t n)

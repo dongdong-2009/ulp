@@ -60,7 +60,7 @@ static int cmd_kwd_func(int argc, char *argv[])
 
 	i = kwd_poll(1);
 
-	if(i == n) {
+	if(i == 0) {
 		if(time_left(resend) < 0) {
 			printf("resend ...\n");
 			kwd_transfer(buf, n, buf, n);
@@ -68,8 +68,8 @@ static int cmd_kwd_func(int argc, char *argv[])
 		}
 	}
 
-	if(i != 0) {
-		printf("\r%03d bytes received: ", n - i);
+	if(i != n) {
+		printf("\r%03d bytes received: ", i);
 		return 1;
 	}
 

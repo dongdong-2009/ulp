@@ -22,8 +22,8 @@ int kwd_wake(int hi);
 int kwd_transfer(char *tbuf, size_t tn, char *rbuf, size_t rn);
 
 /* poll current transfer status
-	rx == 0, return bytes not transmitted
-	rx == 1, return rx space left
+	rx == 0, return bytes transmitted
+	rx == 1, return bytes received
 */
 int kwd_poll(int rx);
 
