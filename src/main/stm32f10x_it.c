@@ -320,7 +320,9 @@ void DMA1_Channel3_IRQHandler(void)
 extern void kwd_isr(void);
 void DMA1_Channel4_IRQHandler(void)
 {
+#if CONFIG_DRIVER_KWD == 1
 	kwd_isr();
+#endif
 }
 
 /*******************************************************************************
