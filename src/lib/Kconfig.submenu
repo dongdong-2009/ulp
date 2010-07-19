@@ -42,3 +42,10 @@ if [ "$CONFIG_LIB_FATFS" = "y" ]; then
 		source src/lib/fatfs/Kconfig
 	endmenu	
 fi
+
+if [ "$CONFIG_LIB_COMMON" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'common'
+		source src/lib/common/Kconfig
+	endmenu	
+fi
