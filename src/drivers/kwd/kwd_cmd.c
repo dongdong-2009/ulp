@@ -46,6 +46,7 @@ static int cmd_kwd_func(int argc, char *argv[])
 
 	if(argc > 1) { //first time call
 		kwd_init();
+		kwd_baud(115200);
 
 		n = argc - 1;
 		buf = malloc(n);

@@ -10,8 +10,6 @@
 #include "time.h"
 #include "stm32f10x.h"
 
-#define __DEBUG
-
 static short kwd_tn;
 static short kwd_rn;
 
@@ -44,11 +42,7 @@ void kwd_init(void)
 
 	/*init serial port*/
 	USART_StructInit(&uartinfo);
-#ifdef __DEBUG
-	uartinfo.USART_BaudRate = 115200;
-#else
 	uartinfo.USART_BaudRate = KWD_BAUD;
-#endif
 	USART_Init(USART1, &uartinfo);
 	USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);
 	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);
@@ -63,26 +57,35 @@ void kwd_init(void)
 	NVIC_Init(&NVIC_InitStructure);
 }
 
+int kwd_baud(int baud)
+{
+	USART_InitTypeDef uartinfo;
+	USART_StructInit(&uartinfo);
+	uartinfo.USART_BaudRate = baud;
+	USART_Init(USART1, &uartinfo);
+	USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);
+	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);
+	USART_Cmd(USART1, ENABLE);
+}
+
 int kwd_wake(int hi)
 {
-#ifndef __DEBUG
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-if(!hi) {
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9; //uart1.tx
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-}
+	if(!hi) {
+		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9; //uart1.tx
+		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+		GPIO_Init(GPIOA, &GPIO_InitStructure);
+	}
 	GPIO_WriteBit(GPIOA, GPIO_Pin_9, hi);
 
-if(hi) {
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-}
-#endif
+	if(hi) {
+		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+		GPIO_Init(GPIOA, &GPIO_InitStructure);
+	}
 	return 0;
 }
 

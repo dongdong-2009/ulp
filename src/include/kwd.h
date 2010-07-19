@@ -27,4 +27,7 @@ int kwd_transfer(char *tbuf, size_t tn, char *rbuf, size_t rn);
 */
 int kwd_poll(int rx);
 
+/* change baudrate
+*/
+int kwd_baud(int baud);
 #endif /*__KWD_H_*/
