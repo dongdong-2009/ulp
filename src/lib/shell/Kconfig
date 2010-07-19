@@ -36,3 +36,10 @@ if [ "$CONFIG_DRIVER_FLASH_STM32" = "y"]; then
 else
 	define_bool CONFIG_SHELL_FLASH_STM32 n
 fi
+
+#driver self debug commands
+if [ "$CONFIG_LIB_FATFS" = "y"]; then
+	bool "enable command fatfs?" CONFIG_SHELL_FATFS
+else
+	define_bool CONFIG_SHELL_FATFS n
+fi
