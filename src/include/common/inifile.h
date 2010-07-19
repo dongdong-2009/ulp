@@ -9,7 +9,7 @@
  * @date 2007-1-9
  * @version 0.2
  */
- 
+
 #ifndef INI_FILE_H_
 #define INI_FILE_H_
 
@@ -28,4 +28,3 @@ int write_profile_string( const char *section, const char *key,const char *value
 #endif
 
 #endif //end of INI_FILE_H_
-

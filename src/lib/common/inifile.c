@@ -11,44 +11,45 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "inifile.h"
+#include "common\inifile.h"
+#include "ff.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#define MAX_FILE_SIZE 1024*16
+#define MAX_FILE_SIZE 512
 #define LEFT_BRACE '['
 #define RIGHT_BRACE ']'
 
 static int load_ini_file(const char *file, char *buf,int *file_size)
 {
-	FILE *in = NULL;
-	int i=0;
-	*file_size =0;
+	FRESULT res;
+	FIL file_obj;
+	unsigned int br;
+	int i = 0;
 
 	assert(file !=NULL);
 	assert(buf !=NULL);
 
-	in = fopen(file,"r");
-	if( NULL == in) {
+	res = f_open(&file_obj, file, FA_OPEN_EXISTING | FA_READ);
+	if( res != FR_OK) {
 		return 0;
 	}
 
-	buf[i]=fgetc(in);
-	
-	//load initialization file
-	while( buf[i]!= (char)EOF) {
+	for (;;) {
+		res = f_read(&file_obj,buf + i,1,&br);
 		i++;
 		assert( i < MAX_FILE_SIZE ); //file too big, you can redefine MAX_FILE_SIZE to fit the big file 
-		buf[i]=fgetc(in);
+		if (res || br == 0)
+			break;
 	}
-	
+
 	buf[i]='\0';
 	*file_size = i;
 
-	fclose(in);
+	f_close(&file_obj);
 	return 1;
 }
 
@@ -56,18 +57,22 @@ static int newline(char c)
 {
 	return ('\n' == c ||  '\r' == c )? 1 : 0;
 }
+
 static int end_of_string(char c)
 {
 	return '\0'==c? 1 : 0;
 }
+
 static int left_barce(char c)
 {
 	return LEFT_BRACE == c? 1 : 0;
 }
+
 static int isright_brace(char c )
 {
 	return RIGHT_BRACE == c? 1 : 0;
 }
+
 static int parse_file(const char *section, const char *key, const char *buf,int *sec_s,int *sec_e,
 					  int *key_s,int *key_e, int *value_s, int *value_e)
 {
@@ -248,7 +253,7 @@ int write_profile_string(const char *section, const char *key,
 	int sec_s,sec_e,key_s,key_e, value_s, value_e;
 	int value_len = (int)strlen(value);
 	int file_size;
-	FILE *out;
+	unsigned int new_file_size;
 
 	//check parameters
 	assert(section != NULL && strlen(section));
@@ -270,12 +275,14 @@ int write_profile_string(const char *section, const char *key,
 		if(0==file_size)
 		{
 			sprintf(w_buf+file_size,"[%s]\n%s=%s\n",section,key,value);
+			new_file_size = file_size + strlen(section) + strlen(key) + strlen(value) + 3;
 		}
 		else
 		{
 			//not find the section, then add the new section at end of the file
 			memcpy(w_buf,buf,file_size);
 			sprintf(w_buf+file_size,"\n[%s]\n%s=%s\n",section,key,value);
+			new_file_size = file_size + strlen(section) + strlen(key) + strlen(value) + 4;
 		}
 	}
 	else if(-1 == key_s)
@@ -284,6 +291,7 @@ int write_profile_string(const char *section, const char *key,
 		memcpy(w_buf,buf,sec_e);
 		sprintf(w_buf+sec_e,"%s=%s\n",key,value);
 		sprintf(w_buf+sec_e+strlen(key)+strlen(value)+2,buf+sec_e, file_size - sec_e);
+		new_file_size = file_size + strlen(key) + strlen(value) + 2;
 	}
 	else
 	{
@@ -291,25 +299,67 @@ int write_profile_string(const char *section, const char *key,
 		memcpy(w_buf,buf,value_s);
 		memcpy(w_buf+value_s,value, value_len);
 		memcpy(w_buf+value_s+value_len, buf+value_e, file_size - value_e);
+		new_file_size = file_size - value_e + value_len + value_s;
 	}
-	
-	out = fopen(file,"w");
-	if(NULL == out)
+
+	FRESULT res;
+	FIL file_obj;
+	unsigned int br;
+
+	res = f_open(&file_obj, file, FA_WRITE);
+	if(res)
 	{
-		return 0;
-	}
-	
-	if(-1 == fputs(w_buf,out) )
-	{
-		fclose(out);
 		return 0;
 	}
 
-	fclose(out);
+	res = f_write(&file_obj, w_buf, new_file_size, &br);
+	if (res) {
+		return 0;
+	} 
+
+	f_close(&file_obj);
 	return 1;
 }
 
 
 #ifdef __cplusplus
 }; //end of extern "C" {
+#endif
+
+#if 1
+#include "shell/cmd.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+static int cmd_ini_op(int argc, char *argv[])
+{
+	const char usage[] = { \
+		" usage:\n" \
+		" ini read sector key,read sector " \
+	};
+	
+	if(argc < 4) {
+		printf(usage);
+		return 0;
+	}
+	
+	char buffer[20];
+	
+	if (!strcmp(argv[1],"read")) {
+		if (!read_profile_string(argv[2], argv[3], buffer, 20, "default_value", "test.ini"))
+			printf("reaf failed!\r\n");
+		else
+			printf("%s\r\n",buffer);
+	}
+	
+	if (!strcmp(argv[1],"write")) {
+		if (!write_profile_string(argv[2], argv[3],  argv[4], "test.ini"))
+			printf("reaf failed!\r\n");
+	}
+
+	return 0;
+}
+const cmd_t cmd_ini = {"ini", cmd_ini_op, "ini file operation"};
+DECLARE_SHELL_CMD(cmd_ini)
+
 #endif
