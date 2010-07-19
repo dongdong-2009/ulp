@@ -3,6 +3,7 @@ obj-y += time.o
 obj-y += led/
 obj-$(CONFIG_DRIVER_CONSOLE) += console/
 obj-$(CONFIG_DRIVER_MAC) += mac/
+obj-$(CONFIG_DRIVER_KWD) += kwd/
 obj-$(CONFIG_DRIVER_MOTOR) += dbg.o
 obj-$(CONFIG_DRIVER_MOTOR) += vsm.o
 obj-$(CONFIG_DRIVER_AD9833) += ad9833.o

@@ -45,3 +45,7 @@ bool "general disk support for fatfs?" CONFIG_DRIVER_DISK
 if [ "$CONFIG_DRIVER_DISK" = "y" ]; then
 	bool "spi sdcard driver support" CONFIG_DRIVER_SPISDCARD
 fi
+bool "keyword phy driver?" CONFIG_DRIVER_KWD
+if [ "$CONFIG_DRIVER_KWD" = "y" ]; then
+	bool "keyword phy driver debug command" CONFIG_KWD_CMD
+fi

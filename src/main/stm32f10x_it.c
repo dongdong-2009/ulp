@@ -284,7 +284,7 @@ void EXTI4_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void DMAChannel1_IRQHandler(void)
+void DMA1_Channel1_IRQHandler(void)
 {
 }
 
@@ -295,7 +295,7 @@ void DMAChannel1_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void DMAChannel2_IRQHandler(void)
+void DMA1_Channel2_IRQHandler(void)
 {
 }
 
@@ -306,7 +306,7 @@ void DMAChannel2_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void DMAChannel3_IRQHandler(void)
+void DMA1_Channel3_IRQHandler(void)
 {
 }
 
@@ -317,8 +317,10 @@ void DMAChannel3_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void DMAChannel4_IRQHandler(void)
+extern void kwd_isr(void);
+void DMA1_Channel4_IRQHandler(void)
 {
+	kwd_isr();
 }
 
 /*******************************************************************************
@@ -328,7 +330,7 @@ void DMAChannel4_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void DMAChannel5_IRQHandler(void)
+void DMA1_Channel5_IRQHandler(void)
 {
 }
 
@@ -339,7 +341,7 @@ void DMAChannel5_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void DMAChannel6_IRQHandler(void)
+void DMA1_Channel6_IRQHandler(void)
 {
 }
 
@@ -350,7 +352,7 @@ void DMAChannel6_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void DMAChannel7_IRQHandler(void)
+void DMA1_Channel7_IRQHandler(void)
 {
 }
 
