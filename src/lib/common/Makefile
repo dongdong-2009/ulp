@@ -1,1 +1,1 @@
-obj-y += inifile.o
+obj-$(CONFIG_COMMON_INIFILE) += inifile.o
