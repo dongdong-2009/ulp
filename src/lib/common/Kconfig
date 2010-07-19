@@ -3,3 +3,5 @@
 #
 # Written by dusk@2010
 #
+
+bool "enable inifile operation support?" CONFIG_COMMON_INIFILE
