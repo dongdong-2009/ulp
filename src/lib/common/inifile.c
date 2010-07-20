@@ -40,10 +40,10 @@ static int load_ini_file(const char *file, char *buf,int *file_size)
 
 	for (;;) {
 		res = f_read(&file_obj,buf + i,1,&br);
-		i++;
-		assert( i < MAX_FILE_SIZE ); //file too big, you can redefine MAX_FILE_SIZE to fit the big file 
 		if (res || br == 0)
 			break;
+		i++;
+		assert( i < MAX_FILE_SIZE ); //file too big, you can redefine MAX_FILE_SIZE to fit the big file 
 	}
 
 	buf[i]='\0';
@@ -73,6 +73,11 @@ static int isright_brace(char c )
 	return RIGHT_BRACE == c? 1 : 0;
 }
 
+/*
+ *[sector]         keyword       =valuevalue
+ *|      |        |      |       |         |
+ *sec_s  sec_e    key_s  key_e   value_s   value_e
+ */
 static int parse_file(const char *section, const char *key, const char *buf,int *sec_s,int *sec_e,
 					  int *key_s,int *key_e, int *value_s, int *value_e)
 {
@@ -274,48 +279,45 @@ int write_profile_string(const char *section, const char *key,
 	{
 		if(0==file_size)
 		{
-			sprintf(w_buf+file_size,"[%s]\n%s=%s\n",section,key,value);
-			new_file_size = file_size + strlen(section) + strlen(key) + strlen(value) + 3;
+			sprintf(w_buf,"[%s]\r\n%s=%s\r\n",section,key,value);
+			new_file_size = strlen(section) + strlen(key) + strlen(value) + 5;
 		}
 		else
 		{
 			//not find the section, then add the new section at end of the file
 			memcpy(w_buf,buf,file_size);
-			sprintf(w_buf+file_size,"\n[%s]\n%s=%s\n",section,key,value);
-			new_file_size = file_size + strlen(section) + strlen(key) + strlen(value) + 4;
+			sprintf(w_buf+file_size,"[%s]\r\n%s=%s\r\n",section,key,value);
+			new_file_size = file_size + strlen(section) + strlen(key) + strlen(value) + 5;
 		}
 	}
 	else if(-1 == key_s)
 	{
 		//not find the key, then add the new key=value at end of the section
-		memcpy(w_buf,buf,sec_e);
-		sprintf(w_buf+sec_e,"%s=%s\n",key,value);
-		sprintf(w_buf+sec_e+strlen(key)+strlen(value)+2,buf+sec_e, file_size - sec_e);
-		new_file_size = file_size + strlen(key) + strlen(value) + 2;
+		memcpy(w_buf, buf, sec_e);
+		sprintf(w_buf + sec_e, "%s=%s\r\n", key, value);
+		memcpy(w_buf + sec_e + strlen(key) + value_len + 3,buf + sec_e, file_size - sec_e);
+		new_file_size = file_size + strlen(key) + value_len + 3;
 	}
 	else
 	{
 		//update value with new value
-		memcpy(w_buf,buf,value_s);
-		memcpy(w_buf+value_s,value, value_len);
+		memcpy(w_buf, buf, value_s);
+		memcpy(w_buf + value_s, value, value_len);
 		memcpy(w_buf+value_s+value_len, buf+value_e, file_size - value_e);
 		new_file_size = file_size - value_e + value_len + value_s;
 	}
 
-	FRESULT res;
 	FIL file_obj;
 	unsigned int br;
 
-	res = f_open(&file_obj, file, FA_WRITE);
-	if(res)
-	{
+	if (f_open(&file_obj, file, FA_WRITE))
 		return 0;
-	}
 
-	res = f_write(&file_obj, w_buf, new_file_size, &br);
-	if (res) {
+	if (f_write(&file_obj, w_buf, new_file_size, &br))
 		return 0;
-	} 
+
+	if (f_truncate(&file_obj))		/* Truncate unused area */
+		return 0;
 
 	f_close(&file_obj);
 	return 1;
