@@ -328,7 +328,7 @@ int write_profile_string(const char *section, const char *key,
 }; //end of extern "C" {
 #endif
 
-#if 1
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
