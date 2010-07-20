@@ -49,7 +49,6 @@ void kwd_init(void)
 	USART_Cmd(USART1, ENABLE);
 
 	/* Enable DMA Interrupt */
-	DMA_ITConfig(DMA1_Channel4, DMA_IT_TC, ENABLE);
 	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel4_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
@@ -148,6 +147,7 @@ static void kwd_SetupTxDMA(void *p, size_t n)
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel4, &DMA_InitStructure);
 	DMA_Cmd(DMA1_Channel4, ENABLE);
+	DMA_ITConfig(DMA1_Channel4, DMA_IT_TC, ENABLE);
 }
 
 static void kwd_SetupRxDMA(void *p, size_t n)
