@@ -286,8 +286,8 @@ int write_profile_string(const char *section, const char *key,
 		{
 			//not find the section, then add the new section at end of the file
 			memcpy(w_buf,buf,file_size);
-			sprintf(w_buf+file_size,"[%s]\r\n%s=%s\r\n",section,key,value);
-			new_file_size = file_size + strlen(section) + strlen(key) + strlen(value) + 5;
+			sprintf(w_buf+file_size,"\r\n[%s]\r\n%s=%s\r\n",section,key,value);
+			new_file_size = file_size + strlen(section) + strlen(key) + value_len + 7;
 		}
 	}
 	else if(-1 == key_s)
