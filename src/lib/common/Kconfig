@@ -4,4 +4,5 @@
 # Written by dusk@2010
 #
 
-bool "enable inifile operation support?" CONFIG_COMMON_INIFILE
+bool "ini file parser" CONFIG_COMMON_INIFILE
+bool "keyword protocol" CONFIG_COMMON_KWP

@@ -10,13 +10,17 @@
 #include "time.h"
 #include "stm32f10x.h"
 
-#define __DEBUG
+static short kwd_tn;
+static short kwd_rn;
 
 static void kwd_SetupTxDMA(void *p, size_t n);
 static void kwd_SetupRxDMA(void *p, size_t n);
 
 void kwd_init(void)
 {
+	kwd_tn = 0;
+	kwd_rn = 0;
+	
 	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef uartinfo;
 	NVIC_InitTypeDef NVIC_InitStructure;
@@ -38,18 +42,13 @@ void kwd_init(void)
 
 	/*init serial port*/
 	USART_StructInit(&uartinfo);
-#ifdef __DEBUG
-	uartinfo.USART_BaudRate = 115200;
-#else
 	uartinfo.USART_BaudRate = KWD_BAUD;
-#endif
 	USART_Init(USART1, &uartinfo);
 	USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);
 	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);
 	USART_Cmd(USART1, ENABLE);
 
 	/* Enable DMA Interrupt */
-	DMA_ITConfig(DMA1_Channel4, DMA_IT_TC, ENABLE);
 	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel4_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
@@ -57,26 +56,35 @@ void kwd_init(void)
 	NVIC_Init(&NVIC_InitStructure);
 }
 
+int kwd_baud(int baud)
+{
+	USART_InitTypeDef uartinfo;
+	USART_StructInit(&uartinfo);
+	uartinfo.USART_BaudRate = baud;
+	USART_Init(USART1, &uartinfo);
+	USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);
+	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);
+	USART_Cmd(USART1, ENABLE);
+}
+
 int kwd_wake(int hi)
 {
-#ifndef __DEBUG
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-if(!hi) {
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9; //uart1.tx
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-}
+	if(!hi) {
+		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9; //uart1.tx
+		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+		GPIO_Init(GPIOA, &GPIO_InitStructure);
+	}
 	GPIO_WriteBit(GPIOA, GPIO_Pin_9, hi);
 
-if(hi) {
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-}
-#endif
+	if(hi) {
+		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+		GPIO_Init(GPIOA, &GPIO_InitStructure);
+	}
 	return 0;
 }
 
@@ -89,6 +97,9 @@ if(hi) {
 */
 int kwd_transfer(char *tbuf, size_t tn, char *rbuf, size_t rn)
 {
+	kwd_tn = (short)tn;
+	kwd_rn = (short)rn;
+
 	//setup tx/rx phy engine
 	kwd_SetupTxDMA(tbuf, tn);
 	kwd_SetupRxDMA(rbuf, rn);
@@ -106,10 +117,15 @@ void kwd_isr(void)
 /*rx transfer: dma poll mode*/
 int kwd_poll(int rx)
 {
-	if(rx)
-		return DMA_GetCurrDataCounter(DMA1_Channel5);
-	else
-		return DMA_GetCurrDataCounter(DMA1_Channel4);
+	int n = 0;
+
+	if(rx && kwd_rn)
+		n = (int)kwd_rn - DMA_GetCurrDataCounter(DMA1_Channel5);
+	
+	if(!rx && kwd_tn)
+		n = (int)kwd_tn - DMA_GetCurrDataCounter(DMA1_Channel4);
+
+	return n;
 }
 
 static void kwd_SetupTxDMA(void *p, size_t n)
@@ -131,6 +147,7 @@ static void kwd_SetupTxDMA(void *p, size_t n)
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel4, &DMA_InitStructure);
 	DMA_Cmd(DMA1_Channel4, ENABLE);
+	DMA_ITConfig(DMA1_Channel4, DMA_IT_TC, ENABLE);
 }
 
 static void kwd_SetupRxDMA(void *p, size_t n)
