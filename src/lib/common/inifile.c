@@ -174,7 +174,7 @@ static int parse_file(const char *section, const char *key, const char *buf,int 
 int read_profile_string( const char *section, const char *key,char *value, 
 		 int size, const char *default_value, const char *file)
 {
-	char buf[MAX_FILE_SIZE]={0};
+	char *buf;
 	int file_size;
 	int sec_s,sec_e,key_s,key_e, value_s, value_e;
 
@@ -185,12 +185,16 @@ int read_profile_string( const char *section, const char *key,char *value,
 	assert(size > 0);
 	assert(file !=NULL &&strlen(key));
 
+	buf = (char *)malloc(MAX_FILE_SIZE);
+	memset(buf,0,MAX_FILE_SIZE);
+
 	if(!load_ini_file(file,buf,&file_size))
 	{
 		if(default_value!=NULL)
 		{
 			strncpy(value,default_value, size);
 		}
+		free(buf);
 		return 0;
 	}
 
@@ -200,6 +204,7 @@ int read_profile_string( const char *section, const char *key,char *value,
 		{
 			strncpy(value,default_value, size);
 		}
+		free(buf);
 		return 0; //not find the key
 	}
 	else
@@ -214,6 +219,8 @@ int read_profile_string( const char *section, const char *key,char *value,
 		memset(value, 0, size);
 		memcpy(value,buf+value_s, cpcount );
 		value[cpcount] = '\0';
+
+		free(buf);
 
 		return 1;
 	}
@@ -253,8 +260,8 @@ int read_profile_int( const char *section, const char *key,int default_value,
 int write_profile_string(const char *section, const char *key,
 					const char *value, const char *file)
 {
-	char buf[MAX_FILE_SIZE]={0};
-	char w_buf[MAX_FILE_SIZE]={0};
+	char *buf;
+	char *w_buf;
 	int sec_s,sec_e,key_s,key_e, value_s, value_e;
 	int value_len = (int)strlen(value);
 	int file_size;
@@ -265,6 +272,11 @@ int write_profile_string(const char *section, const char *key,
 	assert(key != NULL && strlen(key));
 	assert(value != NULL);
 	assert(file !=NULL &&strlen(key));
+
+	buf = (char *)malloc(MAX_FILE_SIZE);
+	w_buf = (char *)malloc(MAX_FILE_SIZE);
+	memset(buf,0,MAX_FILE_SIZE);
+	memset(w_buf,0,MAX_FILE_SIZE);
 
 	if(!load_ini_file(file,buf,&file_size))
 	{
@@ -310,16 +322,28 @@ int write_profile_string(const char *section, const char *key,
 	FIL file_obj;
 	unsigned int br;
 
-	if (f_open(&file_obj, file, FA_WRITE))
+	if (f_open(&file_obj, file, FA_WRITE)) {
+		free(buf);
+		free(w_buf);
 		return 0;
+	}
 
-	if (f_write(&file_obj, w_buf, new_file_size, &br))
+	if (f_write(&file_obj, w_buf, new_file_size, &br)) {
+		free(buf);
+		free(w_buf);
 		return 0;
+	}
 
-	if (f_truncate(&file_obj))		/* Truncate unused area */
+	if (f_truncate(&file_obj)) {		/* Truncate unused area */
+		free(buf);
+		free(w_buf);
 		return 0;
+	}
 
 	f_close(&file_obj);
+
+	free(buf);
+	free(w_buf);
 	return 1;
 }
 
