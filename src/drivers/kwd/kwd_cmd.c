@@ -33,7 +33,7 @@ static time_t resend;
 #define RESEND 5000 //5s
 static int cmd_kwd_func(int argc, char *argv[])
 {
-	int i;
+	int i, j;
 	const char usage[] = { \
 		" usage:\n" \
 		" kwd d0 d1 d2 ... dn\n" \
@@ -60,7 +60,6 @@ static int cmd_kwd_func(int argc, char *argv[])
 	}
 
 	i = kwd_poll(1);
-
 	if(i == 0) {
 		if(time_left(resend) < 0) {
 			printf("resend ...\n");
@@ -68,18 +67,21 @@ static int cmd_kwd_func(int argc, char *argv[])
 			resend = time_get(RESEND);
 		}
 	}
-
-	if(i != n) {
-		printf("\r%03d bytes received: ", i);
-		return 1;
-	}
+	
+	printf("\r%03d bytes received: ", i);
 
 	//display the data received
-	for(i = 0; i < n; i ++) {
-		printf("%02X", buf[i]);
+	for(j = 0; j < i; j ++) {
+		printf("%02X ", buf[j]);
 	}
-	free(buf);
-	return 0;
+	
+	if(i == n) {
+		free(buf);
+		kwd_baud(KWD_BAUD);
+		return 0;
+	}
+	
+	return 1;
 }
 
 const cmd_t cmd_kwd = {"kwd", cmd_kwd_func, "common kwd driver debug"};
