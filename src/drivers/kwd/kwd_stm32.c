@@ -125,11 +125,12 @@ int kwd_poll(int rx)
 	n = n1 - n0;
 	n += (n < 0) ? KWD_RF_SZ : 0;
 	for(i = 0; i < n; i ++) {
-		if(kwd_rfn > kwd_tn) { //store to rbuf
+		if(kwd_rfn >= kwd_tn) { //store to rbuf
 			fi = n0 + i; //Fifo Idx
 			fi -= (fi >= KWD_RF_SZ) ? KWD_RF_SZ : 0;
 			if(kwd_rfn - kwd_tn <= kwd_rn) { //rbuf not overflow
-				*kwd_rbuf ++ = kwd_rf[n0 + i];
+				*kwd_rbuf = kwd_rf[fi];
+				kwd_rbuf ++;
 			}
 		}
 		else { //tx data echo back, ignore?
