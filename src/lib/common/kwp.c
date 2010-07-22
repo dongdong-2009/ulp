@@ -63,14 +63,20 @@ int kwp_EstablishComm(void)
 {
 	//fast init is the only wakeup protocol supported now
 	if(kwp_wake == 0) {
-		kwp_timer = time_get(KWP_FAST_INIT_MS);
-		kwd_wake(KWD_WKOP_LO);
+		kwp_timer = time_get(300);
+		kwd_wake(KWD_WKOP_EN);
+		kwd_wake(KWD_WKOP_HI);
 		kwp_wake = 1;
 	}
 	else if(kwp_wake == 1) {
 		kwp_timer = time_get(KWP_FAST_INIT_MS);
-		kwd_wake(KWD_WKOP_HI);
+		kwd_wake(KWD_WKOP_LO);
 		kwp_wake = 2;
+	}
+	else if(kwp_wake == 2) {
+		kwp_timer = time_get(KWP_FAST_INIT_MS);
+		kwd_wake(KWD_WKOP_HI);
+		kwp_wake = 3;
 	}
 	else {
 		kwd_wake(KWD_WKOP_RS);

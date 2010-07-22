@@ -13,6 +13,7 @@ void kwd_init(void);
 
 /*special support for keyword fast init protocol*/
 enum {
+	KWD_WKOP_EN,
 	KWD_WKOP_LO,
 	KWD_WKOP_HI,
 	KWD_WKOP_RS,
