@@ -10,10 +10,15 @@
 #define KWD_BAUD 10400
 
 void kwd_init(void);
-void kwd_isr(void);
 
 /*special support for keyword fast init protocol*/
-int kwd_wake(int hi);
+enum {
+	KWD_WKOP_LO,
+	KWD_WKOP_HI,
+	KWD_WKOP_RS,
+};
+
+void kwd_wake(int op);
 /*main keyword phy level tx/rx routine, note:
 1, it's a half duplex protocol, tbuf==rbuf is possible
 2, it returns immediately, pls use poll to check the status

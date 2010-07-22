@@ -44,7 +44,7 @@ int kwp_IsReady(void)
 		ready = 0;
 		bytes = kwd_poll(1);
 #ifdef __DEBUG
-		printf("\nkwp rx:");
+		printf("\rkwp rx:");
 		for(int i = 0; i < bytes; i ++) {
 			printf(" %02x", kwp_frame[i]);
 		}
@@ -64,15 +64,16 @@ int kwp_EstablishComm(void)
 	//fast init is the only wakeup protocol supported now
 	if(kwp_wake == 0) {
 		kwp_timer = time_get(KWP_FAST_INIT_MS);
-		kwd_wake(0);
+		kwd_wake(KWD_WKOP_LO);
 		kwp_wake = 1;
 	}
 	else if(kwp_wake == 1) {
 		kwp_timer = time_get(KWP_FAST_INIT_MS);
-		kwd_wake(1);
+		kwd_wake(KWD_WKOP_HI);
 		kwp_wake = 2;
 	}
 	else {
+		kwd_wake(KWD_WKOP_RS);
 		kwp_wake = 0;
 	}
 	
@@ -115,6 +116,7 @@ int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 	for(int i = 0; i < n + 1; i ++) {
 		printf(" %02x", kwp_frame[i]);
 	}
+	printf("\n");
 #endif
 	return kwd_transfer(kwp_frame, tn + 4, kwp_frame, rn + 4);
 }
