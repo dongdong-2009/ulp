@@ -25,11 +25,15 @@ static char *pbuf;
 
 int kwp_Init(void)
 {
-	kwp_wake = 0;
-	kwp_step = 0;
-	
+	kwp_reset();
 	kwd_init();
 	return 0;
+}
+
+void kwp_reset(void)
+{
+	kwp_wake = 0;
+	kwp_step = 0;
 }
 
 int kwp_IsReady(void)
@@ -351,11 +355,13 @@ static int cmd_kwp_func(int argc, char *argv[])
 	if(argc > 1) {
 		if(!strcmp(argv[1], "start")) { //kwp start?
 			kwp_Init();
+			kwp_reset();
 			kwp_EstablishComm();
 			cmd = CMD_WAKE;
 			return 1;
 		}
 		else {
+			kwp_reset();
 			kwp_debug(argc, argv);
 			cmd = CMD_TRANS;
 			return 1;
