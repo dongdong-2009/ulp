@@ -292,6 +292,100 @@ int kwp_StartDiag(char mode, char baud)
 	return kwp_step;
 }
 
+/*
+The 34 Op-Code will build a standard Service Request 34 to send to an ECU.  A request 34 will 
+prepare the ECU to receive data from the serial data link.  Request 34s are used in conjunction 
+with service request mode 36s (Op-Codes 90, 91, and 93) to download information to ECU's.
+*/
+int kwp_RequestToDnload(char fmt, int addr, int size, char *plen)
+{
+	if(kwp_step == 0) {
+		pbuf = kwp_malloc(8);
+		pbuf[0] = SID_34;
+		pbuf[1] = (char)(addr >> 16);
+		pbuf[2] = (char)(addr >>  8);
+		pbuf[3] = (char)(addr >>  0);
+		pbuf[4] = fmt;
+		pbuf[5] = (char)(size >> 16);
+		pbuf[6] = (char)(size >>  8);
+		pbuf[7] = (char)(size >>  0);
+		
+		kwp_transfer(pbuf, 8, pbuf, 3);
+		kwp_step = 1;
+	}
+	else {
+		if(kwp_check())
+			return -1;
+		
+		if(plen)
+			*plen = pbuf[1];
+
+		free(pbuf);
+		kwp_step = 0;
+	}
+	
+	return kwp_step;
+}
+
+/*
+The 37 Op-Code will build a standard Service Request 37 to send to an ECU.  A request 37 
+will Request Transfer Exit.  A Request 37 may be required at the end of a reprogramming 
+session after all of the Transfer Data requests are completed. 
+*/
+int kwp_RequestTransferExit(void)
+{
+	if(kwp_step == 0) {
+		pbuf = kwp_malloc(1);
+		pbuf[0] = SID_37;
+		
+		kwp_transfer(pbuf, 1, pbuf, 3);
+		kwp_step = 1;
+	}
+	else {
+		if(kwp_check())
+			return -1;
+
+		free(pbuf);
+		kwp_step = 0;
+	}
+	
+	return kwp_step;
+}
+
+/*
+The 38 Op-Code will build a standard service request 38 to send to an ECU.   This Op-Code is used to start
+ a  Device Specific Control Routine, from the Utility File, that was downloaded to RAM by an Op-Code 90.  
+ The address information for the service request is read from the routine in the Utility File.  This Op-Code 
+ also supports the option to pass in Routine Entry Options from a Data Routine.  For details on how to use this 
+ feature see the Action Fields and the Pseudo Code.  The routine that contains the Routine Entry Options should 
+ be formatted with a zero load address and a valid length (see description of Data Routines).  The data portion 
+ of the routine should only contain the Routine Entry Options to include in the request with no additional data.  
+ If the routine execution results in the ECU responding with two bytes of additional data then Op-Code 78 
+ should be used instead of Op-Code 38.
+*/
+int kwp_StartRoutineByAddr(int addr)
+{
+	if(kwp_step == 0) {
+		pbuf = kwp_malloc(4);
+		pbuf[0] = SID_38;
+		pbuf[1] = (char)(addr >> 16);
+		pbuf[2] = (char)(addr >>  8);
+		pbuf[3] = (char)(addr >>  0);
+		
+		kwp_transfer(pbuf, 4, pbuf, 4);
+		kwp_step = 1;
+	}
+	else {
+		if(kwp_check())
+			return -1;
+
+		free(pbuf);
+		kwp_step = 0;
+	}
+	
+	return kwp_step;
+}
+
 #ifdef __DEBUG
 static char htoc(char *buf)
 {
