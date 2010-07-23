@@ -149,6 +149,12 @@ int kwp_check(void)
 		free(pbuf);
 		kwp_step = 0;
 	}
+
+#ifdef __DEBUG
+	if(err) {
+		printf("\nNegative Response!\n");
+	}
+#endif
 	
 	return err;
 }
@@ -395,6 +401,10 @@ static int cmd_kwp_func(int argc, char *argv[])
 				cmd = CMD_NONE;
 				return 0;
 			}
+			else if(repeat < 0) {
+				cmd = CMD_NONE;
+				return 0;	
+			}			
 		}
 	}
 	
