@@ -71,11 +71,14 @@ void kwd_wake(int op)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-	if(op == KWD_WKOP_LO) {
+	if(op == KWD_WKOP_EN) {
 		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9; //uart1.tx
 		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 		GPIO_Init(GPIOA, &GPIO_InitStructure);
+	}
+	
+	else if(op == KWD_WKOP_LO) {
 		GPIO_WriteBit(GPIOA, GPIO_Pin_9, Bit_RESET);
 	}
 
@@ -106,8 +109,8 @@ int kwd_transfer(char *tbuf, size_t tn, char *rbuf, size_t rn)
 	kwd_rfn = 0;
 
 	//setup tx/rx phy engine
-	kwd_SetupTxDMA(tbuf, tn);
 	kwd_SetupRxDMA(kwd_rf, KWD_RF_SZ);
+	kwd_SetupTxDMA(tbuf, tn);
 	return 0;
 }
 
