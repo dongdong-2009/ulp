@@ -81,6 +81,8 @@ FreeRTOS.org versions prior to V4.3.0 did not include this definition. */
 	PUBLIC vPortClearInterruptMask
 	PUBLIC vPortSVCHandler
 	PUBLIC vPortStartFirstTask
+	PUBLIC PendSV_Handler
+	PUBLIC SVC_Handler
 
 
 /*-----------------------------------------------------------*/
@@ -90,7 +92,7 @@ vSetMSP
 	bx lr
 	
 /*-----------------------------------------------------------*/
-
+PendSV_Handler:
 xPortPendSVHandler:
 	mrs r0, psp						
 	ldr	r3, =pxCurrentTCB			/* Get the location of the current TCB. */
@@ -136,6 +138,7 @@ vPortClearInterruptMask:
 
 /*-----------------------------------------------------------*/
 
+SVC_Handler:
 vPortSVCHandler;
 	ldr	r3, =pxCurrentTCB
 	ldr r1, [r3]
