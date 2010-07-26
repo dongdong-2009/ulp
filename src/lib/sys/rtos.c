@@ -47,6 +47,7 @@ static void task_update(void)
 
 static void vUpdateTask(void *pvParameters)
 {
+	drv_Init();
 	task_init();
 	while(1) {
 		task_update();
@@ -55,10 +56,7 @@ static void vUpdateTask(void *pvParameters)
 
 void task_Init(void)
 {
-	portDISABLE_INTERRUPTS();
 	sys_Init();
-	drv_Init();
-	
 	xTaskCreate( vUpdateTask, (signed portCHAR *) "Update", 128, NULL, tskIDLE_PRIORITY + 1, NULL );	
 	
 	/* Start the scheduler. */
