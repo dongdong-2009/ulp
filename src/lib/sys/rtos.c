@@ -1,5 +1,6 @@
 /*
  * 	miaofng@2010 initial version
+		this file is used when rtos is enabled
  */
 
 #include "config.h"
@@ -8,20 +9,17 @@
 #include "time.h"
 #include "driver.h"
 
-#ifndef CONFIG_LIB_FREERTOS
-static time_t task_timer;
-static void (*task_foreground)(void);
+/* rtos includes. */
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
 
-void task_Init(void)
+extern void xPortSysTickHandler( void );
+
+static void task_init(void)
 {
 	void (**init)(void);
 	void (**end)(void);
-	
-	task_timer = 0;
-	task_foreground = 0;
-	
-	sys_Init();
-	drv_Init();
 	
 	init = __section_begin(".sys.task");
 	end = __section_end(".sys.task");
@@ -47,27 +45,40 @@ static void task_update(void)
 	}
 }
 
+static void vUpdateTask(void *pvParameters)
+{
+	task_init();
+	while(1) {
+		task_update();
+	}
+}
+
+void task_Init(void)
+{
+	portDISABLE_INTERRUPTS();
+	sys_Init();
+	drv_Init();
+	
+	xTaskCreate( vUpdateTask, (signed portCHAR *) "Update", 128, NULL, tskIDLE_PRIORITY + 1, NULL );	
+	
+	/* Start the scheduler. */
+	vTaskStartScheduler();
+	
+	/* Will only get here if there was not enough heap space to create the
+	idle task. */
+}
+
 void task_Update(void)
 {
-	if(task_foreground)
-		task_foreground();
-	else
-		task_update();
+	//never reach here
 }
 
 void task_Isr(void)
 {
 	time_isr();
-	if(task_foreground) {
-		if(time_left(task_timer) < 0) {
-			task_timer = time_get(CONFIG_SYSTEM_UPDATE_MS);
-			task_update();
-		}
-	}
+	xPortSysTickHandler();
 }
 
 void task_SetForeground(void (*task)(void))
 {
-	task_foreground = task;
 }
-#endif
