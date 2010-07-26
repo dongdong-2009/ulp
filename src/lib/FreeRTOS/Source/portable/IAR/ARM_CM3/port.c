@@ -202,6 +202,7 @@ unsigned long ulDummy;
 }
 /*-----------------------------------------------------------*/
 
+#if 0
 /*
  * Setup the systick timer to generate the tick interrupts at the required
  * frequency.
@@ -213,4 +214,16 @@ void prvSetupTimerInterrupt( void )
 	*(portNVIC_SYSTICK_CTRL) = portNVIC_SYSTICK_CLK | portNVIC_SYSTICK_INT | portNVIC_SYSTICK_ENABLE;
 }
 /*-----------------------------------------------------------*/
+#else
+#if CONFIG_CPU_STM32 == 1
+#include "stm32f10x.h"
+#elif CONFIG_CPU_LM3S == 1
+#include "lm3s.h"
+#endif
 
+void prvSetupTimerInterrupt(void)
+{
+	SysTick_Config(SystemFrequency / CONFIG_TICK_HZ);
+}
+
+#endif
