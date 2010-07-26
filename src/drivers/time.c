@@ -13,7 +13,9 @@ static time_t jiffies;
 void time_Init(void)
 {
 	jiffies = 0;
+#ifndef CONFIG_LIB_FREERTOS
 	time_hwInit();
+#endif
 }
 
 void time_Update(void)
