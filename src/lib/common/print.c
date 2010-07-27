@@ -13,6 +13,9 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 
+#include "common/print.h"
+#include "sys/task.h"
+
 static xQueueHandle xPrintQueue;
 
 void print_init(void)
@@ -38,7 +41,7 @@ int print(const char *msg)
 
 	len = strlen(msg);
 	pstr = pvPortMalloc(len + 1);
-	if(p != NULL) {
+	if(pstr != NULL) {
 		strcpy(pstr, msg); //copy, avoid msg is constructed in stack
 		xQueueSend(xPrintQueue, (void *) &pstr, portMAX_DELAY);
 		return 0;
