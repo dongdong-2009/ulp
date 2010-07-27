@@ -8,48 +8,89 @@
 #include "hvp.h"
 #include "sys/task.h"
 #include "shell/cmd.h"
+#include "common/print.h"
 #include "led.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "task.h"
 
 /*private var declaration*/
-static char hvp_stm;
-static const pa_t *hvp_pa;
+static xQueueHandle hvp_msg_queue;
 
 /*private func declaration*/
-static int hvp_program(char *model, char *sub);
+
+static void hvp_task(void *pvParameters);
 
 void hvp_Init(void)
 {
-	hvp_stm = HVP_STM_IDLE;
-	hvp_pa = NULL;
-
-	led_on(LED_GREEN);
-	led_off(LED_RED);
+	hvp_msg_queue = xQueueCreate(1, sizeof(hvp_msg_t));
+	xTaskCreate(hvp_task, (signed portCHAR *) "Hvp", 128, NULL, tskIDLE_PRIORITY + 1, NULL);	
 }
 
 void hvp_Update(void)
 {
-	int ret;
-	if(hvp_stm == HVP_STM_START) {
-		ret = hvp_pa->update();
-		if(ret == 0) {
-			led_on(LED_GREEN);
-			led_off(LED_RED);
-			hvp_stm = HVP_STM_IDLE;
-		}
-		else if(ret < 0) {
-			led_on(LED_RED);
-			led_off(LED_GREEN);
-			hvp_stm = HVP_STM_ERROR;
-		}
-	}
-
-	if(hvp_stm == HVP_STM_ERROR) {
-	}
 }
 
 DECLARE_TASK(hvp_Init, hvp_Update)
+
+static void hvp_task(void *pvParameters)
+{
+	hvp_msg_t msg;
+	
+	//indicate idle status
+	led_on(LED_GREEN);
+	led_off(LED_RED);
+	
+	//wait for cmd sent by Update thread ...
+	while(xQueueReceive(hvp_msg_queue, &msg, portMAX_DELAY) == pdPASS) {
+		//indicate busy
+		led_on(LED_GREEN);
+		led_on(LED_RED);
+		
+		// ...excute the command
+		print("program:");
+		print(msg.para1);
+		print(msg.para2);
+		print("....finish\n");
+		
+		//indicate idle
+		led_on(LED_GREEN);
+		led_off(LED_RED);
+		vPortFree(msg.para1);
+		vPortFree(msg.para2);
+	}
+}
+
+/*inform the hvp thread: "hey boy, it's time to programming now ...:)"
+	model: something like MT22U
+	sub: something like 28172362
+*/
+int hvp_prog(char *model, char *sub)
+{
+	int len;
+	hvp_msg_t msg;
+	portBASE_TYPE ret;
+	
+	msg.cmd = HVP_CMD_PROGRAM;
+	len = strlen(model);
+	msg.para1 = pvPortMalloc(len + 1);
+	strcpy(msg.para1, model);
+	len = strlen(sub);
+	msg.para2 = pvPortMalloc(len + 1);
+	strcpy(msg.para2, sub);
+	ret = xQueueSend(hvp_msg_queue, &msg, 0);
+	if(ret != pdTRUE) {
+		vPortFree(msg.para1);
+		vPortFree(msg.para2);
+		return -1;
+	}
+	
+	return 0;
+}
 
 static int cmd_hvp_func(int argc, char *argv[])
 {
@@ -63,32 +104,9 @@ static int cmd_hvp_func(int argc, char *argv[])
 		return 0;
 	}
 
-	hvp_program(argv[1], argv[2]);
+	hvp_prog(argv[1], argv[2]);
 	return 0;
 }
 
 const cmd_t cmd_hvp = {"hvp", cmd_hvp_func, "hvp programmer"};
 DECLARE_SHELL_CMD(cmd_hvp)
-
-extern pa_t mt2x;
-
-/*get the model info from the configuration file*/
-static int hvp_program(char *model, char *sub)
-{
-	int ret = 0;
-
-	/*try to match pa, and read config*/
-	hvp_pa = &mt2x;
-	hvp_pa->init();
-
-	/*start program state machine*/
-	if(hvp_stm == HVP_STM_IDLE) {
-		hvp_stm = HVP_STM_START;
-		led_flash(LED_GREEN);
-		led_off(LED_RED);
-	}
-	else
-		ret = -1;
-
-	return ret;
-}

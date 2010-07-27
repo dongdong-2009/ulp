@@ -5,10 +5,15 @@
 #define __HVP_H_
 
 enum {
-	HVP_STM_IDLE,
-	HVP_STM_START,
-	HVP_STM_ERROR,
+	HVP_CMD_PROGRAM,
 };
+
+typedef struct
+{
+	char cmd;
+	void *para1;
+	void *para2;
+} hvp_msg_t;
 
 /*specific model program algo*/
 typedef struct {
@@ -16,5 +21,7 @@ typedef struct {
 	int (*init)(void); /*read config file, match return 0*/
 	int (*update)(void); /*main flash program state machine*/
 } pa_t;
+
+int hvp_prog(char *model, char *sub);
 
 #endif
