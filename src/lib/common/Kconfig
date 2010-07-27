@@ -3,6 +3,8 @@
 #
 # Written by dusk@2010
 #
-
+if [ "$CONFIG_LIB_FREERTOS" = "y" ]; then
+	bool "thread safe print?" CONFIG_COMMON_PRINT
+fi
 bool "ini file parser" CONFIG_COMMON_INIFILE
 bool "keyword protocol" CONFIG_COMMON_KWP
