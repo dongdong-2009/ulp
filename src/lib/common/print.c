@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "FreeRTOS.h"
 #include "queue.h"
@@ -34,15 +35,19 @@ void print_update(void)
 
 DECLARE_TASK(print_init, print_update)
 
-int print(const char *msg)
+int print(const char *fmt, ...)
 {
-	int len;
+	va_list ap;
 	char *pstr;
-
-	len = strlen(msg);
-	pstr = pvPortMalloc(len + 1);
+	int n;
+	
+	n = 0;
+	pstr = pvPortMalloc(PRINT_LINE_SIZE);
 	if(pstr != NULL) {
-		strcpy(pstr, msg); //copy, avoid msg is constructed in stack
+		va_start(ap, fmt);
+		n += vsnprintf(pstr + n, PRINT_LINE_SIZE - n, fmt, ap);
+		va_end(ap);
+
 		xQueueSend(xPrintQueue, (void *) &pstr, portMAX_DELAY);
 		return 0;
 	}
