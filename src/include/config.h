@@ -32,7 +32,6 @@
 #endif
 
 #ifdef CONFIG_LIB_FREERTOS
-#include "FreeRTOS.h"
 #define MALLOC pvPortMalloc
 #define FREE vPortFree
 #else

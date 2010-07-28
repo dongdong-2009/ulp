@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <string.h>
 #include <ctype.h>
+#include "FreeRTOS.h"
 
 #include "common\inifile.h"
 #include "ff.h"

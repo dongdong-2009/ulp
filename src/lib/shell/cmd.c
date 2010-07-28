@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "shell/cmd.h"
+#include "FreeRTOS.h"
 
 static cmd_list_t *cmd_list;
 static char cmd_update_stop_flag;
