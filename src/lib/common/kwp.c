@@ -146,7 +146,7 @@ int kwp_check(void)
 		err = -1;
 		kwp_err.sid = pbuf[1];
 		kwp_err.code = pbuf[2];
-		free(pbuf);
+		kwp_free(pbuf);
 		kwp_step = 0;
 	}
 
@@ -195,7 +195,7 @@ int kwp_StartComm(char *kb0, char *kb1)
 			*kb1 = pbuf[2];
 
 		kwp_step = 0;
-		free(pbuf);
+		kwp_free(pbuf);
 	}
 	
 	return kwp_step;
@@ -256,7 +256,7 @@ int kwp_AccessCommPara(void)
 		if(kwp_check())
 			return -1;
 		
-		free(pbuf);
+		kwp_free(pbuf);
 		kwp_step = 0;
 	}
 	
@@ -285,7 +285,7 @@ int kwp_StartDiag(char mode, char baud)
 		if(kwp_check())
 			return -1;
 		
-		free(pbuf);
+		kwp_free(pbuf);
 		kwp_step = 0;
 	}
 	
@@ -320,7 +320,7 @@ int kwp_RequestToDnload(char fmt, int addr, int size, char *plen)
 		if(plen)
 			*plen = pbuf[1];
 
-		free(pbuf);
+		kwp_free(pbuf);
 		kwp_step = 0;
 	}
 	
@@ -345,7 +345,7 @@ int kwp_RequestTransferExit(void)
 		if(kwp_check())
 			return -1;
 
-		free(pbuf);
+		kwp_free(pbuf);
 		kwp_step = 0;
 	}
 	
@@ -379,7 +379,7 @@ int kwp_StartRoutineByAddr(int addr)
 		if(kwp_check())
 			return -1;
 
-		free(pbuf);
+		kwp_free(pbuf);
 		kwp_step = 0;
 	}
 	
@@ -423,7 +423,7 @@ int kwp_debug(int argc, char *argv[])
 		if(kwp_check())
 			return -1;
 		
-		free(pbuf);
+		kwp_free(pbuf);
 		kwp_step = 0;
 	}
 	
