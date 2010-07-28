@@ -139,13 +139,10 @@ typedef struct {
 #define KWP_TESTER_ID 0XF1
 
 int kwp_Init(void);
-int kwp_IsReady(void); /*1->ready, 0->busy*/
-void kwp_reset(void); /*reset kwp srv func step var*/
 int kwp_GetLastErr(char *rid, char *sid, char *code); /*0->no err*/
 
 /*service routines:
 	= 0, routine finished sucessfully
-	> 0, routine finished sucessfully, but it contains one more steps, and needs to be called again
 	<0, error occurs
 */
 int kwp_EstablishComm(void);
