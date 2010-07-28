@@ -49,7 +49,7 @@ static int cmd_kwd_func(int argc, char *argv[])
 		kwd_baud(115200);
 
 		n = argc - 1;
-		buf = malloc(n);
+		buf = MALLOC(n);
 		for(i = 0; i < n; i ++) {
 			buf[i] = htoc(argv[i + 1]);
 		}
@@ -76,7 +76,7 @@ static int cmd_kwd_func(int argc, char *argv[])
 	}
 	
 	if(i == n) {
-		free(buf);
+		FREE(buf);
 		kwd_baud(KWD_BAUD);
 		return 0;
 	}

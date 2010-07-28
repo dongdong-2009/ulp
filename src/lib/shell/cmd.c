@@ -51,7 +51,7 @@ void cmd_Add(cmd_t *cmd)
 	cmd_list_t *new;
 	cmd_list_t *p = cmd_list;
 
-	new = malloc(sizeof(cmd_list_t));
+	new = MALLOC(sizeof(cmd_list_t));
 	new->cmd = cmd;
 	new->flag = 0;
 	new->next = 0;

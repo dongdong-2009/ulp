@@ -214,7 +214,7 @@ int osd_ConstructDialog(const osd_dialog_t *dlg)
 	int handle;
 	
 	//construct dialog in memory
-	kdlg = malloc(sizeof(osd_dialog_k));
+	kdlg = MALLOC(sizeof(osd_dialog_k));
 	kdlg->dlg = dlg;
 	kdlg->kgrps = NULL;
 	kdlg->active_kgrp = NULL;
@@ -258,7 +258,7 @@ int osd_DestroyDialog(int handle)
 	if(osd_active_kdlg == kdlg)
 		osd_active_kdlg = NULL;
 	
-	free(kdlg);
+	FREE(kdlg);
 	return 0;
 }
 
@@ -292,7 +292,7 @@ static int osd_ConstructGroup(const osd_group_t *grp)
 	const osd_item_t *item;
 	osd_item_k *kitem, *k;
 
-	kgrp = malloc(sizeof(osd_group_k));
+	kgrp = MALLOC(sizeof(osd_group_k));
 	kgrp->grp = grp;
 	kgrp->next = NULL;
 	kgrp->prev = NULL;
@@ -329,7 +329,7 @@ static int osd_DestroyGroup(osd_group_k *kgrp)
 		osd_DestroyItem(kitem);
 		kitem = kitem_next;
 	}
-	free(kgrp);
+	FREE(kgrp);
 	return 0;
 }
 
@@ -391,7 +391,7 @@ static int osd_ConstructItem(const osd_item_t *item)
 	osd_item_k *kitem = NULL;
 	
 	if(item->runtime) {
-		kitem = malloc(sizeof(osd_item_k));
+		kitem = MALLOC(sizeof(osd_item_k));
 		kitem->item = item;
 		kitem->next = NULL;
 	}
@@ -401,7 +401,7 @@ static int osd_ConstructItem(const osd_item_t *item)
 
 static int osd_DestroyItem(osd_item_k *kitem)
 {
-	free(kitem);
+	FREE(kitem);
 	return 0;
 }
 

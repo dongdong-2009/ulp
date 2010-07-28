@@ -8,7 +8,7 @@
 
 pid_t *pid_Init(void)
 {
-	pid_t *pid = malloc(sizeof(pid_t));
+	pid_t *pid = MALLOC(sizeof(pid_t));
 	pid->kp = (short) NOR_PID_GAIN(PID_KP_DEF);
 	pid->ki = (short) NOR_PID_GAIN(PID_KI_DEF);
 	pid->kd = (short) NOR_PID_GAIN(PID_KD_DEF);
@@ -42,6 +42,6 @@ short pid_Calcu(pid_t *pid, short in)
 
 void pid_Close(pid_t *pid)
 {
-	free(pid);
+	FREE(pid);
 }
 

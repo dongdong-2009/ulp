@@ -27,7 +27,7 @@ int item_DrawTxt(const osd_item_t *item, int status)
 	//string width limit
 	len = strlen(str);
 	len = (len > item->w) ? item->w : len;
-	buf = malloc(len + 1);
+	buf = MALLOC(len + 1);
 	strncpy(buf, str, len);
 	buf[len] = 0;
 	
@@ -38,7 +38,7 @@ int item_DrawTxt(const osd_item_t *item, int status)
 	
 	//output to lcd
 	osd_eng_puts(x, item->y, buf);
-	free(buf);
+	FREE(buf);
 	return 0;
 }
 
@@ -59,7 +59,7 @@ int item_DrawInt(const osd_item_t *item, int status)
 	
 	//convert int to string & width limit
 	len = item->w + 1;
-	buf = malloc(len);
+	buf = MALLOC(len);
 	snprintf(buf, len, "%d", value);
 	len = strlen(buf);
 	
@@ -70,7 +70,7 @@ int item_DrawInt(const osd_item_t *item, int status)
 	
 	//output to lcd
 	osd_eng_puts(x, item->y, buf);
-	free(buf);
+	FREE(buf);
 	return 0;
 }
 

@@ -29,7 +29,7 @@ void motor_Init(void)
 	vsm_Init();
 	dbg_Init();
 	
-	motor = malloc(sizeof(motor_t));
+	motor = MALLOC(sizeof(motor_t));
 	
 	/*default smo_motor para, change me!!!*/
 	motor->rs = (short) NOR_RES(65.0f);
