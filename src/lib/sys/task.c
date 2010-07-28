@@ -8,6 +8,7 @@
 #include "time.h"
 #include "driver.h"
 
+#ifndef CONFIG_LIB_FREERTOS
 static time_t task_timer;
 static void (*task_foreground)(void);
 
@@ -69,3 +70,4 @@ void task_SetForeground(void (*task)(void))
 {
 	task_foreground = task;
 }
+#endif

@@ -6,3 +6,4 @@ obj-$(CONFIG_TASK_OSD) += osd/
 obj-$(CONFIG_LIB_LWIP) += lwip/
 obj-$(CONFIG_LIB_FATFS) += fatfs/
 obj-$(CONFIG_LIB_COMMON) += common/
+obj-$(CONFIG_LIB_FREERTOS) += FreeRTOS/

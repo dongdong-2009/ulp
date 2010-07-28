@@ -43,7 +43,7 @@ def iar_clr():
 		grp = grps[i];
 		print 'Group', grp.xpath("name")[0].text, 'is removed!'
 		root.remove(grp)
-	#remove included directories
+	#remove c included directories
 	opts = root.xpath("//option/name[text()='CCIncludePath2']/..");
 	nr_opts = len(opts);
 	for i in range(nr_opts):
@@ -52,7 +52,18 @@ def iar_clr():
 		nr_stats = len(stats);
 		for j in range(nr_stats):
 			stat = stats[j];
-			print 'Include Path', stat.text, 'is removed!'
+			print 'CC Include Path', stat.text, 'is removed!'
+			opt.remove(stat)
+	#remove asm included directories
+	opts = root.xpath("//option/name[text()='AUserIncludes']/..");
+	nr_opts = len(opts);
+	for i in range(nr_opts):
+		opt = opts[i];
+		stats = opt.xpath("state");
+		nr_stats = len(stats);
+		for j in range(nr_stats):
+			stat = stats[j];
+			print 'Asm Include Path', stat.text, 'is removed!'
 			opt.remove(stat)
 	#write to original file
 	iar.write(fname)
@@ -100,12 +111,20 @@ def iar_include():
 	dname = path.join(dir_prefix, path.dirname(argv[3]));
 	iar = etree.parse(fname);
 	root = iar.getroot();
-	#find include dir option
+	#find include dir option - c include
 	opts = root.xpath("//option/name[text()='CCIncludePath2']/..");
 	nr_opts = len(opts);
 	for i in range(nr_opts):
 		opt = opts[i];
-		print 'Include Path', dname, 'is added!'
+		print 'CC Include Path', dname, 'is added!'
+		state = etree.SubElement(opt, "state");
+		state.text = path_win(dname);
+	#find include dir option - asm include
+	opts = root.xpath("//option/name[text()='AUserIncludes']/..");
+	nr_opts = len(opts);
+	for i in range(nr_opts):
+		opt = opts[i];
+		print 'Asm Include Path', dname, 'is added!'
 		state = etree.SubElement(opt, "state");
 		state.text = path_win(dname);
 	#write to original file

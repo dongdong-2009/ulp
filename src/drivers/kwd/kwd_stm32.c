@@ -1,14 +1,21 @@
 /*
  * 	miaofng@2010 initial version
  *		This file is used to provide phy level i/f for ISO14230/keyword2000 protocol
- *		send: DMA irq mode
- *		recv: DMA poll mode
+ *		send: DMA poll mode
+ *		recv: DMA poll + cirbuf mode
  */
 
 #include "config.h"
 #include "kwd.h"
 #include "time.h"
 #include "stm32f10x.h"
+
+/*note: rx fifo size must be big enough to hold all the data received during poll duration,
+or overflow may occurs*/
+#define KWD_RF_SZ 16
+static char kwd_rf[KWD_RF_SZ]; /*rx fifo*/
+static short kwd_rfn; /*total bytes came into rx fifo*/
+static char *kwd_rbuf; /*buf to store the data received*/
 
 static short kwd_tn;
 static short kwd_rn;
@@ -23,7 +30,6 @@ void kwd_init(void)
 	
 	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef uartinfo;
-	NVIC_InitTypeDef NVIC_InitStructure;
 
 	/* Enable GPIOA clock */
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
@@ -47,13 +53,6 @@ void kwd_init(void)
 	USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);
 	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);
 	USART_Cmd(USART1, ENABLE);
-
-	/* Enable DMA Interrupt */
-	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel4_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure);
 }
 
 int kwd_baud(int baud)
@@ -65,27 +64,34 @@ int kwd_baud(int baud)
 	USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);
 	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);
 	USART_Cmd(USART1, ENABLE);
+	return 0;
 }
 
-int kwd_wake(int hi)
+void kwd_wake(int op)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-	if(!hi) {
+	if(op == KWD_WKOP_EN) {
 		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9; //uart1.tx
 		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 		GPIO_Init(GPIOA, &GPIO_InitStructure);
 	}
-	GPIO_WriteBit(GPIOA, GPIO_Pin_9, hi);
+	
+	else if(op == KWD_WKOP_LO) {
+		GPIO_WriteBit(GPIOA, GPIO_Pin_9, Bit_RESET);
+	}
 
-	if(hi) {
+	else if(op == KWD_WKOP_HI) {
+		GPIO_WriteBit(GPIOA, GPIO_Pin_9, Bit_SET);
+	}
+	
+	else if(op == KWD_WKOP_RS) {
 		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
 		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 		GPIO_Init(GPIOA, &GPIO_InitStructure);
 	}
-	return 0;
 }
 
 /* whole kwd_transfer procedure
@@ -99,31 +105,52 @@ int kwd_transfer(char *tbuf, size_t tn, char *rbuf, size_t rn)
 {
 	kwd_tn = (short)tn;
 	kwd_rn = (short)rn;
+	kwd_rbuf = rbuf;
+	kwd_rfn = 0;
 
 	//setup tx/rx phy engine
+	kwd_SetupRxDMA(kwd_rf, KWD_RF_SZ);
 	kwd_SetupTxDMA(tbuf, tn);
-	kwd_SetupRxDMA(rbuf, rn);
-	USART_ReceiverWakeUpCmd(USART1, DISABLE);
 	return 0;
-}
-
-/*tx transfer: dma irq mode*/
-void kwd_isr(void)
-{
-	DMA_ClearITPendingBit(DMA1_IT_TC4 | DMA1_IT_GL4);
-	USART_ReceiverWakeUpCmd(USART1, ENABLE);
 }
 
 /*rx transfer: dma poll mode*/
 int kwd_poll(int rx)
 {
-	int n = 0;
+	int n;
+	int n0, n1; /*index for fifo*/
+	int i, fi;
 
-	if(rx && kwd_rn)
-		n = (int)kwd_rn - DMA_GetCurrDataCounter(DMA1_Channel5);
+	/*receive data from rx fifo?*/
+	n0 = kwd_rfn % KWD_RF_SZ;
+	n1 = KWD_RF_SZ - DMA_GetCurrDataCounter(DMA1_Channel5);
 	
-	if(!rx && kwd_tn)
-		n = (int)kwd_tn - DMA_GetCurrDataCounter(DMA1_Channel4);
+	n = n1 - n0;
+	n += (n < 0) ? KWD_RF_SZ : 0;
+	for(i = 0; i < n; i ++) {
+		if(kwd_rfn >= kwd_tn) { //store to rbuf
+			fi = n0 + i; //Fifo Idx
+			fi -= (fi >= KWD_RF_SZ) ? KWD_RF_SZ : 0;
+			if(kwd_rfn - kwd_tn <= kwd_rn) { //rbuf not overflow
+				*kwd_rbuf = kwd_rf[fi];
+				kwd_rbuf ++;
+			}
+		}
+		else { //tx data echo back, ignore?
+		}
+		kwd_rfn ++;
+	}
+	
+	/*return result*/
+	if(rx && kwd_rn) {
+		n = kwd_rfn - kwd_tn;
+		n = (n > 0) ? n : 0;
+	}
+	
+	if(!rx && kwd_tn) {
+		n = kwd_rfn;
+		n = (n > kwd_tn) ? kwd_tn : n;
+	}
 
 	return n;
 }
@@ -147,7 +174,6 @@ static void kwd_SetupTxDMA(void *p, size_t n)
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel4, &DMA_InitStructure);
 	DMA_Cmd(DMA1_Channel4, ENABLE);
-	DMA_ITConfig(DMA1_Channel4, DMA_IT_TC, ENABLE);
 }
 
 static void kwd_SetupRxDMA(void *p, size_t n)
@@ -164,7 +190,7 @@ static void kwd_SetupRxDMA(void *p, size_t n)
 	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
 	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
 	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
 	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel5, &DMA_InitStructure);

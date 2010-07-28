@@ -7,6 +7,7 @@
 bool "enable task of 'motor'?" CONFIG_TASK_MOTOR
 bool "enable task of 'stepmotor'?" CONFIG_TASK_STEPMOTOR
 bool "enable task of 'vvt'?" CONFIG_TASK_VVT
+bool "Handheld Vehicle Programmer?" CONFIG_TASK_HVP
 
 if [ "$CONFIG_LIB_LWIP" = "y" ]; then
 	bool "enable task of 'eth demo'?" CONFIG_TASK_ETHDEMO

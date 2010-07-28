@@ -7,4 +7,7 @@
 bool "enable sys debug?" CONFIG_SYSTEM_DEBUG
 bool "enable bus spi1?" CONFIG_SYSTEM_SPI1
 bool "enable bus spi2?" CONFIG_SYSTEM_SPI2
-int "background tasks update period in ms?" CONFIG_SYSTEM_UPDATE_MS 5
+int "sys tick freq in Hz?" CONFIG_TICK_HZ 1000
+if [ "$CONFIG_LIB_FREERTOS" != "y"]; then
+	int "background tasks update period in ms?" CONFIG_SYSTEM_UPDATE_MS 5
+fi

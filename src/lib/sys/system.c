@@ -22,18 +22,6 @@ void sys_Init(void)
 #if CONFIG_SYSTEM_SPI2 == 1
 	spi_Init(2, SPI_MODE_POL_0| SPI_MODE_PHA_0| SPI_MODE_BW_16 | SPI_MODE_MSB);
 #endif
-
-	/*indicates board init finish*/
-	led_on(LED_RED);
-	mdelay(100);
-	led_off(LED_RED);
-	
-	led_on(LED_GREEN);
-	mdelay(100);
-	led_off(LED_GREEN);
-	
-	//indicates system works well
-	led_flash(LED_GREEN);
 }
 
 void sys_Update(void)

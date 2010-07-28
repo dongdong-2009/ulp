@@ -140,6 +140,7 @@ typedef struct {
 
 int kwp_Init(void);
 int kwp_IsReady(void); /*1->ready, 0->busy*/
+void kwp_reset(void); /*reset kwp srv func step var*/
 int kwp_GetLastErr(char *rid, char *sid, char *code); /*0->no err*/
 
 /*service routines:
@@ -149,5 +150,11 @@ int kwp_GetLastErr(char *rid, char *sid, char *code); /*0->no err*/
 */
 int kwp_EstablishComm(void);
 int kwp_StartComm(char *kb0, char *kb1);
+int kwp_StopComm(void);
+int kwp_AccessCommPara(void);
+int kwp_StartDiag(char mode, char baud);
+int kwp_RequestToDnload(char fmt, int addr, int size, char *plen);
+int kwp_RequestTransferExit(void);
+int kwp_StartRoutineByAddr(int addr);
 
 #endif /*__KWP_H_*/

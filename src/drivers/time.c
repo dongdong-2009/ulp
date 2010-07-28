@@ -13,7 +13,9 @@ static time_t jiffies;
 void time_Init(void)
 {
 	jiffies = 0;
+#ifndef CONFIG_LIB_FREERTOS
 	time_hwInit();
+#endif
 }
 
 void time_Update(void)
@@ -43,14 +45,15 @@ void udelay(int us)
 
 void mdelay(int ms)
 {
+	ms *= CONFIG_TICK_HZ;
+	ms /= 1000;
 	time_t deadline = time_get(ms);
 	while(time_left(deadline) > 0);
 }
 
 void sdelay(int ss)
 {
-	time_t deadline = time_get(ss*1000);
-	while(time_left(deadline) > 0);
+	mdelay(ss * 1000);
 }
 
 #if CONFIG_CPU_STM32 == 1
@@ -61,5 +64,5 @@ void sdelay(int ss)
 
 void time_hwInit(void)
 {
-	SysTick_Config(SystemFrequency / 1000);
+	SysTick_Config(SystemFrequency / CONFIG_TICK_HZ);
 }
