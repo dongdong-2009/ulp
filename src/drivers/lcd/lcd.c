@@ -58,7 +58,7 @@ int lcd_clear_all(void)
 
 	w = lcd->w;
 	h = lcd->h;
-	str = malloc(w + 1);
+	str = MALLOC(w + 1);
 	memset(str, ' ', w);
 	str[w] = 0;
 
@@ -68,7 +68,7 @@ int lcd_clear_all(void)
 			break;
 	}
 
-	free(str);
+	FREE(str);
 	return ret;
 }
 
@@ -88,7 +88,7 @@ int lcd_clear_rect(int x, int y, int w, int h)
 		return ret;
 	}
 
-	str = malloc(w + 1);
+	str = MALLOC(w + 1);
 	memset(str, ' ', w);
 	str[w] = 0;
 
@@ -98,7 +98,7 @@ int lcd_clear_rect(int x, int y, int w, int h)
 			break;
 	}
 
-	free(str);
+	FREE(str);
 	return ret;
 }
 

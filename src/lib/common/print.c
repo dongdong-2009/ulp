@@ -38,7 +38,7 @@ DECLARE_TASK(print_init, print_update)
 int print(const char *fmt, ...)
 {
 	va_list ap;
-	char *pstr;
+	char *pstr, *p;
 	int n;
 	
 	n = 0;
@@ -48,7 +48,11 @@ int print(const char *fmt, ...)
 		n += vsnprintf(pstr + n, PRINT_LINE_SIZE - n, fmt, ap);
 		va_end(ap);
 
-		xQueueSend(xPrintQueue, (void *) &pstr, portMAX_DELAY);
+		n = strlen(pstr);
+		p = pvPortMalloc(n + 1);
+		strcpy(p, pstr);
+		vPortFree(pstr);
+		xQueueSend(xPrintQueue, &p, portMAX_DELAY);
 		return 0;
 	}
 	

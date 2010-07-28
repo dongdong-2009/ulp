@@ -6,88 +6,50 @@
 #include "config.h"
 #include "common/kwp.h"
 #include "kwd.h"
-#include "time.h"
 #include <stdlib.h>
+
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "task.h"
+#include "time.h"
 
 #define __DEBUG
 #ifdef __DEBUG
 #include "shell/cmd.h"
+#include "common/print.h"
 #include <stdio.h>
 #include <string.h>
 #endif
 
-static time_t kwp_timer;
-static char kwp_step; //transfer step
-static char kwp_wake; //wake step
 static char kwp_frame[260];
 static kwp_err_t kwp_err;
-static char *pbuf;
 
 int kwp_Init(void)
 {
-	kwp_reset();
 	kwd_init();
 	return 0;
-}
-
-void kwp_reset(void)
-{
-	kwp_wake = 0;
-	kwp_step = 0;
-}
-
-int kwp_IsReady(void)
-{
-	int bytes, len;
-	int ready = 1;
-	
-	if(kwp_wake)
-		ready = time_left(kwp_timer) < 0;
-	
-	if(kwp_step) {
-		ready = 0;
-		bytes = kwd_poll(1);
-#ifdef __DEBUG
-		printf("\rkwp rx:");
-		for(int i = 0; i < bytes; i ++) {
-			printf(" %02x", kwp_frame[i]);
-		}
-#endif
-		if(bytes > 1) {
-			len = kwp_frame[0] & 0x3f;
-			len += 3 + 1; /*head 3 bytes + cksum (1 byte)*/
-			ready = (bytes >= len);
-		}
-	}
-	
-	return ready;
 }
 
 int kwp_EstablishComm(void)
 {
 	//fast init is the only wakeup protocol supported now
-	if(kwp_wake == 0) {
-		kwp_timer = time_get(300);
-		kwd_wake(KWD_WKOP_EN);
-		kwd_wake(KWD_WKOP_HI);
-		kwp_wake = 1;
-	}
-	else if(kwp_wake == 1) {
-		kwp_timer = time_get(KWP_FAST_INIT_MS);
-		kwd_wake(KWD_WKOP_LO);
-		kwp_wake = 2;
-	}
-	else if(kwp_wake == 2) {
-		kwp_timer = time_get(KWP_FAST_INIT_MS);
-		kwd_wake(KWD_WKOP_HI);
-		kwp_wake = 3;
-	}
-	else {
-		kwd_wake(KWD_WKOP_RS);
-		kwp_wake = 0;
-	}
+	kwd_wake(KWD_WKOP_EN);
+	kwd_wake(KWD_WKOP_HI);
+	mdelay(300);
+
+	//set low
+	kwd_wake(KWD_WKOP_LO);
+	//vTaskDelay(KWP_FAST_INIT_MS * 1000 / CONFIG_TICK_HZ);
+	mdelay(KWP_FAST_INIT_MS);
 	
-	return kwp_wake;
+	//set high
+	kwd_wake(KWD_WKOP_HI);
+	//vTaskDelay(KWP_FAST_INIT_MS * 1000 / CONFIG_TICK_HZ);
+	mdelay(KWP_FAST_INIT_MS);
+	
+	//reset
+	kwd_wake(KWD_WKOP_RS);
+	return 0;
 }
 
 void *kwp_malloc(int n)
@@ -122,16 +84,16 @@ int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 	kwp_frame[0] += tn;
 	kwp_frame[n] = kwp_cksum(kwp_frame, n);
 #ifdef __DEBUG
-	printf("\nkwp tx:");
+	print("\nkwp tx:");
 	for(int i = 0; i < n + 1; i ++) {
-		printf(" %02x", kwp_frame[i]);
+		print(" %02x", kwp_frame[i]);
 	}
-	printf("\n");
+	print("\n");
 #endif
 	return kwd_transfer(kwp_frame, tn + 4, kwp_frame, rn + 4);
 }
 
-int kwp_check(void)
+int kwp_check(char *pbuf)
 {
 	int err;
 	
@@ -146,17 +108,54 @@ int kwp_check(void)
 		err = -1;
 		kwp_err.sid = pbuf[1];
 		kwp_err.code = pbuf[2];
-		free(pbuf);
-		kwp_step = 0;
+		kwp_free(pbuf);
 	}
 
 #ifdef __DEBUG
 	if(err) {
-		printf("\nNegative Response!\n");
+		print("\nNegative Response!\n");
 	}
 #endif
 	
 	return err;
+}
+
+int kwp_recv(char *pbuf, int ms)
+{
+	int bytes, len;
+	time_t timeout;
+	int ret = -1;
+	
+	timeout = time_get(ms);
+	while(1) {
+		//timeout?
+		if(time_left(timeout) < 0) {
+			kwp_err.sid = pbuf[0];
+			kwp_err.rid = 0;
+			kwp_err.code = 0;
+			kwp_free(pbuf);
+			break;
+		}
+		
+		bytes = kwd_poll(1);
+#ifdef __DEBUG
+		print("\rkwp rx:");
+		for(int i = 0; i < bytes; i ++) {
+			print(" %02x", kwp_frame[i]);
+		}
+#endif
+		if(bytes > 1) {
+			len = kwp_frame[0] & 0x3f;
+			len += 3 + 1; /*head 3 bytes + cksum (1 byte)*/
+			if(bytes >= len) {
+				ret = kwp_check(pbuf);
+				if(!ret)
+					break;
+			}
+		}
+	}
+	
+	return ret;
 }
 
 int kwp_GetLastErr(char *rid, char *sid, char *code)
@@ -178,27 +177,21 @@ communications state.  There are no negative responses allowed for the Start Com
 */
 int kwp_StartComm(char *kb0, char *kb1)
 {	
-	if(kwp_step == 0) {
-		pbuf = kwp_malloc(2);
-		pbuf[0] = SID_81;
-		
-		kwp_transfer(pbuf, 1, pbuf, 3);
-		kwp_step = 1;
-	}
-	else {
-		if(kwp_check())
-			return -1;
-
-		if(kb0)
-			*kb0 = pbuf[1];
-		if(kb1)
-			*kb1 = pbuf[2];
-
-		kwp_step = 0;
-		free(pbuf);
-	}
+	char *pbuf;
 	
-	return kwp_step;
+	pbuf = kwp_malloc(2);
+	pbuf[0] = SID_81;
+	kwp_transfer(pbuf, 1, pbuf, 3);
+	if(kwp_recv(pbuf, 50))
+		return -1;
+
+	if(kb0)
+		*kb0 = pbuf[1];
+	if(kb1)
+		*kb1 = pbuf[2];
+
+	kwp_free(pbuf);
+	return 0;
 }
 
 /*
@@ -207,22 +200,16 @@ Communication request.
 */
 int kwp_StopComm(void)
 {
-	if(kwp_step == 0) {
-		pbuf = kwp_malloc(3);
-		pbuf[0] = SID_82;
-
-		kwp_transfer(pbuf, 1, pbuf, 3);
-		kwp_step = 1;
-	}
-	else {
-		if(kwp_check())
-			return -1;
-		
-		kwp_free(pbuf);
-		kwp_step = 0;
-	}
+	char *pbuf;
 	
-	return kwp_step;
+	pbuf = kwp_malloc(3);
+	pbuf[0] = SID_82;
+	kwp_transfer(pbuf, 1, pbuf, 3);
+	if(kwp_recv(pbuf, 50))
+		return -1;
+		
+	kwp_free(pbuf);
+	return 0;
 }
 
 /*
@@ -233,34 +220,24 @@ a reprogramming event are read from the ECU.  Second,  the optimum timing parame
 */
 int kwp_AccessCommPara(void)
 {
-	if(kwp_step == 0) {
-		pbuf = kwp_malloc(7);
-		pbuf[0] = SID_83;
-		pbuf[1] = 0;
-	
-		kwp_transfer(pbuf, 2, pbuf, 7);
-		kwp_step = 1;
-	}
-	else if(kwp_step == 1) {
-		if(kwp_check())
-			return -1;
+	char *pbuf;
 
-		pbuf[0] = SID_83;
-		pbuf[1] = 0x03;
-		/*pbuf[2..6] is the val received*/
+	pbuf = kwp_malloc(7);
+	pbuf[0] = SID_83;
+	pbuf[1] = 0;
+	kwp_transfer(pbuf, 2, pbuf, 7);
+	if(kwp_recv(pbuf, 50))
+		return -1;
+
+	pbuf[0] = SID_83;
+	pbuf[1] = 0x03;
+	/*pbuf[2..6] is the val received*/	
+	kwp_transfer(pbuf, 7, pbuf, 3);
+	if(kwp_recv(pbuf, 50))
+		return -1;
 		
-		kwp_transfer(pbuf, 7, pbuf, 3);
-		kwp_step = 2;
-	}
-	else if(kwp_step == 2) {
-		if(kwp_check())
-			return -1;
-		
-		free(pbuf);
-		kwp_step = 0;
-	}
-	
-	return kwp_step;
+	kwp_free(pbuf);
+	return 0;
 }
 
 /*
@@ -270,26 +247,21 @@ The 10 Op-Code is used to inform devices on the serial data link that the tool i
 */
 int kwp_StartDiag(char mode, char baud)
 {
+	char *pbuf;
 	int n;
-	n = (baud > 0) ? 3 : 2;
-	if(kwp_step == 0) {
-		pbuf = kwp_malloc(3);
-		pbuf[0] = SID_10;
-		pbuf[1] = mode;
-		pbuf[2] = baud;
-		
-		kwp_transfer(pbuf, n, pbuf, 3);
-		kwp_step = 1;
-	}
-	else {
-		if(kwp_check())
-			return -1;
-		
-		free(pbuf);
-		kwp_step = 0;
-	}
 	
-	return kwp_step;
+	n = (baud > 0) ? 3 : 2;
+	pbuf = kwp_malloc(3);
+		
+	pbuf[0] = SID_10;
+	pbuf[1] = mode;
+	pbuf[2] = baud;
+	kwp_transfer(pbuf, n, pbuf, 3);
+	if(kwp_recv(pbuf, 50))
+		return -1;
+		
+	kwp_free(pbuf);
+	return 0;
 }
 
 /*
@@ -299,32 +271,26 @@ with service request mode 36s (Op-Codes 90, 91, and 93) to download information 
 */
 int kwp_RequestToDnload(char fmt, int addr, int size, char *plen)
 {
-	if(kwp_step == 0) {
-		pbuf = kwp_malloc(8);
-		pbuf[0] = SID_34;
-		pbuf[1] = (char)(addr >> 16);
-		pbuf[2] = (char)(addr >>  8);
-		pbuf[3] = (char)(addr >>  0);
-		pbuf[4] = fmt;
-		pbuf[5] = (char)(size >> 16);
-		pbuf[6] = (char)(size >>  8);
-		pbuf[7] = (char)(size >>  0);
-		
-		kwp_transfer(pbuf, 8, pbuf, 3);
-		kwp_step = 1;
-	}
-	else {
-		if(kwp_check())
-			return -1;
-		
-		if(plen)
-			*plen = pbuf[1];
-
-		free(pbuf);
-		kwp_step = 0;
-	}
+	char *pbuf;
 	
-	return kwp_step;
+	pbuf = kwp_malloc(8);
+	pbuf[0] = SID_34;
+	pbuf[1] = (char)(addr >> 16);
+	pbuf[2] = (char)(addr >>  8);
+	pbuf[3] = (char)(addr >>  0);
+	pbuf[4] = fmt;
+	pbuf[5] = (char)(size >> 16);
+	pbuf[6] = (char)(size >>  8);
+	pbuf[7] = (char)(size >>  0);	
+	kwp_transfer(pbuf, 8, pbuf, 3);
+	if(kwp_recv(pbuf, 50))
+		return -1;
+		
+	if(plen)
+		*plen = pbuf[1];
+
+	kwp_free(pbuf);	
+	return 0;
 }
 
 /*
@@ -334,22 +300,16 @@ session after all of the Transfer Data requests are completed.
 */
 int kwp_RequestTransferExit(void)
 {
-	if(kwp_step == 0) {
-		pbuf = kwp_malloc(1);
-		pbuf[0] = SID_37;
+	char *pbuf;
 		
-		kwp_transfer(pbuf, 1, pbuf, 3);
-		kwp_step = 1;
-	}
-	else {
-		if(kwp_check())
-			return -1;
+	pbuf = kwp_malloc(1);
+	pbuf[0] = SID_37;	
+	kwp_transfer(pbuf, 1, pbuf, 3);
+	if(kwp_recv(pbuf, 50))
+		return -1;
 
-		free(pbuf);
-		kwp_step = 0;
-	}
-	
-	return kwp_step;
+	kwp_free(pbuf);
+	return 0;
 }
 
 /*
@@ -365,28 +325,43 @@ The 38 Op-Code will build a standard service request 38 to send to an ECU.   Thi
 */
 int kwp_StartRoutineByAddr(int addr)
 {
-	if(kwp_step == 0) {
-		pbuf = kwp_malloc(4);
-		pbuf[0] = SID_38;
-		pbuf[1] = (char)(addr >> 16);
-		pbuf[2] = (char)(addr >>  8);
-		pbuf[3] = (char)(addr >>  0);
-		
-		kwp_transfer(pbuf, 4, pbuf, 4);
-		kwp_step = 1;
-	}
-	else {
-		if(kwp_check())
-			return -1;
-
-		free(pbuf);
-		kwp_step = 0;
-	}
+	char *pbuf;
 	
-	return kwp_step;
+	pbuf = kwp_malloc(4);
+	pbuf[0] = SID_38;
+	pbuf[1] = (char)(addr >> 16);
+	pbuf[2] = (char)(addr >>  8);
+	pbuf[3] = (char)(addr >>  0);	
+	kwp_transfer(pbuf, 4, pbuf, 4);
+	if(kwp_recv(pbuf, 50))
+		return -1;
+
+	kwp_free(pbuf);
+	return 0;
 }
 
 #ifdef __DEBUG
+/*
+this routine is only for debug purpose
+*/
+int kwp_debug(int n, char *data)
+{
+	int i;
+	char *pbuf;
+	
+	pbuf = kwp_malloc(n);
+	for(i = 0; i < n; i ++) {
+		pbuf[i] = data[i];
+	}
+	
+	kwp_transfer(pbuf, n, pbuf, 250);
+	if(kwp_recv(pbuf, 50))
+		return -1;
+		
+	kwp_free(pbuf);
+	return 0;
+}
+
 static char htoc(char *buf)
 {
 	char h, l;
@@ -404,43 +379,39 @@ static char htoc(char *buf)
 	return (h << 4) | l;
 }
 
-/*
-this routine is only for debug purpose
-*/
-int kwp_debug(int argc, char *argv[])
-{
-	int n, i;
-	n = argc - 1;
-	if(kwp_step == 0) {
-		pbuf = kwp_malloc(n);
-		for(i = 0; i < n; i ++)
-			pbuf[i] = htoc(argv[i + 1]);
-		
-		kwp_transfer(pbuf, n, pbuf, 250);
-		kwp_step = 1;
-	}
-	else {
-		if(kwp_check())
-			return -1;
-		
-		free(pbuf);
-		kwp_step = 0;
-	}
-	
-	return kwp_step;
-}
-
 enum {
-	CMD_NONE,
 	CMD_WAKE,
-	CMD_START,
 	CMD_TRANS,
 };
 
-static char cmd;
+struct cmd_kwp_msg {
+	char cmd;
+	char bytes;
+	char *para;
+};
+
+static xQueueHandle cmd_kwp_queue;
+static void cmd_kwp_task(void *pvParameters)
+{
+	struct cmd_kwp_msg msg;
+	while(xQueueReceive(cmd_kwp_queue, &msg, portMAX_DELAY) == pdPASS) {
+		if(msg.cmd == CMD_WAKE) {
+			kwp_Init();
+			kwp_EstablishComm();
+			kwp_StartComm(0, 0);
+		}
+		else {
+			kwp_debug(msg.bytes, msg.para);
+			FREE(msg.para);
+		}
+	}
+}
+
 static int cmd_kwp_func(int argc, char *argv[])
 {
-	int repeat;
+	int n, i;
+	char *pbuf;
+	struct cmd_kwp_msg msg;
 	const char usage[] = { \
 		" usage:\n" \
 		" kwp start\n"
@@ -454,55 +425,29 @@ static int cmd_kwp_func(int argc, char *argv[])
 
 	if(argc > 1) {
 		if(!strcmp(argv[1], "start")) { //kwp start?
-			kwp_Init();
-			kwp_reset();
-			kwp_EstablishComm();
-			cmd = CMD_WAKE;
-			return 1;
+			msg.cmd = CMD_WAKE;
 		}
 		else {
-			kwp_reset();
-			kwp_debug(argc, argv);
-			cmd = CMD_TRANS;
-			return 1;
+			n = argc - 1;
+			msg.cmd = CMD_TRANS;
+			msg.bytes = (char) n;
+			pbuf = MALLOC(msg.bytes);
+			for(i = 0; i < n; i ++)
+				pbuf[i] = htoc(argv[i + 1]);
+			msg.para = pbuf;
+		}
+		
+		if(!cmd_kwp_queue) { //create the task and queue
+			cmd_kwp_queue = xQueueCreate(1, sizeof(struct cmd_kwp_msg));
+			xTaskCreate(cmd_kwp_task, (signed portCHAR *) "cmd_kwp", 128, NULL, tskIDLE_PRIORITY + 1, NULL);	
+		}
+		
+		if(xQueueSend(cmd_kwp_queue, &msg, 0) != pdPASS) {
+			printf("Busy now! try later ...\n");
 		}
 	}
 
-	//update
-	if(kwp_IsReady()) {
-		if(cmd == CMD_WAKE) {
-			repeat = kwp_EstablishComm();
-			if(repeat == 0) {
-				printf("kwp bus has been waked up!!!\n");
-				cmd = CMD_START;
-				return 1;
-			}
-		}
-		
-		if(cmd == CMD_START) {
-			repeat = kwp_StartComm(0, 0);
-			if(repeat == 0) {
-				printf("\nkwp start comm sucessfully!!!\n");
-				cmd = CMD_NONE;
-				return 0;
-			}
-		}
-		
-		if(cmd == CMD_TRANS) {
-			repeat = kwp_debug(argc, argv);
-			if(repeat == 0) {
-				printf("\nkwp transfer finished!!!\n");
-				cmd = CMD_NONE;
-				return 0;
-			}
-			else if(repeat < 0) {
-				cmd = CMD_NONE;
-				return 0;	
-			}			
-		}
-	}
-	
-	return 1;
+	return 0;
 }
 
 const cmd_t cmd_kwp = {"kwp", cmd_kwp_func, "kwp tx/rx commands"};
