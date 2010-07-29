@@ -44,7 +44,7 @@ endif
 ifeq ($(CONFIG_LIB_FATFS), y)
 	$(IAR_TOOL) inc $(IAR_FILE) src/lib/fatfs/
 endif
-$(IAR_TOOL) inc $(IAR_FILE) src/lib/FreeRTOS/Source/include/
+	$(IAR_TOOL) inc $(IAR_FILE) src/lib/FreeRTOS/Source/include/
 
 iar_add:
 	@echo target=$@ M=$(M): obj-y = $(obj-y)
