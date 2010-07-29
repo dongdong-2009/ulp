@@ -49,7 +49,10 @@ int kwp_EstablishComm(void)
 	
 	//reset
 	kwd_wake(KWD_WKOP_RS);
-	return 0;
+	
+	//start comm
+	kwp_StartComm(0, 0); //flush serial port
+	return kwp_StartComm(0, 0);
 }
 
 void *kwp_malloc(int n)
@@ -398,7 +401,6 @@ static void cmd_kwp_task(void *pvParameters)
 		if(msg.cmd == CMD_WAKE) {
 			kwp_Init();
 			kwp_EstablishComm();
-			kwp_StartComm(0, 0);
 		}
 		else {
 			kwp_debug(msg.bytes, msg.para);
