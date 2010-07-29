@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include "pss.h"
 #include "knock.h"
+#include "sys/task.h"
 
 //global
 short vvt_gear_advance; //0~10
