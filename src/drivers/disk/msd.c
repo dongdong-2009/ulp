@@ -928,6 +928,7 @@ static void SPI_Config(void)
   /* MSD_SPI_PORT and MSD_CS_PORT Periph clock enable */
   RCC_APB2PeriphClockCmd(MSD_SPI_GPIO_PORT_CLOCK | MSD_CS_GPIO_PORT_CLOCK | \
                          RCC_APB2Periph_AFIO, ENABLE);
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 
   /* MSD_SPI Periph clock enable */
 #ifdef USE_STM3210B_EVAL
@@ -952,6 +953,13 @@ static void SPI_Config(void)
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_Init(MSD_CS_PORT, &GPIO_InitStructure);
+  
+  /* Configure CS pin */
+  GPIO_InitStructure.GPIO_Pin = GPIO_PIN_4;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_Init(GPIOC, &GPIO_InitStructure);
+  GPIO_ResetBits(GPIOC, GPIO_PIN_4);
 
   /* MSD_SPI Config */
   SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
