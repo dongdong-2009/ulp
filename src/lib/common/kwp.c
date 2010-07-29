@@ -152,8 +152,7 @@ int kwp_recv(char *pbuf, int ms)
 			len += 3 + 1; /*head 3 bytes + cksum (1 byte)*/
 			if(bytes >= len) {
 				ret = kwp_check(pbuf);
-				if(!ret)
-					break;
+				break;
 			}
 		}
 	}
