@@ -70,7 +70,7 @@ static int cmd_ff_fread(int argc, char *argv[])
 	FRESULT res;
 	FIL file;
 	unsigned int br;
-	char buffer[100];
+	char *buffer = (char *)malloc(50);
 
 	res = f_open(&file, argv[1], FA_OPEN_EXISTING | FA_READ);
 	if (res == FR_OK) {
@@ -85,6 +85,8 @@ static int cmd_ff_fread(int argc, char *argv[])
 		printf("operation failed!\n\r");
 	}
 	f_close(&file);
+	
+	FREE(buffer);
 
 	return 0;
 }
@@ -139,7 +141,7 @@ static int cmd_ff_ls(int argc, char *argv[])
 	FILINFO fileinfo;
 	DIR fdir;
 	char *filename;
-	char path[] = "0:";
+	char path[] = "";
 
 	res = f_opendir(&fdir, path);
 	if (res == FR_OK) {
@@ -158,6 +160,31 @@ static int cmd_ff_ls(int argc, char *argv[])
 }
 const cmd_t cmd_ls = {"ls", cmd_ff_ls, "display files"};
 DECLARE_SHELL_CMD(cmd_ls)
+
+static int cmd_ff_cd(int argc, char *argv[])
+{
+
+	const char usage[] = { \
+		" usage:\n" \
+		" cd subdir" \
+	};
+	 
+	if(argc > 0 && argc != 2) {
+		printf(usage);
+		return 0;
+	}
+	
+	FRESULT res;
+
+	res = f_chdir(argv[1]);
+	if (res != FR_OK) {
+		printf("operation failed!\n\r");
+	}
+
+	return 0;
+}
+const cmd_t cmd_cd = {"cd", cmd_ff_cd, "cd sub directroy"};
+DECLARE_SHELL_CMD(cmd_cd)
 
 #if 0
 static int cmd_sd_getinfo(int argc, char *argv[])
