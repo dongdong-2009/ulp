@@ -15,6 +15,8 @@ extern short vvt_knock_width;
 extern short vvt_knock_strength; //unit: mV
 extern short vvt_knock_pattern; //...D C B A
 
+extern osd_dialog_t vvt_dlg;
+
 #define vvt_Start() do{ pss_SetSpeed(misfire_GetSpeed(0)); pss_Enable(1);led_flash(LED_GREEN);} while(0)
 #define vvt_Stop() do{pss_Enable(0);led_on(LED_GREEN);} while(0)
 
