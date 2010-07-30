@@ -9,6 +9,7 @@
 /* fast initialization
 */
 #define KWP_FAST_INIT_MS 25
+#define KWP_RECV_TIMEOUT_MS 500
 
 /*keybytes
 bit format:  AL0 AL1 HB0 HB1 TP0 TP1 1 P, 11110001
@@ -151,6 +152,7 @@ int kwp_StopComm(void);
 int kwp_AccessCommPara(void);
 int kwp_StartDiag(char mode, char baud);
 int kwp_RequestToDnload(char fmt, int addr, int size, char *plen);
+int kwp_TransferData(int addr, int size, char *data);
 int kwp_RequestTransferExit(void);
 int kwp_StartRoutineByAddr(int addr);
 

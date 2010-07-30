@@ -6,6 +6,7 @@
 
 #include "config.h"
 #include "hvp.h"
+#include "mt2x.h"
 #include "sys/task.h"
 #include "shell/cmd.h"
 #include "common/print.h"
@@ -18,17 +19,21 @@
 #include "queue.h"
 #include "task.h"
 
+#include "ff.h"
+
+#define __DEBUG
+
 /*private var declaration*/
 static xQueueHandle hvp_msg_queue;
 
 /*private func declaration*/
 
-static void hvp_task(void *pvParameters);
+static void hvp_thread(void *pvParameters);
 
 void hvp_Init(void)
 {
 	hvp_msg_queue = xQueueCreate(1, sizeof(hvp_msg_t));
-	xTaskCreate(hvp_task, (signed portCHAR *) "Hvp", 128, NULL, tskIDLE_PRIORITY + 1, NULL);	
+	xTaskCreate(hvp_thread, (signed portCHAR *) "Hvp", 128, NULL, tskIDLE_PRIORITY + 1, NULL);	
 }
 
 void hvp_Update(void)
@@ -37,8 +42,10 @@ void hvp_Update(void)
 
 DECLARE_TASK(hvp_Init, hvp_Update)
 
-static void hvp_task(void *pvParameters)
+static void hvp_thread(void *pvParameters)
 {
+	int len;
+	char *folder;
 	hvp_msg_t msg;
 	
 	//indicate idle status
@@ -52,16 +59,29 @@ static void hvp_task(void *pvParameters)
 		led_on(LED_RED);
 		
 		// ...excute the command
-		print("program:");
-		print(msg.para1);
-		print(msg.para2);
-		print("....finish\n");
+		len = strlen(msg.para1);
+		len += strlen(msg.para2);
+		len += 2;
+		folder = pvPortMalloc(len + 1);
+		strcpy(folder, msg.para1);
+		strcat(folder, "/");
+		strcat(folder, msg.para2);
+		strcat(folder, "/");
+		vPortFree(msg.para1);
+		vPortFree(msg.para2);
+#ifdef __DEBUG
+		f_chdir("/MT20U/28025614");
+#else
+		f_chdir(folder);
+#endif
+		vPortFree(folder);
+		mt2x_Init();
+		mt2x_Prog();
+		print("hvp program finish\n");
 		
 		//indicate idle
 		led_on(LED_GREEN);
 		led_off(LED_RED);
-		vPortFree(msg.para1);
-		vPortFree(msg.para2);
 	}
 }
 

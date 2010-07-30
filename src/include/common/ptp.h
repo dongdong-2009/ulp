@@ -18,5 +18,32 @@
 	S8:= type(0x5338) + count + addr(char[3], starting execution address) + data(none) + cksum
 	S9:= type(0x5339) + count + addr(char[2], starting execution address) + data(none) + cksum
 */
+#define PTP_LINE_BYTES_MAX	128
+
+typedef struct {
+	char src[128];
+	char bin[64];
+	char idx_src;
+	char idx_bin;
+} ptp_priv_t;
+
+typedef struct {
+	/*filled by caller*/
+	void *fp; //file pointer, return by fopen
+	int (*read)(void *fp, void *buff, int btr, int *br);
+	int (*seek)(void *fp, int ofs);
+	
+	/*private*/
+	ptp_priv_t *priv;
+} ptp_t;
+
+int ptp_init(ptp_t *ptp); //init ptp_priv
+int ptp_read(ptp_t *ptp, void *buff, int btr, int *br);
+int ptp_seek(ptp_t *ptp, int ofs);
+int ptp_close(ptp_t *ptp); //release mem space occupied by *priv
+
+//misc op
+int ptp_size(ptp_t *ptp); //get binary size
+
 
 #endif /*__PTP_H_*/

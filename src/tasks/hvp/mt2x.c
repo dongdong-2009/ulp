@@ -8,71 +8,66 @@
 #include "hvp.h"
 #include "util.h"
 #include "common/kwp.h"
+#include "common/print.h"
+#include "common/inifile.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-static char mt2x_stm;
-static mt2x_model_t mt2x_model;
+#include "ff.h"
 
-/*read config from config file*/
+#define __DEBUG
+
 int mt2x_Init(void)
 {
-	mt2x_stm = START;
+	char ptp_util[32];
+	char ptp[32];
+	
+	/*read config from kwp.ini*/
+	read_profile_string("files", "ptp_util", ptp_util, 31, "ptp_util", "kwp.ini");
+	read_profile_string("files", "ptp", ptp, 31, "ptp", "kwp.ini");
+	
+#ifdef __DEBUG
+	print("util file: %s\n", ptp_util);
+	print("ptp  file: %s\n", ptp);
+#endif
 
-	kwp_Init();
-	util_Init();
+	util_init(ptp_util, ptp);
 	return 0;
 }
 
-int mt2x_Update(void)
+static int mt2x_dnld(int addr, int size)
 {
-	int ret = mt2x_stm;
-	int repeat = 0;
-
-	if(!kwp_IsReady())
-		return ret;
-
-	switch(mt2x_stm) {
-	case START:
-		repeat = kwp_EstablishComm();
-		break;
-	case START_COMM:
-		repeat = kwp_StartComm(0, 0);
-		break;
-	case START_DIAG:
-		repeat = kwp_StartDiag(0x85, 0x00);
-		break;
-	case REQ_DNLOAD:
-		repeat = kwp_RequestToDnload(0x00, mt2x_model.addr, mt2x_model.size, 0);
-		break;
-	case DNLOAD:
-		repeat = util_Dnload();
-		break;
-	case DNLOAD_EXIT:
-		repeat = kwp_RequestTransferExit();
-		break;
-	case EXECUTE:
-		repeat = kwp_StartRoutineByAddr(mt2x_model.addr);
-		break;
-	case INTERPRETER:
-		repeat = util_Update();
-		break;
-	default:
-		mt2x_stm = READY;
+	int btr, br;
+	char buf[32];
+	
+	btr = 32;
+	while(1) {
+		util_read(buf, btr, &br);
+		if(br <= 0)
+			break;
+		
+		//download
+		kwp_TransferData(addr, br, buf);
+		addr += br;
 	}
-
-	if(!repeat)
-		mt2x_stm ++;
-
-	if(repeat < 0) {
-		//error handling
-	}
-
-	return ret;
+	
+	return 0;
 }
 
-const pa_t mt2x = {
-	.name = "mt2x",
-	.init = mt2x_Init,
-	.update = mt2x_Update,
-};
+int mt2x_Prog(void)
+{
+	int addr, size;
+	addr = util_addr();
+	size = util_size();
+	
+	kwp_Init();
+	kwp_EstablishComm();
+	kwp_StartDiag(0x85, 0x00);
+	kwp_RequestToDnload(0, addr, size, 0);
+	mt2x_dnld(addr, size);
+	kwp_RequestTransferExit();
+	kwp_StartRoutineByAddr(addr);
+	util_interpret();
+	util_close();
+	return 0;
+}
