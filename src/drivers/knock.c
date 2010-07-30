@@ -133,3 +133,13 @@ void knock_SetVolt(knock_ch_t ch, short mv)
 	pos = (pos > 255) ? 255 : pos;
 	mcp41x_SetPos(&knock_pot[ch], pos);
 }
+
+short knock_GetPattern(void)
+{
+	return 0;
+}
+
+void knock_Enable(int en)
+{
+
+}

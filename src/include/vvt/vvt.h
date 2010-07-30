@@ -7,6 +7,7 @@
 #include "pss.h"
 #include "misfire.h"
 #include "led.h"
+#include "osd/osd.h"
 
 /*shared with command shell*/
 extern short vvt_gear_advance; //0~10
