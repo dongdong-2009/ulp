@@ -8,3 +8,4 @@ if [ "$CONFIG_LIB_FREERTOS" = "y" ]; then
 fi
 bool "ini file parser" CONFIG_COMMON_INIFILE
 bool "keyword protocol" CONFIG_COMMON_KWP
+bool "s-record parser" CONFIG_COMMON_PTP
