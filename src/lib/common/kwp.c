@@ -296,6 +296,30 @@ int kwp_RequestToDnload(char fmt, int addr, int size, char *plen)
 }
 
 /*
+The 36 Op-Code is used by the client to transfer data either from the client to the server 
+(download) or form the server to the client (upload).  The data transfer is defined in the 
+preceding requestDownload or requestUpload service. The upload service is not implemented.  
+The data is included in the parameter(s) transferRequestParameter in the transfer request message(s).
+*/
+int kwp_TransferData(int addr, int size, char *data)
+{
+	char *pbuf;
+
+	pbuf = kwp_malloc(4 + size);
+	pbuf[0] = SID_36;
+	pbuf[1] = (char)(addr >> 16);
+	pbuf[2] = (char)(addr >>  8);
+	pbuf[3] = (char)(addr >>  0);
+	memcpy(&pbuf[4], data, size);
+	kwp_transfer(pbuf, 4 + size, pbuf, 3);
+	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
+		return -1;
+
+	kwp_free(pbuf);
+	return 0;
+}
+
+/*
 The 37 Op-Code will build a standard Service Request 37 to send to an ECU.  A request 37 
 will Request Transfer Exit.  A Request 37 may be required at the end of a reprogramming 
 session after all of the Transfer Data requests are completed. 
