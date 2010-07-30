@@ -17,7 +17,7 @@ void knock_Init(void);
 void knock_Update(void);
 void knock_SetFreq(short hz);
 void knock_SetVolt(knock_ch_t ch, short mv);
-short knock_GetPattern(void);
+int knock_GetPattern(void);
 void knock_Enable(int en);
 
 #endif /*__KNOCK_H_*/

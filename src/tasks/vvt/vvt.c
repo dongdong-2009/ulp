@@ -15,10 +15,10 @@
 
 //global
 short vvt_gear_advance; //0~10
-short vvt_knock_pos;
+int vvt_knock_pos;
 short vvt_knock_width;
 short vvt_knock_strength; //unit: mV
-short vvt_knock_pattern; //...D C B A
+int vvt_knock_pattern; //...D C B A
 
 //private
 static short vvt_gear; //unit: tooth*0.5, range:(1~60*2)*2
@@ -62,11 +62,42 @@ void vvt_Init(void)
 
 void vvt_Update(void)
 {
+	knock_Update();
 	vvt_knock_pattern = knock_GetPattern();
 
 }
 
 DECLARE_TASK(vvt_Init, vvt_Update)
+
+int vvt_GetKnockPhase(void)
+{
+	return (vvt_knock_pos * 6);
+}
+
+int vvt_GetKnockWindow(void)
+{
+	return (vvt_knock_width * 6);
+}
+
+void vvt_SetKnockPhase(int phase)
+{
+	if(phase > MAX_KNOCK_PHASE)
+		vvt_knock_pos = MAX_KNOCK_PHASE;
+	else if(phase < MIN_KNOCK_PHASE)
+		vvt_knock_pos = MIN_KNOCK_PHASE;
+	else
+		vvt_knock_pos = phase;
+}
+
+void vvt_SetKnockWindow(int window)
+{
+	if(window > MAX_KNOCK_WIDTH)
+		vvt_knock_pos = MAX_KNOCK_WIDTH;
+	else if(window < MIN_KNOCK_WIDTH)
+		vvt_knock_pos = MIN_KNOCK_WIDTH;
+	else
+		vvt_knock_pos = window;
+}
 
 void vvt_isr(void)
 {

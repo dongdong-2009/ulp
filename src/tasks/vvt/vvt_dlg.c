@@ -4,7 +4,7 @@
 
 #include "config.h"
 #include "osd/osd.h"
-#include "sm/stepmotor.h"
+#include "vvt/vvt.h"
 #include "key.h"
 #include "stm32f10x.h"
 
@@ -248,12 +248,12 @@ static int dlg_GetCamPhase(void)
 
 static int dlg_GetKnockPhase(void)
 {
-	return 0;
+	return vvt_GetKnockPhase();
 }
 
 static int dlg_GetKnockWindow(void)
 {
-	return 0;
+	return vvt_GetKnockWindow();
 }
 
 static int dlg_GetMisStren(void)
@@ -295,11 +295,39 @@ static int dlg_ChangeCamPhase(const osd_command_t *cmd)
 
 static int dlg_ChangeKnockPhase(const osd_command_t *cmd)
 {
+	int temp = vvt_GetKnockPhase();
+
+	switch (cmd->event) {
+		case KEY_UP:
+			vvt_SetKnockPhase(++temp);
+			break;
+		case KEY_DOWN:
+			vvt_SetKnockPhase(++temp);
+			break;
+		default:
+			temp = key_SetEntryAndGetDigit();
+			vvt_SetKnockPhase(temp);
+			break;
+	}
 	return 0;
 }
 
 static int dlg_ChangeKnockWindow(const osd_command_t *cmd)
 {
+	int temp = vvt_GetKnockWindow();
+
+	switch (cmd->event) {
+		case KEY_UP:
+			vvt_SetKnockWindow(++temp);
+			break;
+		case KEY_DOWN:
+			vvt_SetKnockWindow(++temp);
+			break;
+		default:
+			temp = key_SetEntryAndGetDigit();
+			vvt_SetKnockWindow(temp);
+			break;
+	}
 	return 0;
 }
 
