@@ -29,8 +29,8 @@ static int dlg_ChangeKnockPhase(const osd_command_t *cmd);
 static int dlg_ChangeKnockWindow(const osd_command_t *cmd);
 static int dlg_ChangeMisStren(const osd_command_t *cmd);
 static int dlg_ChangeCylinderMode(const osd_command_t *cmd);
-static int dlg_ChangeLoadConfig(const osd_command_t *cmd);
-static int dlg_ChangeSaveConfig(const osd_command_t *cmd);
+static int dlg_LoadConfig(const osd_command_t *cmd);
+static int dlg_SaveConfig(const osd_command_t *cmd);
 
 const char str_status[] = "status";
 const char str_cam[] = "cam config";
@@ -98,8 +98,10 @@ const osd_command_t cmds_status[] = {
 	{.event = KEY_LEFT, .func = ((void *)0)},
 	{.event = KEY_RESET, .func = ((void *)0)},
 	{.event = KEY_ENTER, .func = dlg_ChangeRunMode},
+#if CONFIG_RCKEY_PROTOCOL_RC5 == 1
 	{.event = KEY_MENU, .func = ((void *)0)},
 	{.event = KEY_OSD, .func = ((void *)0)},
+#endif
 	NULL,
 };
 
@@ -120,6 +122,7 @@ const osd_command_t cmds_cam_phase[] = {
 	{.event = KEY_LEFT, .func = dlg_ChangeCamPhase},
 	{.event = KEY_RESET, .func = dlg_LoadConfig},
 	{.event = KEY_ENTER, .func = dlg_SaveConfig},
+#if CONFIG_RCKEY_PROTOCOL_RC5 == 1
 	{.event = KEY_MENU, .func = dlg_ChangeCamPhase},
 	{.event = KEY_OSD, .func = dlg_ChangeCamPhase},
 	{.event = KEY_0, .func = dlg_ChangeCamPhase},
@@ -132,6 +135,7 @@ const osd_command_t cmds_cam_phase[] = {
 	{.event = KEY_7, .func = dlg_ChangeCamPhase},
 	{.event = KEY_8, .func = dlg_ChangeCamPhase},
 	{.event = KEY_9, .func = dlg_ChangeCamPhase},
+#endif
 	NULL,
 };
 
@@ -142,6 +146,7 @@ const osd_command_t cmds_knock_phase[] = {
 	{.event = KEY_LEFT, .func = dlg_ChangeKnockPhase},
 	{.event = KEY_RESET, .func = dlg_LoadConfig},
 	{.event = KEY_ENTER, .func = dlg_SaveConfig},
+#if CONFIG_RCKEY_PROTOCOL_RC5 == 1
 	{.event = KEY_MENU, .func = dlg_ChangeKnockPhase},
 	{.event = KEY_OSD, .func = dlg_ChangeKnockPhase},
 	{.event = KEY_0, .func = dlg_ChangeKnockPhase},
@@ -154,6 +159,7 @@ const osd_command_t cmds_knock_phase[] = {
 	{.event = KEY_7, .func = dlg_ChangeKnockPhase},
 	{.event = KEY_8, .func = dlg_ChangeKnockPhase},
 	{.event = KEY_9, .func = dlg_ChangeKnockPhase},
+#endif
 	NULL,
 };
 
@@ -164,6 +170,7 @@ const osd_command_t cmds_knock_window[] = {
 	{.event = KEY_LEFT, .func = dlg_ChangeKnockWindow},
 	{.event = KEY_RESET, .func = dlg_LoadConfig},
 	{.event = KEY_ENTER, .func = dlg_SaveConfig},
+#if CONFIG_RCKEY_PROTOCOL_RC5 == 1
 	{.event = KEY_MENU, .func = dlg_ChangeKnockWindow},
 	{.event = KEY_OSD, .func = dlg_ChangeKnockWindow},
 	{.event = KEY_0, .func = dlg_ChangeKnockWindow},
@@ -176,6 +183,7 @@ const osd_command_t cmds_knock_window[] = {
 	{.event = KEY_7, .func = dlg_ChangeKnockWindow},
 	{.event = KEY_8, .func = dlg_ChangeKnockWindow},
 	{.event = KEY_9, .func = dlg_ChangeKnockWindow},
+#endif
 	NULL,
 };
 
@@ -232,22 +240,27 @@ static int dlg_GetCamMode(void)
 {
 	return 0;
 }
+
 static int dlg_GetCamPhase(void)
 {
 	return 0;
 }
+
 static int dlg_GetKnockPhase(void)
 {
 	return 0;
 }
+
 static int dlg_GetKnockWindow(void)
 {
 	return 0;
 }
+
 static int dlg_GetMisStren(void)
 {
 	return 0;
 }
+
 static int dlg_GetCylinderMode(void)
 {
 	return 0;
@@ -289,6 +302,7 @@ static int dlg_ChangeKnockWindow(const osd_command_t *cmd)
 {
 	return 0;
 }
+
 static int dlg_ChangeMisStren(const osd_command_t *cmd)
 {
 	return 0;
@@ -298,11 +312,13 @@ static int dlg_ChangeCylinderMode(const osd_command_t *cmd)
 {
 	return 0;
 }
-static int dlg_ChangeLoadConfig(const osd_command_t *cmd)
+
+static int dlg_LoadConfig(const osd_command_t *cmd)
 {
 	return 0;
 }
-static int dlg_ChangeSaveConfig(const osd_command_t *cmd)
+
+static int dlg_SaveConfig(const osd_command_t *cmd)
 {
 	return 0;
 }
