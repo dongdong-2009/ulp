@@ -180,7 +180,11 @@ communications state.  There are no negative responses allowed for the Start Com
 int kwp_StartComm(char *kb0, char *kb1)
 {	
 	char *pbuf;
-	
+
+#ifdef __DEBUG
+	print("\n\n%s", __FUNCTION__);
+#endif
+
 	pbuf = kwp_malloc(2);
 	pbuf[0] = SID_81;
 	kwp_transfer(pbuf, 1, pbuf, 3);
@@ -203,7 +207,11 @@ Communication request.
 int kwp_StopComm(void)
 {
 	char *pbuf;
-	
+
+#ifdef __DEBUG
+	print("\n\n%s", __FUNCTION__);
+#endif
+
 	pbuf = kwp_malloc(3);
 	pbuf[0] = SID_82;
 	kwp_transfer(pbuf, 1, pbuf, 3);
@@ -223,6 +231,10 @@ a reprogramming event are read from the ECU.  Second,  the optimum timing parame
 int kwp_AccessCommPara(void)
 {
 	char *pbuf;
+
+#ifdef __DEBUG
+	print("\n\n%s", __FUNCTION__);
+#endif
 
 	pbuf = kwp_malloc(7);
 	pbuf[0] = SID_83;
@@ -251,7 +263,11 @@ int kwp_StartDiag(char mode, char baud)
 {
 	char *pbuf;
 	int n;
-	
+
+#ifdef __DEBUG
+	print("\n\n%s", __FUNCTION__);
+#endif
+
 	n = (baud > 0) ? 3 : 2;
 	pbuf = kwp_malloc(3);
 		
@@ -274,7 +290,11 @@ with service request mode 36s (Op-Codes 90, 91, and 93) to download information 
 int kwp_RequestToDnload(char fmt, int addr, int size, char *plen)
 {
 	char *pbuf;
-	
+
+#ifdef __DEBUG
+	print("\n\n%s", __FUNCTION__);
+#endif
+
 	pbuf = kwp_malloc(8);
 	pbuf[0] = SID_34;
 	pbuf[1] = (char)(addr >> 16);
@@ -305,6 +325,10 @@ int kwp_TransferData(int addr, int size, char *data)
 {
 	char *pbuf;
 
+#ifdef __DEBUG
+	print("\n\n%s", __FUNCTION__);
+#endif
+
 	pbuf = kwp_malloc(4 + size);
 	pbuf[0] = SID_36;
 	pbuf[1] = (char)(addr >> 16);
@@ -327,7 +351,11 @@ session after all of the Transfer Data requests are completed.
 int kwp_RequestTransferExit(void)
 {
 	char *pbuf;
-		
+
+#ifdef __DEBUG
+	print("\n\n%s", __FUNCTION__);
+#endif
+	
 	pbuf = kwp_malloc(1);
 	pbuf[0] = SID_37;	
 	kwp_transfer(pbuf, 1, pbuf, 3);
@@ -352,7 +380,11 @@ The 38 Op-Code will build a standard service request 38 to send to an ECU.   Thi
 int kwp_StartRoutineByAddr(int addr)
 {
 	char *pbuf;
-	
+
+#ifdef __DEBUG
+	print("\n\n%s", __FUNCTION__);
+#endif
+
 	pbuf = kwp_malloc(4);
 	pbuf[0] = SID_38;
 	pbuf[1] = (char)(addr >> 16);
