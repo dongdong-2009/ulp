@@ -5,3 +5,4 @@
 #
 bool "fatfs support only read?" CONFIG_FATFS_READONLY
 bool "fatfs support relative path?" CONFIG_FATFS_RPATH
+bool "fatfs support long file name?" CONFIG_FATFS_LFN
