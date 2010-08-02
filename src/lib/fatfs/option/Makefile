@@ -1,1 +1,1 @@
-obj-$(CONFIG_FATFS_LFN) += ccsbcs.o
+obj-$(CONFIG_CODE_PAGE_US) += ccsbcs.o
