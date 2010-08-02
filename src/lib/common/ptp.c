@@ -13,6 +13,24 @@
 #include "common/print.h"
 #include "common/ptp.h"
 
+//convert hex string to integer
+static int htoi(char *buf)
+{
+	int i, v = 0;
+	char c;
+
+	for(i = 0; (c = buf[i]) != 0; i ++) {
+		c = (c >= 'a') ? (c - 'a' + 10) : c;
+		c = (c >= 'A') ? (c - 'A' + 10) : c;
+		c = (c >= '0') ? (c - '0') : c;
+		
+		v <<= 4;
+		v += c;
+	}
+
+	return v;
+}
+
 /*
 para:
 	op = 0, default, convert all infomation
@@ -43,16 +61,23 @@ static int ptp_parse(ptp_t *ptp, int op)
 	
 	//get len
 	ptp->read(ptp->fp, buf, 2, &br);
-	val = atoi(buf); 
+	val = htoi(buf); 
 	s->len = val - 1; // - cksum byte
 	cksum += val;
 	
 	//get addr
 	switch (t) {
+		case '0':
+		case '5':
+		case '9':
 		case '1': //2 byte addr
 			len = 2;
+			break;
+		case '8':
 		case '2': //3 byte addr
 			len = 3;
+			break;
+		case '7':
 		case '3': //4 byte addr
 			len = 4;
 			break;
@@ -63,7 +88,7 @@ static int ptp_parse(ptp_t *ptp, int op)
 	s->len -= len;
 	for(i = 0; i < len; i ++) {
 		ptp->read(ptp->fp, buf, 2, &br);
-		val = atoi(buf);
+		val = htoi(buf);
 		s->addr <<= 8;
 		s->addr += val;
 		cksum += val;
@@ -73,23 +98,29 @@ static int ptp_parse(ptp_t *ptp, int op)
 	for(i = 0; i < s->len; i ++) {
 		ptp->read(ptp->fp, buf, 2, &br);
 		if(op == 0) { //convert to bin
-			val = atoi(buf);
+			val = htoi(buf);
 			s->bin[i] = (char) val;
 			cksum += val;
 		}
 	}
 	
 	//get cksum
-	ptp->read(ptp->fp, buf, 3, &br);
+	ptp->read(ptp->fp, buf, 2, &br);
 	if(op == 0) { //verify cksum
-		val = atoi(buf);
+		val = htoi(buf);
 		cksum += val;
+		cksum += 1; //ones complement of len + addr + data
 		if(cksum & 0xff)
 			return -1;
 	}
 	
 	//'LR'
 	ptp->read(ptp->fp, buf, 1, &br);
+	
+	//only s1 s2 s3 type record is supported
+	if(t != '1' && t != '2' && t != '3')
+		s->len = 0;
+
 	return 0;
 }
 
@@ -104,12 +135,13 @@ int ptp_read(ptp_t *ptp, void *buff, int btr, int *br)
 	ptp_record_t *s = &ptp->priv->s;
 	int n;
 	
+	*br = 0;
 	while(btr > 0) {
 		//fetch bin from current record
-		n = s->len - (s->ofs + 1);
+		n = s->len - s->ofs;
 		if(n > 0) {
 			n = (n > btr) ? btr : n;
-			memcpy((char*)buff + n, s->bin + s->ofs, n);
+			memcpy((char*)buff + (*br), s->bin + s->ofs, n);
 			s->ofs += n;
 			btr -= n;
 			*br += n;
