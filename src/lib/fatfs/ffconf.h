@@ -92,8 +92,11 @@
 /	1    - ASCII only (Valid for non LFN cfg.)
 */
 
-
+#ifdef CONFIG_FATFS_LFN
+#define	_USE_LFN	3		/* 0 to 3 */
+#else
 #define	_USE_LFN	0		/* 0 to 3 */
+#endif
 #define	_MAX_LFN	255		/* Maximum LFN length to handle (12 to 255) */
 /* The _USE_LFN option switches the LFN support.
 /
