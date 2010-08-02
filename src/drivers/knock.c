@@ -83,9 +83,25 @@ static mcp41x_t knock_pot[NR_OF_KS] = {
 	},
 };
 
+#define GPIO_KNOCK_PATTERN	(GPIO_Pin_All & 0x003f)
+
 void knock_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
+
+	/*knock input switch*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOF, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_KNOCK_PATTERN;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_Init(GPIOF, &GPIO_InitStructure);
+
+	/*knock enable*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOG, &GPIO_InitStructure);
 
 	/*chip select pins*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
@@ -132,4 +148,22 @@ void knock_SetVolt(knock_ch_t ch, short mv)
 	pos = (mv * 255) / CONFIG_DRIVER_KNOCK_MVPP_MAX;
 	pos = (pos > 255) ? 255 : pos;
 	mcp41x_SetPos(&knock_pot[ch], pos);
+}
+
+int knock_GetPattern(void)
+{
+	short temp;
+	temp = GPIO_ReadInputData(GPIOF);
+	temp &= GPIO_KNOCK_PATTERN;
+
+	return (int)temp;
+}
+
+/*control the 74lvc1g66,analog switch*/
+void knock_Enable(int en)
+{
+	if(en)
+		GPIO_SetBits(GPIOG, GPIO_Pin_7);
+	else
+		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
 }
