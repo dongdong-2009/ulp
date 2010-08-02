@@ -94,7 +94,6 @@ int util_init(const char *util, const char *ptp)
 		//success
 #ifdef __DEBUG
 		print("util_init() success\n");
-		print("util_head.addr = 0x%06x\n", util_head.addr);
 #endif
 	}
 		

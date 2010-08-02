@@ -24,14 +24,17 @@
 #define __DEBUG
 
 /*private var declaration*/
+static FATFS hvp_fs;
 static xQueueHandle hvp_msg_queue;
 
 /*private func declaration*/
-
 static void hvp_thread(void *pvParameters);
 
 void hvp_Init(void)
 {
+	//mount sd card
+	if(f_mount(0, &hvp_fs))
+		printf("mount sd card err!!!\n");
 	hvp_msg_queue = xQueueCreate(1, sizeof(hvp_msg_t));
 	xTaskCreate(hvp_thread, (signed portCHAR *) "Hvp", 256, NULL, tskIDLE_PRIORITY + 1, NULL);	
 }
@@ -75,9 +78,11 @@ static void hvp_thread(void *pvParameters)
 		f_chdir(folder);
 #endif
 		vPortFree(folder);
-		mt2x_Init();
-		mt2x_Prog();
-		print("hvp program finish\n");
+		if(!mt2x_Init()) {
+			print("mt2x programmer is selected\n");
+			if(!mt2x_Prog())
+				print("hvp program successfully\n");
+		}
 		
 		//indicate idle
 		led_on(LED_GREEN);

@@ -31,8 +31,7 @@ int mt2x_Init(void)
 	print("ptp  file: %s\n", ptp);
 #endif
 
-	util_init(ptp_util, ptp);
-	return 0;
+	return util_init(ptp_util, ptp);
 }
 
 static int mt2x_dnld(int addr, int size)
@@ -57,17 +56,29 @@ static int mt2x_dnld(int addr, int size)
 int mt2x_Prog(void)
 {
 	int addr, size;
+	int err;
+	
 	addr = util_addr();
 	size = util_size();
+
+#ifdef __DEBUG
+	print("util addr = 0x%06x\n", addr);
+	print("util size = 0x%06x\n", size);
+#endif
 	
-	kwp_Init();
-	kwp_EstablishComm();
-	kwp_StartDiag(0x85, 0x00);
-	kwp_RequestToDnload(0, addr, size, 0);
-	mt2x_dnld(addr, size);
-	kwp_RequestTransferExit();
-	kwp_StartRoutineByAddr(addr);
-	util_interpret();
+	err = kwp_Init();
+	if(!err) err = kwp_EstablishComm();
+	if(!err) err =  kwp_StartDiag(0x85, 0x00);
+	if(!err) {
+		err =  kwp_RequestToDnload(0, addr, size, 0);
+		if(!err) {
+			err = mt2x_dnld(addr, size);
+			err += kwp_RequestTransferExit();
+		}
+		if(!err) err =  kwp_StartRoutineByAddr(addr);
+		if(!err) err =  util_interpret();
+	}
+	
 	util_close();
-	return 0;
+	return err;
 }
