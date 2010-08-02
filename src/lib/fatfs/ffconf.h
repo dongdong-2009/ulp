@@ -60,7 +60,7 @@
 / Locale and Namespace Configurations
 /----------------------------------------------------------------------------*/
 
-#define _CODE_PAGE	936
+#define _CODE_PAGE	437
 /* The _CODE_PAGE specifies the OEM code page to be used on the target system.
 /  Incorrect setting of the code page can cause a file open failure.
 /
@@ -93,7 +93,7 @@
 */
 
 #ifdef CONFIG_FATFS_LFN
-#define	_USE_LFN	3		/* 0 to 3 */
+#define	_USE_LFN	1		/* 0 to 3 */
 #else
 #define	_USE_LFN	0		/* 0 to 3 */
 #endif
@@ -109,7 +109,6 @@
 /  Unicode handling functions ff_convert() and ff_wtoupper() must be added
 /  to the project. When enable to use heap, memory control functions
 /  ff_memalloc() and ff_memfree() must be added to the project. */
-
 
 #define	_LFN_UNICODE	0	/* 0:ANSI/OEM or 1:Unicode */
 /* To switch the character code set on FatFs API to Unicode,
