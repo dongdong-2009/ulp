@@ -57,7 +57,7 @@ static void vUpdateTask(void *pvParameters)
 void task_Init(void)
 {
 	sys_Init();
-	xTaskCreate( vUpdateTask, (signed portCHAR *) "Update", 128, NULL, tskIDLE_PRIORITY + 1, NULL );	
+	xTaskCreate( vUpdateTask, (signed portCHAR *) "Update", 256, NULL, tskIDLE_PRIORITY + 1, NULL );	
 	
 	/* Start the scheduler. */
 	vTaskStartScheduler();
