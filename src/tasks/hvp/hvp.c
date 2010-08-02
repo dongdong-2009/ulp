@@ -33,7 +33,7 @@ static void hvp_thread(void *pvParameters);
 void hvp_Init(void)
 {
 	hvp_msg_queue = xQueueCreate(1, sizeof(hvp_msg_t));
-	xTaskCreate(hvp_thread, (signed portCHAR *) "Hvp", 128, NULL, tskIDLE_PRIORITY + 1, NULL);	
+	xTaskCreate(hvp_thread, (signed portCHAR *) "Hvp", 256, NULL, tskIDLE_PRIORITY + 1, NULL);	
 }
 
 void hvp_Update(void)
