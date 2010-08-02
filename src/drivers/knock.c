@@ -84,10 +84,52 @@ static mcp41x_t knock_pot[NR_OF_KS] = {
 };
 
 #define GPIO_KNOCK_PATTERN	(GPIO_Pin_All & 0x003f)
+//pravite varibles define
+static unsigned short adc_knock_frq;
+static unsigned short adc_knock_frq_save;
 
 void knock_Init(void)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
+	GPIO_InitTypeDef GPIO_InitStructure;	
+	ADC_InitTypeDef ADC_InitStructure;
+
+	/*knock frequency adc input*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC3, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOF, ENABLE);
+	RCC_ADCCLKConfig(RCC_PCLK2_Div6); /*72Mhz/6 = 12Mhz*/
+	
+	/* Configure PF.09 (ADC Channel 7) as analog input*/
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+	GPIO_Init(GPIOF, &GPIO_InitStructure);
+
+	ADC_DeInit(ADC3);
+	ADC_StructInit(&ADC_InitStructure);
+
+	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
+	ADC_InitStructure.ADC_ScanConvMode = DISABLE;
+	ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
+	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+	ADC_InitStructure.ADC_NbrOfChannel = 1;
+	ADC_Init(ADC3, &ADC_InitStructure);
+
+	/* ADC3 regular channel_7 configuration */
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_7, 1, ADC_SampleTime_28Cycles5);
+	/* Enable ADC1 */
+	ADC_Cmd(ADC3, ENABLE);
+
+	/* Enable ADC1 reset calibaration register */
+	ADC_ResetCalibration(ADC3);
+	/* Check the end of ADC1 reset calibration register */
+	while(ADC_GetResetCalibrationStatus(ADC3));
+	/* Start ADC1 calibaration */
+	ADC_StartCalibration(ADC3);
+	/* Check the end of ADC1 calibration */
+	while(ADC_GetCalibrationStatus(ADC3));
+
+	/*start sample*/
+	ADC_SoftwareStartConvCmd(ADC3, ENABLE);
 
 	/*knock input switch*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOF, ENABLE);
@@ -131,6 +173,24 @@ void knock_Init(void)
 
 void knock_Update(void)
 {
+	int temp;
+
+	if(!ADC_GetFlagStatus(ADC3, ADC_FLAG_EOC))
+		return;
+	adc_knock_frq = ADC_GetConversionValue(ADC3);
+	adc_knock_frq &= 0x0fff;
+	if ((adc_knock_frq>>2) != (adc_knock_frq_save>>2)) {
+		//status convert
+		adc_knock_frq_save = adc_knock_frq;
+
+		//calculate the frequency,fre:1K-20k = (1K + (0K-19K)),pot:0-10k
+		temp = (19000 * adc_knock_frq_save)>>12;
+		temp += 1000;
+
+		knock_SetFreq((short)temp);	
+	}
+
+	ADC_SoftwareStartConvCmd(ADC3, ENABLE);
 }
 
 void knock_SetFreq(short hz)
