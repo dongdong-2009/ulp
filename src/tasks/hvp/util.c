@@ -23,6 +23,25 @@ static util_inst_t *util_inst;
 static int util_inst_nr;
 static int util_seek;
 
+//big endian to little endian
+static int ntohl(int vb)
+{
+	int vl = 0;
+	vl |= ((vb >> 0) & 0xff) << 24;
+	vl |= ((vb >> 8) & 0xff) << 16;
+	vl |= ((vb >> 16) & 0xff) << 8;
+	vl |= ((vb >> 24) & 0xff) << 0;
+	return vl;
+}
+
+static int ntohs(int vb)
+{
+	int vl = 0;
+	vl |= ((vb >> 0) & 0xff) << 8;
+	vl |= ((vb >> 8) & 0xff) << 0;
+	return vl;
+}
+
 /*parse the utility bin file to a struct, ready for usage*/
 int util_init(const char *util, const char *ptp)
 {
@@ -47,6 +66,18 @@ int util_init(const char *util, const char *ptp)
 		if(br != btr) {
 			return - UTIL_E_RDHEAD;
 		}
+		
+		//head endian convert
+		util_head.cksum = ntohs(util_head.cksum);
+		util_head.id = ntohs(util_head.id);
+		util_head.sn = ntohl(util_head.sn);
+		util_head.suffix = ntohs(util_head.suffix);
+		util_head.htype = ntohs(util_head.htype);
+		util_head.itype = ntohs(util_head.itype);
+		util_head.offset = ntohs(util_head.offset);
+		util_head.atype = ntohs(util_head.atype);
+		util_head.addr = ntohl(util_head.addr);
+		util_head.maxlen = ntohs(util_head.maxlen);
 		
 		//read all util instructions
 		btr = util_head.offset - sizeof(util_head_t);
