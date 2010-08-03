@@ -17,26 +17,31 @@
 
 #define __DEBUG
 
+static int mt2x_addr;
+
 int mt2x_Init(void)
 {
 	char ptp_util[32];
 	char ptp[32];
+	char addr[16];
 	
 	/*read config from kwp.ini*/
 	read_profile_string("files", "ptp_util", ptp_util, 31, "ptp_util", "hvp.ini");
 	read_profile_string("files", "ptp", ptp, 31, "ptp", "hvp.ini");
+	read_profile_string("info", "addr_util", addr, 15, "0x003800", "hvp.ini");
 	
 #ifdef __DEBUG
 	print("util file: %s\n", ptp_util);
 	print("ptp  file: %s\n", ptp);
 #endif
 
+	sscanf(addr, "0x%x", &mt2x_addr);
 	return util_init(ptp_util, ptp);
 }
 
 static int mt2x_dnld(int addr, int size)
 {
-	int btr, br;
+	int btr, br, try;
 	char buf[32];
 	
 	btr = 32;
@@ -46,7 +51,17 @@ static int mt2x_dnld(int addr, int size)
 			break;
 		
 		//download
-		kwp_TransferData(addr, br, buf);
+		try = 0;
+		while(kwp_TransferData(addr, br, buf)) {
+#ifdef __DEBUG
+			print("Resend %d times\n", try);
+#endif
+			try ++;
+			if(try > 2) {
+				return -1;
+			}
+		}
+		
 		addr += br;
 	}
 	
@@ -58,7 +73,8 @@ int mt2x_Prog(void)
 	int addr, size;
 	int err;
 	
-	addr = util_addr();
+	//addr = util_addr();
+	addr = mt2x_addr;
 	size = util_size();
 
 #ifdef __DEBUG
@@ -78,7 +94,7 @@ int mt2x_Prog(void)
 		if(!err) err =  kwp_StartRoutineByAddr(addr);
 		if(!err) err =  util_interpret();
 	}
-	
+	util_interpret();
 	util_close();
 	return err;
 }
