@@ -97,7 +97,7 @@ int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 	kwp_frame[0] += tn;
 	kwp_frame[n] = kwp_cksum(kwp_frame, n);
 #ifdef __DEBUG
-	print("\nkwp tx(%02d):", n + 1);
+	print("kwp tx(%02d):", n + 1);
 	for(int i = 0; i < n + 1; i ++) {
 		print(" %02x", kwp_frame[i]);
 	}
@@ -145,7 +145,7 @@ int kwp_recv(char *pbuf, int ms)
 		if(time_left(timeout) < 0) {
 			kwp_err.sid = pbuf[0];
 			kwp_err.rid = 0;
-			kwp_err.code = 0;
+			kwp_err.code = 0xfd;
 			kwp_free(pbuf);
 			break;
 		}
@@ -166,7 +166,10 @@ int kwp_recv(char *pbuf, int ms)
 			}
 		}
 	}
-	
+
+#ifdef __DEBUG
+	print("\n");
+#endif	
 	return ret;
 }
 
@@ -192,7 +195,7 @@ int kwp_StartComm(char *kb0, char *kb1)
 	char *pbuf;
 
 #ifdef __DEBUG
-	print("\n\n%s", __FUNCTION__);
+	print("->%s\n", __FUNCTION__);
 #endif
 
 	pbuf = kwp_malloc(2);
@@ -219,7 +222,7 @@ int kwp_StopComm(void)
 	char *pbuf;
 
 #ifdef __DEBUG
-	print("\n\n%s", __FUNCTION__);
+	print("->%s\n", __FUNCTION__);
 #endif
 
 	pbuf = kwp_malloc(3);
@@ -243,7 +246,7 @@ int kwp_AccessCommPara(void)
 	char *pbuf;
 
 #ifdef __DEBUG
-	print("\n\n%s", __FUNCTION__);
+	print("->%s\n", __FUNCTION__);
 #endif
 
 	pbuf = kwp_malloc(7);
@@ -275,7 +278,7 @@ int kwp_StartDiag(char mode, char baud)
 	int n;
 
 #ifdef __DEBUG
-	print("\n\n%s", __FUNCTION__);
+	print("->%s\n", __FUNCTION__);
 #endif
 
 	n = (baud > 0) ? 3 : 2;
@@ -302,7 +305,7 @@ int kwp_RequestToDnload(char fmt, int addr, int size, char *plen)
 	char *pbuf;
 
 #ifdef __DEBUG
-	print("\n\n%s", __FUNCTION__);
+	print("->%s\n", __FUNCTION__);
 #endif
 
 	pbuf = kwp_malloc(8);
@@ -336,7 +339,7 @@ int kwp_TransferData(int addr, int size, char *data)
 	char *pbuf;
 
 #ifdef __DEBUG
-	print("\n\n%s", __FUNCTION__);
+	print("->%s\n", __FUNCTION__);
 #endif
 
 	pbuf = kwp_malloc(4 + size);
@@ -363,7 +366,7 @@ int kwp_RequestTransferExit(void)
 	char *pbuf;
 
 #ifdef __DEBUG
-	print("\n\n%s", __FUNCTION__);
+	print("->%s\n", __FUNCTION__);
 #endif
 	
 	pbuf = kwp_malloc(1);
@@ -392,7 +395,7 @@ int kwp_StartRoutineByAddr(int addr)
 	char *pbuf;
 
 #ifdef __DEBUG
-	print("\n\n%s", __FUNCTION__);
+	print("->%s\n", __FUNCTION__);
 #endif
 
 	pbuf = kwp_malloc(4);
