@@ -45,12 +45,12 @@ typedef __packed struct {
 //utility instruction def, 16bytes
 typedef __packed struct {
 	char step;
-	char opcode;
-	char para[4]; //action field, used as para or indicating exception
+	char sid;
+	char ac[4]; //action field, used as para or indicating exception
 	struct {
 		char code; //0xfd, no comm; 0xff any; ...
 		char step;
-	} jump[5]; //goto fields, jump table
+	} jt[5]; //goto fields, jump table
 } util_inst_t;
 
 int util_init(const char *util, const char *ptp);

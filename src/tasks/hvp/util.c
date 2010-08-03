@@ -118,25 +118,101 @@ int util_read(char *buf, int btr, int *br)
 	return ret;
 }
 
+/*
+	code :=
+		1, timeout -> 0xfd
+		2, negative response -> response code, byte 3 in data field of rx frame
+		3, positive response srv id
+
+	sp := special mode, 1 indicates special handling
+	
+	return: 
+		step next, or 0-> fail
+	
+	note: 
+	1, if negative response code == positive response code + 0x40, special handling as following:
+	-> look for second occurrence of response code in the goto field
+	2, if not found, 0xff is used 
+*/
+static char util_jump(util_inst_t *p, char code, char sp)
+{
+	char next = 0;
+	
+	if(p->jt[0].code == code) {
+		next = p->jt[0].step;
+	}
+	else if(p->jt[1].code == code) {
+		next = p->jt[1].step;
+	}	
+	else if(p->jt[2].code == code) {
+		next = p->jt[2].step;
+	}
+	else if(p->jt[3].code == code) {
+		next = p->jt[3].step;
+	}
+	else if(p->jt[4].code == code) {
+		next = p->jt[4].step;
+	}
+	
+	if(next && sp) { //search 2nd time
+		next = util_jump(p, code, 0);
+	}
+	
+	if(!next && code != 0xff) { //not found -> 0xff
+		next = util_jump(p, 0xff, 0);
+	}
+	
+	return next;
+}
+
+/*return the step next*/
+static char util_execute(util_inst_t *p)
+{
+	char code, sp, step;
+	
+	switch (p->sid) {
+		case SID_01:
+			kwp_SetAddr(p->ac[0], p->ac[1]);
+			code = 0xff;
+			sp = 0;
+			break;
+		default: //not supported
+			return 0xff;
+	}
+	
+	step = util_jump(p, code, sp);
+	return step;
+}
+
 int util_interpret(void)
 {
-	int ret = 0;
-
+	char step = 1;
+	
 #ifdef __DEBUG
-	print("instruction list:\n");
-	for(int i = 0; i < util_inst_nr; i ++) {
-		util_inst_t *p = util_inst + i;
-		print("%02d: SR_%02X(%02x, %02x, %02x, %02x), [%02x->%02d, %02x->%02d, %02x->%02d]\n", \
-			p->step, p->opcode, \
-			p->para[0], p->para[1], p->para[2], p->para[3], \
-			p->jump[0].code, p->jump[0].step, \
-			p->jump[1].code, p->jump[1].step, \
-			p->jump[2].code, p->jump[2].step \
-		);
-	}
+	print("utility interpreter start\n");
 #endif
 
-	return ret;
+	while(step > 0 && step < util_inst_nr) {
+#ifdef __DEBUG
+		util_inst_t *p = util_inst + step - 1;
+		print("%02d: SR_%02X(%02x, %02x, %02x, %02x), [%02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d]\n", \
+			p->step, p->sid, \
+			p->ac[0], p->ac[1], p->ac[2], p->ac[3], \
+			p->jt[0].code, p->jt[0].step, \
+			p->jt[1].code, p->jt[1].step, \
+			p->jt[2].code, p->jt[2].step, \
+			p->jt[3].code, p->jt[3].step, \
+			p->jt[4].code, p->jt[4].step \
+		);
+#endif
+		step = util_execute(p);
+	}
+
+#ifdef __DEBUG
+	print("utility interpreter end\n");
+#endif
+
+	return step;
 }
 
 void util_close(void)
