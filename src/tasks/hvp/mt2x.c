@@ -12,6 +12,7 @@
 #include "common/inifile.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "time.h"
 
 #include "ff.h"
 
@@ -91,10 +92,10 @@ int mt2x_Prog(void)
 			err = mt2x_dnld(addr, size);
 			err += kwp_RequestTransferExit();
 		}
-		if(!err) err =  kwp_StartRoutineByAddr(addr);
+		if(!err) kwp_StartRoutineByAddr(addr);
+		mdelay(200);
 		if(!err) err =  util_interpret();
 	}
-	util_interpret();
 	util_close();
 	return err;
 }
