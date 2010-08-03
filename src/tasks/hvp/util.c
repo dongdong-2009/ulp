@@ -170,11 +170,20 @@ static char util_execute(util_inst_t *p)
 {
 	char code, sp, step;
 	
+	//success
+	code = p->sid + 0x40;
+	sp = 0;
+	
 	switch (p->sid) {
 		case SID_01:
 			kwp_SetAddr(p->ac[0], p->ac[1]);
 			code = 0xff;
-			sp = 0;
+			break;
+		case SID_81:
+			if(kwp_EstablishComm()) {
+				kwp_GetLastErr(0, 0, &code);
+				sp = (code == p->sid + 0x40 + 0x40);
+			}
 			break;
 		default: //not supported
 			return 0xff;
