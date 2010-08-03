@@ -141,6 +141,7 @@ typedef struct {
 
 int kwp_Init(void);
 int kwp_GetLastErr(char *rid, char *sid, char *code); /*0->no err*/
+void kwp_SetAddr(char tar, char src);
 
 /*service routines:
 	= 0, routine finished sucessfully

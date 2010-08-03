@@ -21,13 +21,23 @@
 #include <string.h>
 #endif
 
+static char kwp_tar;
+static char kwp_src;
 static char kwp_frame[260];
 static kwp_err_t kwp_err;
 
 int kwp_Init(void)
 {
+	kwp_tar = KWP_DEVICE_ID;
+	kwp_src = KWP_TESTER_ID;
 	kwd_init();
 	return 0;
+}
+
+void kwp_SetAddr(char tar, char src)
+{
+	kwp_tar = tar;
+	kwp_src = src;
 }
 
 int kwp_EstablishComm(void)
@@ -58,8 +68,8 @@ int kwp_EstablishComm(void)
 void *kwp_malloc(int n)
 {
 	kwp_frame[0] = 0x80;
-	kwp_frame[1] = KWP_DEVICE_ID;
-	kwp_frame[2] = KWP_TESTER_ID;
+	kwp_frame[1] = kwp_tar;
+	kwp_frame[2] = kwp_src;
 	return &kwp_frame[3];
 }
 
