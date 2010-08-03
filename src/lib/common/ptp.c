@@ -13,6 +13,10 @@
 #include "common/print.h"
 #include "common/ptp.h"
 
+#ifndef __DEBUG
+#define __DEBUG
+#endif
+
 //convert hex string to integer
 static int htoi(char *buf)
 {
@@ -110,12 +114,19 @@ static int ptp_parse(ptp_t *ptp, int op)
 		val = htoi(buf);
 		cksum += val;
 		cksum += 1; //ones complement of len + addr + data
-		if(cksum & 0xff)
+		if(cksum & 0xff) {
+#ifdef __DEBUG
+			print("warning: cksum err!!!\n");
+#else
 			return -1;
+#endif
+		}
 	}
 	
-	//'LR'
+	//'CR' 'LF'?
 	ptp->read(ptp->fp, buf, 1, &br);
+	if(buf[0] == '\r')
+		ptp->read(ptp->fp, buf, 1, &br);
 	
 	//only s1 s2 s3 type record is supported
 	if(t != '1' && t != '2' && t != '3')
@@ -167,7 +178,7 @@ int ptp_seek(ptp_t *ptp, int ofs)
 			break;
 		}
 		
-		if(ofs < s->len) {
+		if(ofs <= s->len) {
 			//ok
 			s->ofs = ofs;
 			ofs = 0;
