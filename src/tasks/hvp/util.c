@@ -211,6 +211,14 @@ static int util_execute(util_inst_t *p)
 		case SID_10:
 			err = kwp_StartDiag(p->ac[0], p->ac[1]);
 			break;
+		case SID_34:
+			if(p->ac[3] == 0x01) {
+				err = kwp_RequestToDnload(p->ac[2], util_parser_addr, util_parser_size, 0);
+			}
+			else {
+				err = kwp_RequestToDnload(0, 0, 0, 0);
+			}
+			break;
 		case 0xf1: //set global mem addr for data download
 		case 0xf2: //set global length for data download
 			v = p->ac[3];

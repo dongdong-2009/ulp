@@ -349,10 +349,12 @@ int kwp_SecurityAccessRequest(char mode, short key, int *seed)
 The 34 Op-Code will build a standard Service Request 34 to send to an ECU.  A request 34 will 
 prepare the ECU to receive data from the serial data link.  Request 34s are used in conjunction 
 with service request mode 36s (Op-Codes 90, 91, and 93) to download information to ECU's.
+plen := max allowed data len
 */
 int kwp_RequestToDnload(char fmt, int addr, int size, char *plen)
 {
 	char *pbuf;
+	int n = 1;
 
 #ifdef __DEBUG
 	print("->%s\n", __FUNCTION__);
@@ -360,14 +362,17 @@ int kwp_RequestToDnload(char fmt, int addr, int size, char *plen)
 
 	pbuf = kwp_malloc(8);
 	pbuf[0] = SID_34;
-	pbuf[1] = (char)(addr >> 16);
-	pbuf[2] = (char)(addr >>  8);
-	pbuf[3] = (char)(addr >>  0);
-	pbuf[4] = fmt;
-	pbuf[5] = (char)(size >> 16);
-	pbuf[6] = (char)(size >>  8);
-	pbuf[7] = (char)(size >>  0);	
-	kwp_transfer(pbuf, 8, pbuf, 3);
+	if(size != 0) {
+		pbuf[1] = (char)(addr >> 16);
+		pbuf[2] = (char)(addr >>  8);
+		pbuf[3] = (char)(addr >>  0);
+		pbuf[4] = fmt;
+		pbuf[5] = (char)(size >> 16);
+		pbuf[6] = (char)(size >>  8);
+		pbuf[7] = (char)(size >>  0);	
+		n = 8;
+	}
+	kwp_transfer(pbuf, n, pbuf, 3);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 		
