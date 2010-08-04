@@ -205,6 +205,9 @@ static int util_execute(util_inst_t *p)
 		case SID_83:
 			err = kwp_AccessCommPara();
 			break;
+		case SID_10:
+			err = kwp_StartDiag(p->ac[0], p->ac[1]);
+			break;
 		default: //not supported
 			return -1;
 	}
