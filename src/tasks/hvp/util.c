@@ -214,9 +214,9 @@ static int util_execute(util_inst_t *p)
 		case 0xf1: //set global mem addr for data download
 		case 0xf2: //set global length for data download
 			v = p->ac[3];
-			v = v << 8 + p->ac[0];
-			v = v << 8 + p->ac[1];
-			v = v << 8 + p->ac[2];
+			v = (v << 8) + p->ac[0];
+			v = (v << 8) + p->ac[1];
+			v = (v << 8) + p->ac[2];
 			util_parser_addr = (p->sid == 0xf1) ? v : util_parser_addr;
 			util_parser_size = (p->sid == 0xf2) ? v : util_parser_size;
 			code = 0; //???
