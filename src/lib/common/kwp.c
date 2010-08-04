@@ -244,6 +244,7 @@ a reprogramming event are read from the ECU.  Second,  the optimum timing parame
 int kwp_AccessCommPara(void)
 {
 	char *pbuf;
+	char p2min, p2max, p3min, p3max, p4min;
 
 #ifdef __DEBUG
 	print("->%s\n", __FUNCTION__);
@@ -256,9 +257,21 @@ int kwp_AccessCommPara(void)
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 
+	p2min = pbuf[2];
+	p2max = pbuf[3];
+	p3min = pbuf[4];
+	p3max = pbuf[5];
+	p4min = pbuf[6];
+	
+	kwp_free(pbuf);
+	pbuf = kwp_malloc(6);
 	pbuf[0] = SID_83;
 	pbuf[1] = 0x03;
-	/*pbuf[2..6] is the val received*/	
+	pbuf[2] = p2min;
+	pbuf[3] = p2max;
+	pbuf[4] = p3min;
+	pbuf[5] = p3max;
+	pbuf[6] = p4min;
 	kwp_transfer(pbuf, 7, pbuf, 3);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;

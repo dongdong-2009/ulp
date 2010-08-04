@@ -179,7 +179,7 @@ static char util_jump(util_inst_t *p, char code, char sp)
 static int util_execute(util_inst_t *p)
 {
 	char code, sp, step;
-	int v, err;
+	int v, err = 0;
 	
 	//success
 	code = p->sid + 0x40;
@@ -191,21 +191,27 @@ static int util_execute(util_inst_t *p)
 			code = 0xff;
 			break;
 		case SID_81:
-			if(kwp_EstablishComm()) {
-				kwp_GetLastErr(0, 0, &code);
-				sp = (code == p->sid + 0x40 + 0x40);
-			}
+			err = kwp_EstablishComm();
 			break;
 		case SID_27:
 			v = 1 + p->ac[3] + p->ac[3];
 			err = kwp_SecurityAccessRequest((char) v, 0, &v);
-			if(err || v != 0) { //note: other situation are not supported yet!!!
-				return -1;
+			if(!err && v == 0) {
+				code = 0x34;
+				break;
 			}
-			code = 0x34;
+			//note: other situation are not supported yet!!!
+			break;
+		case SID_83:
+			err = kwp_AccessCommPara();
 			break;
 		default: //not supported
 			return -1;
+	}
+	
+	if(err) {
+		kwp_GetLastErr(0, 0, &code);
+		sp = (code == p->sid + 0x40 + 0x40);
 	}
 	
 	step = util_jump(p, code, sp);
