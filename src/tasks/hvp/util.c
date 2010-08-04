@@ -24,6 +24,9 @@ static int util_inst_nr;
 static int util_seek;
 static int util_routine_addr;
 static short util_routine_size;
+//var for interpreter parser
+static int util_parser_addr;
+static int util_parser_size;
 
 //big endian to little endian
 static int ntohl(int vb)
@@ -207,6 +210,16 @@ static int util_execute(util_inst_t *p)
 			break;
 		case SID_10:
 			err = kwp_StartDiag(p->ac[0], p->ac[1]);
+			break;
+		case 0xf1: //set global mem addr for data download
+		case 0xf2: //set global length for data download
+			v = p->ac[3];
+			v = v << 8 + p->ac[0];
+			v = v << 8 + p->ac[1];
+			v = v << 8 + p->ac[2];
+			util_parser_addr = (p->sid == 0xf1) ? v : util_parser_addr;
+			util_parser_size = (p->sid == 0xf2) ? v : util_parser_size;
+			code = 0; //???
 			break;
 		default: //not supported
 			return -1;
