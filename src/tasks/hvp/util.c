@@ -21,7 +21,8 @@ static ptp_t util_ptp;
 static util_head_t util_head;
 static util_inst_t *util_inst;
 static int util_inst_nr;
-static int util_seek;
+static int util_routine_addr;
+static short util_routine_size;
 //var for interpreter parser
 static int util_parser_addr;
 static int util_parser_size;
@@ -51,9 +52,7 @@ int util_init(const char *util, const char *ptp)
 	int br, btr;
 	int ret = 0;
 	FRESULT res;
-	
-	util_seek = 0;
-	
+
 	res = f_open(&util_file, util, FA_OPEN_EXISTING | FA_READ);
 	if(res != FR_OK) {
 		return - UTIL_E_OPEN;
@@ -94,30 +93,19 @@ int util_init(const char *util, const char *ptp)
 			return - UTIL_E_RDINST;
 		}
 		
+		//read routine info
+		ptp_read(&util_ptp, &util_routine_addr, 4, &br);
+		ptp_read(&util_ptp, &util_routine_size, 2, &br);
+		util_routine_addr = ntohl(util_routine_addr);
+		util_routine_size = ntohs(util_routine_size);
+		util_head.offset += 6;
+		
 		//success
 #ifdef __DEBUG
 		print("util_init() success\n");
 #endif
 	}
 		
-	return ret;
-}
-
-int util_read(char *buf, int btr, int *br)
-{
-	int ret = 0;
-
-	if(util_seek != util_head.offset) {
-		util_seek = util_head.offset;
-		if(ptp_seek(&util_ptp, util_seek)) {
-			return - UTIL_E_SEEK;
-		}
-	}
-
-	if(ptp_read(&util_ptp, buf, btr, br)) {
-		return - UTIL_E_RDROUTINE;
-	}
-	
 	return ret;
 }
 
@@ -135,11 +123,8 @@ int util_dnld(int id, int option)
 	int btr, br;
 	char buf[UTIL_PACKET_SZ];
 	
-	//read routine info
-	ptp_read(&util_ptp, &addr, 4, &br);
-	ptp_read(&util_ptp, &size, 2, &br);
-	addr = ntohl(addr);
-	size = ntohs(size);
+	addr = util_routine_addr;
+	size = util_routine_size;
 
 #ifdef __DEBUG
 	print("util info: addr = 0x%06x, size = %06x\n", addr, size);
@@ -161,7 +146,7 @@ int util_dnld(int id, int option)
 		}
 				
 		//download
-		util_read(buf, btr, &br);
+		ptp_read(&util_ptp, buf, btr, &br);
 		if(br == btr) {
 			err = kwp_TransferData(addr, alen, br, buf);
 			addr += br;
@@ -276,6 +261,10 @@ static int util_execute(util_inst_t *p)
 			err = util_dnld(p->ac[0], p->ac[3]);
 			if(!err)
 				code = SID_36 + 0x40;
+			break;
+		case SID_38: //??? routine para are not supported yet
+			v = (p->ac[3]) ? util_parser_addr : util_routine_addr;
+			err = kwp_StartRoutineByAddr(v);
 			break;
 		case 0xf1: //set global mem addr for data download
 		case 0xf2: //set global length for data download
