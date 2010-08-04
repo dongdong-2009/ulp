@@ -154,7 +154,7 @@ int kwp_AccessCommPara(void);
 int kwp_StartDiag(char mode, char baud);
 int kwp_SecurityAccessRequest(char mode, short key, int *seed);
 int kwp_RequestToDnload(char fmt, int addr, int size, char *plen);
-int kwp_TransferData(int addr, int size, char *data);
+int kwp_TransferData(int addr, int alen, int size, char *data);
 int kwp_RequestTransferExit(void);
 int kwp_StartRoutineByAddr(int addr);
 

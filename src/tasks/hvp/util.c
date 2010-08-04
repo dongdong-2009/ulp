@@ -22,8 +22,6 @@ static util_head_t util_head;
 static util_inst_t *util_inst;
 static int util_inst_nr;
 static int util_seek;
-static int util_routine_addr;
-static short util_routine_size;
 //var for interpreter parser
 static int util_parser_addr;
 static int util_parser_size;
@@ -96,14 +94,6 @@ int util_init(const char *util, const char *ptp)
 			return - UTIL_E_RDINST;
 		}
 		
-		//read routine info
-		ptp_read(&util_ptp, &util_routine_addr, 4, &br);
-		ptp_read(&util_ptp, &util_routine_size, 2, &br);
-		util_routine_addr = ntohl(util_routine_addr);
-		util_routine_size = ntohs(util_routine_size);
-		util_head.offset += 6;
-		util_seek = util_head.offset;
-		
 		//success
 #ifdef __DEBUG
 		print("util_init() success\n");
@@ -129,6 +119,69 @@ int util_read(char *buf, int btr, int *br)
 	}
 	
 	return ret;
+}
+
+/* note: ptp file pointer must be at routine start, or ptp_seek op is needed
+option = 0x00 use addr
+option = 0x01 do not use addr
+option = 0x40 refer option 0, plus send ReqDnld and ReqTransExit each time
+option = 0x41 refer option 1, plus send ReqDnld and ReqTransExit each time
+*/
+int util_dnld(int id, int option)
+{
+	int err;
+	int addr, alen;
+	short size;
+	int btr, br;
+	char buf[UTIL_PACKET_SZ];
+	
+	//read routine info
+	ptp_read(&util_ptp, &addr, 4, &br);
+	ptp_read(&util_ptp, &size, 2, &br);
+	addr = ntohl(addr);
+	size = ntohs(size);
+
+#ifdef __DEBUG
+	print("util info: addr = 0x%06x, size = %06x\n", addr, size);
+#endif
+	
+	br = btr = 0;
+	alen = (option & 0x01) ? 0 : util_head.atype;
+	while(size > 0) {
+		btr = UTIL_PACKET_SZ;
+		btr = (size < btr) ? size : btr;
+		
+		//ReqDnld
+		if(option & 0xf0) {
+			if(btr && br) {//&&br to ignore first time 
+				err = kwp_RequestToDnload(0, addr, btr, 0);
+				if(err)
+					break;
+			}
+		}
+				
+		//download
+		util_read(buf, btr, &br);
+		if(br == btr) {
+			err = kwp_TransferData(addr, alen, br, buf);
+			addr += br;
+			size -= br;
+			if(err)
+				break;
+		}
+		else {
+			//???file system err :(
+		}
+			
+		//ReqTransExit
+		if(option & 0xf0) {
+			err = kwp_RequestTransferExit();
+			if(err)
+				break;
+		}
+	}
+	
+	return err;	
 }
 
 /*
@@ -219,6 +272,11 @@ static int util_execute(util_inst_t *p)
 				err = kwp_RequestToDnload(0, 0, 0, 0);
 			}
 			break;
+		case SID_90:
+			err = util_dnld(p->ac[0], p->ac[3]);
+			if(!err)
+				code = SID_36 + 0x40;
+			break;
 		case 0xf1: //set global mem addr for data download
 		case 0xf2: //set global length for data download
 			v = p->ac[3];
@@ -289,19 +347,5 @@ void util_close(void)
 	ptp_close(&util_ptp);
 	f_close(util_ptp.fp);
 	FREE(util_inst);
-}
-
-/* get routine size
-*/
-int util_size(void)
-{
-	return util_routine_size;
-}
-
-/* get routine addr
-*/
-int util_addr(void)
-{
-	return util_routine_addr;
 }
 

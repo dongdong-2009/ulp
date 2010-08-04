@@ -35,65 +35,10 @@ int mt2x_Init(void)
 	return util_init(ptp_util, ptp);
 }
 
-static int mt2x_dnld(int addr, int size)
-{
-	int btr, br, try;
-	char buf[32];
-	
-	btr = 32;
-	while(1) {
-		util_read(buf, btr, &br);
-		if(br <= 0)
-			break;
-		
-		//download
-		try = 0;
-		while(kwp_TransferData(addr, br, buf)) {
-#ifdef __DEBUG
-			print("Resend %d times\n", try);
-#endif
-			try ++;
-			if(try > 2) {
-				return -1;
-			}
-		}
-		
-		addr += br;
-	}
-	
-	return 0;
-}
-
 int mt2x_Prog(void)
 {
-	int addr, size;
 	int err;
-
-#if 0
-	//addr = util_addr();
-	addr = util_addr();
-	size = util_size();
-
-#ifdef __DEBUG
-	print("util addr = 0x%06x\n", addr);
-	print("util size = 0x%06x\n", size);
-#endif
 	
-	err = kwp_Init();
-	if(!err) err = kwp_EstablishComm();
-	if(!err) err =  kwp_StartDiag(0x85, 0x00);
-	if(!err) {
-		err =  kwp_RequestToDnload(0, addr, size, 0);
-		if(!err) {
-			err = mt2x_dnld(addr, size);
-			err += kwp_RequestTransferExit();
-		}
-		if(!err) kwp_StartRoutineByAddr(addr);
-		mdelay(200);
-		if(!err) err =  util_interpret();
-	}
-	util_close();
-#endif
 	kwp_Init();
 	err = util_interpret();
 	util_close();

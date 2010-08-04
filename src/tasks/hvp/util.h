@@ -4,6 +4,8 @@
 #ifndef __UTIL_H_
 #define __UTIL_H_
 
+#define UTIL_PACKET_SZ 32
+
 enum {
 	UTIL_E_MEM = 1,
 	UTIL_E_OPEN,
@@ -54,13 +56,7 @@ typedef __packed struct {
 } util_inst_t;
 
 int util_init(const char *util, const char *ptp);
-int util_read(char *buf, int btr, int *br); //get routine data
 int util_interpret(void); //download file through util algo
 void util_close(void);
-
-//misc
-int util_size(void); //get routine size
-int util_addr(void); //get routine dnload/exe addr
-
 #endif
 
