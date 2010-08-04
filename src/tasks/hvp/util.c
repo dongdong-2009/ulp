@@ -176,9 +176,10 @@ static char util_jump(util_inst_t *p, char code, char sp)
 }
 
 /*return the step next*/
-static char util_execute(util_inst_t *p)
+static int util_execute(util_inst_t *p)
 {
 	char code, sp, step;
+	int v, err;
 	
 	//success
 	code = p->sid + 0x40;
@@ -195,8 +196,16 @@ static char util_execute(util_inst_t *p)
 				sp = (code == p->sid + 0x40 + 0x40);
 			}
 			break;
+		case SID_27:
+			v = 1 + p->ac[3] + p->ac[3];
+			err = kwp_SecurityAccessRequest((char) v, 0, &v);
+			if(err || v != 0) { //note: other situation are not supported yet!!!
+				return -1;
+			}
+			code = 0x34;
+			break;
 		default: //not supported
-			return 0xff;
+			return -1;
 	}
 	
 	step = util_jump(p, code, sp);
@@ -205,7 +214,7 @@ static char util_execute(util_inst_t *p)
 
 int util_interpret(void)
 {
-	char step = 1;
+	int step = 1;
 	
 #ifdef __DEBUG
 	print("utility interpreter start\n");

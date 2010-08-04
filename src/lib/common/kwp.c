@@ -296,6 +296,43 @@ int kwp_StartDiag(char mode, char baud)
 }
 
 /*
+The 27 Op-Code is used to open an ECU's memory for reprogramming.
+access mode = 1/3, no key is needed
+access mode = 2/4, key must be provided
+*/
+int kwp_SecurityAccessRequest(char mode, short key, int *seed)
+{
+	char *pbuf;
+	int n;
+
+#ifdef __DEBUG
+	print("->%s\n", __FUNCTION__);
+#endif
+
+	n = (mode & 0x01) ? 2 : 4;
+	pbuf = kwp_malloc(4);
+		
+	pbuf[0] = SID_27;
+	pbuf[1] = mode;
+	if(!(mode & 0x01)) {
+		pbuf[2] = (char)(key >> 8);
+		pbuf[3] = (char)(key >> 0);
+	}
+	kwp_transfer(pbuf, n, pbuf, 4);
+	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
+		return -1;
+
+	if((mode & 0x01) && seed) {
+		(*seed) = pbuf[2];
+		(*seed) <<= 8;
+		(*seed) += pbuf[3];
+	}
+	
+	kwp_free(pbuf);
+	return 0;
+}
+
+/*
 The 34 Op-Code will build a standard Service Request 34 to send to an ECU.  A request 34 will 
 prepare the ECU to receive data from the serial data link.  Request 34s are used in conjunction 
 with service request mode 36s (Op-Codes 90, 91, and 93) to download information to ECU's.
