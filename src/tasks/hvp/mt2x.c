@@ -18,25 +18,20 @@
 
 #define __DEBUG
 
-static int mt2x_addr;
-
 int mt2x_Init(void)
 {
 	char ptp_util[32];
 	char ptp[32];
-	char addr[16];
 	
 	/*read config from kwp.ini*/
 	read_profile_string("files", "ptp_util", ptp_util, 31, "ptp_util", "hvp.ini");
 	read_profile_string("files", "ptp", ptp, 31, "ptp", "hvp.ini");
-	read_profile_string("info", "addr_util", addr, 15, "0x003800", "hvp.ini");
 	
 #ifdef __DEBUG
 	print("util file: %s\n", ptp_util);
 	print("ptp  file: %s\n", ptp);
 #endif
 
-	sscanf(addr, "0x%x", &mt2x_addr);
 	return util_init(ptp_util, ptp);
 }
 
@@ -75,7 +70,7 @@ int mt2x_Prog(void)
 	int err;
 	
 	//addr = util_addr();
-	addr = mt2x_addr;
+	addr = util_addr();
 	size = util_size();
 
 #ifdef __DEBUG

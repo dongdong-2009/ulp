@@ -22,6 +22,8 @@ static util_head_t util_head;
 static util_inst_t *util_inst;
 static int util_inst_nr;
 static int util_seek;
+static int util_routine_addr;
+static short util_routine_size;
 
 //big endian to little endian
 static int ntohl(int vb)
@@ -90,6 +92,14 @@ int util_init(const char *util, const char *ptp)
 		if(br != btr) {
 			return - UTIL_E_RDINST;
 		}
+		
+		//read routine info
+		ptp_read(&util_ptp, &util_routine_addr, 4, &br);
+		ptp_read(&util_ptp, &util_routine_size, 2, &br);
+		util_routine_addr = ntohl(util_routine_addr);
+		util_routine_size = ntohs(util_routine_size);
+		util_head.offset += 6;
+		util_seek = util_head.offset;
 		
 		//success
 #ifdef __DEBUG
@@ -231,13 +241,17 @@ void util_close(void)
 	FREE(util_inst);
 }
 
+/* get routine size
+*/
 int util_size(void)
 {
-	return (ptp_size(&util_ptp) - util_head.offset);
+	return util_routine_size;
 }
 
+/* get routine addr
+*/
 int util_addr(void)
 {
-	return (util_head.addr);
+	return util_routine_addr;
 }
 
