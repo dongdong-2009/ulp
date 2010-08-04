@@ -68,7 +68,8 @@ int mt2x_Prog(void)
 {
 	int addr, size;
 	int err;
-	
+
+#if 0
 	//addr = util_addr();
 	addr = util_addr();
 	size = util_size();
@@ -91,6 +92,10 @@ int mt2x_Prog(void)
 		mdelay(200);
 		if(!err) err =  util_interpret();
 	}
+	util_close();
+#endif
+	kwp_Init();
+	err = util_interpret();
 	util_close();
 	return err;
 }
