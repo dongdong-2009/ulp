@@ -215,14 +215,25 @@ static int util_execute(util_inst_t *p)
 int util_interpret(void)
 {
 	int step = 1;
+	util_inst_t *p;
 	
 #ifdef __DEBUG
 	print("utility interpreter start\n");
 #endif
 
 	while(step > 0 && step < util_inst_nr) {
+		//find step
+		p = util_inst + step - 1;
+		if(p->step != step) {
+			//unfortunately, some steps are not in order :(
+			for(int i = 0; i < util_inst_nr; i ++) {
+				p = util_inst + i;
+				if(p->step == step)
+					break;
+			}
+		}
+		
 #ifdef __DEBUG
-		util_inst_t *p = util_inst + step - 1;
 		print("%02d: SR_%02X(%02x, %02x, %02x, %02x), [%02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d]\n", \
 			p->step, p->sid, \
 			p->ac[0], p->ac[1], p->ac[2], p->ac[3], \
