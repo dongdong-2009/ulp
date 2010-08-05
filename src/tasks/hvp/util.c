@@ -15,17 +15,20 @@
 #include "ff.h"
 
 #define __DEBUG
+#define __DISABLE_PROG
 
 static FIL util_file;
 static ptp_t util_ptp;
+static FIL prog_file;
+static ptp_t prog_ptp;
 static util_head_t util_head;
 static util_inst_t *util_inst;
 static int util_inst_nr;
 static int util_routine_addr;
 static short util_routine_size;
 //var for interpreter parser
-static int util_parser_addr;
-static int util_parser_size;
+static int util_global_addr;
+static int util_global_size;
 
 //big endian to little endian
 static int ntohl(int vb)
@@ -47,7 +50,7 @@ static int ntohs(int vb)
 }
 
 /*parse the utility bin file to a struct, ready for usage*/
-int util_init(const char *util, const char *ptp)
+int util_init(const char *util, const char *prog)
 {
 	int br, btr;
 	int ret = 0;
@@ -58,9 +61,18 @@ int util_init(const char *util, const char *ptp)
 		return - UTIL_E_OPEN;
 	}
 
+	res = f_open(&prog_file, prog, FA_OPEN_EXISTING | FA_READ);
+	if(res != FR_OK) {
+		return - UTIL_E_OPEN;
+	}
+	
 	util_ptp.fp = &util_file;
 	util_ptp.read = (int (*)(void *, void *, int, int *)) f_read;
 	util_ptp.seek = (int (*)(void *, int)) f_lseek;
+	prog_ptp.fp = &prog_file;
+	prog_ptp.read = (int (*)(void *, void *, int, int *)) f_read;
+	prog_ptp.seek = (int (*)(void *, int)) f_lseek;
+	
 	if(!ptp_init(&util_ptp)) {
 		//read util head
 		btr = sizeof(util_head_t);
@@ -115,7 +127,7 @@ option = 0x01 do not use addr
 option = 0x40 refer option 0, plus send ReqDnld and ReqTransExit each time
 option = 0x41 refer option 1, plus send ReqDnld and ReqTransExit each time
 */
-int util_dnld(int id, int option)
+static int util_dnld(int id, int option)
 {
 	int err;
 	int addr, alen;
@@ -166,6 +178,82 @@ int util_dnld(int id, int option)
 		}
 	}
 	
+	return err;	
+}
+
+/* program product software to target
+option = 0x00 use header addr, but keep it constant during transfer
+option = 0x01 use global addr, but keep it constant during transfer
+option = 0x02 not use addr
+option = 0x03 not use addr,  but include data packet cksum(8bit sum of all data) and len byte in front
+
+option = 0x80 use header addr and inc(4byte)
+option = 0x81 use global addr and inc(4byte)
+
+option = 0x40 refer option 0, plus send ReqDnld and ReqTransExit each time
+option = 0x41 refer option 1, plus send ReqDnld and ReqTransExit each time
+option = 0x42 refer option 2, plus send ReqDnld and ReqTransExit each time
+option = 0x43 refer option 3, plus send ReqDnld and ReqTransExit each time
+
+option = 0xC0 refer option 0x80, plus send ReqDnld and ReqTransExit each time
+option = 0xC1 refer option 0x81, plus send ReqDnld and ReqTransExit each time
+ 
+			addr type ( h-> header addr, g-> global addr, n -> not use addr, c -> cksum instead of addr, + -> addr inc)
+0x00/0x40	h
+0x01/0x41		g
+0x02/0x42	n
+0x03/0x43	nc
+0x80/0xc0		h+
+0x81/0xc1		g+
+*/
+static int util_prog(int id, int option)
+{
+	int err;
+	int addr, alen;
+	short size;
+	int btr, br;
+	char buf[UTIL_PACKET_SZ];
+	
+	addr = util_routine_addr;
+	size = 0;
+	
+	alen = (option & 0x02) ? 0 : util_head.atype;
+	while(1) {
+		btr = UTIL_PACKET_SZ;
+		ptp_read(&prog_ptp, buf, btr, &br);
+		if(!br)
+			break;
+		
+		size += br; //Statistics info
+		
+		//ReqDnld
+		if(option & 0x40) {
+			err = kwp_RequestToDnload(0, addr, br, 0);
+			if(err)
+				break;
+		}
+				
+		//download
+		err = kwp_TransferData(addr, alen, br, buf);
+		if(err)
+			break;
+		
+		//addr inc
+		if(option & 0x80)
+			addr += br;
+		
+		//ReqTransExit
+		if(option & 0x40) {
+			err = kwp_RequestTransferExit();
+			if(err)
+				break;
+		}
+	}
+	
+#ifdef __DEBUG
+	print("prog info: addr = 0x%06x, size = %06x\n", addr, size);
+#endif
+
 	return err;	
 }
 
@@ -251,23 +339,32 @@ static int util_execute(util_inst_t *p)
 			break;
 		case SID_34:
 			if(p->ac[3] == 0x01) {
-				err = kwp_RequestToDnload(p->ac[2], util_parser_addr, util_parser_size, 0);
+				err = kwp_RequestToDnload(p->ac[2], util_global_addr, util_global_size, 0);
 			}
 			else {
 				err = kwp_RequestToDnload(0, 0, 0, 0);
 			}
 			break;
-		case SID_90:
+		case SID_90: //dnload routine
 			err = util_dnld(p->ac[0], p->ac[3]);
 			if(!err)
 				code = SID_36 + 0x40;
 			break;
+		case SID_93: //dnload software
+#ifndef __DISABLE_PROG
+			err = prog_dnld(p->ac[0], p->ac[3]);
+#endif
+			if(!err)
+				code = SID_36 + 0x40;			
+			break;
 		case SID_38: //??? routine para are not supported yet
-			v = (p->ac[3]) ? util_parser_addr : util_routine_addr;
+			v = (p->ac[3]) ? util_global_addr : util_routine_addr;
 			err = kwp_StartRoutineByAddr(v);
 			break;
 		case SID_31:
-			//err = kwp_StartRoutineByLocalId(p->ac[0], 0, 0);
+#ifndef __DISABLE_PROG
+			err = kwp_StartRoutineByLocalId(p->ac[0], 0, 0);
+#endif
 			break;
 		case 0xf1: //set global mem addr for data download
 		case 0xf2: //set global length for data download
@@ -275,8 +372,8 @@ static int util_execute(util_inst_t *p)
 			v = (v << 8) + p->ac[0];
 			v = (v << 8) + p->ac[1];
 			v = (v << 8) + p->ac[2];
-			util_parser_addr = (p->sid == 0xf1) ? v : util_parser_addr;
-			util_parser_size = (p->sid == 0xf2) ? v : util_parser_size;
+			util_global_addr = (p->sid == 0xf1) ? v : util_global_addr;
+			util_global_size = (p->sid == 0xf2) ? v : util_global_size;
 			code = 0; //???
 			break;
 		default: //not supported
@@ -338,6 +435,8 @@ void util_close(void)
 {
 	ptp_close(&util_ptp);
 	f_close(util_ptp.fp);
+	ptp_close(&prog_ptp);
+	f_close(prog_ptp.fp);
 	FREE(util_inst);
 }
 

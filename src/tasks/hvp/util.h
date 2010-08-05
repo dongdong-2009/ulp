@@ -4,7 +4,7 @@
 #ifndef __UTIL_H_
 #define __UTIL_H_
 
-#define UTIL_PACKET_SZ 32
+#define UTIL_PACKET_SZ 64
 
 enum {
 	UTIL_E_MEM = 1,
@@ -55,7 +55,7 @@ typedef __packed struct {
 	} jt[5]; //goto fields, jump table
 } util_inst_t;
 
-int util_init(const char *util, const char *ptp);
+int util_init(const char *util, const char *prog);
 int util_interpret(void); //download file through util algo
 void util_close(void);
 #endif
