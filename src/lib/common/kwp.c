@@ -103,7 +103,7 @@ int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 	}
 	print("\n");
 #endif
-	return kwd_transfer(kwp_frame, tn + 4, kwp_frame, rn + 4);
+	return kwd_transfer(kwp_frame, tn + 4, kwp_frame, 255);
 }
 
 int kwp_check(char *pbuf)
