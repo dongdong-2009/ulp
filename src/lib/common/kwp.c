@@ -21,13 +21,20 @@
 #include <string.h>
 #endif
 
+/*1-> fmt|len, 2-> fmt + len, 4-> fmt + addr + len, default 4*/
+static char kwp_head_len;
 static char kwp_tar;
 static char kwp_src;
 static char kwp_frame[260];
 static kwp_err_t kwp_err;
 
+#define FRAME(pbuf) (pbuf - kwp_head_len)
+#define PBUF(frame) (frame + kwp_head_len)
+#define LEN(frame) ((kwp_head_len & 0x01)? (frame[0] & 0x3f) : frame[kwp_head_len - 1])
+
 int kwp_Init(void)
 {
+	kwp_head_len = 3;
 	kwp_tar = KWP_DEVICE_ID;
 	kwp_src = KWP_TESTER_ID;
 	kwd_init();
@@ -38,6 +45,23 @@ void kwp_SetAddr(char tar, char src)
 {
 	kwp_tar = tar;
 	kwp_src = src;
+}
+
+void kwp_SetFormat(char kb1, char kb2)
+{
+	char len = 4;
+	
+	if(!(kb1 & KWP_KB_HB1)) {
+		//addr in header is not supported
+		len -= 2;
+	}
+	
+	if(!(kb1 & KWP_KB_AL1)) {
+		//addtional len byte is not supported
+		len -= 1;
+	}
+	
+	kwp_head_len = len;
 }
 
 int kwp_EstablishComm(void)
@@ -67,10 +91,19 @@ int kwp_EstablishComm(void)
 
 void *kwp_malloc(int n)
 {
-	kwp_frame[0] = 0x80;
-	kwp_frame[1] = kwp_tar;
-	kwp_frame[2] = kwp_src;
-	return &kwp_frame[3];
+	int len = kwp_head_len;
+	char *f = kwp_frame; //static allocation only
+	
+	*f ++ = KBP_FMT_ADR_PHY;
+	if(len > 2) {
+		*f ++ = kwp_tar;
+		*f ++ = kwp_src;
+	}
+	if(len == 2 || len == 4) {
+		*f ++ = 0;
+	}
+	
+	return f;
 }
 
 void kwp_free(void *p)
@@ -93,21 +126,32 @@ static char kwp_cksum(const char *p, int n)
 
 int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 {
-	int n = 3 + tn;
-	kwp_frame[0] += tn;
-	kwp_frame[n] = kwp_cksum(kwp_frame, n);
+	int n = kwp_head_len;
+	char *f = FRAME(tbuf);
+	
+	if(n == 1 || n == 3) { //len in fmt
+		f[0] += tn;
+	}
+	else { //len byte
+		f[n - 1] = tn;
+	}
+	
+	n += tn;
+	f[n] = kwp_cksum(f, n);
+	n ++;
 #ifdef __DEBUG
-	print("kwp tx(%02d):", n + 1);
-	for(int i = 0; i < n + 1; i ++) {
-		print(" %02x", kwp_frame[i]);
+	print("kwp tx(%02d):", n);
+	for(int i = 0; i < n; i ++) {
+		print(" %02x", f[i]);
 	}
 	print("\n");
 #endif
-	return kwd_transfer(kwp_frame, tn + 4, kwp_frame, 255);
+	return kwd_transfer(f, n, f, 255);
 }
 
-int kwp_check(char *pbuf)
+int kwp_check(char *pbuf, int ofs)
 {
+	char *p = pbuf + ofs;
 	int err;
 	
 	/*success?*/
@@ -117,15 +161,15 @@ int kwp_check(char *pbuf)
 	kwp_err.code = 0;
 	
 	/*fail?*/
-	if(pbuf[0] == SID_ERR) {
-		if(pbuf[2] == RCR_RP) {
+	if(p[0] == SID_ERR) {
+		if(p[2] == RCR_RP) {
 			//reponse pending ....
 			err = RCR_RP;
 		}
 		else {
 			err = -1;
-			kwp_err.sid = pbuf[1];
-			kwp_err.code = pbuf[2];
+			kwp_err.sid = p[1];
+			kwp_err.code = p[2];
 			kwp_free(pbuf);
 		}
 	}
@@ -144,8 +188,10 @@ int kwp_recv(char *pbuf, int ms)
 	int bytes, len, ofs;
 	time_t timeout;
 	int ret = -1;
+	char *f = FRAME(pbuf);
 	
-	ofs = len = 0;
+	ofs = 0;
+	len = kwp_head_len;
 	timeout = time_get(ms);
 	while(1) {
 		//timeout?
@@ -161,18 +207,17 @@ int kwp_recv(char *pbuf, int ms)
 #ifdef __DEBUG
 		print("\rkwp rx(%02d):", bytes);
 		for(int i = 0; i < bytes; i ++) {
-			print(" %02x", kwp_frame[i]);
+			print(" %02x", f[i]);
 		}
 #endif
 		if(bytes > len) {
-			len += kwp_frame[len] & 0x3f;
-			len += 3 + 1; /*head 3 bytes + cksum (1 byte)*/
+			len += LEN(f) + 1;
 		}
-		else if((bytes == len) && len) {
-			ret = kwp_check(pbuf + ofs);
+		else if((bytes == len) && (bytes != kwp_head_len)) {
+			ret = kwp_check(pbuf, ofs);
 			if(ret <= 0) {
 				if(ofs) {
-					memcpy(kwp_frame, kwp_frame + ofs, len - ofs);
+					memcpy(f, f + ofs, len - ofs);
 				}
 				break;
 			}
@@ -204,7 +249,7 @@ The 81 Op-Code is used to start communications with an ECU.  Communications will
 activity exists on the link.  If the link is inactive for five seconds the ECU will revert back to a waiting for 
 communications state.  There are no negative responses allowed for the Start Communication request.
 */
-int kwp_StartComm(char *kb0, char *kb1)
+int kwp_StartComm(char *kb1, char *kb2)
 {	
 	char *pbuf;
 
@@ -218,10 +263,10 @@ int kwp_StartComm(char *kb0, char *kb1)
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 
-	if(kb0)
-		*kb0 = pbuf[1];
 	if(kb1)
-		*kb1 = pbuf[2];
+		*kb1 = pbuf[1];
+	if(kb2)
+		*kb2 = pbuf[2];
 
 	kwp_free(pbuf);
 	return 0;
@@ -513,10 +558,11 @@ this routine is only for debug purpose
 int kwp_debug(int n, char *data)
 {
 	int i, bytes;
-	char *pbuf;
+	char *pbuf, *f;
 	time_t timeout;
 	
 	pbuf = kwp_malloc(n);
+	f = FRAME(pbuf);
 	for(i = 0; i < n; i ++) {
 		pbuf[i] = data[i];
 	}
@@ -533,7 +579,7 @@ int kwp_debug(int n, char *data)
 		bytes = kwd_poll(1);
 		print("\rkwp rx(%02d):", bytes);
 		for(int i = 0; i < bytes; i ++) {
-			print(" %02x", kwp_frame[i]);
+			print(" %02x", f[i]);
 		}
 	}
 	

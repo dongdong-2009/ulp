@@ -11,7 +11,7 @@
 #define KWP_FAST_INIT_MS 25
 #define KWP_RECV_TIMEOUT_MS 500
 
-/*keybytes
+/*keybytes kb1, kb2
 bit format:  AL0 AL1 HB0 HB1 TP0 TP1 1 P, 11110001
 	AL0: len info in fmt byte is supported
 	AL1: addtional len byte is supported
@@ -142,13 +142,14 @@ typedef struct {
 int kwp_Init(void);
 int kwp_GetLastErr(char *rid, char *sid, char *code); /*0->no err*/
 void kwp_SetAddr(char tar, char src);
+void kwp_SetFormat(char kb1, char kb2);
 
 /*service routines:
 	= 0, routine finished sucessfully
 	<0, error occurs
 */
 int kwp_EstablishComm(void);
-int kwp_StartComm(char *kb0, char *kb1);
+int kwp_StartComm(char *kb1, char *kb2);
 int kwp_StopComm(void);
 int kwp_AccessCommPara(void);
 int kwp_StartDiag(char mode, char baud);
