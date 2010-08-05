@@ -118,14 +118,20 @@ int kwp_check(char *pbuf)
 	
 	/*fail?*/
 	if(pbuf[0] == SID_ERR) {
-		err = -1;
-		kwp_err.sid = pbuf[1];
-		kwp_err.code = pbuf[2];
-		kwp_free(pbuf);
+		if(pbuf[2] == RCR_RP) {
+			//reponse pending ....
+			err = RCR_RP;
+		}
+		else {
+			err = -1;
+			kwp_err.sid = pbuf[1];
+			kwp_err.code = pbuf[2];
+			kwp_free(pbuf);
+		}
 	}
 
 #ifdef __DEBUG
-	if(err) {
+	if(err < 0) {
 		print("\nNegative Response!\n");
 	}
 #endif
@@ -135,10 +141,11 @@ int kwp_check(char *pbuf)
 
 int kwp_recv(char *pbuf, int ms)
 {
-	int bytes, len;
+	int bytes, len, ofs;
 	time_t timeout;
 	int ret = -1;
 	
+	ofs = len = 0;
 	timeout = time_get(ms);
 	while(1) {
 		//timeout?
@@ -157,13 +164,20 @@ int kwp_recv(char *pbuf, int ms)
 			print(" %02x", kwp_frame[i]);
 		}
 #endif
-		if(bytes > 1) {
-			len = kwp_frame[0] & 0x3f;
+		if(bytes > len) {
+			len += kwp_frame[len] & 0x3f;
 			len += 3 + 1; /*head 3 bytes + cksum (1 byte)*/
-			if(bytes >= len) {
-				ret = kwp_check(pbuf);
+		}
+		else if((bytes == len) && len) {
+			ret = kwp_check(pbuf + ofs);
+			if(ret <= 0) {
+				if(ofs) {
+					memcpy(kwp_frame, kwp_frame + ofs, len - ofs);
+				}
 				break;
 			}
+			
+			ofs += len;
 		}
 	}
 
