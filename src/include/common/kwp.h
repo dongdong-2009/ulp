@@ -157,5 +157,6 @@ int kwp_RequestToDnload(char fmt, int addr, int size, char *plen);
 int kwp_TransferData(int addr, int alen, int size, char *data);
 int kwp_RequestTransferExit(void);
 int kwp_StartRoutineByAddr(int addr);
+int kwp_StartRoutineByLocalId(int id, char *para, int n);
 
 #endif /*__KWP_H_*/

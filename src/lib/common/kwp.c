@@ -469,6 +469,29 @@ int kwp_StartRoutineByAddr(int addr)
 	return 0;
 }
 
+int kwp_StartRoutineByLocalId(int id, char *para, int n)
+{
+	char *pbuf;
+
+#ifdef __DEBUG
+	print("->%s\n", __FUNCTION__);
+#endif
+
+	pbuf = kwp_malloc(n + 3);
+	pbuf[0] = SID_31;
+	pbuf[1] = (char) id;
+	n --;
+	while(n >= 0) {
+		pbuf[2 + n] = para[n];
+	}
+	kwp_transfer(pbuf, n + 2, pbuf, 4);
+	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
+		return -1;
+
+	kwp_free(pbuf);
+	return 0;
+}
+
 #ifdef __DEBUG
 /*
 this routine is only for debug purpose

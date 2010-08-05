@@ -266,6 +266,9 @@ static int util_execute(util_inst_t *p)
 			v = (p->ac[3]) ? util_parser_addr : util_routine_addr;
 			err = kwp_StartRoutineByAddr(v);
 			break;
+		case SID_31:
+			//err = kwp_StartRoutineByLocalId(p->ac[0], 0, 0);
+			break;
 		case 0xf1: //set global mem addr for data download
 		case 0xf2: //set global length for data download
 			v = p->ac[3];
