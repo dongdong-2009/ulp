@@ -22,19 +22,25 @@
 #endif
 
 /*1-> fmt|len, 2-> fmt + len, 4-> fmt + addr + len, default 4*/
-static char kwp_head_len;
+static char kwp_head_tn;
+static char kwp_head_rn;
 static char kwp_tar;
 static char kwp_src;
 static char kwp_frame[260];
 static kwp_err_t kwp_err;
 
-#define FRAME(pbuf) (pbuf - kwp_head_len)
-#define PBUF(frame) (frame + kwp_head_len)
-#define LEN(frame) ((kwp_head_len & 0x01)? (frame[0] & 0x3f) : frame[kwp_head_len - 1])
+#define tFRAME(pbuf) (pbuf - kwp_head_tn)
+#define tPBUF(frame) (frame + kwp_head_tn)
+#define tPLEN(frame) ((kwp_head_tn & 0x01)? (frame[0] & 0x3f) : frame[kwp_head_tn - 1])
+
+#define rFRAME(pbuf) (pbuf - kwp_head_rn)
+#define rPBUF(frame) (frame + kwp_head_rn)
+#define rPLEN(frame) ((kwp_head_rn & 0x01)? (frame[0] & 0x3f) : frame[kwp_head_rn - 1])
 
 int kwp_Init(void)
 {
-	kwp_head_len = 3;
+	kwp_head_tn = 4;
+	kwp_head_rn = 3;
 	kwp_tar = KWP_DEVICE_ID;
 	kwp_src = KWP_TESTER_ID;
 	kwd_init();
@@ -61,7 +67,7 @@ void kwp_SetFormat(char kb1, char kb2)
 		len -= 1;
 	}
 	
-	kwp_head_len = len;
+	kwp_head_tn = len;
 }
 
 int kwp_EstablishComm(void)
@@ -91,8 +97,9 @@ int kwp_EstablishComm(void)
 
 void *kwp_malloc(int n)
 {
-	int len = kwp_head_len;
-	char *f = kwp_frame; //static allocation only
+	int len = kwp_head_tn;
+	char *pbuf = kwp_frame + 4; //static allocation only
+	char *f = tFRAME(pbuf);
 	
 	*f ++ = KBP_FMT_ADR_PHY;
 	if(len > 2) {
@@ -126,8 +133,8 @@ static char kwp_cksum(const char *p, int n)
 
 int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 {
-	int n = kwp_head_len;
-	char *f = FRAME(tbuf);
+	int n = kwp_head_tn;
+	char *f = tFRAME(tbuf);
 	
 	if(n == 1 || n == 3) { //len in fmt
 		f[0] += tn;
@@ -146,7 +153,7 @@ int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 	}
 	print("\n");
 #endif
-	return kwd_transfer(f, n, f, 255);
+	return kwd_transfer(f, n, rFRAME(rbuf), 255);
 }
 
 int kwp_check(char *pbuf, int ofs)
@@ -188,10 +195,10 @@ int kwp_recv(char *pbuf, int ms)
 	int bytes, len, ofs;
 	time_t timeout;
 	int ret = -1;
-	char *f = FRAME(pbuf);
+	char *f = rFRAME(pbuf);
 	
 	ofs = 0;
-	len = kwp_head_len;
+	len = kwp_head_rn;
 	timeout = time_get(ms);
 	while(1) {
 		//timeout?
@@ -211,9 +218,9 @@ int kwp_recv(char *pbuf, int ms)
 		}
 #endif
 		if(bytes > len) {
-			len += LEN(f) + 1;
+			len += rPLEN(f) + 1;
 		}
-		else if((bytes == len) && (bytes != kwp_head_len)) {
+		else if((bytes == len) && (bytes != kwp_head_rn)) {
 			ret = kwp_check(pbuf, ofs);
 			if(ret <= 0) {
 				if(ofs) {
@@ -562,7 +569,6 @@ int kwp_debug(int n, char *data)
 	time_t timeout;
 	
 	pbuf = kwp_malloc(n);
-	f = FRAME(pbuf);
 	for(i = 0; i < n; i ++) {
 		pbuf[i] = data[i];
 	}
@@ -570,6 +576,7 @@ int kwp_debug(int n, char *data)
 	kwp_transfer(pbuf, n, pbuf, 250);
 	
 	//display received data
+	f = rFRAME(pbuf);
 	timeout = time_get(2000);
 	while(1) {
 		if(time_left(timeout) < 0) {
