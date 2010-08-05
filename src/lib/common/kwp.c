@@ -498,8 +498,9 @@ this routine is only for debug purpose
 */
 int kwp_debug(int n, char *data)
 {
-	int i;
+	int i, bytes;
 	char *pbuf;
+	time_t timeout;
 	
 	pbuf = kwp_malloc(n);
 	for(i = 0; i < n; i ++) {
@@ -507,9 +508,21 @@ int kwp_debug(int n, char *data)
 	}
 	
 	kwp_transfer(pbuf, n, pbuf, 250);
-	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
-		return -1;
+	
+	//display received data
+	timeout = time_get(2000);
+	while(1) {
+		if(time_left(timeout) < 0) {
+			break;
+		}
 		
+		bytes = kwd_poll(1);
+		print("\rkwp rx(%02d):", bytes);
+		for(int i = 0; i < bytes; i ++) {
+			print(" %02x", kwp_frame[i]);
+		}
+	}
+	
 	kwp_free(pbuf);
 	return 0;
 }
