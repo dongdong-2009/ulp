@@ -15,7 +15,7 @@
 #include "ff.h"
 
 #define __DEBUG
-#define __DISABLE_PROG
+//#define __DISABLE_PROG
 
 static FIL util_file;
 static ptp_t util_ptp;
@@ -72,6 +72,10 @@ int util_init(const char *util, const char *prog)
 	prog_ptp.fp = &prog_file;
 	prog_ptp.read = (int (*)(void *, void *, int, int *)) f_read;
 	prog_ptp.seek = (int (*)(void *, int)) f_lseek;
+	
+	if(ptp_init(&prog_ptp)) {
+		return -1;
+	}
 	
 	if(!ptp_init(&util_ptp)) {
 		//read util head
@@ -199,10 +203,10 @@ option = 0xC0 refer option 0x80, plus send ReqDnld and ReqTransExit each time
 option = 0xC1 refer option 0x81, plus send ReqDnld and ReqTransExit each time
  
 			addr type ( h-> header addr, g-> global addr, n -> not use addr, c -> cksum instead of addr, + -> addr inc)
-0x00/0x40	h
+0x00/0x40		h
 0x01/0x41		g
-0x02/0x42	n
-0x03/0x43	nc
+0x02/0x42		n
+0x03/0x43		nc
 0x80/0xc0		h+
 0x81/0xc1		g+
 */
@@ -214,7 +218,7 @@ static int util_prog(int id, int option)
 	int btr, br;
 	char buf[UTIL_PACKET_SZ];
 	
-	addr = util_routine_addr;
+	addr = (option & 0x01) ? util_global_addr : util_head.addr;
 	size = 0;
 	
 	alen = (option & 0x02) ? 0 : util_head.atype;
@@ -319,6 +323,9 @@ static int util_execute(util_inst_t *p)
 			kwp_SetAddr(p->ac[0], p->ac[1]);
 			code = 0xff;
 			break;
+		case SID_11:
+			err = kwp_EcuReset(p->ac[0]);
+			break;
 		case SID_81:
 			err = kwp_EstablishComm();
 			break;
@@ -352,10 +359,13 @@ static int util_execute(util_inst_t *p)
 			break;
 		case SID_93: //dnload software
 #ifndef __DISABLE_PROG
-			err = prog_dnld(p->ac[0], p->ac[3]);
+			err = util_prog(p->ac[0], p->ac[3]);
 #endif
 			if(!err)
 				code = SID_36 + 0x40;			
+			break;
+		case SID_37:
+			err = kwp_RequestTransferExit();
 			break;
 		case SID_38: //??? routine para are not supported yet
 			v = (p->ac[3]) ? util_global_addr : util_routine_addr;
@@ -396,6 +406,18 @@ int util_interpret(void)
 	
 #ifdef __DEBUG
 	print("utility interpreter start\n");
+	for(int i = 0; i < util_inst_nr; i ++) {
+		p = util_inst + i;
+		print("%02d: SR_%02X(%02x, %02x, %02x, %02x), [%02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d]\n", \
+			p->step, p->sid, \
+			p->ac[0], p->ac[1], p->ac[2], p->ac[3], \
+			p->jt[0].code, p->jt[0].step, \
+			p->jt[1].code, p->jt[1].step, \
+			p->jt[2].code, p->jt[2].step, \
+			p->jt[3].code, p->jt[3].step, \
+			p->jt[4].code, p->jt[4].step \
+		);
+	}
 #endif
 
 	while(step > 0 && step < util_inst_nr) {

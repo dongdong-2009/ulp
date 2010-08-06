@@ -542,6 +542,7 @@ int kwp_StartRoutineByAddr(int addr)
 int kwp_StartRoutineByLocalId(int id, char *para, int n)
 {
 	char *pbuf;
+	int i = n;
 
 #ifdef __DEBUG
 	print("->%s\n", __FUNCTION__);
@@ -550,9 +551,9 @@ int kwp_StartRoutineByLocalId(int id, char *para, int n)
 	pbuf = kwp_malloc(n + 3);
 	pbuf[0] = SID_31;
 	pbuf[1] = (char) id;
-	n --;
-	while(n >= 0) {
-		pbuf[2 + n] = para[n];
+	i --;
+	while(i >= 0) {
+		pbuf[2 + i] = para[i];
 	}
 	kwp_transfer(pbuf, n + 2, pbuf, 4);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
@@ -560,6 +561,25 @@ int kwp_StartRoutineByLocalId(int id, char *para, int n)
 
 	kwp_free(pbuf);
 	return 0;
+}
+
+int kwp_EcuReset(char mode)
+{
+	char *pbuf;
+
+#ifdef __DEBUG
+	print("->%s\n", __FUNCTION__);
+#endif
+
+	pbuf = kwp_malloc(3);
+	pbuf[0] = SID_11;
+	pbuf[1] = mode;
+	kwp_transfer(pbuf, 2, pbuf, 4);
+	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
+		return -1;
+
+	kwp_free(pbuf);
+	return 0;	
 }
 
 #ifdef __DEBUG
