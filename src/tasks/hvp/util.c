@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "FreeRTOS.h"
+#include "time.h"
 
 #include "ff.h"
 
@@ -386,6 +387,17 @@ static int util_execute(util_inst_t *p)
 			util_global_size = (p->sid == 0xf2) ? v : util_global_size;
 			code = 0; //???
 			break;
+		case 0xfc: //sdelay
+			sdelay(p->ac[0]);
+			code = 0;
+			break;
+		case 0xfb: //counter loop, ac0 = which counter, ac1 = count val
+			code = 0;
+			break;
+		case 0xee: //end with error
+			return -1;
+		case 0xff: //sucess
+			return 0;
 		default: //not supported
 			return -1;
 	}
@@ -399,6 +411,19 @@ static int util_execute(util_inst_t *p)
 	return step;
 }
 
+static void util_print(util_inst_t *p)
+{
+	print("%02d: SR_%02X(%02x, %02x, %02x, %02x), [%02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d]\n", \
+		p->step, p->sid, \
+		p->ac[0], p->ac[1], p->ac[2], p->ac[3], \
+		p->jt[0].code, p->jt[0].step, \
+		p->jt[1].code, p->jt[1].step, \
+		p->jt[2].code, p->jt[2].step, \
+		p->jt[3].code, p->jt[3].step, \
+		p->jt[4].code, p->jt[4].step \
+	);
+}
+
 int util_interpret(void)
 {
 	int step = 1;
@@ -408,21 +433,14 @@ int util_interpret(void)
 	print("utility interpreter start\n");
 	for(int i = 0; i < util_inst_nr; i ++) {
 		p = util_inst + i;
-		print("%02d: SR_%02X(%02x, %02x, %02x, %02x), [%02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d]\n", \
-			p->step, p->sid, \
-			p->ac[0], p->ac[1], p->ac[2], p->ac[3], \
-			p->jt[0].code, p->jt[0].step, \
-			p->jt[1].code, p->jt[1].step, \
-			p->jt[2].code, p->jt[2].step, \
-			p->jt[3].code, p->jt[3].step, \
-			p->jt[4].code, p->jt[4].step \
-		);
+		util_print(p);
 	}
 #endif
 
-	while(step > 0 && step < util_inst_nr) {
+	while(step > 0 && step <= util_inst_nr) {
 		//find step
 		p = util_inst + step - 1;
+#if 0
 		if(p->step != step) {
 			//unfortunately, some steps are not in order :(
 			for(int i = 0; i < util_inst_nr; i ++) {
@@ -431,17 +449,10 @@ int util_interpret(void)
 					break;
 			}
 		}
+#endif
 		
 #ifdef __DEBUG
-		print("%02d: SR_%02X(%02x, %02x, %02x, %02x), [%02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d, %02x->%02d]\n", \
-			p->step, p->sid, \
-			p->ac[0], p->ac[1], p->ac[2], p->ac[3], \
-			p->jt[0].code, p->jt[0].step, \
-			p->jt[1].code, p->jt[1].step, \
-			p->jt[2].code, p->jt[2].step, \
-			p->jt[3].code, p->jt[3].step, \
-			p->jt[4].code, p->jt[4].step \
-		);
+		util_print(p);
 #endif
 		step = util_execute(p);
 	}
@@ -450,6 +461,7 @@ int util_interpret(void)
 	print("utility interpreter end\n");
 #endif
 
+	/*step: 0->success, -1 -> err*/
 	return step;
 }
 
