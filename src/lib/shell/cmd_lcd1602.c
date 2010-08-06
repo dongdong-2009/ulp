@@ -9,7 +9,7 @@
 #include <string.h>
 #include "sys/system.h"
 #include "stm32f10x.h"
-#include "lcd1602.h"
+#include "lcd.h"
 
 /*for lcd1602 init*/
 static int cmd_lcd_init(int argc, char *argv[])
@@ -20,7 +20,7 @@ static int cmd_lcd_init(int argc, char *argv[])
 		return 0;
 	}
 	
-	while(lcd1602_Init());
+	while(lcd_init());
 	printf("lcd1602 init ok \n");
 	
 	return 0;
@@ -41,7 +41,7 @@ static int cmd_lcd_puts(int argc, char *argv[])
 	
 	sscanf(argv[1],"%d",&row);
 	
-	lcd1602_WriteString(0,row,argv[2]);
+	lcd_puts(0,row,argv[2]);
 	
 	return 0;
 }

@@ -24,7 +24,7 @@ else
 	define_bool CONFIG_SHELL_VVT_DEBUG n
 fi
 
-if [ "$CONFIG_DRIVER_LCD1602" = "y"]; then
+if [ "$CONFIG_DRIVER_LCD" = "y"]; then
 	bool "enable commands for lcd1602 debug?" CONFIG_SHELL_LCD1602
 else
 	define_bool CONFIG_SHELL_LCD1602 n
