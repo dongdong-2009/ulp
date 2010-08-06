@@ -138,6 +138,7 @@ static int ptp_parse(ptp_t *ptp, int op)
 int ptp_init(ptp_t *ptp)
 {
 	ptp->priv = MALLOC(sizeof(ptp_priv_t));
+	memset(ptp->priv, 0, sizeof(ptp_priv_t));
 	return 0;
 }
 
