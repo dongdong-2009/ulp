@@ -29,13 +29,13 @@ static char kwp_src;
 static char kwp_frame[260];
 static kwp_err_t kwp_err;
 
-#define tFRAME(pbuf) (pbuf - kwp_head_tn)
-#define tPBUF(frame) (frame + kwp_head_tn)
-#define tPLEN(frame) ((kwp_head_tn & 0x01)? (frame[0] & 0x3f) : frame[kwp_head_tn - 1])
+#define tFRAME(pbuf) ((pbuf) - kwp_head_tn)
+#define tPBUF(frame) ((frame) + kwp_head_tn)
+#define tPLEN(frame) ((kwp_head_tn & 0x01)? ((*(frame + 0)) & 0x3f) : (*((frame) + kwp_head_tn - 1)))
 
-#define rFRAME(pbuf) (pbuf - kwp_head_rn)
-#define rPBUF(frame) (frame + kwp_head_rn)
-#define rPLEN(frame) ((kwp_head_rn & 0x01)? (frame[0] & 0x3f) : frame[kwp_head_rn - 1])
+#define rFRAME(pbuf) ((pbuf) - kwp_head_rn)
+#define rPBUF(frame) ((frame) + kwp_head_rn)
+#define rPLEN(frame) ((kwp_head_rn & 0x01)? ((*(frame + 0)) & 0x3f) : (*((frame) + kwp_head_rn - 1)))
 
 int kwp_Init(void)
 {
@@ -198,7 +198,7 @@ int kwp_recv(char *pbuf, int ms)
 	char *f = rFRAME(pbuf);
 	
 	ofs = 0;
-	len = kwp_head_rn;
+	len = 0;
 	timeout = time_get(ms);
 	while(1) {
 		//timeout?
@@ -217,19 +217,23 @@ int kwp_recv(char *pbuf, int ms)
 			print(" %02x", f[i]);
 		}
 #endif
-		if(bytes > len) {
-			len += rPLEN(f) + 1;
+		//full head received
+		if((bytes >= ofs + kwp_head_rn) && (len == 0)) {
+			len = rPLEN(f + ofs) + kwp_head_rn + 1;
 		}
-		else if((bytes == len) && (bytes != kwp_head_rn)) {
+		
+		//full frame received
+		if(len && (bytes >= ofs + len)) {
 			ret = kwp_check(pbuf, ofs);
 			if(ret <= 0) {
 				if(ofs) {
-					memcpy(f, f + ofs, len - ofs);
+					memcpy(f, f + ofs, len);
 				}
 				break;
 			}
 			
 			ofs += len;
+			len = 0;
 		}
 	}
 
