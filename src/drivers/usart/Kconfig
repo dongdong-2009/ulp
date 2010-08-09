@@ -1,0 +1,11 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+bool "add stm32 usart support"CONFIG_STM32_USART
+if [ "$CONFIG_STM32_USART" = "y" ]; then
+bool "add stm32 usart1 for md204l" CONFIG_STM32_USART1
+bool "add stm32 usart2 for md204l" CONFIG_STM32_USART2
+fi
