@@ -50,3 +50,11 @@ bool "keyword phy driver?" CONFIG_DRIVER_KWD
 if [ "$CONFIG_DRIVER_KWD" = "y" ]; then
 	bool "keyword phy driver debug command" CONFIG_KWD_CMD
 fi
+bool "add md204l driver?" CONFIG_DRIVER_MD204L
+bool "add usart driver?" CONFIG_DRIVER_USART
+if [ "$CONFIG_DRIVER_USART" = "y" ]; then
+	mainmenu_option next_comment
+	  comment 'Usart Config'
+	  source src/drivers/usart/Kconfig
+	endmenu
+fi
