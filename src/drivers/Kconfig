@@ -31,6 +31,7 @@ bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
 bool "spi 8 ch 10bit dac chip dac1x8s" CONFIG_DRIVER_DAC1X8S
 bool "general lcd support?" CONFIG_DRIVER_LCD
 if [ "$CONFIG_DRIVER_LCD" = "y" ]; then
+	bool "shell cmd for lcd debug" CONFIG_DRIVER_LCD_CMD
 	bool "lcd driver for lcd1602" CONFIG_DRIVER_LCD1602
 fi
 bool "general keyboard driver" CONFIG_DRIVER_KEYBOARD
