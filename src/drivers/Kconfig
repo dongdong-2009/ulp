@@ -33,6 +33,7 @@ bool "general lcd support?" CONFIG_DRIVER_LCD
 if [ "$CONFIG_DRIVER_LCD" = "y" ]; then
 	bool "shell cmd for lcd debug" CONFIG_DRIVER_LCD_CMD
 	bool "lcd driver for lcd1602" CONFIG_DRIVER_LCD1602
+	bool "lcd driver for ili932x" CONFIG_DRIVER_ILI932X
 fi
 bool "general keyboard driver" CONFIG_DRIVER_KEYBOARD
 bool "adc key driver" CONFIG_DRIVER_ADCKEY
