@@ -7,6 +7,7 @@
 #include "lcd.h"
 #include <stdlib.h>
 #include <string.h>
+#include "FreeRTOS.h"
 
 static const lcd_t *lcd;
 static int lcd_xoffset;

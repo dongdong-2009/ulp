@@ -1,4 +1,11 @@
-#include "stm32f10x_lib.h"
+#ifndef __ILI9320_H_
+#define __ILI9320_H_
+
+#include "config.h"
+#include "lcd.h"
+
+#define COLOR_BG_DEF	RGB565(0xff, 0xff, 0xff)
+#define COLOR_FG_DEF	RGB565(0x00, 0xff, 0x00)
 
 /*硬件相关的宏定义*/
 /********************************************************************************/
@@ -16,7 +23,7 @@
 /********************************************************************************/
 
 void Lcd_Configuration(void);
-void ili9320_Initializtion(void);
+int ili9320_Initializtion(void);
 void ili9320_WriteRegister(u16 index,u16 dat);
 void ili9320_SetCursor(u16 x,u16 y);
 void ili9320_SetWindows(u16 StartX,u16 StartY,u16 EndX,u16 EndY);
@@ -51,4 +58,4 @@ u16  Touch_GetPhyY(void);
 u16  Touch_MeasurementX(void);
 u16  Touch_MeasurementY(void);
 
-
+#endif
