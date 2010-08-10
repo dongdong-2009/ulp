@@ -4,6 +4,14 @@
 #ifndef __OSD_ITEM_H_
 #define __OSD_ITEM_H_
 
+#include "osd/osd_eng.h"
+
+#define COLOR_FG_DEF BLACK
+#define COLOR_BG_DEF WHITE	
+
+#define COLOR_FG_FOCUS WHITE
+#define COLOR_BG_FOCUS BLUE
+
 //update options
 enum {
 	ITEM_UPDATE_NEVER = 0,

@@ -12,5 +12,6 @@
 #define osd_eng_clear_all	lcd_clear_all
 #define osd_eng_clear_rect	lcd_clear_rect
 #define osd_eng_scroll		lcd_scroll
+#define osd_eng_set_color	lcd_set_color
 
 #endif /*__OSD_ENG_H_*/
