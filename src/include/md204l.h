@@ -8,8 +8,11 @@
 
 #include "stm32f10x.h"
 
-#define MD204L_READ		0x52
-#define MD204L_WRITE	0x57
+#define CMD_MD204L_READ		0x52
+#define CMD_MD204L_WRITE	0x57
+
+#define MD204L_READ_ADDR	0x01
+#define MD204L_READ_LEN		0x05
 
 enum {
 MD204L_OK = 0,
@@ -24,7 +27,7 @@ unsigned char station;
 unsigned char cmd;
 unsigned char addr;
 unsigned char len;
-short *data;
+//short *data;
 unsigned char cksum;
 }md204l_req_t;
 
@@ -33,12 +36,15 @@ unsigned char station;
 unsigned char status;
 unsigned char addr;
 unsigned char len;
-short *data;
+//short *data;
 unsigned char cksum;
 }md204l_ack_t;
+
+extern short md204l_read[MD204L_READ_LEN];
 
 void md204l_Init(void);
 int md204l_Write(int addr, short *pbuf, int count);
 int md204l_Read(int addr, short *pbuf, int count);
+void md204l_Update(void);
 
-#endif /* __MASS_MAL_H */
+#endif /* __MD204L_H */

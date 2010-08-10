@@ -64,7 +64,7 @@ void usart_Init(void)
 
 	/*init serial port*/
 	USART_StructInit(&uartinfo);
-	uartinfo.USART_BaudRate = 115200;
+	uartinfo.USART_BaudRate = 38400;
 #ifndef CONFIG_STM32_USART1
 	USART_Init(USART2, &uartinfo);
 	USART_Cmd(USART2, ENABLE);
@@ -79,17 +79,9 @@ int usart_putchar(char c)
 #ifndef CONFIG_STM32_USART1
 	USART_SendData(USART2, c);
 	while(USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET);
-	if(c == '\n') {
-		USART_SendData(USART2, '\r');
-		while(USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET);
-	}
 #else
 	USART_SendData(USART1, c);
 	while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
-	if(c == '\n') {
-		USART_SendData(USART1, '\r');
-		while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
-	}
 #endif
 	return 0;
 }
@@ -99,10 +91,7 @@ int usart_getch(void)
 	int ret;
 
 	/*wait for a char*/
-	while(1) {
-		ret = usart_IsNotEmpty();
-		if(ret) break;
-	}
+	while(!usart_IsNotEmpty());
 
 	/*read and echo back*/
 #ifndef CONFIG_STM32_USART1
@@ -115,9 +104,11 @@ int usart_getch(void)
 
 int usart_getchar(void)
 {
-	int ret = usart_getch();
-	usart_putchar((char)ret);
-	return ret;
+#ifndef CONFIG_STM32_USART1
+	return USART_ReceiveData(USART2);
+#else
+	return USART_ReceiveData(USART1);
+#endif
 }
 
 int usart_IsNotEmpty()
