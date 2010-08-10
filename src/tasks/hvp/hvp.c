@@ -37,6 +37,11 @@ void hvp_Init(void)
 		printf("mount sd card err!!!\n");
 	hvp_msg_queue = xQueueCreate(1, sizeof(hvp_msg_t));
 	xTaskCreate(hvp_thread, (signed portCHAR *) "Hvp", 256, NULL, tskIDLE_PRIORITY + 1, NULL);	
+	
+	//display dialog
+#ifdef CONFIG_TASK_OSD
+	dlg_init();
+#endif
 }
 
 void hvp_Update(void)
