@@ -4,76 +4,237 @@
 #include "driver.h"
 #include <string.h>
 
-
 #include "stm32f10x.h"
 #include "ili9320.h"
 
-static u16 DeviceCode;
+static unsigned short DeviceCode;
+static unsigned short fgcolor;
+static unsigned short bgcolor;
 
-void Lcd_Configuration(void)
-{ 
+static void Lcd_Configuration(void)
+{
+	/* pin map:
+		PE0~15 <----> DB0~15
+		PD15	 <----> nRD
+		PD14	 <----> RS
+		PD13	 <----> nWR
+		PD12	 <----> nCS
+		PD11	 <----> nReset
+		PC0	<----> BK_LED
+	*/
+	
 	GPIO_InitTypeDef GPIO_InitStructure;
-	/*开启相应时钟 */
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA|RCC_APB2Periph_GPIOB|
-							RCC_APB2Periph_GPIOC|RCC_APB2Periph_GPIOD|RCC_APB2Periph_GPIOE, ENABLE);	
-	/*所有Lcd引脚配置为推挽输出*/
-	/*16位数据*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA|RCC_APB2Periph_GPIOB| \
+		RCC_APB2Periph_GPIOC|RCC_APB2Periph_GPIOD|RCC_APB2Periph_GPIOE, ENABLE);	
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_All;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
-	/*控制脚*/
+
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15;
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
-
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
-} 
+}
 
-/****************************************************************************
-* 名		称：void ili9320_Clear(u16 dat)
-* 功		能：将屏幕填充成指定的颜色，如清屏，则填充 0xffff
-* 入口参数：dat			填充值
-* 出口参数：无
-* 说		明：
-* 调用方法：ili9320_Clear(0xffff);
-****************************************************************************/
-int ili9320_Clear(void)
+/*write index register*/
+static void ili9320_WriteIndex(short idx)
+{
+	Clr_Rs;
+	Set_nRd;
+	GPIOE->ODR = idx;
+	Clr_nWr;
+	Set_nWr;
+}
+
+/*write data register*/
+static void ili9320_WriteData(short data)
+{
+	Set_Rs;
+	Set_nRd;
+	GPIOE->ODR = data;
+	Clr_nWr;
+	Set_nWr;
+}
+
+/*read data register*/
+static short ili9320_ReadData(void)
+{
+	unsigned short val = 0;
+	Set_Rs;
+	Set_nWr;
+	Clr_nRd;
+	GPIOE->CRH = 0x44444444;
+	GPIOE->CRL = 0x44444444;
+	val = GPIOE->IDR;
+	val = GPIOE->IDR;
+	GPIOE->CRH = 0x33333333;
+	GPIOE->CRL = 0x33333333;
+	Set_nRd;
+	return val;
+}
+
+/*read indexed register*/
+static int ili9320_ReadRegister(int index)
+{ 
+	Clr_Cs;
+	ili9320_WriteIndex(index);		
+	index = ili9320_ReadData();		
+	Set_Cs;
+	return index;
+}
+
+/*write indexed register*/
+static int ili9320_WriteRegister(int index, int dat)
+{
+	Clr_Cs;
+	ili9320_WriteIndex(index);			
+	ili9320_WriteData(dat);		
+	Set_Cs; 
+	return 0;
+}
+
+void ili9320_SetCursor(short x, short y)
+{
+	if(DeviceCode == 0x8989) {
+		ili9320_WriteRegister(0x004e, y); //row
+		ili9320_WriteRegister(0x004f, 0x13f-x); //col
+	}
+	else if(DeviceCode == 0x9919) {
+		ili9320_WriteRegister(0x004e, x); //row
+		ili9320_WriteRegister(0x004f, y); //col	
+	}
+	else {
+		ili9320_WriteRegister(0x0020, x); //row
+		ili9320_WriteRegister(0x0021, y); //col
+	}
+}
+
+void ili9320_SetWindows(short StartX, short StartY, short EndX, short EndY)
+{
+	ili9320_SetCursor(StartX, StartY);
+	ili9320_WriteRegister(0x0050, StartX);
+	ili9320_WriteRegister(0x0051, EndX);
+	ili9320_WriteRegister(0x0052, StartY);
+	ili9320_WriteRegister(0x0053, EndY);
+}
+
+static short ili9320_BGR2RGB(short c)
+{
+	short r, g, b, rgb;
+
+	b = (c >> 0) & 0x1f;
+	g = (c >> 5) & 0x3f;
+	r = (c >> 11) & 0x1f;
+	
+	rgb = RGB565(r, g, b);
+	return rgb;
+}
+
+static short ili9320_GetPoint(short x, short y)
+{
+	short temp;
+
+	ili9320_SetCursor(x, y);
+	Clr_Cs;
+	ili9320_WriteIndex(0x0022);	
+	temp = ili9320_ReadData(); //dummy
+	temp = ili9320_ReadData(); 	
+	
+	Set_Cs;
+	if(DeviceCode != 0x7783 && DeviceCode != 0x4531)
+		temp = ili9320_BGR2RGB(temp);
+	return temp;
+}
+
+void ili9320_SetPoint(short x, short y, short point)
+{
+	ili9320_SetCursor(x, y);
+
+	Clr_Cs;
+	ili9320_WriteIndex(0x0022);
+	ili9320_WriteData(point);
+	Set_Cs;
+}
+
+/*clear the screen with the default bkcolor*/
+static int ili9320_Clear(void)
 {
 	u32	i;
 
 	ili9320_SetCursor(0x0000, 0x0000);	
 	Clr_Cs; 
 	ili9320_WriteIndex(0x0022);		
-	for(i=0;i<76800;i++)
-	{
-		ili9320_WriteData(COLOR_BG_DEF);
+	for(i = 0; i < 76800; i ++){
+		ili9320_WriteData(bgcolor);
 	}
 	Set_Cs;
 	return 0;
 }
 
-/****************************************************************************
-* 名		称：void ili9320_Initializtion()
-* 功		能：初始化 ILI9320 控制器
-* 入口参数：无
-* 出口参数：无
-* 说		明：
-* 调用方法：ili9320_Initializtion();
-****************************************************************************/
+int ili9320_DrawPicture(short StartX, short StartY, short EndX, short EndY, short *pic)
+{
+	short	i;
+
+	ili9320_SetWindows(StartX, StartY, EndX, EndY);
+
+	Clr_Cs;
+	ili9320_WriteIndex(0x0022);
+	for (i = 0; i < EndX * EndY; i ++) {
+		ili9320_WriteData(*pic ++);
+	}
+	Set_Cs;
+	
+	return 0;
+}
+
+/*8x16 -> 16x32*/
+void ili9320_PutChar(short x, short y, char c)
+{
+	int i, j;
+	short v;
+	const char *p = ascii_8x16 + ((c - '!' + 1) << 4);
+	ili9320_SetWindows(x, y, x + 15, y + 31);
+	
+	Clr_Cs;
+	ili9320_WriteIndex(0x0022);
+	for (i = 0; i < 16; i ++) {
+		c = *(p + i);
+		for(j = 0; j < 8; j ++) {
+			v = (c & 0x80) ? fgcolor : bgcolor;
+			ili9320_WriteData(v);
+			ili9320_WriteData(v);
+			c <<= 1;
+		}
+		c = *(p + i);
+		for(j = 0; j < 8; j ++) {
+			v = (c & 0x80) ? fgcolor : bgcolor;
+			ili9320_WriteData(v);
+			ili9320_WriteData(v);
+			c <<= 1;
+		}
+	}
+	Set_Cs;
+}
+
+/************************************************************
+write a string
+x: 0~29
+y: 0~19
+*************************************************************/
+int ili9320_WriteString(int x, int y, const char *s)
+{
+	while (*s) {
+		ili9320_PutChar(x << 4 , y << 5, *s);
+		s ++;
+		x ++;
+	}
+
+	return 0;
+}
+
 int ili9320_Initializtion(void)
 {
-	/*****************************
-	**		硬件连接说明			**
-	** STM32		ili9320		**
-	** PE0~15 <----> DB0~15		**
-	** PD15	 <----> nRD		**
-	** PD14	 <----> RS		**
-	** PD13	 <----> nWR		**
-	** PD12	 <----> nCS		**
-	** PD11	 <----> nReset		**
-	** PC0		<----> BK_LED		**
-	******************************/
 	ili9320_WriteData(0xffff);
 	Set_nWr;
 	Set_Cs;
@@ -159,8 +320,8 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x00,0x0000);
 		ili9320_WriteRegister(0x01,0x0100);	//Driver Output Contral.
 		ili9320_WriteRegister(0x02,0x0700);	//LCD Driver Waveform Contral.
-//		ili9320_WriteRegister(0x03,0x1030);	//Entry Mode Set.
-		ili9320_WriteRegister(0x03,0x1018);	//Entry Mode Set.
+		ili9320_WriteRegister(0x03,0x1030);	//Entry Mode Set.
+		//ili9320_WriteRegister(0x03, 0x1018);	//Entry Mode Set.
 	
 		ili9320_WriteRegister(0x04,0x0000);	//Scalling Contral.
 		ili9320_WriteRegister(0x08,0x0202);	//Display Contral 2.(0x0207)
@@ -534,326 +695,16 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0023,0x0000);		mdelay(50000);
 		ili9320_WriteRegister(0x0024,0x0000);		mdelay(50000);
 		ili9320_WriteRegister(0x0025,0x8000);		mdelay(50000);
-		ili9320_WriteRegister(0x004f,0);		//行首址0
-		ili9320_WriteRegister(0x004e,0);		//列首址0
+		ili9320_WriteRegister(0x004f,0);
+		ili9320_WriteRegister(0x004e,0);
 	}	*/
 	ili9320_Clear();
 	return 0;
 }
 
-/****************************************************************************
-* 名		称：void ili9320_SetCursor(u16 x,u16 y)
-* 功		能：设置屏幕座标
-* 入口参数：x			行座标
-*			y			列座标
-* 出口参数：无
-* 说		明：
-* 调用方法：ili9320_SetCursor(10,10);
-****************************************************************************/
-void ili9320_SetCursor(u16 x,u16 y)
-{
-	if(DeviceCode==0x8989)
-	{
-		ili9320_WriteRegister(0x004e,y);		//行
-		ili9320_WriteRegister(0x004f,0x13f-x);	//列
-	}
-	else if(DeviceCode==0x9919)
-	{
-		ili9320_WriteRegister(0x004e,x); // 行
-		ili9320_WriteRegister(0x004f,y); // 列	
-	}
-	else
-	{
-		ili9320_WriteRegister(0x0020,y); // 行
-		ili9320_WriteRegister(0x0021,0x13f-x); // 列
-	}
-}
-
-/****************************************************************************
-* 名		称：void ili9320_SetWindows(u16 StartX,u16 StartY,u16 EndX,u16 EndY)
-* 功		能：设置窗口区域
-* 入口参数：StartX		行起始座标
-*			StartY		列起始座标
-*			EndX			行结束座标
-*			EndY			列结束座标
-* 出口参数：无
-* 说		明：
-* 调用方法：ili9320_SetWindows(0,0,100,100)；
-****************************************************************************/
-void ili9320_SetWindows(u16 StartX,u16 StartY,u16 EndX,u16 EndY)
-{
-	ili9320_SetCursor(StartX,StartY);
-	ili9320_WriteRegister(0x0050, StartX);
-	ili9320_WriteRegister(0x0052, StartY);
-	ili9320_WriteRegister(0x0051, EndX);
-	ili9320_WriteRegister(0x0053, EndY);
-}
-
-/****************************************************************************
-* 名		称：u16 ili9320_GetPoint(u16 x,u16 y)
-* 功		能：获取指定座标的颜色值
-* 入口参数：x			行座标
-*			y			列座标
-* 出口参数：当前座标颜色值
-* 说		明：
-* 调用方法：i=ili9320_GetPoint(10,10);
-****************************************************************************/
-//u16 ili9320_GetPoint(u16 x,u16 y)
-//{
-//	ili9320_SetCursor(x,y);
-//	return (ili9320_BGR2RGB(ili9320_ReadRegister(0x0022)));
-//}
-
-
-u16 ili9320_GetPoint(u16 x,u16 y)
-{
-	u16 temp;
-	ili9320_SetCursor(x,y);
-	Clr_Cs;
-	ili9320_WriteIndex(0x0022);	
-	temp = ili9320_ReadData(); //dummy
-	temp = ili9320_ReadData(); 	
-	 Set_Cs;
-	 if(DeviceCode!=0x7783&&DeviceCode!=0x4531)
-	 		temp=ili9320_BGR2RGB(temp);
-	 return (temp);
-}
-
-/****************************************************************************
-* 名		称：void ili9320_SetPoint(u16 x,u16 y,u16 point)
-* 功		能：在指定座标画点
-* 入口参数：x			行座标
-*			y			列座标
-*			point	点的颜色
-* 出口参数：无
-* 说		明：
-* 调用方法：ili9320_SetPoint(10,10,0x0fe0);
-****************************************************************************/
-void ili9320_SetPoint(u16 x,u16 y,u16 point)
-{
-	if ( (x>320)||(y>240) ) return;
-	ili9320_SetCursor(x,y);
-
-	Clr_Cs;
-	ili9320_WriteIndex(0x0022);
-	ili9320_WriteData(point);
-	Set_Cs;
-}
-
-/****************************************************************************
-* 名		称：void ili9320_DrawPicture(u16 StartX,u16 StartY,u16 EndX,u16 EndY,u16 *pic)
-* 功		能：在指定座标范围显示一副图片
-* 入口参数：StartX		行起始座标
-*			StartY		列起始座标
-*			EndX			行结束座标
-*			EndY			列结束座标
-				pic		图片头指针
-* 出口参数：无
-* 说		明：图片取模格式为水平扫描，16位颜色模式
-* 调用方法：ili9320_DrawPicture(0,0,100,100,(u16*)demo);
-****************************************************************************/
-void ili9320_DrawPicture(u16 StartX,u16 StartY,u16 EndX,u16 EndY,u16 *pic)
-{
-	u16	i;
-	ili9320_SetWindows(StartX,StartY,EndX,EndY);
-	ili9320_SetCursor(StartX,StartY);
-	
-	Clr_Cs;
-
-	ili9320_WriteIndex(0x0022);
-	for (i=0;i<(EndX*EndY);i++)
-	{
-			ili9320_WriteData(*pic++);
-	}		
-	Set_Cs;
-}
-
-/****************************************************************************
-* 名		称：void ili9320_PutChar(u16 x,u16 y,u8 c,u16 charColor,u16 bkColor)
-* 功		能：在指定座标显示一个8x16点阵的ascii字符
-* 入口参数：x			行座标
-*			y			列座标
-*			charColor	字符的颜色
-*			bkColor		字符背景颜色
-* 出口参数：无
-* 说		明：显示范围限定为可显示的ascii码
-* 调用方法：ili9320_PutChar(10,10,'a',0x0000,0xffff);
-****************************************************************************/
-void ili9320_PutChar(u16 x,u16 y,u8 c,u16 charColor,u16 bkColor)
-{
-	u16 i=0;
-	u16 j=0;
-	
-	u8 tmp_char=0;
-
-	for (i=0;i<16;i++)
-	{
-		tmp_char=ascii_8x16[((c-0x20)*16)+i];
-		for (j=0;j<8;j++)
-		{
-			if ( (tmp_char >> 7-j) & 0x01 == 0x01)
-		{
-			ili9320_SetPoint(x+j,y+i,charColor); // 字符颜色
-		}
-		else
-		{
-			ili9320_SetPoint(x+j,y+i,bkColor); // 背景颜色
-		}
-		}
-	}
-}
-
-/************************************************************
-write a string
-x: 0~29
-y: 0~19
-*************************************************************/
-int ili9320_WriteString(int x, int y, const char *s)
-{
-	while (*s) {
-		ili9320_PutChar(x << 3 , y << 4, *s, COLOR_FG_DEF, COLOR_BG_DEF);
-		s ++;
-		x ++;
-	}
-
-	return 0;
-}
-
-/****************************************************************************
-* 名		称：u16 ili9320_BGR2RGB(u16 c)
-* 功		能：RRRRRGGGGGGBBBBB 改为 BBBBBGGGGGGRRRRR 格式
-* 入口参数：c			BRG 颜色值
-* 出口参数：RGB 颜色值
-* 说		明：内部函数调用
-* 调用方法：
-****************************************************************************/
-u16 ili9320_BGR2RGB(u16 c)
-{
-	u16	r, g, b, rgb;
-
-	b = (c>>0)	& 0x1f;
-	g = (c>>5)	& 0x3f;
-	r = (c>>11) & 0x1f;
-	
-	rgb =	(b<<11) + (g<<5) + (r<<0);
-
-	return( rgb );
-}
-
-/****************************************************************************
-* 名		称：void ili9320_WriteIndex(u16 idx)
-* 功		能：写 ili9320 控制器寄存器地址
-* 入口参数：idx	 寄存器地址
-* 出口参数：无
-* 说		明：调用前需先选中控制器，内部函数
-* 调用方法：ili9320_WriteIndex(0x0000);
-****************************************************************************/
-void ili9320_WriteIndex(u16 idx)
-{
-		Clr_Rs;
-	Set_nRd;
-	GPIOE->ODR = idx;
-	Clr_nWr;
-	Set_nWr;
-}
-
-/****************************************************************************
-* 名		称：void ili9320_WriteData(u16 dat)
-* 功		能：写 ili9320 寄存器数据
-* 入口参数：dat		寄存器数据
-* 出口参数：无
-* 说		明：向控制器指定地址写入数据，调用前需先写寄存器地址，内部函数
-* 调用方法：ili9320_WriteData(0x1030)
-****************************************************************************/
-void ili9320_WriteData(u16 data)
-{
-	Set_Rs;
-	Set_nRd;
-		GPIOE->ODR = data;
-	Clr_nWr;
-	Set_nWr;
-}
-
-/****************************************************************************
-* 名		称：u16 ili9320_ReadData(void)
-* 功		能：读取控制器数据
-* 入口参数：无
-* 出口参数：返回读取到的数据
-* 说		明：内部函数
-* 调用方法：i=ili9320_ReadData();
-****************************************************************************/
-u16 ili9320_ReadData(void)
-{
-//========================================================================
-// **																		**
-// ** nCS			----\__________________________________________/-------	**
-// ** RS		------\____________/-----------------------------------	**
-// ** nRD			-------------------------\_____/---------------------	**
-// ** nWR			--------\_______/--------------------------------------	**
-// ** DB[0:15]	---------[index]----------[data]-----------------------	**
-// **																		**
-//========================================================================
-	unsigned short val = 0;
-	Set_Rs;
-	Set_nWr;
-	Clr_nRd;
-		GPIOE->CRH = 0x44444444;
-	GPIOE->CRL = 0x44444444;
-	val = GPIOE->IDR;
-	val = GPIOE->IDR;
-	GPIOE->CRH = 0x33333333;
-	GPIOE->CRL = 0x33333333;
-	Set_nRd;
-	return val;
-}
-
-/****************************************************************************
-* 名		称：u16 ili9320_ReadRegister(u16 index)
-* 功		能：读取指定地址寄存器的值
-* 入口参数：index		寄存器地址
-* 出口参数：寄存器值
-* 说		明：内部函数
-* 调用方法：i=ili9320_ReadRegister(0x0022);
-****************************************************************************/
-int ili9320_ReadRegister(int index)
-{ 
-	Clr_Cs;
-	ili9320_WriteIndex(index);		
-	index = ili9320_ReadData();		
-	Set_Cs;
-	return index;
-}
-
-/****************************************************************************
-* 名		称：void ili9320_WriteRegister(u16 index,u16 dat)
-* 功		能：写指定地址寄存器的值
-* 入口参数：index		寄存器地址
-*		：dat			寄存器值
-* 出口参数：无
-* 说		明：内部函数
-* 调用方法：ili9320_WriteRegister(0x0000,0x0001);
-****************************************************************************/
-int ili9320_WriteRegister(int index, int dat)
-{
- /************************************************************************
-	**																		**
-	** nCS			----\__________________________________________/-------	**
-	** RS		------\____________/-----------------------------------	**
-	** nRD			-------------------------------------------------------	**
-	** nWR			--------\_______/--------\_____/-----------------------	**
-	** DB[0:15]	---------[index]----------[data]-----------------------	**
-	**																		**
-	************************************************************************/
-	Clr_Cs;
-	ili9320_WriteIndex(index);			
-	ili9320_WriteData(dat);		
-	Set_Cs; 
-	return 0;
-}
-
 static const lcd_t lcd932x = {
-	.w = 40,
-	.h = 15,
+	.w = 15,
+	.h = 10,
 	.init = ili9320_Initializtion,
 	.puts = ili9320_WriteString,
 	.clear_all = ili9320_Clear,
@@ -865,9 +716,9 @@ static const lcd_t lcd932x = {
 
 static void lcd932x_reg(void)
 {
+	fgcolor = (unsigned short) COLOR_FG_DEF;
+	bgcolor = (unsigned short) COLOR_BG_DEF;
 	Lcd_Configuration();
 	lcd_add(&lcd932x);
 }
 driver_init(lcd932x_reg);
-
-

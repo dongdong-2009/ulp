@@ -6,7 +6,7 @@
 
 #include "config.h"
 
-#define RGB565(r, g, b)	((unsigned short)(r | (g << 5) | (b << 11)))
+#define RGB565(r, g, b)	(r | (g << 5) | (b << 11))
 
 typedef struct {
 	int w; //width
