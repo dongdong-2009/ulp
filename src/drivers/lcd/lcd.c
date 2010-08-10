@@ -121,4 +121,20 @@ int lcd_scroll(int xoffset, int yoffset)
 	return ret;
 }
 
+int lcd_writereg(int reg, int val)
+{
+	if(lcd && lcd->writereg) {
+		return lcd->writereg(reg, val);
+	}
+	else
+		return -1;
+}
 
+int lcd_readreg(int reg)
+{
+	if(lcd && lcd->readreg) {
+		return lcd->readreg(reg);
+	}
+	else
+		return -1;
+}

@@ -25,8 +25,8 @@
 void ili9320_WriteIndex(u16 idx);
 void ili9320_WriteData(u16 dat);
 u16 ili9320_ReadData(void);
-void ili9320_WriteRegister(u16 index,u16 dat);
-u16 ili9320_ReadRegister(u16 index);
+int ili9320_WriteRegister(int index, int dat);
+int ili9320_ReadRegister(int index);
 
 u16 ili9320_BGR2RGB(u16 c);
 void ili9320_SetCursor(u16 x,u16 y);

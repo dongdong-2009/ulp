@@ -815,9 +815,9 @@ u16 ili9320_ReadData(void)
 * 说		明：内部函数
 * 调用方法：i=ili9320_ReadRegister(0x0022);
 ****************************************************************************/
-u16 ili9320_ReadRegister(u16 index)
+int ili9320_ReadRegister(int index)
 { 
-		Clr_Cs;
+	Clr_Cs;
 	ili9320_WriteIndex(index);		
 	index = ili9320_ReadData();		
 	Set_Cs;
@@ -833,7 +833,7 @@ u16 ili9320_ReadRegister(u16 index)
 * 说		明：内部函数
 * 调用方法：ili9320_WriteRegister(0x0000,0x0001);
 ****************************************************************************/
-void ili9320_WriteRegister(u16 index,u16 dat)
+int ili9320_WriteRegister(int index, int dat)
 {
  /************************************************************************
 	**																		**
@@ -844,10 +844,11 @@ void ili9320_WriteRegister(u16 index,u16 dat)
 	** DB[0:15]	---------[index]----------[data]-----------------------	**
 	**																		**
 	************************************************************************/
-		Clr_Cs;
+	Clr_Cs;
 	ili9320_WriteIndex(index);			
 	ili9320_WriteData(dat);		
 	Set_Cs; 
+	return 0;
 }
 
 static const lcd_t lcd932x = {
@@ -858,6 +859,8 @@ static const lcd_t lcd932x = {
 	.clear_all = ili9320_Clear,
 	.clear_rect = NULL,
 	.scroll = NULL,
+	.writereg = ili9320_WriteRegister,
+	.readreg = ili9320_ReadRegister,
 };
 
 static void lcd932x_reg(void)

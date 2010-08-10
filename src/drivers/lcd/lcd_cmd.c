@@ -18,6 +18,8 @@ static int cmd_lcd_func(int argc, char *argv[])
 		"usage:\n" \
 		"lcd init\n"
 		"lcd puts x y str\n"
+		"lcd w reg val\n"
+		"lcd r reg\n"
 	};
 	
 	if(argc == 2) {
@@ -25,6 +27,22 @@ static int cmd_lcd_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(argc > 2) {
+		if(argv[1][0] == 'w') {
+			//write reg
+			sscanf(argv[2], "%x", &row);
+			sscanf(argv[3], "%x", &col);
+			lcd_writereg(row, col);
+			printf("reg[0x%x] = 0x%x)\n", row, col);
+			return 0;
+		}
+		
+		if(argv[2][0] == 'r') {
+			sscanf(argv[2], "%x", &row);
+			col = lcd_readreg(row);
+			printf("reg[0x%x] = 0x%x)\n", row, col);
+			return 0;
+		}
+		
 		row = atoi(argv[2]);
 		col = atoi(argv[3]);
 		lcd_puts(row, col, argv[4]);
