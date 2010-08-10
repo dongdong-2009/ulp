@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "FreeRTOS.h"
 
 int item_DrawTxt(const osd_item_t *item, int status)
 {

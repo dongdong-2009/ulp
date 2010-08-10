@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include "time.h"
 #include "sys/task.h"
+#include "FreeRTOS.h"
 
 //osd kernel data object, RAM
 typedef struct osd_item_ks {
