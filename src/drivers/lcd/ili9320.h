@@ -4,8 +4,8 @@
 #include "config.h"
 #include "lcd.h"
 
-#define COLOR_BG_DEF	RGB565(0x10, 0x10, 0x10)
-#define COLOR_FG_DEF	RGB565(0xff, 0xff, 0xff)
+#define COLOR_BG_DEF	WHITE
+#define COLOR_FG_DEF	BLACK
 
 #define Set_Cs  GPIOC->BSRR  = 0x00000040;
 #define Clr_Cs  GPIOC->BRR   = 0x00000040;

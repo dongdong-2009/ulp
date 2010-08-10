@@ -233,6 +233,12 @@ int ili9320_WriteString(int x, int y, const char *s)
 	return 0;
 }
 
+int ili9320_set_color(int fg, int bg)
+{
+	fgcolor = (unsigned short) fg;
+	bgcolor = (unsigned short) bg;
+}
+
 int ili9320_Initializtion(void)
 {
 	ili9320_WriteData(0xffff);
@@ -710,6 +716,7 @@ static const lcd_t lcd932x = {
 	.clear_all = ili9320_Clear,
 	.clear_rect = NULL,
 	.scroll = NULL,
+	.set_color = ili9320_set_color,
 	.writereg = ili9320_WriteRegister,
 	.readreg = ili9320_ReadRegister,
 };
