@@ -11,7 +11,6 @@ enum {
 	KEY_NONE,
 	KEY_RESET,
 	KEY_ENTER,
-#if CONFIG_RCKEY_PROTOCOL_RC5 == 1
 	KEY_UP = 0x10, /*10*/
 	KEY_DOWN = 0x11,
 	KEY_MENU = 0x12,
@@ -43,12 +42,6 @@ enum {
 	KEY_TIMER = 0x6f,
 	KEY_AV = 0x78,
 	KEY_CC = 0x7a,
-#else
-	KEY_LEFT,
-	KEY_RIGHT,
-	KEY_UP,
-	KEY_DOWN,
-#endif
 };
 
 typedef union {
