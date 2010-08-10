@@ -92,7 +92,7 @@ void osd_Update(void)
 	}
 }
 
-DECLARE_TASK(osd_Init, osd_Update)
+DECLARE_LIB(osd_Init, osd_Update)
 
 static int osd_HandleCommand(int event, const osd_command_t *cmds)
 {
