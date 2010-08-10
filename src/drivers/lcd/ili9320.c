@@ -31,6 +31,29 @@ void Lcd_Configuration(void)
 } 
 
 /****************************************************************************
+* 名		称：void ili9320_Clear(u16 dat)
+* 功		能：将屏幕填充成指定的颜色，如清屏，则填充 0xffff
+* 入口参数：dat			填充值
+* 出口参数：无
+* 说		明：
+* 调用方法：ili9320_Clear(0xffff);
+****************************************************************************/
+int ili9320_Clear(void)
+{
+	u32	i;
+
+	ili9320_SetCursor(0x0000, 0x0000);	
+	Clr_Cs; 
+	ili9320_WriteIndex(0x0022);		
+	for(i=0;i<76800;i++)
+	{
+		ili9320_WriteData(COLOR_BG_DEF);
+	}
+	Set_Cs;
+	return 0;
+}
+
+/****************************************************************************
 * 名		称：void ili9320_Initializtion()
 * 功		能：初始化 ILI9320 控制器
 * 入口参数：无
@@ -42,66 +65,58 @@ int ili9320_Initializtion(void)
 {
 	/*****************************
 	**		硬件连接说明			**
-	** STM32		 ili9320		**
-	** PE0~15 <----> DB0~15		 **
+	** STM32		ili9320		**
+	** PE0~15 <----> DB0~15		**
 	** PD15	 <----> nRD		**
-	** PD14	 <----> RS		 **
+	** PD14	 <----> RS		**
 	** PD13	 <----> nWR		**
 	** PD12	 <----> nCS		**
-	** PD11	 <----> nReset		 **
-	** PC0		<----> BK_LED		 **
+	** PD11	 <----> nReset		**
+	** PC0		<----> BK_LED		**
 	******************************/
- 	u16 i;
-
-		ili9320_WriteData(0xffff);
+	ili9320_WriteData(0xffff);
 	Set_nWr;
 	Set_Cs;
 	Set_Rs;
 	Set_nRd;
 
-	ili9320_WriteRegister(0x0000,0x0001);mdelay(10000);
-	for(i=50000;i>0;i--);
-	for(i=50000;i>0;i--);
+	ili9320_WriteRegister(0x0000,0x0001);
+	mdelay(10); //wait at least 10ms to let the oscillator stable
 	DeviceCode = ili9320_ReadRegister(0x0000);
 	//	DeviceCode = 0x9320;
 	if(DeviceCode==0x9325||DeviceCode==0x9328)
 	{
 		ili9320_WriteRegister(0x00e7,0x0010);			
 		ili9320_WriteRegister(0x0000,0x0001);			//start internal osc
-		ili9320_WriteRegister(0x0001,0x0100);		 
-		ili9320_WriteRegister(0x0002,0x0700); 				//power on sequence						 
+		ili9320_WriteRegister(0x0001,0x0100);		
+		ili9320_WriteRegister(0x0002,0x0700); 				//power on sequence						
 		ili9320_WriteRegister(0x0003,(1<<12)|(1<<5)|(1<<4) ); 	//65K 
-		ili9320_WriteRegister(0x0004,0x0000);									 
-		ili9320_WriteRegister(0x0008,0x0207);				 
-		ili9320_WriteRegister(0x0009,0x0000);		 
-		ili9320_WriteRegister(0x000a,0x0000); 				//display setting		 
+		ili9320_WriteRegister(0x0004,0x0000);									
+		ili9320_WriteRegister(0x0008,0x0207);				
+		ili9320_WriteRegister(0x0009,0x0000);		
+		ili9320_WriteRegister(0x000a,0x0000); 				//display setting		
 		ili9320_WriteRegister(0x000c,0x0001);				//display setting			
 		ili9320_WriteRegister(0x000d,0x0000); 				//0f3c			
 		ili9320_WriteRegister(0x000f,0x0000);
 		//Power On sequence //
 		ili9320_WriteRegister(0x0010,0x0000);	 
 		ili9320_WriteRegister(0x0011,0x0007);
-		ili9320_WriteRegister(0x0012,0x0000);																 
-		ili9320_WriteRegister(0x0013,0x0000);				 
-		for(i=50000;i>0;i--);
-		for(i=50000;i>0;i--);
+		ili9320_WriteRegister(0x0012,0x0000);																
+		ili9320_WriteRegister(0x0013,0x0000);				
+		mdelay(1);
 		ili9320_WriteRegister(0x0010,0x1590);	 
 		ili9320_WriteRegister(0x0011,0x0227);
-		for(i=50000;i>0;i--);
-		for(i=50000;i>0;i--);
+		mdelay(1);
 		ili9320_WriteRegister(0x0012,0x009c);					
-		for(i=50000;i>0;i--);
-		for(i=50000;i>0;i--);
+		mdelay(1);
 		ili9320_WriteRegister(0x0013,0x1900);	 
 		ili9320_WriteRegister(0x0029,0x0023);
 		ili9320_WriteRegister(0x002b,0x000e);
-		for(i=50000;i>0;i--);
-		for(i=50000;i>0;i--);
+		mdelay(1);
 		ili9320_WriteRegister(0x0020,0x0000);																
-		ili9320_WriteRegister(0x0021,0x0000);			 
+		ili9320_WriteRegister(0x0021,0x0000);			
 		///////////////////////////////////////////////////////			
-		for(i=50000;i>0;i--);
-		for(i=50000;i>0;i--);
+		mdelay(1);
 		ili9320_WriteRegister(0x0030,0x0007); 
 		ili9320_WriteRegister(0x0031,0x0707);	 
 		ili9320_WriteRegister(0x0032,0x0006);
@@ -109,14 +124,13 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0036,0x1f04); 
 		ili9320_WriteRegister(0x0037,0x0004);
 		ili9320_WriteRegister(0x0038,0x0000);		
-		ili9320_WriteRegister(0x0039,0x0706);		 
+		ili9320_WriteRegister(0x0039,0x0706);		
 		ili9320_WriteRegister(0x003c,0x0701);
 		ili9320_WriteRegister(0x003d,0x000f);
-		for(i=50000;i>0;i--);
-		for(i=50000;i>0;i--);
+		mdelay(1);
 		ili9320_WriteRegister(0x0050,0x0000);		
 		ili9320_WriteRegister(0x0051,0x00ef);	 
-		ili9320_WriteRegister(0x0052,0x0000);		 
+		ili9320_WriteRegister(0x0052,0x0000);		
 		ili9320_WriteRegister(0x0053,0x013f);
 		ili9320_WriteRegister(0x0060,0xa700);		
 		ili9320_WriteRegister(0x0061,0x0001); 
@@ -128,13 +142,13 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0084,0x0000);
 		ili9320_WriteRegister(0x0085,0x0000);
 			
-		ili9320_WriteRegister(0x0090,0x0010);		 
+		ili9320_WriteRegister(0x0090,0x0010);		
 		ili9320_WriteRegister(0x0092,0x0000);	
 		ili9320_WriteRegister(0x0093,0x0003);
 		ili9320_WriteRegister(0x0095,0x0110);
 		ili9320_WriteRegister(0x0097,0x0000);		
 		ili9320_WriteRegister(0x0098,0x0000);	
-		 //display on sequence		 
+		//display on sequence		
 		ili9320_WriteRegister(0x0007,0x0133);
 		
 		ili9320_WriteRegister(0x0020,0x0000);																
@@ -155,13 +169,9 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0c,(1<<0));	//Extern Display Interface Contral 1.(0x0000)
 		ili9320_WriteRegister(0x0d,0x0000);	//Frame Maker Position.
 		ili9320_WriteRegister(0x0f,0x0000);	//Extern Display Interface Contral 2.
-	
-		for(i=50000;i>0;i--);
-		for(i=50000;i>0;i--);
+		mdelay(1);
 		ili9320_WriteRegister(0x07,0x0101);	//Display Contral.
-		for(i=50000;i>0;i--);
-		for(i=50000;i>0;i--);
-	
+		mdelay(1);
 		ili9320_WriteRegister(0x10,(1<<12)|(0<<8)|(1<<7)|(1<<6)|(0<<4));	//Power Control 1.(0x16b0)
 		ili9320_WriteRegister(0x11,0x0007);								//Power Control 2.(0x0001)
 		ili9320_WriteRegister(0x12,(1<<8)|(1<<4)|(0<<0));					//Power Control 3.(0x0138)
@@ -193,74 +203,44 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x97,(0<<8));	//
 		ili9320_WriteRegister(0x98,0x0000);	//Frame Cycle Contral.
 
-	
 		ili9320_WriteRegister(0x07,0x0173);	//(0x0173)
 	}
 	else if(DeviceCode==0x9919)
 	{
 		//------POWER ON &RESET DISPLAY OFF
-		 ili9320_WriteRegister(0x28,0x0006);
+		ili9320_WriteRegister(0x28,0x0006);		
+		ili9320_WriteRegister(0x00,0x0001);
+		ili9320_WriteRegister(0x10,0x0000);
+		ili9320_WriteRegister(0x01,0x72ef);
+		ili9320_WriteRegister(0x02,0x0600);
+		ili9320_WriteRegister(0x03,0x6a38);
+		ili9320_WriteRegister(0x11,0x6874);//70
 		
-		 ili9320_WriteRegister(0x00,0x0001);
+		ili9320_WriteRegister(0x0f,0x0000); //	RAM WRITE DATA MASK
+		ili9320_WriteRegister(0x0b,0x5308); //	RAM WRITE DATA MASK
+		ili9320_WriteRegister(0x0c,0x0003);
+		ili9320_WriteRegister(0x0d,0x000a);
+		ili9320_WriteRegister(0x0e,0x2e00);	//0030
+		ili9320_WriteRegister(0x1e,0x00be);
+		ili9320_WriteRegister(0x25,0x8000);
+		ili9320_WriteRegister(0x26,0x7800);
+		ili9320_WriteRegister(0x27,0x0078);
+		ili9320_WriteRegister(0x4e,0x0000);
+		ili9320_WriteRegister(0x4f,0x0000);
+		ili9320_WriteRegister(0x12,0x08d9);
 		
-		 ili9320_WriteRegister(0x10,0x0000);
-		
-		 ili9320_WriteRegister(0x01,0x72ef);
-
-		 ili9320_WriteRegister(0x02,0x0600);
-
-		 ili9320_WriteRegister(0x03,0x6a38);
-		
-		 ili9320_WriteRegister(0x11,0x6874);//70
-		
-		 
-				 //	RAM WRITE DATA MASK
-		 ili9320_WriteRegister(0x0f,0x0000); 
-				//	RAM WRITE DATA MASK
-		 ili9320_WriteRegister(0x0b,0x5308); 
-		
-		 ili9320_WriteRegister(0x0c,0x0003);
-		
-		 ili9320_WriteRegister(0x0d,0x000a);
-		
-		 ili9320_WriteRegister(0x0e,0x2e00);	//0030
-		
-		 ili9320_WriteRegister(0x1e,0x00be);
-		
-		 ili9320_WriteRegister(0x25,0x8000);
-		
-		 ili9320_WriteRegister(0x26,0x7800);
-		
-		 ili9320_WriteRegister(0x27,0x0078);
-		
-		 ili9320_WriteRegister(0x4e,0x0000);
-		
-		 ili9320_WriteRegister(0x4f,0x0000);
-		
-		 ili9320_WriteRegister(0x12,0x08d9);
-		
-		 // -----------------Adjust the Gamma Curve----//
-		 ili9320_WriteRegister(0x30,0x0000);	 //0007
-		
-		 ili9320_WriteRegister(0x31,0x0104);		 //0203
-		
-		 ili9320_WriteRegister(0x32,0x0100);		//0001
-
-		 ili9320_WriteRegister(0x33,0x0305);		//0007
-
-		 ili9320_WriteRegister(0x34,0x0505);		//0007
-		
-		 ili9320_WriteRegister(0x35,0x0305);		 //0407
-		
-		 ili9320_WriteRegister(0x36,0x0707);		 //0407
-		
-		 ili9320_WriteRegister(0x37,0x0300);			//0607
-		
-		 ili9320_WriteRegister(0x3a,0x1200);		 //0106
-		
-		 ili9320_WriteRegister(0x3b,0x0800);		 
-
-		 ili9320_WriteRegister(0x07,0x0033);
+		// -----------------Adjust the Gamma Curve----//
+		ili9320_WriteRegister(0x30,0x0000);	 //0007
+		ili9320_WriteRegister(0x31,0x0104);		//0203
+		ili9320_WriteRegister(0x32,0x0100);		//0001
+		ili9320_WriteRegister(0x33,0x0305);		//0007
+		ili9320_WriteRegister(0x34,0x0505);		//0007
+		ili9320_WriteRegister(0x35,0x0305);		//0407
+		ili9320_WriteRegister(0x36,0x0707);		//0407
+		ili9320_WriteRegister(0x37,0x0300);			//0607
+		ili9320_WriteRegister(0x3a,0x1200);		//0106
+		ili9320_WriteRegister(0x3b,0x0800);		
+		ili9320_WriteRegister(0x07,0x0033);
 	} 
 	else if(DeviceCode==0x9331)
 	{
@@ -269,7 +249,7 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x00E7, 0x1014);
 		ili9320_WriteRegister(0x0001, 0x0100); // set SS and SM bit	 0x0100
 		ili9320_WriteRegister(0x0002, 0x0200); // set 1 line inversion
-		ili9320_WriteRegister(0x0003, 0x1030); // set GRAM write direction and BGR=1.		 0x1030
+		ili9320_WriteRegister(0x0003, 0x1030); // set GRAM write direction and BGR=1.		0x1030
 		ili9320_WriteRegister(0x0008, 0x0202); // set the back porch and front porch
 		ili9320_WriteRegister(0x0009, 0x0000); // set non-display area refresh cycle ISC[3:0]
 		ili9320_WriteRegister(0x000A, 0x0000); // FMARK function
@@ -281,16 +261,16 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0011, 0x0007); // DC1[2:0], DC0[2:0], VC[2:0]
 		ili9320_WriteRegister(0x0012, 0x0000); // VREG1OUT voltage
 		ili9320_WriteRegister(0x0013, 0x0000); // VDV[4:0] for VCOM amplitude
-		mdelay(200); // Dis-charge capacitor power voltage
+		mdelay(10); // Dis-charge capacitor power voltage
 		ili9320_WriteRegister(0x0010, 0x1690); // SAP, BT[3:0], AP, DSTB, SLP, STB
 		ili9320_WriteRegister(0x0011, 0x0227); // DC1[2:0], DC0[2:0], VC[2:0]
-		mdelay(50); // Delay 50ms
+		mdelay(1); // Delay 50ms
 		ili9320_WriteRegister(0x0012, 0x000C); // Internal reference voltage= Vci;
-		mdelay(50); // Delay 50ms
+		mdelay(1); // Delay 50ms
 		ili9320_WriteRegister(0x0013, 0x0800); // Set VDV[4:0] for VCOM amplitude
 		ili9320_WriteRegister(0x0029, 0x0011); // Set VCM[5:0] for VCOMH
 		ili9320_WriteRegister(0x002B, 0x000B); // Set Frame Rate
-		mdelay(50); // Delay 50ms
+		mdelay(1); // Delay 50ms
 		ili9320_WriteRegister(0x0020, 0x0000); // GRAM horizontal Address
 		ili9320_WriteRegister(0x0021, 0x0000); // GRAM Vertical Address
 		// ----------- Adjust the Gamma Curve ----------//
@@ -323,11 +303,11 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0090, 0x0010);
 		ili9320_WriteRegister(0x0092, 0x0600);
 		ili9320_WriteRegister(0x0007,0x0021);		
-		mdelay(50);
+		mdelay(1);
 		ili9320_WriteRegister(0x0007,0x0061);
-		mdelay(50);
+		mdelay(1);
 		ili9320_WriteRegister(0x0007,0x0133);	// 262K color and display ON
-		mdelay(50);
+		mdelay(1);
 	}	
 	else if(DeviceCode==0x7783)
 	{
@@ -345,15 +325,15 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0011,0x0005);
 		ili9320_WriteRegister(0x0012,0x0000);
 		ili9320_WriteRegister(0x0013,0x0000);
-		mdelay(50);
+		mdelay(1);
 		ili9320_WriteRegister(0x0010,0x12B0);
-		mdelay(50);
+		mdelay(1);
 		ili9320_WriteRegister(0x0011,0x0007);
-		mdelay(50);
+		mdelay(1);
 		ili9320_WriteRegister(0x0012,0x008B);
-		mdelay(50);
+		mdelay(1);
 		ili9320_WriteRegister(0x0013,0x1700);
-		mdelay(50);
+		mdelay(1);
 		ili9320_WriteRegister(0x0029,0x0022);
 		
 		//################# void Gamma_Set(void) ####################//
@@ -367,9 +347,8 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0039,0x0106);
 		ili9320_WriteRegister(0x003C,0x0202);
 		ili9320_WriteRegister(0x003D,0x0408);
-		mdelay(50);
-		
-		
+		mdelay(1);
+
 		ili9320_WriteRegister(0x0050,0x0000);		
 		ili9320_WriteRegister(0x0051,0x00EF);		
 		ili9320_WriteRegister(0x0052,0x0000);		
@@ -379,61 +358,61 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0090,0x0033);				
 		ili9320_WriteRegister(0x002B,0x000B);		
 		ili9320_WriteRegister(0x0007,0x0133);
-		mdelay(50);
+		mdelay(1);
 	}	
 	else if(DeviceCode==0x4531)
 	{		
 		// Setup display
 		ili9320_WriteRegister(0x00,0x0001);
-			ili9320_WriteRegister(0x10,0x0628);
-			ili9320_WriteRegister(0x12,0x0006);
-			ili9320_WriteRegister(0x13,0x0A32);
-			ili9320_WriteRegister(0x11,0x0040);
-			ili9320_WriteRegister(0x15,0x0050);
-			ili9320_WriteRegister(0x12,0x0016);
-			mdelay(15);
-			ili9320_WriteRegister(0x10,0x5660);
-			mdelay(15);
-			ili9320_WriteRegister(0x13,0x2A4E);
-			ili9320_WriteRegister(0x01,0x0100);
-			ili9320_WriteRegister(0x02,0x0300);
+		ili9320_WriteRegister(0x10,0x0628);
+		ili9320_WriteRegister(0x12,0x0006);
+		ili9320_WriteRegister(0x13,0x0A32);
+		ili9320_WriteRegister(0x11,0x0040);
+		ili9320_WriteRegister(0x15,0x0050);
+		ili9320_WriteRegister(0x12,0x0016);
+		mdelay(1);
+		ili9320_WriteRegister(0x10,0x5660);
+		mdelay(1);
+		ili9320_WriteRegister(0x13,0x2A4E);
+		ili9320_WriteRegister(0x01,0x0100);
+		ili9320_WriteRegister(0x02,0x0300);
+
+		ili9320_WriteRegister(0x03,0x1030);
+//		ili9320_WriteRegister(0x03,0x1038);
 	
-			ili9320_WriteRegister(0x03,0x1030);
-//			ili9320_WriteRegister(0x03,0x1038);
-	
-			ili9320_WriteRegister(0x08,0x0202);
-			ili9320_WriteRegister(0x0A,0x0000);
-			ili9320_WriteRegister(0x30,0x0000);
-			ili9320_WriteRegister(0x31,0x0402);
-			ili9320_WriteRegister(0x32,0x0106);
-			ili9320_WriteRegister(0x33,0x0700);
-			ili9320_WriteRegister(0x34,0x0104);
-			ili9320_WriteRegister(0x35,0x0301);
-			ili9320_WriteRegister(0x36,0x0707);
-			ili9320_WriteRegister(0x37,0x0305);
-			ili9320_WriteRegister(0x38,0x0208);
-			ili9320_WriteRegister(0x39,0x0F0B);
-			mdelay(15);
-			ili9320_WriteRegister(0x41,0x0002);
-			ili9320_WriteRegister(0x60,0x2700);
-			ili9320_WriteRegister(0x61,0x0001);
-			ili9320_WriteRegister(0x90,0x0119);
-			ili9320_WriteRegister(0x92,0x010A);
-			ili9320_WriteRegister(0x93,0x0004);
-			ili9320_WriteRegister(0xA0,0x0100);
-//			ili9320_WriteRegister(0x07,0x0001);
-			mdelay(15);
-//			ili9320_WriteRegister(0x07,0x0021); 
-			mdelay(15);
-//			ili9320_WriteRegister(0x07,0x0023);
-			mdelay(15);
-//			ili9320_WriteRegister(0x07,0x0033);
-			mdelay(15);
-			ili9320_WriteRegister(0x07,0x0133);
-			mdelay(15);
-			ili9320_WriteRegister(0xA0,0x0000);
-			mdelay(20);
-	} 						
+		ili9320_WriteRegister(0x08,0x0202);
+		ili9320_WriteRegister(0x0A,0x0000);
+		ili9320_WriteRegister(0x30,0x0000);
+		ili9320_WriteRegister(0x31,0x0402);
+		ili9320_WriteRegister(0x32,0x0106);
+		ili9320_WriteRegister(0x33,0x0700);
+		ili9320_WriteRegister(0x34,0x0104);
+		ili9320_WriteRegister(0x35,0x0301);
+		ili9320_WriteRegister(0x36,0x0707);
+		ili9320_WriteRegister(0x37,0x0305);
+		ili9320_WriteRegister(0x38,0x0208);
+		ili9320_WriteRegister(0x39,0x0F0B);
+		mdelay(1);
+		ili9320_WriteRegister(0x41,0x0002);
+		ili9320_WriteRegister(0x60,0x2700);
+		ili9320_WriteRegister(0x61,0x0001);
+		ili9320_WriteRegister(0x90,0x0119);
+		ili9320_WriteRegister(0x92,0x010A);
+		ili9320_WriteRegister(0x93,0x0004);
+		ili9320_WriteRegister(0xA0,0x0100);
+//		ili9320_WriteRegister(0x07,0x0001);
+		mdelay(1);
+//		ili9320_WriteRegister(0x07,0x0021); 
+		mdelay(1);
+//		ili9320_WriteRegister(0x07,0x0023);
+		mdelay(1);
+//		ili9320_WriteRegister(0x07,0x0033);
+		mdelay(1);
+		ili9320_WriteRegister(0x07,0x0133);
+		mdelay(1);
+		ili9320_WriteRegister(0xA0,0x0000);
+		mdelay(1);
+	} 					
 	/*
 	else if(DeviceCode==0x1505)
 	{
@@ -446,7 +425,7 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0008,0x000F);
 		ili9320_WriteRegister(0x000A,0x0008);
 		ili9320_WriteRegister(0x000D,0x0008);
-			 
+			
 	//GAMMA CONTROL/
 		ili9320_WriteRegister(0x0030,0x0707);
 		ili9320_WriteRegister(0x0031,0x0007); //0x0707
@@ -475,7 +454,7 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x002A,0x0000);	
 		ili9320_WriteRegister(0x0029,0x000A); //0x0001F	Vcomh = VCM1[4:0]*Vreg1out		gate source voltage??
 		ili9320_WriteRegister(0x0012,0x013E); // 0x013C	power supply on
-			 //Coordinates Control//
+			//Coordinates Control//
 		ili9320_WriteRegister(0x0050,0x0000);//0x0e00
 		ili9320_WriteRegister(0x0051,0x00EF); 
 		ili9320_WriteRegister(0x0052,0x0000); 
@@ -525,12 +504,12 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x0001,0x2B3F);		mdelay(50000);	 //驱动输出控制320*240	0x6B3F
 		ili9320_WriteRegister(0x0002,0x0600);		mdelay(50000);
 		ili9320_WriteRegister(0x0010,0x0000);		mdelay(50000);
-		ili9320_WriteRegister(0x0011,0x6070);		mdelay(50000);		//0x4030			 //定义数据格式	16位色 		横屏 0x6058
+		ili9320_WriteRegister(0x0011,0x6070);		mdelay(50000);		//0x4030			//定义数据格式	16位色 		横屏 0x6058
 		ili9320_WriteRegister(0x0005,0x0000);		mdelay(50000);
 		ili9320_WriteRegister(0x0006,0x0000);		mdelay(50000);
 		ili9320_WriteRegister(0x0016,0xEF1C);		mdelay(50000);
 		ili9320_WriteRegister(0x0017,0x0003);		mdelay(50000);
-		ili9320_WriteRegister(0x0007,0x0233);		mdelay(50000);		//0x0233			 
+		ili9320_WriteRegister(0x0007,0x0233);		mdelay(50000);		//0x0233			
 		ili9320_WriteRegister(0x000B,0x0000);		mdelay(50000);
 		ili9320_WriteRegister(0x000F,0x0000);		mdelay(50000);		//扫描开始地址
 		ili9320_WriteRegister(0x0041,0x0000);		mdelay(50000);
@@ -558,10 +537,7 @@ int ili9320_Initializtion(void)
 		ili9320_WriteRegister(0x004f,0);		//行首址0
 		ili9320_WriteRegister(0x004e,0);		//列首址0
 	}	*/
-	for(i=50000;i>0;i--);
-	ili9320_Clear(0x00f8);
-	ili9320_Clear(0xf800);
-	
+	ili9320_Clear();
 	return 0;
 }
 
@@ -569,7 +545,7 @@ int ili9320_Initializtion(void)
 * 名		称：void ili9320_SetCursor(u16 x,u16 y)
 * 功		能：设置屏幕座标
 * 入口参数：x			行座标
-*			 y			列座标
+*			y			列座标
 * 出口参数：无
 * 说		明：
 * 调用方法：ili9320_SetCursor(10,10);
@@ -596,10 +572,10 @@ void ili9320_SetCursor(u16 x,u16 y)
 /****************************************************************************
 * 名		称：void ili9320_SetWindows(u16 StartX,u16 StartY,u16 EndX,u16 EndY)
 * 功		能：设置窗口区域
-* 入口参数：StartX		 行起始座标
-*			 StartY		 列起始座标
-*			 EndX			 行结束座标
-*			 EndY			 列结束座标
+* 入口参数：StartX		行起始座标
+*			StartY		列起始座标
+*			EndX			行结束座标
+*			EndY			列结束座标
 * 出口参数：无
 * 说		明：
 * 调用方法：ili9320_SetWindows(0,0,100,100)；
@@ -614,32 +590,10 @@ void ili9320_SetWindows(u16 StartX,u16 StartY,u16 EndX,u16 EndY)
 }
 
 /****************************************************************************
-* 名		称：void ili9320_Clear(u16 dat)
-* 功		能：将屏幕填充成指定的颜色，如清屏，则填充 0xffff
-* 入口参数：dat			填充值
-* 出口参数：无
-* 说		明：
-* 调用方法：ili9320_Clear(0xffff);
-****************************************************************************/
-void ili9320_Clear(u16 dat)
-{
-	u32	i;
-
-	ili9320_SetCursor(0x0000, 0x0000);	
-	Clr_Cs; 
-	ili9320_WriteIndex(0x0022);		
-	for(i=0;i<76800;i++)
-	{
-		ili9320_WriteData(dat);
-	}
-	Set_Cs;
-}
-
-/****************************************************************************
 * 名		称：u16 ili9320_GetPoint(u16 x,u16 y)
 * 功		能：获取指定座标的颜色值
 * 入口参数：x			行座标
-*			 y			列座标
+*			y			列座标
 * 出口参数：当前座标颜色值
 * 说		明：
 * 调用方法：i=ili9320_GetPoint(10,10);
@@ -669,8 +623,8 @@ u16 ili9320_GetPoint(u16 x,u16 y)
 * 名		称：void ili9320_SetPoint(u16 x,u16 y,u16 point)
 * 功		能：在指定座标画点
 * 入口参数：x			行座标
-*			 y			列座标
-*			 point	点的颜色
+*			y			列座标
+*			point	点的颜色
 * 出口参数：无
 * 说		明：
 * 调用方法：ili9320_SetPoint(10,10,0x0fe0);
@@ -689,10 +643,10 @@ void ili9320_SetPoint(u16 x,u16 y,u16 point)
 /****************************************************************************
 * 名		称：void ili9320_DrawPicture(u16 StartX,u16 StartY,u16 EndX,u16 EndY,u16 *pic)
 * 功		能：在指定座标范围显示一副图片
-* 入口参数：StartX		 行起始座标
-*			 StartY		 列起始座标
-*			 EndX			 行结束座标
-*			 EndY			 列结束座标
+* 入口参数：StartX		行起始座标
+*			StartY		列起始座标
+*			EndX			行结束座标
+*			EndY			列结束座标
 				pic		图片头指针
 * 出口参数：无
 * 说		明：图片取模格式为水平扫描，16位颜色模式
@@ -710,7 +664,7 @@ void ili9320_DrawPicture(u16 StartX,u16 StartY,u16 EndX,u16 EndY,u16 *pic)
 	for (i=0;i<(EndX*EndY);i++)
 	{
 			ili9320_WriteData(*pic++);
-	}		 
+	}		
 	Set_Cs;
 }
 
@@ -718,9 +672,9 @@ void ili9320_DrawPicture(u16 StartX,u16 StartY,u16 EndX,u16 EndY,u16 *pic)
 * 名		称：void ili9320_PutChar(u16 x,u16 y,u8 c,u16 charColor,u16 bkColor)
 * 功		能：在指定座标显示一个8x16点阵的ascii字符
 * 入口参数：x			行座标
-*			 y			列座标
-*			 charColor	字符的颜色
-*			 bkColor		字符背景颜色
+*			y			列座标
+*			charColor	字符的颜色
+*			bkColor		字符背景颜色
 * 出口参数：无
 * 说		明：显示范围限定为可显示的ascii码
 * 调用方法：ili9320_PutChar(10,10,'a',0x0000,0xffff);
@@ -806,7 +760,7 @@ void ili9320_WriteIndex(u16 idx)
 /****************************************************************************
 * 名		称：void ili9320_WriteData(u16 dat)
 * 功		能：写 ili9320 寄存器数据
-* 入口参数：dat		 寄存器数据
+* 入口参数：dat		寄存器数据
 * 出口参数：无
 * 说		明：向控制器指定地址写入数据，调用前需先写寄存器地址，内部函数
 * 调用方法：ili9320_WriteData(0x1030)
@@ -832,10 +786,10 @@ u16 ili9320_ReadData(void)
 {
 //========================================================================
 // **																		**
-// ** nCS			 ----\__________________________________________/-------	**
+// ** nCS			----\__________________________________________/-------	**
 // ** RS		------\____________/-----------------------------------	**
-// ** nRD			 -------------------------\_____/---------------------	**
-// ** nWR			 --------\_______/--------------------------------------	**
+// ** nRD			-------------------------\_____/---------------------	**
+// ** nWR			--------\_______/--------------------------------------	**
 // ** DB[0:15]	---------[index]----------[data]-----------------------	**
 // **																		**
 //========================================================================
@@ -864,7 +818,7 @@ u16 ili9320_ReadData(void)
 u16 ili9320_ReadRegister(u16 index)
 { 
 		Clr_Cs;
-	ili9320_WriteIndex(index);		 
+	ili9320_WriteIndex(index);		
 	index = ili9320_ReadData();		
 	Set_Cs;
 	return index;
@@ -874,7 +828,7 @@ u16 ili9320_ReadRegister(u16 index)
 * 名		称：void ili9320_WriteRegister(u16 index,u16 dat)
 * 功		能：写指定地址寄存器的值
 * 入口参数：index		寄存器地址
-*		 ：dat			寄存器值
+*		：dat			寄存器值
 * 出口参数：无
 * 说		明：内部函数
 * 调用方法：ili9320_WriteRegister(0x0000,0x0001);
@@ -883,10 +837,10 @@ void ili9320_WriteRegister(u16 index,u16 dat)
 {
  /************************************************************************
 	**																		**
-	** nCS			 ----\__________________________________________/-------	**
+	** nCS			----\__________________________________________/-------	**
 	** RS		------\____________/-----------------------------------	**
-	** nRD			 -------------------------------------------------------	**
-	** nWR			 --------\_______/--------\_____/-----------------------	**
+	** nRD			-------------------------------------------------------	**
+	** nWR			--------\_______/--------\_____/-----------------------	**
 	** DB[0:15]	---------[index]----------[data]-----------------------	**
 	**																		**
 	************************************************************************/
@@ -897,11 +851,11 @@ void ili9320_WriteRegister(u16 index,u16 dat)
 }
 
 static const lcd_t lcd932x = {
-	.w = 30,
-	.h = 20,
+	.w = 40,
+	.h = 15,
 	.init = ili9320_Initializtion,
 	.puts = ili9320_WriteString,
-	.clear_all = NULL,
+	.clear_all = ili9320_Clear,
 	.clear_rect = NULL,
 	.scroll = NULL,
 };

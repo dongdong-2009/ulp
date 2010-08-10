@@ -4,7 +4,7 @@
 #ifndef __LCD_H_
 #define __LCD_H_
 
-#define RGB565(r, g, b)	((short)r | (g << 5) | (b << 11))
+#define RGB565(r, g, b)	((unsigned short)(r | (g << 5) | (b << 11)))
 
 typedef struct {
 	int w; //width
