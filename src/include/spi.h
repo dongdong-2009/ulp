@@ -16,5 +16,6 @@
 /*bus,range: 1, 2, ...*/
 int spi_Init(int bus, int mode);
 int spi_Write(int bus, int val);
+void spi_DMA_Write(int bus, unsigned short *pbuf, int len);
 #endif /*__SPI_H_*/
 

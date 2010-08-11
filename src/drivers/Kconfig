@@ -26,6 +26,9 @@ if [ "$CONFIG_DRIVER_STEPPERMOTOR" = "y" ]; then
 fi
 bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
 bool "spi bus driver for stm32?" CONFIG_DRIVER_SPI_STM32
+if [ "$CONFIG_DRIVER_SPI_STM32" = "y" ]; then
+	bool "stm32 SPI DMA Support" CONFIG_DRIVER_SPI_STM32_DMA
+fi
 bool "dds chip ad9833" CONFIG_DRIVER_AD9833
 bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
 bool "spi 8 ch 10bit dac chip dac1x8s" CONFIG_DRIVER_DAC1X8S

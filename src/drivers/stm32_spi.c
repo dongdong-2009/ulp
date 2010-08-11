@@ -7,6 +7,9 @@
 
 #define bus_to_spi(bus)	(bus == 1) ? SPI1 : ((bus == 2)? SPI2 : 0)
 
+#define SPI1_DR_Base		0x4001300C
+#define SPI2_DR_Base		0x4000380C
+
 int spi_Init(int bus, int mode)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -56,6 +59,51 @@ int spi_Init(int bus, int mode)
 	SPI_Init(spix, &SPI_InitStructure);
 	/* Enable the SPI  */
 	SPI_Cmd(spix, ENABLE);
+
+#ifdef CONFIG_DRIVER_SPI_STM32_DMA
+	DMA_InitTypeDef  DMA_InitStructure;
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+	if(bus == 1){
+		/* SPI1 TX DMA configuration */
+		DMA_DeInit(DMA1_Channel3);
+		DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)SPI1_DR_Base;
+		DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)0;
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+		DMA_InitStructure.DMA_BufferSize = 0;
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_MemoryDataSize_HalfWord;
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+		DMA_Init(DMA1_Channel3, &DMA_InitStructure);
+		
+		/* Enable SPI1 DMA Tx request */
+		SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Tx, ENABLE);
+	}
+
+	if (bus == 2) {
+		/* SPI2 TX DMA configuration */
+		DMA_DeInit(DMA1_Channel5);
+		DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)SPI2_DR_Base;
+		DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)0;
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+		DMA_InitStructure.DMA_BufferSize = 0;
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_MemoryDataSize_HalfWord;
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+		DMA_Init(DMA1_Channel5, &DMA_InitStructure);
+		
+		/* Enable SPI2 DMA Tx request */
+		SPI_I2S_DMACmd(SPI2, SPI_I2S_DMAReq_Tx, ENABLE);
+	}
+#endif
+
 	return 0;
 }
 
@@ -69,4 +117,31 @@ int spi_Write(int bus, int val)
 	SPI_I2S_SendData(spix, (uint16_t)val);
 	while (SPI_I2S_GetFlagStatus(spix, SPI_I2S_FLAG_RXNE) == RESET);
 	return SPI_I2S_ReceiveData(spix);
+}
+
+/*
+ *
+ *len : number of Bytes to be transfered
+ */
+void spi_DMA_Write(int bus, unsigned short *pbuf, int len)
+{
+#ifdef CONFIG_DRIVER_SPI_STM32_DMA
+	if (bus == 1) {
+		//while();
+		while(!DMA_GetFlagStatus(DMA1_FLAG_TC3) && DMA_GetCurrDataCounter(DMA1_Channel3));
+		DMA_ClearFlag(DMA1_FLAG_TC3);
+		DMA_Cmd(DMA1_Channel3, DISABLE);
+		DMA1_Channel3->CMAR = (uint32_t)pbuf;
+		DMA1_Channel3->CNDTR = len;
+		DMA_Cmd(DMA1_Channel3, ENABLE);
+	}
+
+	if (bus == 2) {
+		while(DMA_GetCurrDataCounter(DMA1_Channel5));
+		DMA_Cmd(DMA1_Channel5, DISABLE);
+		DMA1_Channel5->CMAR = (uint32_t)pbuf;
+		DMA1_Channel5->CNDTR = len;
+		DMA_Cmd(DMA1_Channel5, ENABLE);	
+	}
+#endif
 }
