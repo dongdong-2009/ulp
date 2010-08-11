@@ -3,8 +3,10 @@
  */
 
 #include "config.h"
-#include "osd/item.h"
+#include "osd/osd_draw.h"
+#include "osd/osd_item.h"
 #include "osd/osd_eng.h"
+#include "osd/osd_group.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
