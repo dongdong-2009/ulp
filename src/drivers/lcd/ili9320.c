@@ -119,15 +119,30 @@ void ili9320_SetWindows(short StartX, short StartY, short EndX, short EndY)
 	ili9320_WriteRegister(0x0053, EndY);
 }
 
+static short ili9320_RGB2BGR(short c)
+{
+	short r, g, b, bgr = c;
+
+	if(DeviceCode != 0x7783 && DeviceCode != 0x4531) {
+		r = (c >> 0) & 0x1f;
+		g = (c >> 5) & 0x3f;
+		b = (c >> 11) & 0x1f;
+	
+		bgr = RGB565(b, g, r);
+	}
+	return bgr;
+}
+
 static short ili9320_BGR2RGB(short c)
 {
-	short r, g, b, rgb;
-
-	b = (c >> 0) & 0x1f;
-	g = (c >> 5) & 0x3f;
-	r = (c >> 11) & 0x1f;
+	short r, g, b, rgb = c;
+	if(DeviceCode != 0x7783 && DeviceCode != 0x4531) {
+		b = (c >> 0) & 0x1f;
+		g = (c >> 5) & 0x3f;
+		r = (c >> 11) & 0x1f;
 	
-	rgb = RGB565(r, g, b);
+		rgb = RGB565(r, g, b);
+	}
 	return rgb;
 }
 
@@ -142,8 +157,7 @@ static short ili9320_GetPoint(short x, short y)
 	temp = ili9320_ReadData(); 	
 	
 	Set_Cs;
-	if(DeviceCode != 0x7783 && DeviceCode != 0x4531)
-		temp = ili9320_BGR2RGB(temp);
+	temp = ili9320_BGR2RGB(temp);
 	return temp;
 }
 
@@ -235,8 +249,8 @@ int ili9320_WriteString(int x, int y, const char *s)
 
 int ili9320_set_color(int fg, int bg)
 {
-	fgcolor = (unsigned short) fg;
-	bgcolor = (unsigned short) bg;
+	fgcolor = ili9320_RGB2BGR((unsigned short) fg);
+	bgcolor = ili9320_RGB2BGR((unsigned short) bg);
 }
 
 int ili9320_Initializtion(void)
