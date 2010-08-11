@@ -38,6 +38,7 @@ int lcd_puts(int x, int y, const char *str);
 int lcd_clear_all(void);
 int lcd_clear_rect(int x, int y, int w, int h);
 int lcd_scroll(int xoffset, int yoffset);
+int lcd_is_visible(int x, int y);
 int lcd_set_color(int fg, int bg);
 
 //debug purpose

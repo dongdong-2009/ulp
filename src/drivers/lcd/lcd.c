@@ -121,6 +121,17 @@ int lcd_scroll(int xoffset, int yoffset)
 	return ret;
 }
 
+int lcd_is_visible(int x, int y)
+{
+	int result = 0;
+	result += (x < lcd_xoffset);
+	result += (x >= lcd_xoffset + lcd->w);
+	result += (y < lcd_yoffset);
+	result += (y >= lcd_yoffset + lcd->h);
+	
+	return result;
+}
+
 int lcd_set_color(int fg, int bg)
 {
 	if(lcd && lcd->set_color) {

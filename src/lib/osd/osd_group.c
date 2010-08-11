@@ -48,7 +48,8 @@ int osd_SelectNextGroup(void) //change focus
 	if(flag) {
 		//hardware scroll is not supported, redraw all
 		osd_HideDialog(kdlg);
-		osd_eng_scroll(0, kgrp->grp->items->y);
+		if(osd_eng_is_visible(0, kgrp->grp->items->y))
+			osd_eng_scroll(0, kgrp->grp->items->y);
 		osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERFOCUSCHANGE);
 	}
 	return 0;
@@ -85,7 +86,8 @@ int osd_SelectPrevGroup(void) //change focus
 	if(flag) {
 		//hardware scroll is not supported, redraw all
 		osd_HideDialog(kdlg);
-		osd_eng_scroll(0, kgrp->grp->items->y);
+		if(osd_eng_is_visible(0, kgrp->grp->items->y))
+			osd_eng_scroll(0, kgrp->grp->items->y);
 		osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERFOCUSCHANGE);
 	}
 	
