@@ -379,7 +379,7 @@ static int osd_HideGroup(osd_group_k *kgrp)
 	const osd_item_t *item;
 	
 	kgrp->status = STATUS_HIDE;
-	kgrp->focus = 0;
+	//kgrp->focus = 0;
 	for(item = kgrp->grp->items; (item != NULL) && (item->draw != NULL); item ++)
 		osd_HideItem(item);
 			
