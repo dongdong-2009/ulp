@@ -5,6 +5,7 @@
 */
 
 #include "ad9833.h"
+#include "spi.h"
 
 #define PHASE_RESOLUTION 28
 
@@ -55,6 +56,56 @@ void ad9833_SetFreq(ad9833_t *chip, unsigned fw)
 		chip->io.write_reg(1, REG_FREQ1(msb));
 		opt |= FSELECT;
 		chip->io.write_reg(0, REG_CTRL(opt));
+	}
+
+	chip->option = opt;
+}
+
+static unsigned short ad9833_dam_buf0[3];
+static unsigned short ad9833_dam_buf1[3];
+static int flag_buf;
+
+void ad9833_DMA_SetFreq(ad9833_t *chip, unsigned fw)
+{
+	unsigned short msb, lsb;
+	int opt = chip->option;
+
+	fw >>= (32 - PHASE_RESOLUTION);
+
+	lsb = (unsigned short)(fw & 0x3fff); //low 14 bit
+	fw >>= 14;
+	msb = (unsigned short)(fw & 0x3fff);
+
+	if(opt & FSELECT) {
+		opt &= ~FSELECT;
+		if (!flag_buf) {
+			ad9833_dam_buf0[0] = REG_FREQ0(lsb);
+			ad9833_dam_buf0[1] = REG_FREQ0(msb);
+			ad9833_dam_buf0[2] = REG_CTRL(opt);
+			flag_buf = 1;
+			spi_DMA_Write(1, ad9833_dam_buf0, 3);
+		} else {
+			ad9833_dam_buf1[0] = REG_FREQ0(lsb);
+			ad9833_dam_buf1[1] = REG_FREQ0(msb);
+			ad9833_dam_buf1[2] = REG_CTRL(opt);
+			flag_buf = 0;
+			spi_DMA_Write(1, ad9833_dam_buf1, 3);
+		}
+	} else {
+		opt |= FSELECT;
+		if (!flag_buf) {
+			ad9833_dam_buf0[0] = REG_FREQ1(lsb);
+			ad9833_dam_buf0[1] = REG_FREQ1(msb);
+			ad9833_dam_buf0[2] = REG_CTRL(opt);
+			flag_buf = 1;
+			spi_DMA_Write(1, ad9833_dam_buf0, 3);
+		} else {
+			ad9833_dam_buf1[0] = REG_FREQ1(lsb);
+			ad9833_dam_buf1[1] = REG_FREQ1(msb);
+			ad9833_dam_buf1[2] = REG_CTRL(opt);
+			flag_buf = 0;
+			spi_DMA_Write(1, ad9833_dam_buf1, 3);
+		}
 	}
 
 	chip->option = opt;
