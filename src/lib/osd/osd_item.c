@@ -15,7 +15,7 @@ int osd_ConstructItem(const osd_item_t *item)
 {
 	osd_item_k *kitem = NULL;
 	
-	if(item->runtime) {
+	if(item->runtime || item->update == ITEM_UPDATE_ALWAYS) {
 		kitem = MALLOC(sizeof(osd_item_k));
 		kitem->item = item;
 		kitem->next = NULL;
