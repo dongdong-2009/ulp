@@ -37,6 +37,7 @@ if [ "$CONFIG_DRIVER_LCD" = "y" ]; then
 fi
 bool "general keyboard driver" CONFIG_DRIVER_KEYBOARD
 bool "adc key driver" CONFIG_DRIVER_ADCKEY
+bool "gpio key driver" CONFIG_DRIVER_GPIOKEY
 bool "general remote control driver" CONFIG_DRIVER_RCKEY
 if [ "$CONFIG_DRIVER_RCKEY" = "y" ]; then
 	choice 'remote control protocol'	" \
