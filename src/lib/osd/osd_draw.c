@@ -12,21 +12,6 @@
 #include <stdio.h>
 #include "FreeRTOS.h"
 
-int item_SetColor(int status)
-{
-	int fg, bg;
-	
-	fg = (int) COLOR_FG_DEF;
-	bg = (int) COLOR_BG_DEF;
-	
-	if(status == STATUS_FOCUSED) {
-		fg = (int) COLOR_FG_FOCUS;
-		bg = (int) COLOR_BG_FOCUS;
-	}
-	
-	return osd_eng_set_color(fg, bg);
-}
-
 int item_DrawTxt(const osd_item_t *item, int status)
 {
 	const char *str;
@@ -55,7 +40,6 @@ int item_DrawTxt(const osd_item_t *item, int status)
 	x += (item->option & ITEM_ALIGN_RIGHT) ? (item->w - len) : 0;
 	
 	//output to lcd
-	item_SetColor(status);
 	osd_eng_puts(x, item->y, buf);
 
 	FREE(buf);
@@ -89,10 +73,6 @@ int item_DrawInt(const osd_item_t *item, int status)
 	x += (item->option & ITEM_ALIGN_RIGHT) ? (item->w - len) : 0;
 	
 	//output to lcd
-	if(status == STATUS_FOCUSED)
-		osd_eng_set_color(COLOR_FG_FOCUS, COLOR_BG_FOCUS);
-	
-	item_SetColor(status);
 	osd_eng_puts(x, item->y, buf);
 	
 	FREE(buf);

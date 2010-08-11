@@ -140,6 +140,21 @@ int osd_DestroyGroup(osd_group_k *kgrp)
 	return 0;
 }
 
+static int set_color(int status)
+{
+	int fg, bg;
+	
+	fg = (int) COLOR_FG_DEF;
+	bg = (int) COLOR_BG_DEF;
+	
+	if(status == STATUS_FOCUSED) {
+		fg = (int) COLOR_FG_FOCUS;
+		bg = (int) COLOR_BG_FOCUS;
+	}
+	
+	return osd_eng_set_color(fg, bg);
+}
+
 int osd_ShowGroup(osd_group_k *kgrp, int update)
 {
 	int status;
@@ -159,7 +174,8 @@ int osd_ShowGroup(osd_group_k *kgrp, int update)
 
 	if(kgrp->focus)
 		status = STATUS_FOCUSED;
-		
+	
+	set_color(status);
 	if(status != kgrp->status) { //all items needs to be redraw
 		kgrp->status = status;
 		for(item = grp->items; (item != NULL) && (item->draw != NULL); item ++) {
@@ -183,8 +199,8 @@ int osd_ShowGroup(osd_group_k *kgrp, int update)
 int osd_HideGroup(osd_group_k *kgrp)
 {
 	const osd_item_t *item;
-	
 	kgrp->status = STATUS_HIDE;
+	set_color(kgrp->status);
 	//kgrp->focus = 0;
 	for(item = kgrp->grp->items; (item != NULL) && (item->draw != NULL); item ++)
 		osd_HideItem(item);
