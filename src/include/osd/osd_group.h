@@ -47,6 +47,7 @@ typedef struct osd_group_ks {
 //api
 int osd_SelectNextGroup(void); //change focus
 int osd_SelectPrevGroup(void); //change focus
+osd_group_t *osd_GetCurrentGroup(void);
 
 //private
 int osd_ConstructGroup(const osd_group_t *grp);

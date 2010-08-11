@@ -94,6 +94,17 @@ int osd_SelectPrevGroup(void) //change focus
 	return 0;
 }
 
+osd_group_t *osd_GetCurrentGroup(void)
+{
+	const osd_group_t *grp = NULL;
+	osd_dialog_k *kdlg = (osd_dialog_k *) osd_GetActiveDialog();
+	if(kdlg) {
+		grp = kdlg->active_kgrp->grp;
+	}
+	
+	return (osd_group_t *)grp;
+}
+
 //group construct/destroy/show/hide ops
 int osd_ConstructGroup(const osd_group_t *grp)
 {
