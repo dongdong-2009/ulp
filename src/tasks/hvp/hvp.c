@@ -80,10 +80,18 @@ static void hvp_thread(void *pvParameters)
 #endif
 		if(!mt2x_Init()) {
 			print("mt2x programmer is selected\n");
-			if(!mt2x_Prog())
+			if(!mt2x_Prog()) {
 				print("O(กษ_กษ)O\n");
-			else
+				dlg_set_prog_step("O(กษ_กษ)O");
+			}
+			else {
 				print("~~~~(>_<)~~~~ \n");
+				dlg_set_prog_step("~~~~(>_<)~~~~");
+			}
+		}
+		else {
+			print("~~~~(>_<)~~~~ \n");
+			dlg_set_prog_step("~~~~(>_<)~~~~");
 		}
 		
 		//indicate idle

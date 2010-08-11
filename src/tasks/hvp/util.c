@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include "FreeRTOS.h"
 #include "time.h"
+#include "hvp.h"
 
 #include "ff.h"
 
@@ -59,11 +60,13 @@ int util_init(const char *util, const char *prog)
 
 	res = f_open(&util_file, util, FA_OPEN_EXISTING | FA_READ);
 	if(res != FR_OK) {
+		dlg_set_prog_err("%s?", util_file);
 		return - UTIL_E_OPEN;
 	}
 
 	res = f_open(&prog_file, prog, FA_OPEN_EXISTING | FA_READ);
 	if(res != FR_OK) {
+		dlg_set_prog_err("%s?", prog_file);
 		return - UTIL_E_OPEN;
 	}
 	
@@ -118,6 +121,7 @@ int util_init(const char *util, const char *prog)
 		util_head.offset += 6;
 		
 		//success
+		dlg_set_prog_step("util read ok");
 #ifdef __DEBUG
 		print("util_init() success\n");
 #endif
@@ -165,6 +169,7 @@ static int util_dnld(int id, int option)
 		//download
 		ptp_read(&util_ptp, buf, btr, &br);
 		if(br == btr) {
+			dlg_set_prog_step("util...%06x", addr);
 			err = kwp_TransferData(addr, alen, br, buf);
 			addr += br;
 			size -= br;
@@ -239,6 +244,7 @@ static int util_prog(int id, int option)
 		}
 				
 		//download
+		dlg_set_prog_step("prog...%06x", addr);
 		err = kwp_TransferData(addr, alen, br, buf);
 		if(err)
 			break;
@@ -329,6 +335,8 @@ static int util_execute(util_inst_t *p)
 			break;
 		case SID_81:
 			err = kwp_EstablishComm();
+			if(err)
+				dlg_set_prog_err("kwp comm err");
 			break;
 		case SID_27:
 			v = 1 + p->ac[3] + p->ac[3];

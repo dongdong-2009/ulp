@@ -3,6 +3,12 @@
 #include "ff.h"
 #include "FreeRTOS.h"
 #include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include "time.h"
+#include "hvp.h"
+
+#define __DEBUG_TIME
 
 static osd_dialog_t *pdlg_main;
 static int hdlg_main;
@@ -10,6 +16,9 @@ static osd_dialog_t *pdlg_sub;
 static int hdlg_sub;
 static char dlg_prog_msg[16];
 static int dlg_prog_addr;
+#ifdef __DEBUG_TIME
+static time_t timer;
+#endif
 
 static int dlg_SelectGroup(const osd_command_t *cmd);
 static osd_dialog_t *dlg_CreateDialog(const osd_command_t *pcmd);
@@ -41,10 +50,19 @@ const osd_command_t cmds_sub[] = {
 	NULL,
 };
 
-void dlg_set_prog_step(const char *info)
+int dlg_set_prog_step(const char *fmt, ...)
 {
-	strncpy(dlg_prog_msg, info, 15);
+	va_list ap;
+	char *pstr;
+	int n = 0;
+
+	pstr = dlg_prog_msg;
+	va_start(ap, fmt);
+	n += vsnprintf(pstr + n, 15 - n, fmt, ap);
+	va_end(ap);
+	
 	dlg_prog_msg[15] = 0;
+	return 0;
 }
 
 void dlg_set_prog_addr(int addr)
@@ -54,6 +72,12 @@ void dlg_set_prog_addr(int addr)
 
 static int dlg_get_prog_addr(void)
 {
+#ifdef __DEBUG_TIME
+	if(time_left(timer) < 0) {
+		timer = time_get(1000);
+		dlg_prog_addr ++;
+	}
+#endif
 	return dlg_prog_addr;
 }
 
@@ -71,7 +95,6 @@ static int dlg_SelectGroup(const osd_command_t *cmd)
 
 static osd_dialog_t *dlg_CreateProgDialog(void)
 {
-	int n;
 	osd_dialog_t *pdlg;
 	osd_group_t *pgrp;
 	osd_item_t *pitem;
@@ -311,6 +334,7 @@ static int dlg_StartProgram(const osd_command_t *cmd)
 	}
 	
 	//active programming dialog
+	dlg_prog_addr = 0;
 	pdlg_sub = dlg_CreateProgDialog();
 	if(pdlg_sub) {
 		hdlg_sub = osd_ConstructDialog(pdlg_sub);
@@ -319,6 +343,7 @@ static int dlg_StartProgram(const osd_command_t *cmd)
 	
 	//start programming
 	hvp_prog(0, 0);
+	return 0;
 }
 
 void dlg_init(void)

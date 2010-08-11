@@ -16,7 +16,7 @@ typedef struct {
 
 int hvp_prog(char *model, char *sub);
 void dlg_init(void);
-void dlg_set_prog_step(const char *info);
+int dlg_set_prog_step(const char *fmt, ...);
 void dlg_set_prog_addr(int addr);
 #define dlg_set_prog_err dlg_set_prog_step
 #endif
