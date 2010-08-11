@@ -14,11 +14,6 @@
 
 #define LCD1602_PORT (GPIO_Pin_All&0x00ff)
 
-typedef enum{
-	Bit_Ok = 0,
-	Bit_Busy
-}lcd1602_status;
-
 static lcd1602_status lcd1602_ReadStaus(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
