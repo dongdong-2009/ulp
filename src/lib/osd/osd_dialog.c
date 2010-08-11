@@ -72,7 +72,7 @@ int osd_DestroyDialog(int handle)
 	
 	osd_HideDialog(kdlg);
 	
-	for(kgrp = kdlg->kgrps; kgrp != NULL; kgrp = k->next)
+	for(kgrp = kdlg->kgrps; kgrp != NULL; kgrp = k)
 	{
 		k = kgrp->next;
 		osd_DestroyGroup(kgrp);
