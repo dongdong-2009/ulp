@@ -5,19 +5,24 @@
 #include <string.h>
 
 static osd_dialog_t *pdlg_main;
+static int hdlg_main;
+static osd_dialog_t *pdlg_sub;
+static int hdlg_sub;
+static char dlg_prog_msg[16];
+static int dlg_prog_addr;
 
 static int dlg_SelectGroup(const osd_command_t *cmd);
 static osd_dialog_t *dlg_CreateDialog(const osd_command_t *pcmd);
-static osd_dialog_t *dlg_CreateMainDialog(void);
-static osd_dialog_t *dlg_CreateSubDialog(void);
 static void dlg_FreeDialog(osd_dialog_t *dlg);
 static int dlg_ActiveMainDialog(const osd_command_t *cmd);
 static int dlg_ActiveSubDialog(const osd_command_t *cmd);
+static int dlg_StartProgram(const osd_command_t *cmd);
 
 static const int keymap[] = {
 	KEY_UP,
 	KEY_DOWN,
-	KEY_ENTER,
+	KEY_RIGHT,
+	KEY_LEFT,
 	KEY_NONE
 };
 
@@ -31,10 +36,26 @@ const osd_command_t cmds_main[] = {
 const osd_command_t cmds_sub[] = {
 	{.event = KEY_UP, .func = dlg_SelectGroup},
 	{.event = KEY_DOWN, .func = dlg_SelectGroup},
-	{.event = KEY_RIGHT, .func = dlg_ActiveSubDialog},
+	{.event = KEY_RIGHT, .func = dlg_StartProgram},
 	{.event = KEY_LEFT, .func = dlg_ActiveMainDialog},
 	NULL,
 };
+
+void dlg_set_prog_step(const char *info)
+{
+	strncpy(dlg_prog_msg, info, 15);
+	dlg_prog_msg[15] = 0;
+}
+
+void dlg_set_prog_addr(int addr)
+{
+	dlg_prog_addr = addr;
+}
+
+static int dlg_get_prog_addr(void)
+{
+	return dlg_prog_addr;
+}
 
 static int dlg_SelectGroup(const osd_command_t *cmd)
 {
@@ -46,6 +67,96 @@ static int dlg_SelectGroup(const osd_command_t *cmd)
 		result = osd_SelectNextGroup();
 	
 	return result;
+}
+
+static osd_dialog_t *dlg_CreateProgDialog(void)
+{
+	int n;
+	osd_dialog_t *pdlg;
+	osd_group_t *pgrp;
+	osd_item_t *pitem;
+	
+	//step1, create 2 groups
+	pgrp = MALLOC(sizeof(osd_group_t) * 3);
+	if(!pgrp)
+		return NULL;
+	
+	//step 2, create dialog
+	pdlg = MALLOC(sizeof(osd_dialog_t));
+	if(!pdlg)
+		return NULL;
+
+	pdlg->grps = pgrp;
+	pdlg->cmds = NULL;
+	pdlg->func = NULL;
+	pdlg->option = NULL;
+		
+	//step3, create 1st items - "programming"
+	pitem = MALLOC(sizeof(osd_item_t) * 2);
+	if(!pitem)
+		return NULL;
+	
+	//insert item into the group
+	pgrp->items = pitem;
+	pgrp->cmds = NULL;
+	pgrp->order = 0;
+	pgrp->option = 0;
+	pgrp ++;
+	
+	pitem->x = 0;
+	pitem->y = 0;
+	pitem->w = 15;
+	pitem->h = 1;
+	pitem->v = (int)("programming");
+	pitem->draw = ITEM_DRAW_TXT;
+	pitem->option = ITEM_ALIGN_MIDDLE;
+	pitem->update = ITEM_UPDATE_NEVER;
+	pitem->runtime = ITEM_RUNTIME_NONE;
+	pitem ++;
+		
+	//fill NULL to last item
+	memset(pitem, NULL, sizeof(osd_item_t));
+	
+	//step4, create 2nd items - "step&addr"
+	pitem = MALLOC(sizeof(osd_item_t) * 3);
+	if(!pitem)
+		return NULL;
+	
+	//insert item into the group
+	pgrp->items = pitem;
+	pgrp->cmds = NULL;
+	pgrp->order = 1;
+	pgrp->option = 0;
+	pgrp ++;
+	
+	pitem->x = 0;
+	pitem->y = 5;
+	pitem->w = 15;
+	pitem->h = 1;
+	pitem->v = (int)(dlg_prog_msg);
+	pitem->draw = ITEM_DRAW_TXT;
+	pitem->option = ITEM_ALIGN_MIDDLE;
+	pitem->update = ITEM_UPDATE_ALWAYS;
+	pitem->runtime = ITEM_RUNTIME_NONE;
+	pitem ++;
+	
+	pitem->x = 0;
+	pitem->y = 6;
+	pitem->w = 15;
+	pitem->h = 1;
+	pitem->v = (int) dlg_get_prog_addr;
+	pitem->draw = ITEM_DRAW_INT;
+	pitem->option = ITEM_ALIGN_MIDDLE;
+	pitem->update = ITEM_UPDATE_ALWAYS;
+	pitem->runtime = ITEM_RUNTIME_V;
+	pitem ++;
+	
+	//fill NULL to last item
+	memset(pitem, NULL, sizeof(osd_item_t));
+	
+	//step5, fill NULL to last group
+	memset(pgrp, NULL, sizeof(osd_group_t));
+	return pdlg;
 }
 
 static osd_dialog_t *dlg_CreateDialog(const osd_command_t *pcmd)
@@ -99,7 +210,7 @@ static osd_dialog_t *dlg_CreateDialog(const osd_command_t *pcmd)
 			return NULL;
 		strcpy(fname, fileinfo.fname);
 		
-		pitem->x = 2;
+		pitem->x = 0;
 		pitem->y = ngrps;
 		pitem->w = 15;
 		pitem->h = 1;
@@ -127,19 +238,6 @@ static osd_dialog_t *dlg_CreateDialog(const osd_command_t *pcmd)
 	return pdlg;
 }
 
-//create main dialog in heap
-static osd_dialog_t *dlg_CreateMainDialog(void)
-{
-	f_chdir("/");
-	return dlg_CreateDialog(cmds_main);
-}
-
-//create sub dialog
-static osd_dialog_t *dlg_CreateSubDialog(void)
-{
-	return NULL;
-}
-
 static void dlg_FreeDialog(osd_dialog_t *dlg)
 {
 }
@@ -147,15 +245,25 @@ static void dlg_FreeDialog(osd_dialog_t *dlg)
 static int dlg_ActiveMainDialog(const osd_command_t *cmd)
 {
 	int result = -1;
-	int hdlg;
+	
+	f_chdir("/");
+	
+	//destroy subdialog if exist
+	if(pdlg_sub) {
+		osd_DestroyDialog(hdlg_sub);
+		hdlg_sub = 0;
+		
+		dlg_FreeDialog(pdlg_sub);
+		pdlg_sub = 0;
+	}
 	
 	if(!pdlg_main) {
-		pdlg_main = dlg_CreateMainDialog();
+		pdlg_main = dlg_CreateDialog(cmds_main);
 	}
 
 	if(pdlg_main) {
-		hdlg = osd_ConstructDialog(pdlg_main);
-		osd_SetActiveDialog(hdlg);
+		hdlg_main = osd_ConstructDialog(pdlg_main);
+		osd_SetActiveDialog(hdlg_main);
 		result = 0;
 	}
 
@@ -164,8 +272,53 @@ static int dlg_ActiveMainDialog(const osd_command_t *cmd)
 
 static int dlg_ActiveSubDialog(const osd_command_t *cmd)
 {
-	int result = -1;
-	return result;
+	char *fname;
+	osd_group_t *grp = osd_GetCurrentGroup();
+	
+	if(grp == NULL)
+		return -1;
+
+	fname = (char *)(grp->items[0].v);
+	f_chdir(fname);
+	
+	pdlg_sub = dlg_CreateDialog(cmds_sub);
+	if(pdlg_sub) {
+		osd_DestroyDialog(hdlg_main);
+		hdlg_sub = osd_ConstructDialog(pdlg_sub);
+		osd_SetActiveDialog(hdlg_sub);
+	}
+	return 0;
+}
+
+static int dlg_StartProgram(const osd_command_t *cmd)
+{
+	char *fname;
+	osd_group_t *grp = osd_GetCurrentGroup();
+	
+	if(grp == NULL)
+		return -1;
+
+	fname = (char *)(grp->items[0].v);
+	f_chdir(fname);
+	
+	//destroy subdialog if exist
+	if(pdlg_sub) {
+		osd_DestroyDialog(hdlg_sub);
+		hdlg_sub = 0;
+		
+		dlg_FreeDialog(pdlg_sub);
+		pdlg_sub = 0;
+	}
+	
+	//active programming dialog
+	pdlg_sub = dlg_CreateProgDialog();
+	if(pdlg_sub) {
+		hdlg_sub = osd_ConstructDialog(pdlg_sub);
+		osd_SetActiveDialog(hdlg_sub);
+	}
+	
+	//start programming
+	hvp_prog(0, 0);
 }
 
 void dlg_init(void)
@@ -174,5 +327,8 @@ void dlg_init(void)
 	key_SetLocalKeymap(keymap);
 	
 	pdlg_main = 0;
+	pdlg_sub = 0;
+	hdlg_main = 0;
+	hdlg_sub = 0;
 	dlg_ActiveMainDialog(0);
 }

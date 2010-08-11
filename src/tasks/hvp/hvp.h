@@ -8,8 +8,7 @@ enum {
 	HVP_CMD_PROGRAM,
 };
 
-typedef struct
-{
+typedef struct {
 	char cmd;
 	void *para1;
 	void *para2;
@@ -17,5 +16,7 @@ typedef struct
 
 int hvp_prog(char *model, char *sub);
 void dlg_init(void);
-
+void dlg_set_prog_step(const char *info);
+void dlg_set_prog_addr(int addr);
+#define dlg_set_prog_err dlg_set_prog_step
 #endif

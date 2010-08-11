@@ -21,7 +21,7 @@
 
 #include "ff.h"
 
-#define __DEBUG
+//#define __DEBUG
 
 /*private var declaration*/
 static FATFS hvp_fs;
@@ -52,8 +52,6 @@ DECLARE_TASK(hvp_Init, hvp_Update)
 
 static void hvp_thread(void *pvParameters)
 {
-	int len;
-	char *folder;
 	hvp_msg_t msg;
 	
 	//indicate idle status
@@ -67,22 +65,19 @@ static void hvp_thread(void *pvParameters)
 		led_on(LED_RED);
 		
 		// ...excute the command
-		len = strlen(msg.para1);
-		len += strlen(msg.para2);
-		len += 2;
-		folder = pvPortMalloc(len + 1);
-		strcpy(folder, msg.para1);
-		strcat(folder, "/");
-		strcat(folder, msg.para2);
-		strcat(folder, "/");
-		vPortFree(msg.para1);
-		vPortFree(msg.para2);
 #ifdef __DEBUG
 		f_chdir("/MT20U/28025614");
 #else
-		f_chdir(folder);
+		if(msg.para1) {
+			f_chdir("/");
+			f_chdir(msg.para1);
+			vPortFree(msg.para1);
+			if(msg.para2) {
+				f_chdir(msg.para2);
+				vPortFree(msg.para2);
+			}
+		}
 #endif
-		vPortFree(folder);
 		if(!mt2x_Init()) {
 			print("mt2x programmer is selected\n");
 			if(!mt2x_Prog())
@@ -108,12 +103,20 @@ int hvp_prog(char *model, char *sub)
 	portBASE_TYPE ret;
 	
 	msg.cmd = HVP_CMD_PROGRAM;
-	len = strlen(model);
-	msg.para1 = pvPortMalloc(len + 1);
-	strcpy(msg.para1, model);
-	len = strlen(sub);
-	msg.para2 = pvPortMalloc(len + 1);
-	strcpy(msg.para2, sub);
+	if(model) {
+		len = strlen(model);
+		msg.para1 = pvPortMalloc(len + 1);
+		strcpy(msg.para1, model);
+	}
+	else msg.para1 = 0;
+	
+	if(sub) {
+		len = strlen(sub);
+		msg.para2 = pvPortMalloc(len + 1);
+		strcpy(msg.para2, sub);
+	}
+	else msg.para2 = 0;
+	
 	ret = xQueueSend(hvp_msg_queue, &msg, 0);
 	if(ret != pdTRUE) {
 		vPortFree(msg.para1);
