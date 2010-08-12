@@ -14,6 +14,8 @@
 #include "time.h"
 
 #define __DEBUG
+//#define __DEBUG_FRAME
+
 #ifdef __DEBUG
 #include "shell/cmd.h"
 #include "common/print.h"
@@ -146,7 +148,7 @@ int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 	n += tn;
 	f[n] = kwp_cksum(f, n);
 	n ++;
-#ifdef __DEBUG
+#ifdef __DEBUG_FRAME
 	print("kwp tx(%02d):", n);
 	for(int i = 0; i < n; i ++) {
 		print(" %02x", f[i]);
@@ -211,7 +213,7 @@ int kwp_recv(char *pbuf, int ms)
 		}
 		
 		bytes = kwd_poll(1);
-#ifdef __DEBUG
+#ifdef __DEBUG_FRAME
 		print("\rkwp rx(%02d):", bytes);
 		for(int i = 0; i < bytes; i ++) {
 			print(" %02x", f[i]);
