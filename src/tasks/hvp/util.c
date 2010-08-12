@@ -60,13 +60,13 @@ int util_init(const char *util, const char *prog)
 
 	res = f_open(&util_file, util, FA_OPEN_EXISTING | FA_READ);
 	if(res != FR_OK) {
-		dlg_set_prog_err("%s?", util_file);
+		dlg_set_prog_err("%s?", util);
 		return - UTIL_E_OPEN;
 	}
 
 	res = f_open(&prog_file, prog, FA_OPEN_EXISTING | FA_READ);
 	if(res != FR_OK) {
-		dlg_set_prog_err("%s?", prog_file);
+		dlg_set_prog_err("%s?", prog);
 		return - UTIL_E_OPEN;
 	}
 	
