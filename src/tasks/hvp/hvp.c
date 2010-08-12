@@ -83,6 +83,7 @@ static void hvp_thread(void *pvParameters)
 			if(!mt2x_Prog()) {
 				print("O(กษ_กษ)O\n");
 				dlg_set_prog_step("O(^_^)O");
+				dlg_prog_finish(0);
 			}
 			else {
 				print("~~~~(>_<)~~~~ \n");

@@ -24,8 +24,8 @@ int mt2x_Init(void)
 	char ptp[32];
 	
 	/*read config from kwp.ini*/
-	read_profile_string("files", "ptp_util", ptp_util, 31, "ptp_util", "hvp.ini");
-	read_profile_string("files", "ptp", ptp, 31, "ptp", "hvp.ini");
+	read_profile_string("files", "ptp_util", ptp_util, 31, "util.ptp", "hvp.ini");
+	read_profile_string("files", "ptp", ptp, 31, "cal.ptp", "hvp.ini");
 	
 #ifdef __DEBUG
 	print("util file: %s\n", ptp_util);

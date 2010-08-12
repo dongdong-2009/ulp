@@ -15,9 +15,10 @@ static int hdlg_main;
 static osd_dialog_t *pdlg_sub;
 static int hdlg_sub;
 static char dlg_prog_msg[16];
-static int dlg_prog_addr;
+static int dlg_prog_time;
 #ifdef __DEBUG_TIME
 static time_t timer;
+static char dlg_flag_stop;
 #endif
 
 static int dlg_SelectGroup(const osd_command_t *cmd);
@@ -65,20 +66,21 @@ int dlg_set_prog_step(const char *fmt, ...)
 	return 0;
 }
 
-void dlg_set_prog_addr(int addr)
+void dlg_prog_finish(int status)
 {
-	dlg_prog_addr = addr;
+	dlg_flag_stop = 1;
 }
 
 static int dlg_get_prog_addr(void)
 {
 #ifdef __DEBUG_TIME
 	if(time_left(timer) < 0) {
-		timer = time_get(1000);
-		dlg_prog_addr ++;
+			timer = time_get(1000);
+			if(!dlg_flag_stop)
+				dlg_prog_time ++;
 	}
 #endif
-	return dlg_prog_addr;
+	return dlg_prog_time;
 }
 
 static int dlg_SelectGroup(const osd_command_t *cmd)
@@ -334,7 +336,7 @@ static int dlg_StartProgram(const osd_command_t *cmd)
 	}
 	
 	//active programming dialog
-	dlg_prog_addr = 0;
+	dlg_prog_time = 0;
 	pdlg_sub = dlg_CreateProgDialog();
 	if(pdlg_sub) {
 		hdlg_sub = osd_ConstructDialog(pdlg_sub);

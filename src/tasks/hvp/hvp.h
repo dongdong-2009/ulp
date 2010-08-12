@@ -4,6 +4,8 @@
 #ifndef __HVP_H_
 #define __HVP_H_
 
+#include <stdarg.h>
+
 enum {
 	HVP_CMD_PROGRAM,
 };
@@ -17,6 +19,10 @@ typedef struct {
 int hvp_prog(char *model, char *sub);
 void dlg_init(void);
 int dlg_set_prog_step(const char *fmt, ...);
-void dlg_set_prog_addr(int addr);
-#define dlg_set_prog_err dlg_set_prog_step
+void dlg_prog_finish(int status);
+#define dlg_set_prog_err(...) do { \
+	dlg_set_prog_step(__VA_ARGS__); \
+	dlg_prog_finish(-1); \
+} while (0)
+
 #endif
