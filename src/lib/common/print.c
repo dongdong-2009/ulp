@@ -27,13 +27,9 @@ void print_init(void)
 void print_update(void)
 {
 	char *pstr;
-	int i = 0;
 	while(xQueueReceive(xPrintQueue, (void *) &pstr, 0) == pdPASS) {
 		printf(pstr);
 		vPortFree(pstr);
-		i ++;
-		if(i > PRINT_QUEUE_SIZE)
-			break;
 	}
 }
 
