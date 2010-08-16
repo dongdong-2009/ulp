@@ -7,6 +7,7 @@
 #include "lcd.h"
 #include <stdlib.h>
 #include <string.h>
+#include "FreeRTOS.h"
 
 static const lcd_t *lcd;
 static int lcd_xoffset;
@@ -120,4 +121,40 @@ int lcd_scroll(int xoffset, int yoffset)
 	return ret;
 }
 
+int lcd_is_visible(int x, int y)
+{
+	int result = 0;
+	result += (x < lcd_xoffset);
+	result += (x >= lcd_xoffset + lcd->w);
+	result += (y < lcd_yoffset);
+	result += (y >= lcd_yoffset + lcd->h);
+	
+	return result;
+}
 
+int lcd_set_color(int fg, int bg)
+{
+	if(lcd && lcd->set_color) {
+		return lcd->set_color(fg, bg);
+	}
+	else
+		return -1;
+}
+
+int lcd_writereg(int reg, int val)
+{
+	if(lcd && lcd->writereg) {
+		return lcd->writereg(reg, val);
+	}
+	else
+		return -1;
+}
+
+int lcd_readreg(int reg)
+{
+	if(lcd && lcd->readreg) {
+		return lcd->readreg(reg);
+	}
+	else
+		return -1;
+}

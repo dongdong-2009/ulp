@@ -33,7 +33,7 @@ void print_update(void)
 	}
 }
 
-DECLARE_TASK(print_init, print_update)
+DECLARE_LIB(print_init, print_update)
 
 int print(const char *fmt, ...)
 {

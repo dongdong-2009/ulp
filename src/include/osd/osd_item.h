@@ -31,15 +31,6 @@ enum {
 	ITEM_ALIGN_RIGHT,
 };
 
-//item/group status
-enum {
-	STATUS_HIDE = -2,
-	STATUS_VISIBLE,
-	STATUS_GRAYED,
-	STATUS_NORMAL,
-	STATUS_FOCUSED,
-};
-
 typedef struct osd_item_s {
 	int x; //hor position
 	int y; //vert position
@@ -52,6 +43,16 @@ typedef struct osd_item_s {
 	short runtime; //refer to runtime options
 } osd_item_t;
 
-int item_DrawTxt(const osd_item_t *item, int status);
-int item_DrawInt(const osd_item_t *item, int status);
+//private, osd kernel data object, RAM
+typedef struct osd_item_ks {
+	const osd_item_t *item;
+	struct osd_item_ks *next;
+} osd_item_k;
+
+//private
+int osd_ConstructItem(const osd_item_t *item);
+int osd_DestroyItem(osd_item_k *kitem);
+int osd_ShowItem(const osd_item_t *item, int status);
+int osd_HideItem(const osd_item_t *item);
+
 #endif /*__OSD_ITEM_H_*/

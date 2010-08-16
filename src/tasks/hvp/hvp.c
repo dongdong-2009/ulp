@@ -21,19 +21,27 @@
 
 #include "ff.h"
 
-#define __DEBUG
+//#define __DEBUG
 
 /*private var declaration*/
+static FATFS hvp_fs;
 static xQueueHandle hvp_msg_queue;
 
 /*private func declaration*/
-
 static void hvp_thread(void *pvParameters);
 
 void hvp_Init(void)
 {
+	//mount sd card
+	if(f_mount(0, &hvp_fs))
+		printf("mount sd card err!!!\n");
 	hvp_msg_queue = xQueueCreate(1, sizeof(hvp_msg_t));
-	xTaskCreate(hvp_thread, (signed portCHAR *) "Hvp", 128, NULL, tskIDLE_PRIORITY + 1, NULL);	
+	xTaskCreate(hvp_thread, (signed portCHAR *) "Hvp", 256, NULL, tskIDLE_PRIORITY + 1, NULL);	
+	
+	//display dialog
+#ifdef CONFIG_TASK_OSD
+	dlg_init();
+#endif
 }
 
 void hvp_Update(void)
@@ -44,8 +52,6 @@ DECLARE_TASK(hvp_Init, hvp_Update)
 
 static void hvp_thread(void *pvParameters)
 {
-	int len;
-	char *folder;
 	hvp_msg_t msg;
 	
 	//indicate idle status
@@ -59,25 +65,33 @@ static void hvp_thread(void *pvParameters)
 		led_on(LED_RED);
 		
 		// ...excute the command
-		len = strlen(msg.para1);
-		len += strlen(msg.para2);
-		len += 2;
-		folder = pvPortMalloc(len + 1);
-		strcpy(folder, msg.para1);
-		strcat(folder, "/");
-		strcat(folder, msg.para2);
-		strcat(folder, "/");
-		vPortFree(msg.para1);
-		vPortFree(msg.para2);
 #ifdef __DEBUG
 		f_chdir("/MT20U/28025614");
 #else
-		f_chdir(folder);
+		if(msg.para1) {
+			f_chdir("/");
+			f_chdir(msg.para1);
+			vPortFree(msg.para1);
+			if(msg.para2) {
+				f_chdir(msg.para2);
+				vPortFree(msg.para2);
+			}
+		}
 #endif
-		vPortFree(folder);
-		mt2x_Init();
-		mt2x_Prog();
-		print("hvp program finish\n");
+		if(!mt2x_Init()) {
+			print("mt2x programmer is selected\n");
+			if(!mt2x_Prog()) {
+				print("O(กษ_กษ)O\n");
+				dlg_set_prog_step("O(^_^)O");
+				dlg_prog_finish(0);
+			}
+			else {
+				print("~~~~(>_<)~~~~ \n");
+			}
+		}
+		else {
+			print("~~~~(>_<)~~~~ \n");
+		}
 		
 		//indicate idle
 		led_on(LED_GREEN);
@@ -96,12 +110,20 @@ int hvp_prog(char *model, char *sub)
 	portBASE_TYPE ret;
 	
 	msg.cmd = HVP_CMD_PROGRAM;
-	len = strlen(model);
-	msg.para1 = pvPortMalloc(len + 1);
-	strcpy(msg.para1, model);
-	len = strlen(sub);
-	msg.para2 = pvPortMalloc(len + 1);
-	strcpy(msg.para2, sub);
+	if(model) {
+		len = strlen(model);
+		msg.para1 = pvPortMalloc(len + 1);
+		strcpy(msg.para1, model);
+	}
+	else msg.para1 = 0;
+	
+	if(sub) {
+		len = strlen(sub);
+		msg.para2 = pvPortMalloc(len + 1);
+		strcpy(msg.para2, sub);
+	}
+	else msg.para2 = 0;
+	
 	ret = xQueueSend(hvp_msg_queue, &msg, 0);
 	if(ret != pdTRUE) {
 		vPortFree(msg.para1);

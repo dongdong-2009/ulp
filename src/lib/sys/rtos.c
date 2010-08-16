@@ -16,40 +16,13 @@
 
 extern void xPortSysTickHandler( void );
 
-static void task_init(void)
-{
-	void (**init)(void);
-	void (**end)(void);
-	
-	init = __section_begin(".sys.task");
-	end = __section_end(".sys.task");
-	while(init < end) {
-		(*init)();
-		init ++;
-		init ++;
-	}
-}
-
-static void task_update(void)
-{
-	void (**update)(void);
-	void (**end)(void);
-	
-	sys_Update();
-	update = __section_begin(".sys.task");
-	end = __section_end(".sys.task");
-	while(update < end) {
-		update ++;
-		(*update)();
-		update ++;
-	}
-}
-
 static void vUpdateTask(void *pvParameters)
 {
 	drv_Init();
+	lib_init();
 	task_init();
 	while(1) {
+		lib_update();
 		task_update();
 	}
 }
@@ -57,7 +30,7 @@ static void vUpdateTask(void *pvParameters)
 void task_Init(void)
 {
 	sys_Init();
-	xTaskCreate( vUpdateTask, (signed portCHAR *) "Update", 128, NULL, tskIDLE_PRIORITY + 1, NULL );	
+	xTaskCreate( vUpdateTask, (signed portCHAR *) "Update", 256, NULL, tskIDLE_PRIORITY + 1, NULL );	
 	
 	/* Start the scheduler. */
 	vTaskStartScheduler();

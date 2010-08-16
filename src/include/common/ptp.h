@@ -18,13 +18,17 @@
 	S8:= type(0x5338) + count + addr(char[3], starting execution address) + data(none) + cksum
 	S9:= type(0x5339) + count + addr(char[2], starting execution address) + data(none) + cksum
 */
-#define PTP_LINE_BYTES_MAX	128
+#define PTP_LINE_BYTES_MAX	40
 
 typedef struct {
-	char src[128];
-	char bin[64];
-	char idx_src;
-	char idx_bin;
+	int addr;
+	char len;
+	char ofs; //current record 
+	char bin[PTP_LINE_BYTES_MAX];
+} ptp_record_t;
+
+typedef struct {
+	ptp_record_t s;
 } ptp_priv_t;
 
 typedef struct {

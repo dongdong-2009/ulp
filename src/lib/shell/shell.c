@@ -49,7 +49,7 @@ void shell_Update(void)
 	cmd_Exec(argc, argv);
 }
 
-DECLARE_TASK(shell_Init, shell_Update)
+DECLARE_LIB(shell_Init, shell_Update)
 
 /*read a line of string from console*/
 static int shell_ReadLine(void)

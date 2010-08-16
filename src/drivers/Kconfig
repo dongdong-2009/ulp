@@ -34,11 +34,14 @@ bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
 bool "spi 8 ch 10bit dac chip dac1x8s" CONFIG_DRIVER_DAC1X8S
 bool "general lcd support?" CONFIG_DRIVER_LCD
 if [ "$CONFIG_DRIVER_LCD" = "y" ]; then
+	bool "shell cmd for lcd debug" CONFIG_DRIVER_LCD_CMD
 	bool "lcd driver for lcd1602" CONFIG_DRIVER_LCD1602
 	bool "stm32 bus driver for lcd1602" CONFIG_STM32_LCD1602_BUS
+	bool "lcd driver for ili932x" CONFIG_DRIVER_ILI932X
 fi
 bool "general keyboard driver" CONFIG_DRIVER_KEYBOARD
 bool "adc key driver" CONFIG_DRIVER_ADCKEY
+bool "gpio key driver" CONFIG_DRIVER_GPIOKEY
 bool "general remote control driver" CONFIG_DRIVER_RCKEY
 if [ "$CONFIG_DRIVER_RCKEY" = "y" ]; then
 	choice 'remote control protocol'	" \

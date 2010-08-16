@@ -56,10 +56,9 @@ DECLARE_SHELL_CMD(cmd_umount)
 
 static int cmd_ff_fread(int argc, char *argv[])
 {
-
-	const char usage[] = { \
+	const char *usage = { \
 		" usage:\n" \
-		" fread filename, read a file" \
+		" cat filename, read a file\n" \
 	};
 	 
 	if(argc > 0 && argc != 2) {
@@ -70,12 +69,12 @@ static int cmd_ff_fread(int argc, char *argv[])
 	FRESULT res;
 	FIL file;
 	unsigned int br;
-	char *buffer = (char *)malloc(50);
+	char buffer[9];
 
 	res = f_open(&file, argv[1], FA_OPEN_EXISTING | FA_READ);
 	if (res == FR_OK) {
 		for (;;) {
-			res = f_read(&file, buffer, sizeof(buffer), &br);
+			res = f_read(&file, buffer, sizeof(buffer) - 1, &br);
 			if (res || br == 0) break; /* error or eof */
 			buffer[br] = '\0';
 			printf("%s",buffer);
@@ -85,12 +84,9 @@ static int cmd_ff_fread(int argc, char *argv[])
 		printf("operation failed!\n\r");
 	}
 	f_close(&file);
-	
-	FREE(buffer);
-
 	return 0;
 }
-const cmd_t cmd_fread = {"fread", cmd_ff_fread, "read a file"};
+const cmd_t cmd_fread = {"cat", cmd_ff_fread, "read a file"};
 DECLARE_SHELL_CMD(cmd_fread)
 
 static int cmd_ff_fwrite(int argc, char *argv[])
