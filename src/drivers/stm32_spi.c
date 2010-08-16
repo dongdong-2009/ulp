@@ -53,7 +53,7 @@ int spi_Init(int bus, int mode)
 	SPI_InitStructure.SPI_CPOL = (mode & SPI_MODE_POL_1) ? SPI_CPOL_High : SPI_CPOL_Low;
 	SPI_InitStructure.SPI_CPHA = (mode & SPI_MODE_PHA_1) ? SPI_CPHA_2Edge : SPI_CPHA_1Edge;
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
+	SPI_InitStructure.SPI_BaudRatePrescaler = (mode & SPI_MODE_PRESCALER_4) ? SPI_BaudRatePrescaler_4 : SPI_BaudRatePrescaler_2;
 	SPI_InitStructure.SPI_FirstBit = (mode & SPI_MODE_LSB) ? SPI_FirstBit_LSB : SPI_FirstBit_MSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
 	SPI_Init(spix, &SPI_InitStructure);
@@ -72,13 +72,13 @@ int spi_Init(int bus, int mode)
 		DMA_InitStructure.DMA_BufferSize = 0;
 		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
 		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-		DMA_InitStructure.DMA_PeripheralDataSize = DMA_MemoryDataSize_HalfWord;
-		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_MemoryDataSize_Byte;
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
 		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
 		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
 		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 		DMA_Init(DMA1_Channel3, &DMA_InitStructure);
-		
+
 		/* Enable SPI1 DMA Tx request */
 		SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Tx, ENABLE);
 	}
@@ -92,10 +92,10 @@ int spi_Init(int bus, int mode)
 		DMA_InitStructure.DMA_BufferSize = 0;
 		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
 		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-		DMA_InitStructure.DMA_PeripheralDataSize = DMA_MemoryDataSize_HalfWord;
-		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_MemoryDataSize_Byte;
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
 		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
-		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+		DMA_InitStructure.DMA_Priority = DMA_Priority_High;
 		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 		DMA_Init(DMA1_Channel5, &DMA_InitStructure);
 		
@@ -123,13 +123,11 @@ int spi_Write(int bus, int val)
  *
  *len : number of Bytes to be transfered
  */
-void spi_DMA_Write(int bus, unsigned short *pbuf, int len)
+void spi_DMA_Write(int bus, unsigned char *pbuf, int len)
 {
 #ifdef CONFIG_DRIVER_SPI_STM32_DMA
 	if (bus == 1) {
-		//while();
-		while(!DMA_GetFlagStatus(DMA1_FLAG_TC3) && DMA_GetCurrDataCounter(DMA1_Channel3));
-		DMA_ClearFlag(DMA1_FLAG_TC3);
+		while(DMA_GetCurrDataCounter(DMA1_Channel3));
 		DMA_Cmd(DMA1_Channel3, DISABLE);
 		DMA1_Channel3->CMAR = (uint32_t)pbuf;
 		DMA1_Channel3->CNDTR = len;

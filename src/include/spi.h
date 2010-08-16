@@ -12,10 +12,12 @@
 #define SPI_MODE_BW_16 (1 << 2)
 #define SPI_MODE_MSB (0 << 3)
 #define SPI_MODE_LSB (1 << 3)
+#define SPI_MODE_PRESCALER_2 (0<<4)
+#define SPI_MODE_PRESCALER_4 (1<<4)
 
 /*bus,range: 1, 2, ...*/
 int spi_Init(int bus, int mode);
 int spi_Write(int bus, int val);
-void spi_DMA_Write(int bus, unsigned short *pbuf, int len);
+void spi_DMA_Write(int bus, unsigned char *pbuf, int len);
 #endif /*__SPI_H_*/
 
