@@ -26,6 +26,9 @@ if [ "$CONFIG_DRIVER_STEPPERMOTOR" = "y" ]; then
 fi
 bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
 bool "spi bus driver for stm32?" CONFIG_DRIVER_SPI_STM32
+if [ "$CONFIG_DRIVER_SPI_STM32" = "y" ]; then
+	bool "stm32 SPI DMA Support" CONFIG_DRIVER_SPI_STM32_DMA
+fi
 bool "dds chip ad9833" CONFIG_DRIVER_AD9833
 bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
 bool "spi 8 ch 10bit dac chip dac1x8s" CONFIG_DRIVER_DAC1X8S
@@ -33,6 +36,7 @@ bool "general lcd support?" CONFIG_DRIVER_LCD
 if [ "$CONFIG_DRIVER_LCD" = "y" ]; then
 	bool "shell cmd for lcd debug" CONFIG_DRIVER_LCD_CMD
 	bool "lcd driver for lcd1602" CONFIG_DRIVER_LCD1602
+	bool "stm32 bus driver for lcd1602" CONFIG_STM32_LCD1602_BUS
 	bool "lcd driver for ili932x" CONFIG_DRIVER_ILI932X
 fi
 bool "general keyboard driver" CONFIG_DRIVER_KEYBOARD
@@ -51,4 +55,12 @@ fi
 bool "keyword phy driver?" CONFIG_DRIVER_KWD
 if [ "$CONFIG_DRIVER_KWD" = "y" ]; then
 	bool "keyword phy driver debug command" CONFIG_KWD_CMD
+fi
+bool "add md204l driver?" CONFIG_DRIVER_MD204L
+bool "add usart driver?" CONFIG_DRIVER_USART
+if [ "$CONFIG_DRIVER_USART" = "y" ]; then
+	mainmenu_option next_comment
+	  comment 'Usart Config'
+	  source src/drivers/usart/Kconfig
+	endmenu
 fi

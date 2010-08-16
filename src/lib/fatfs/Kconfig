@@ -6,3 +6,6 @@
 bool "fatfs support only read?" CONFIG_FATFS_READONLY
 bool "fatfs support relative path?" CONFIG_FATFS_RPATH
 bool "fatfs support long file name?" CONFIG_FATFS_LFN
+if [ "$CONFIG_FATFS_LFN" = "y" ]; then
+	bool "fatfs support code page US(437)?" CONFIG_CODE_PAGE_US
+fi

@@ -8,10 +8,11 @@
 #include "time.h"
 #include <string.h>
 
-typedef enum{
-	Bit_Ok = 0,
-	Bit_Busy
-}lcd1602_status;
+#define LCD1602_RW	GPIO_Pin_8
+#define LCD1602_RS	GPIO_Pin_9
+#define LCD1602_E	GPIO_Pin_11
+
+#define LCD1602_PORT (GPIO_Pin_All&0x00ff)
 
 static lcd1602_status lcd1602_ReadStaus(void)
 {

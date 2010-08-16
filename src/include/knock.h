@@ -13,6 +13,8 @@ typedef enum {
 	NR_OF_KS
 } knock_ch_t;
 
+extern unsigned short vvt_adc3[5];
+
 void knock_Init(void);
 void knock_Update(void);
 void knock_SetFreq(short hz);
