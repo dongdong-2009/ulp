@@ -22,15 +22,12 @@
 	#define dma_ch_rx DMA1_Channel6
 #endif
 
-//debug
-#define CONFIG_CONSOLE_TX_FIFO_SZ 64
-#define CONFIG_CONSOLE_RX_FIFO_SZ 16
-
 #if CONFIG_CONSOLE_TX_FIFO_SZ > 0
 #define ENABLE_TX_DMA 1
 #define TX_FIFO_SZ CONFIG_CONSOLE_TX_FIFO_SZ
 static char console_fifo_tx[TX_FIFO_SZ];
-static char console_fifo_tn;
+static char console_fifo_tn; //nr of bytes to send
+static char console_fifo_tp; //pos of tx fifo start
 static void console_SetupTxDMA(void *p, int n);
 #endif
 
@@ -99,6 +96,7 @@ void console_Init(void)
 	console_SetupTxDMA(console_fifo_tx, 0);
 	USART_DMACmd(uart, USART_DMAReq_Tx, ENABLE);
 	console_fifo_tn = 0;
+	console_fifo_tp = 0;
 #endif
 
 #ifdef ENABLE_RX_DMA
@@ -124,18 +122,27 @@ int console_putchar(char c)
 	//copy
 	DMA_Cmd(dma_ch_tx, DISABLE);
 	n = DMA_GetCurrDataCounter(dma_ch_tx);
-	for(i = 0, j = console_fifo_tn - n; i < n; i ++, j ++) {
-		if(i != j)
-			console_fifo_tx[i] = console_fifo_tx[j];
+	console_fifo_tp += console_fifo_tn - n;
+	if(console_fifo_tp + n + 2 >  TX_FIFO_SZ) {
+		for(i = 0, j = console_fifo_tp; i < n; i ++, j ++) {
+			if(i != j)
+				console_fifo_tx[i] = console_fifo_tx[j];
+		}
+		console_fifo_tp = 0;
+	}
+	else {
+		i = console_fifo_tp + n;
 	}
 	
 	console_fifo_tx[i ++] = c;
+	n ++;
 	if(c == '\n') {
 		console_fifo_tx[i ++] = '\r';
+		n ++;
 	}
 	
-	console_fifo_tn = i;
-	console_SetupTxDMA(console_fifo_tx, i);
+	console_fifo_tn = n;
+	console_SetupTxDMA(console_fifo_tx + console_fifo_tp, n);
 #else
 	USART_SendData(uart, c);
 	while(USART_GetFlagStatus(uart, USART_FLAG_TXE) == RESET);
