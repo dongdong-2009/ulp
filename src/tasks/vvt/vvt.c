@@ -3,6 +3,7 @@
  */
 
 #include "config.h"
+#include "sys/task.h"
 #include "vvt/vvt.h"
 #include "vvt/misfire.h"
 #include <stdio.h>
