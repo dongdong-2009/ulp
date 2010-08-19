@@ -4,9 +4,9 @@
 */
 
 #include "stm32f10x.h"
-#include "knock.h"
 #include "ad9833.h"
 #include "spi.h"
+#include "vvt/vvt_pulse.h"
 
 //pravite varibles define
 static ad9833_t knock_dds;
@@ -129,7 +129,7 @@ static int knock_dds_write_reg(int reg, int val)
 { 
 	int ret; 
 	GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_RESET); 
-	ret = spi_Write(SPI1, val); 
+	ret = spi_Write(1, val); 
 	GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_SET);
 	return ret;
 }
@@ -138,7 +138,7 @@ static int vss_dds_write_reg(int reg, int val)
 { 
 	int ret; 
 	GPIO_WriteBit(GPIOF, GPIO_Pin_11, Bit_RESET); 
-	ret = spi_Write(SPI1, val); 
+	ret = spi_Write(1, val); 
 	GPIO_WriteBit(GPIOF, GPIO_Pin_11, Bit_SET);
 	return ret;
 }
@@ -147,7 +147,7 @@ static int wss_dds_write_reg(int reg, int val)
 { 
 	int ret; 
 	GPIO_WriteBit(GPIOB, GPIO_Pin_1, Bit_RESET); 
-	ret = spi_Write(SPI1, val); 
+	ret = spi_Write(1, val); 
 	GPIO_WriteBit(GPIOB, GPIO_Pin_1, Bit_SET);
 	return ret;
 }
@@ -174,7 +174,7 @@ static ad9833_t vss_dds = {
 		.write_reg = vss_dds_write_reg,
 		.read_reg = 0,
 	},
-	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,,
+	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
 
 static ad9833_t wss_dds = {
@@ -182,7 +182,7 @@ static ad9833_t wss_dds = {
 		.write_reg = wss_dds_write_reg,
 		.read_reg = 0,
 	},
-	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,,
+	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
 
 static ad9833_t rpm_dds = {

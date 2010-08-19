@@ -4,7 +4,6 @@
 #ifndef __VVT_H_
 #define __VVT_H_
 
-#include "pss.h"
 #include "misfire.h"
 #include "led.h"
 #include "osd/osd.h"

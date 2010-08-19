@@ -5,18 +5,17 @@
 #include "config.h"
 #include "vvt/vvt.h"
 #include "vvt/misfire.h"
+#include "vvt/vvt_pulse.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "pss.h"
-#include "knock.h"
 #include "sys/task.h"
 
 //global
-static short vvt_gear_advance;
-static int vvt_knock_pos;
-static short vvt_knock_width;
-static short vvt_knock_strength; //unit: mV
-static int vvt_knock_pattern; //...D C B A
+short vvt_gear_advance;
+int vvt_knock_pos;
+short vvt_knock_width;
+short vvt_knock_strength; //unit: mV
+int vvt_knock_pattern; //...D C B A
 
 //private
 /*vvt_counter corresponds with degree,1->1 degree*/
@@ -28,8 +27,7 @@ static short vvt_counter; //0-719
 
 void vvt_Init(void)
 {
-	pss_Init();
-	knock_Init();
+	vvt_pulse_Init();
 	misfire_Init();
 	vvt_Stop();
 
