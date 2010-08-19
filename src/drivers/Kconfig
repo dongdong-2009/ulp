@@ -5,7 +5,12 @@
 #
 bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
 if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
-	bool "enable USART1 as console?" CONFIG_DRIVER_STM32_USART1
+	choice 'console device select'	" \
+		UART1	CONFIG_CONSOLE_UART1 \
+		UART2	CONFIG_CONSOLE_UART2 \
+	" UART2
+	int "tx fifo size" CONFIG_CONSOLE_TX_FIFO_SZ 64
+	int "rx fifo size" CONFIG_CONSOLE_RX_FIFO_SZ 32
 fi
 bool "enable network mac drivers?" CONFIG_DRIVER_MAC
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
