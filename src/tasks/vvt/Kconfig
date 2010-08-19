@@ -5,3 +5,8 @@
 #
 
 bool "enable misfire speed debug output?" CONFIG_VVT_MISFIRE_DEBUG
+int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
+int "vss dds mclk frequency Hz?" CONFIG_DRIVER_VSS_DDS_MCLK 25000000
+int "knock dds mclk frequency Hz?" CONFIG_DRIVER_KNOCK_DDS_MCLK 25000000
+int "max knock sensor out voltage mVpp?" CONFIG_DRIVER_KNOCK_MVPP_MAX 255
+

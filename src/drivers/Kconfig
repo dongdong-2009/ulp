@@ -14,13 +14,6 @@ if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
 fi
 bool "enable network mac drivers?" CONFIG_DRIVER_MAC
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
-bool "vvt drivers" CONFIG_DRIVER_VVT
-if [ "$CONFIG_DRIVER_VVT" = "y" ]; then
-	int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
-	int "vss dds mclk frequency Hz?" CONFIG_DRIVER_VSS_DDS_MCLK 25000000
-	int "knock dds mclk frequency Hz?" CONFIG_DRIVER_KNOCK_DDS_MCLK 25000000
-	int "max knock sensor out voltage mVpp?" CONFIG_DRIVER_KNOCK_MVPP_MAX 255
-fi
 bool "stepper motor drivers?" CONFIG_DRIVER_STEPPERMOTOR
 if [ "$CONFIG_DRIVER_STEPPERMOTOR" = "y" ]; then
 	int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
