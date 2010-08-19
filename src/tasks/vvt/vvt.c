@@ -10,15 +10,13 @@
 #include "pss.h"
 #include "knock.h"
 #include "sys/task.h"
-#include "osd/osd.h"
-#include "key.h"
 
 //global
-short vvt_gear_advance;
-int vvt_knock_pos;
-short vvt_knock_width;
-short vvt_knock_strength; //unit: mV
-int vvt_knock_pattern; //...D C B A
+static short vvt_gear_advance;
+static int vvt_knock_pos;
+static short vvt_knock_width;
+static short vvt_knock_strength; //unit: mV
+static int vvt_knock_pattern; //...D C B A
 
 //private
 /*vvt_counter corresponds with degree,1->1 degree*/
@@ -28,28 +26,8 @@ static short vvt_counter; //0-719
 #define IS_IN_RANGE(val, min, max) \
 	(((val) >= (min)) && ((val) <= (max)))
 
-
-static const int keymap[] = {
-	KEY_UP,
-	KEY_DOWN,
-	KEY_ENTER,
-	KEY_RIGHT,
-	KEY_LEFT,
-	KEY_RESET,
-	KEY_NONE
-};
-
 void vvt_Init(void)
 {
-#ifdef CONFIG_TASK_OSD
-	//handle osd display
-	int hdlg = osd_ConstructDialog(&vvt_dlg);
-	osd_SetActiveDialog(hdlg);
-
-	//set key map
-	key_SetLocalKeymap(keymap);
-#endif
-
 	pss_Init();
 	knock_Init();
 	misfire_Init();
