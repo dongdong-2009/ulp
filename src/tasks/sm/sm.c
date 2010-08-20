@@ -213,6 +213,24 @@ int sm_SaveConfigToFlash(void)
 	return 0;
 }
 
+/*******************************************************************************
+* Function Name  : TIM1_UP_IRQHandler
+* Description    : This function handles TIM1 overflow and update interrupt 
+*                  request.
+* Input          : None
+* Output         : None
+* Return         : None
+*******************************************************************************/
+void TIM1_UP_IRQHandler(void)
+{
+#if CONFIG_TASK_STEPMOTOR == 1
+	/* Clear TIM1 Update interrupt pending bit */
+	//TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
+	TIM1->SR = (uint16_t)~TIM_IT_Update;
+	sm_isr();
+#endif
+}
+
 void sm_isr(void)
 {
 	/*warnning: manual mode may also reach this point, in case of steps >= 65535*/
