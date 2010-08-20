@@ -14,9 +14,19 @@ typedef struct {
 	unsigned bseq : 1; /*bit sequency, 0->lsb*/
 } spi_cfg_t;
 
-extern bus_t spi1;
-extern bus_t spi2;
-extern bus_t spi3;
+typedef struct {
+	int (*init)(const spi_cfg_t *cfg);
+	int (*wreg)(int addr, int val);
+	int (*rreg)(int addr);
+	
+	/*reserved*/
+	int (*wbuf)(char *buf, int n);
+	int (*rbuf)(char *buf, int n);
+} spi_bus_t;
+
+extern spi_bus_t spi1;
+extern spi_bus_t spi2;
+extern spi_bus_t spi3;
 
 #endif /*__SPI_H_*/
 
