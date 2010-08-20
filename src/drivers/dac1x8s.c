@@ -6,6 +6,7 @@
 
 #include "config.h"
 #include "dac1x8s.h"
+#include "spi.h"
 
 #define CMD_MOD_WRM		0x8000
 #define CMD_MOD_WTM		0x9000
@@ -18,7 +19,14 @@
 
 void dac1x8s_Init(const dac1x8s_t *chip)
 {
-	chip->io.write_reg(0, CMD_MOD_WTM);
+	spi_cfg_t cfg = {
+		.cpol = 1,
+		.cpha = 0,
+		.bits = 16,
+		.bseq = 1,
+	};
+	chip->bus->init(&cfg);
+	chip->bus->wreg(chip->idx, CMD_MOD_WTM);
 }
 
 void dac1x8s_SetVolt(const dac1x8s_t *chip, int ch, int cnt)
@@ -26,5 +34,5 @@ void dac1x8s_SetVolt(const dac1x8s_t *chip, int ch, int cnt)
 	ch &= 0x0007;
 	cnt &= 0x0fff;
 	cnt |= ch << 12;
-	chip->io.write_reg(0, cnt);
+	chip->bus->wreg(chip->idx, cnt);
 }

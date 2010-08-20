@@ -9,7 +9,8 @@
 #include "device.h"
 
 typedef struct {
-	dev_io_t io;
+	bus_t *bus;
+	int idx; //index of chip in the specified bus
 } mcp41x_t;
 
 void mcp41x_Init(mcp41x_t *chip);

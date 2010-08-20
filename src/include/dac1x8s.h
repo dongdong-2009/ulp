@@ -7,7 +7,8 @@
 #include "device.h"
 
 typedef struct {
-	dev_io_t io;
+	bus_t *bus;
+	int idx; //index of chip in the specified bus
 } dac1x8s_t;
 
 void dac1x8s_Init(const dac1x8s_t *chip);
