@@ -8,6 +8,12 @@ mainmenu_option next_comment
 	source src/drivers/spi/Kconfig
 endmenu
 
+mainmenu_option next_comment
+	comment 'uart config'
+	source src/drivers/usart/Kconfig
+endmenu
+	
+
 bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
 if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
 	choice 'console device select'	" \
@@ -50,10 +56,3 @@ if [ "$CONFIG_DRIVER_KWD" = "y" ]; then
 	bool "keyword phy driver debug command" CONFIG_KWD_CMD
 fi
 bool "add md204l driver?" CONFIG_DRIVER_MD204L
-bool "add usart driver?" CONFIG_DRIVER_USART
-if [ "$CONFIG_DRIVER_USART" = "y" ]; then
-	mainmenu_option next_comment
-	  comment 'Usart Config'
-	  source src/drivers/usart/Kconfig
-	endmenu
-fi
