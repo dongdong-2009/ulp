@@ -11,8 +11,8 @@
 #include "lcd.h"
 #include "driver.h"
 #include <string.h>
+#include "s6b33.h"
 
-static unsigned short DeviceCode;
 static unsigned short fgcolor;
 static unsigned short bgcolor;
 
@@ -51,7 +51,7 @@ static int lcm_hwInit(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14 | GPIO_Pin_0;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
@@ -63,13 +63,14 @@ static int lcm_hwInit(void)
 	SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;
 	SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Hard;
-	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
+	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_256;
 	SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
-	SPI_Init(spix, &SPI_InitStructure);
+	SPI_Init(SPI2, &SPI_InitStructure);
 	/* Enable the SPI	*/
 	SPI_Cmd(SPI2, ENABLE);
 	SPI_SSOutputCmd(SPI2, ENABLE);
+	return 0;
 }
 
 /*addr : 0->command, 1->display data*/
@@ -80,18 +81,19 @@ enum {
 
 static int lcm_write(int type, int value)
 {
-	GPIO_WriteBit(GPIOB, GPIO_Pin_14, type);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_14, (BitAction)type);
 	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_TXE) == RESET);
 	SPI_I2S_SendData(SPI2, value);
+	return 0;
 }
 
-static int lcd_clear(void)
+static int lcm_clear(void)
 {
 	int i, j;
 	for(i = 0; i < 160; i ++) {
 		for(j = 0; j < 128; j ++) {
-			lcm_write(DAT, 0x03e0 >> 8);
-			lcm_write(DAT, 0x03e0);
+			lcm_write(DAT, bgcolor >> 8);
+			lcm_write(DAT, bgcolor);
 		}
 	}
 	return 0;
@@ -99,6 +101,10 @@ static int lcd_clear(void)
 
 static int lcm_init(void)
 {
+	GPIO_WriteBit(GPIOB, GPIO_Pin_0, Bit_RESET);
+	mdelay(10);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_0, Bit_SET);
+	
 	//*****STANDBY MODE OFF
 	lcm_write(CMD, 0x2c);
 	//*****OTP MODE ON/OFF********************
@@ -190,21 +196,22 @@ static int lcm_init(void)
 	//*********DISPLAY ON***********************
 	lcm_write(CMD, 0x51);
 	
-	lcd_clear();
+	lcm_clear();
 	return 0;
 }
 
-int ili9320_set_color(int fg, int bg)
+int lcm_set_color(int fg, int bg)
 {
 	fgcolor = (unsigned short) fg;
 	bgcolor = (unsigned short) bg;
+	return 0;
 }
 
 static const lcd_t lcm = {
 	.w = 20,//160/8
 	.h = 8,//128/16
 	.init = lcm_init,
-	.puts = lcm_puts,
+	.puts = NULL,
 	.clear_all = lcm_clear,
 	.clear_rect = NULL,
 	.scroll = NULL,
