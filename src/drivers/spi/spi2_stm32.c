@@ -22,9 +22,8 @@
 #define RX_FIFO_SZ CONFIG_SPI2_RX_FIFO_SZ
 #endif
 
-static int spi_Init(const void *cfg)
+static int spi_Init(const spi_cfg_t *spi_cfg)
 {
-	spi_cfg_t *spi_cfg = (spi_cfg_t *)cfg;
 	GPIO_InitTypeDef GPIO_InitStructure;
 	SPI_InitTypeDef  SPI_InitStructure;
 	
@@ -103,7 +102,7 @@ static int spi_DMA_Write(char *pbuf, int len)
 	return 0;
 }
 
-bus_t spi2 = {
+spi_bus_t spi2 = {
 	.init = spi_Init,
 	.wreg = spi_Write,
 	.rreg = NULL,
