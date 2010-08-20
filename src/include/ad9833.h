@@ -12,7 +12,8 @@
 #define AD9833_OPT_DIV (1 << 3) /*Fout = f/2*/
 
 typedef struct {
-	dev_io_t io;
+	bus_t *bus;
+	int idx; //index of chip in the specified bus
 	int option;
 } ad9833_t;
 
