@@ -5,8 +5,11 @@
 #define __DEVICE_H_
 
 typedef struct {
-	int (*write_reg)(int reg, int val);
-	int (*read_reg)(int reg);
-} dev_io_t;
+	int (*init)(const void *cfg);
+	int (*wreg)(int addr, int val);
+	int (*rreg)(int addr);
+	int (*wbuf)(char *buf, int n);
+	int (*rbuf)(char *buf, int n);
+} bus_t;
 
 #endif /*__DEVICE_H_*/

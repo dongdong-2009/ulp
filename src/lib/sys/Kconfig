@@ -5,16 +5,6 @@
 #
 
 bool "enable sys debug?" CONFIG_SYSTEM_DEBUG
-bool "enable bus spi1?" CONFIG_SYSTEM_SPI1
-if [ "$CONFIG_SYSTEM_SPI1" = "y"]; then
-	bool "enable SPI1 data length 8 bits" CONFIG_STM32_SPI1_LEN_8
-	bool "enable SPI1 Baudrate prescaler_2" CONFIG_STM32_SPI1_PRESCALER_2
-fi
-bool "enable bus spi2?" CONFIG_SYSTEM_SPI2
-if [ "$CONFIG_SYSTEM_SPI2" = "y"]; then
-	bool "enable SPI2 data length 8 bits" CONFIG_STM32_SPI2_LEN_8
-	bool "enable SPI2 Baudrate prescaler_2" CONFIG_STM32_SPI2_PRESCALER_2
-fi
 int "sys tick freq in Hz?" CONFIG_TICK_HZ 1000
 if [ "$CONFIG_LIB_FREERTOS" != "y"]; then
 	int "background tasks update period in ms?" CONFIG_SYSTEM_UPDATE_MS 5
