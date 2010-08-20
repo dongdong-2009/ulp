@@ -4,7 +4,7 @@
 
 #include "config.h"
 #include "osd/osd.h"
-#include "sm/stepmotor.h"
+#include "stepmotor.h"
 #include "key.h"
 #include "stm32f10x.h"
 

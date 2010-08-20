@@ -3,7 +3,7 @@
  */
 
 #include "config.h"
-#include "sm/stepmotor.h"
+#include "stepmotor.h"
 #include "osd/osd.h"
 #include "stm32f10x.h"
 #include "capture.h"

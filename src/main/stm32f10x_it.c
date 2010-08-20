@@ -25,7 +25,7 @@
 #include "motor/motor.h"
 #include "vvt/vvt.h"
 #include "sys/system.h"
-#include "sm/stepmotor.h"
+#include "stepmotor.h"
 #include "sys/task.h"
 #include <stdio.h>
 
