@@ -8,6 +8,7 @@
 #include "config.h"
 #include "osd/osd_dialog.h"
 #include "FreeRTOS.h"
+#include <stdlib.h>
 
 static osd_dialog_k *osd_active_kdlg;
 

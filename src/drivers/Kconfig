@@ -36,6 +36,7 @@ if [ "$CONFIG_DRIVER_LCD" = "y" ]; then
 	bool "lcd driver for lcd1602" CONFIG_DRIVER_LCD1602
 	bool "stm32 bus driver for lcd1602" CONFIG_STM32_LCD1602_BUS
 	bool "lcd driver for ili932x" CONFIG_DRIVER_ILI932X
+	bool "lcd driver for s6b33bc" CONFIG_DRIVER_S6B33
 fi
 bool "general keyboard driver" CONFIG_DRIVER_KEYBOARD
 bool "adc key driver" CONFIG_DRIVER_ADCKEY

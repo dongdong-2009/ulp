@@ -9,6 +9,7 @@
 #include "osd/osd_item.h"
 #include "osd/osd_eng.h"
 #include "FreeRTOS.h"
+#include <stdlib.h>
 
 //item construct/destroy/show/hide ops
 int osd_ConstructItem(const osd_item_t *item)

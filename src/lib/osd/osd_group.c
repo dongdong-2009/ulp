@@ -10,6 +10,7 @@
 #include "osd/osd_dialog.h"
 #include "osd/osd_eng.h"
 #include "FreeRTOS.h"
+#include <stdlib.h>
 
 /*
 *	success return the new focused group handle
