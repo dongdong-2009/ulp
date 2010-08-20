@@ -9,8 +9,7 @@
 #include <string.h>
 #include "vvt/vvt.h"
 #include "vvt/misfire.h"
-#include "pss.h"
-#include "knock.h"
+#include "vvt/vvt_pulse.h"
 
 #if CONFIG_SHELL_VVT_DEBUG == 1
 static int cmd_pss_func(int argc, char *argv[])

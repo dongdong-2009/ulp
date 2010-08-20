@@ -6,6 +6,7 @@
 
 #include "ad9833.h"
 #include "spi.h"
+#include "config.h"
 
 #define PHASE_RESOLUTION 28
 
@@ -24,18 +25,35 @@
 #define SLEEP1 (1 << 7)
 #define SLEEP12 (1 << 6)
 
+#ifdef CONFIG_DRIVER_SPI_STM32_DMA
+static unsigned char ad9833_temp1[4];
+static unsigned char ad9833_temp2[2];
+static unsigned char ad9833_temp3[2];
+static unsigned char ad9833_dam_buf0[6];
+static unsigned char ad9833_dam_buf1[6];
+static int flag_buf;
+#endif
+
 static ad9833_t * rpm_dds_debug;
 
 void ad9833_Init(ad9833_t *chip)
 {
 	int opt = chip->option;
-	chip->io.write_reg(0, REG_CTRL(AD9833_RESET));
-	
 	opt |= B28;
+
+#ifndef CONFIG_DRIVER_SPI_STM32_DMA
+	chip->io.write_reg(0, REG_CTRL(AD9833_RESET));
 	chip->io.write_reg(0, REG_CTRL(opt | AD9833_RESET));
-	chip->option = opt;
+#else
+	ad9833_temp1[0] = (unsigned char)(REG_CTRL(AD9833_RESET) >> 8);
+	ad9833_temp1[1] = (unsigned char)(REG_CTRL(AD9833_RESET));
+	ad9833_temp1[2] = (unsigned char)(REG_CTRL(opt | AD9833_RESET) >> 8);
+	ad9833_temp1[3] = (unsigned char)(REG_CTRL(opt | AD9833_RESET));
+	while(spi_DMA_Write(1, ad9833_temp1, 4));
+#endif
 
 	rpm_dds_debug = chip;
+	chip->option = opt;
 }
 
 void ad9833_SetFreq(ad9833_t *chip, unsigned fw)
@@ -44,11 +62,11 @@ void ad9833_SetFreq(ad9833_t *chip, unsigned fw)
 	int opt = chip->option;
 	
 	fw >>= (32 - PHASE_RESOLUTION);
-	
 	lsb = (unsigned short)(fw & 0x3fff); //low 14 bit
 	fw >>= 14;
 	msb = (unsigned short)(fw & 0x3fff);
-	
+
+#ifndef CONFIG_DRIVER_SPI_STM32_DMA
 	if(opt & FSELECT) {
 		chip->io.write_reg(0, REG_FREQ0(lsb));
 		chip->io.write_reg(0, REG_FREQ0(msb));
@@ -61,26 +79,8 @@ void ad9833_SetFreq(ad9833_t *chip, unsigned fw)
 		opt |= FSELECT;
 		chip->io.write_reg(0, REG_CTRL(opt));
 	}
-
-	chip->option = opt;
-}
-
-static unsigned char ad9833_dam_buf0[6];
-static unsigned char ad9833_dam_buf1[6];
-static int flag_buf;
-
-void ad9833_DMA_SetFreq(ad9833_t *chip, unsigned fw)
-{
-	unsigned short msb, lsb;
-	int opt = chip->option;
-
-	fw >>= (32 - PHASE_RESOLUTION);
-
-	lsb = (unsigned short)(fw & 0x3fff); //low 14 bit
-	fw >>= 14;
-	msb = (unsigned short)(fw & 0x3fff);
-
-if(opt & FSELECT) {
+#else
+	if(opt & FSELECT) {
 		opt &= ~FSELECT;
 		if (!flag_buf) {
 			ad9833_dam_buf0[0] = (unsigned char)(REG_FREQ0(lsb) >> 8);
@@ -90,7 +90,7 @@ if(opt & FSELECT) {
 			ad9833_dam_buf0[4] = (unsigned char)(REG_CTRL(opt) >> 8);
 			ad9833_dam_buf0[5] = (unsigned char)(REG_CTRL(opt));
 			flag_buf = 1;
-			spi_DMA_Write(1, ad9833_dam_buf0, 6);
+			while(spi_DMA_Write(1, ad9833_dam_buf0, 6));
 		} else {
 			ad9833_dam_buf1[0] = (unsigned char)(REG_FREQ0(lsb) >> 8);
 			ad9833_dam_buf1[1] = (unsigned char)(REG_FREQ0(lsb));
@@ -99,7 +99,7 @@ if(opt & FSELECT) {
 			ad9833_dam_buf1[4] = (unsigned char)(REG_CTRL(opt) >> 8);
 			ad9833_dam_buf1[5] = (unsigned char)(REG_CTRL(opt));
 			flag_buf = 0;
-			spi_DMA_Write(1, ad9833_dam_buf1, 6);
+			while(spi_DMA_Write(1, ad9833_dam_buf1, 6));
 		}
 	} else {
 		opt |= FSELECT;
@@ -111,7 +111,7 @@ if(opt & FSELECT) {
 			ad9833_dam_buf0[4] = (unsigned char)(REG_CTRL(opt) >> 8);
 			ad9833_dam_buf0[5] = (unsigned char)(REG_CTRL(opt));
 			flag_buf = 1;
-			spi_DMA_Write(1, ad9833_dam_buf0, 6);
+			while(spi_DMA_Write(1, ad9833_dam_buf0, 6));
 		} else {
 			ad9833_dam_buf1[0] = (unsigned char)(REG_FREQ1(lsb) >> 8);
 			ad9833_dam_buf1[1] = (unsigned char)(REG_FREQ1(lsb));
@@ -120,9 +120,10 @@ if(opt & FSELECT) {
 			ad9833_dam_buf1[4] = (unsigned char)(REG_CTRL(opt) >> 8);
 			ad9833_dam_buf1[5] = (unsigned char)(REG_CTRL(opt));
 			flag_buf = 0;
-			spi_DMA_Write(1, ad9833_dam_buf1, 6);
+			while(spi_DMA_Write(1, ad9833_dam_buf1, 6));
 		}
 	}
+#endif
 
 	chip->option = opt;
 }
@@ -130,13 +131,25 @@ if(opt & FSELECT) {
 void ad9833_Enable(const ad9833_t *chip)
 {
 	int opt = chip->option;
+#ifndef CONFIG_DRIVER_SPI_STM32_DMA
 	chip->io.write_reg(0, REG_CTRL(opt));
+#else
+	ad9833_temp2[0] = (unsigned char)(REG_CTRL(opt) >> 8);
+	ad9833_temp2[1] = (unsigned char)(REG_CTRL(opt));
+	while(spi_DMA_Write(1, ad9833_temp2, 2));
+#endif
 }
 
 void ad9833_Disable(const ad9833_t *chip)
 {
 	int opt = chip->option;
+#ifndef CONFIG_DRIVER_SPI_STM32_DMA
 	chip->io.write_reg(0, REG_CTRL(opt | AD9833_RESET));
+#else
+	ad9833_temp3[0] = (unsigned char)(REG_CTRL(opt | AD9833_RESET) >> 8);
+	ad9833_temp3[1] = (unsigned char)(REG_CTRL(opt | AD9833_RESET));
+	while(spi_DMA_Write(1, ad9833_temp3, 2));
+#endif
 }
 
 #if 1
@@ -152,25 +165,17 @@ static int cmd_ad9833_func(int argc, char *argv[])
 
 	const char usage[] = { \
 		" usage:\n" \
-		" ad9833 poll fw, write reg by polling \n" \
-		" ad9833 dma fw, write reg by dma \n" \
+		" ad9833 fw, write reg fw\n" \
 	};
 
-	if(argc < 3) {
+	if(argc < 2) {
 		printf(usage);
 		return 0;
 	}
 
-	if (strcmp("poll",argv[1]) == 0) {
-		temp = atoi(argv[2]);
-		ad9833_SetFreq(rpm_dds_debug, temp);
-	}
-	
-	if (strcmp("dma",argv[1]) == 0) {
-		temp = atoi(argv[2]);
-		GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_RESET);
-		ad9833_DMA_SetFreq(rpm_dds_debug, temp);
-	}
+	temp = atoi(argv[1]);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_5);
+	ad9833_SetFreq(rpm_dds_debug, temp);
 
 	return 0;
 }

@@ -24,7 +24,6 @@
 #include "stm32_eth.h"
 #include "motor/motor.h"
 #include "vvt/vvt.h"
-#include "knock.h"
 #include "sys/system.h"
 #include "sm/stepmotor.h"
 #include "sys/task.h"
@@ -677,12 +676,5 @@ void ETH_IRQHandler(void)
 *******************************************************************************/
 void DMA2_Channel4_5_IRQHandler(void)
 {
-#ifdef CONFIG_TASK_VVT
-	if (DMA_GetITStatus(DMA2_IT_TC5)) {
-		 DMA2_Channel5->CMAR = (uint32_t)vvt_adc3;
-		/* Clear DMA1 Channel6 Half Transfer, Transfer Complete and Global interrupt pending bits */
-		DMA_ClearITPendingBit(DMA2_IT_GL5);
-	}
-#endif
 }
 /******************* (C) COPYRIGHT 2007 STMicroelectronics *****END OF FILE****/

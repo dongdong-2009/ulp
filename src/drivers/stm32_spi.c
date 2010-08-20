@@ -123,11 +123,12 @@ int spi_Write(int bus, int val)
  *
  *len : number of Bytes to be transfered
  */
-void spi_DMA_Write(int bus, unsigned char *pbuf, int len)
+int spi_DMA_Write(int bus, unsigned char *pbuf, int len)
 {
 #ifdef CONFIG_DRIVER_SPI_STM32_DMA
 	if (bus == 1) {
-		while(DMA_GetCurrDataCounter(DMA1_Channel3));
+		if (DMA_GetCurrDataCounter(DMA1_Channel3))
+			return 1;
 		DMA_Cmd(DMA1_Channel3, DISABLE);
 		DMA1_Channel3->CMAR = (uint32_t)pbuf;
 		DMA1_Channel3->CNDTR = len;
@@ -135,11 +136,13 @@ void spi_DMA_Write(int bus, unsigned char *pbuf, int len)
 	}
 
 	if (bus == 2) {
-		while(DMA_GetCurrDataCounter(DMA1_Channel5));
+		if (DMA_GetCurrDataCounter(DMA1_Channel5))
+			return 1;
 		DMA_Cmd(DMA1_Channel5, DISABLE);
 		DMA1_Channel5->CMAR = (uint32_t)pbuf;
 		DMA1_Channel5->CNDTR = len;
 		DMA_Cmd(DMA1_Channel5, ENABLE);	
 	}
 #endif
+	return 0;
 }

@@ -26,8 +26,6 @@ void ad9833_SetFreq(ad9833_t *chip, unsigned fw);
 	ad9833_SetFreq(chip, fw); \
 } while(0)
 
-void ad9833_DMA_SetFreq(ad9833_t *chip, unsigned fw);
-
 /*note: ad9833_SetFreq can enable ad9833 automatically*/
 void ad9833_Enable(const ad9833_t *chip);
 void ad9833_Disable(const ad9833_t *chip);
