@@ -6,6 +6,14 @@
 
 #include <stddef.h>
 #include "device.h"
+#include "config.h"
+
+enum {
+	SPI_CS_DUMMY = 0,
+#ifdef CONFIG_SPI_CS_PB10
+	SPI_CS_PB10,
+#endif
+};
 
 typedef struct {
 	unsigned cpol : 1; /*clock polarity, 0-> idle low level*/

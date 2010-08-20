@@ -2,6 +2,7 @@
 *	miaofng@2010 initial version
 */
 
+#include "config.h"
 #include "stm32f10x.h"
 #include "spi.h"
 #include "device.h"
@@ -41,6 +42,13 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+	/*handle chip select pins*/
+#ifdef CONFIG_SPI_CS_PB10
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+#endif
 
 	/* SPI configuration */
 	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
@@ -83,9 +91,24 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 
 static int spi_Write(int addr, int val)
 {
+	/*cs = low*/
+#ifdef CONFIG_SPI_CS_PB10
+	if(addr == SPI_CS_PB10) {
+		GPIO_WriteBit(GPIOB, GPIO_Pin_10, Bit_RESET);
+	}
+#endif
+
 	while (SPI_I2S_GetFlagStatus(spi, SPI_I2S_FLAG_TXE) == RESET);
 	SPI_I2S_SendData(spi, (uint16_t)val);
 	while (SPI_I2S_GetFlagStatus(spi, SPI_I2S_FLAG_RXNE) == RESET);
+
+	/*cs = high*/
+#ifdef CONFIG_SPI_CS_PB10
+	if(addr == SPI_CS_PB10) {
+		GPIO_WriteBit(GPIOB, GPIO_Pin_10, Bit_SET);
+	}
+#endif
+
 	return SPI_I2S_ReceiveData(spi);
 }
 
