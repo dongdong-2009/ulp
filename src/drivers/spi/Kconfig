@@ -15,4 +15,11 @@ if [ "$CONFIG_DRIVER_SPI2" = "y" ]; then
 fi
 
 #use gpio as chip select
-bool "GPIO PB10 -> CS?" CONFIG_SPI_CS_PB10
+bool "gpio -> cs?" CONFIG_SPI_CS_GPIO
+if [ "$CONFIG_SPI_CS_GPIO" = "y" ]; then
+	bool "SPI_CS_PB1" CONFIG_SPI_CS_PB1
+	bool "SPI_CS_PB10" CONFIG_SPI_CS_PB10
+	bool "SPI_CS_PC4" CONFIG_SPI_CS_PC4
+	bool "SPI_CS_PC5" CONFIG_SPI_CS_PC5
+	bool "SPI_CS_PF11" CONFIG_SPI_CS_PF11
+fi

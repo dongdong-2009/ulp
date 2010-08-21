@@ -43,13 +43,6 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-	/*handle chip select pins*/
-#ifdef CONFIG_SPI_CS_PB10
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-#endif
-
 	/* SPI configuration */
 	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
 	SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
@@ -86,29 +79,23 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	SPI_I2S_DMACmd(spi, SPI_I2S_DMAReq_Tx, ENABLE);
 #endif
 
+#ifdef CONFIG_SPI_CS_GPIO
+	spi_cs_init();
+#endif
 	return 0;
 }
 
 static int spi_Write(int addr, int val)
 {
-	/*cs = low*/
-#ifdef CONFIG_SPI_CS_PB10
-	if(addr == SPI_CS_PB10) {
-		GPIO_WriteBit(GPIOB, GPIO_Pin_10, Bit_RESET);
-	}
+#ifdef CONFIG_SPI_CS_GPIO
+	spi_cs_set(addr, 0);
 #endif
-
 	while (SPI_I2S_GetFlagStatus(spi, SPI_I2S_FLAG_TXE) == RESET);
 	SPI_I2S_SendData(spi, (uint16_t)val);
 	while (SPI_I2S_GetFlagStatus(spi, SPI_I2S_FLAG_RXNE) == RESET);
-
-	/*cs = high*/
-#ifdef CONFIG_SPI_CS_PB10
-	if(addr == SPI_CS_PB10) {
-		GPIO_WriteBit(GPIOB, GPIO_Pin_10, Bit_SET);
-	}
+#ifdef CONFIG_SPI_CS_GPIO
+	spi_cs_set(addr, 1);
 #endif
-
 	return SPI_I2S_ReceiveData(spi);
 }
 

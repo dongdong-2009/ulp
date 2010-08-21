@@ -10,10 +10,16 @@
 
 enum {
 	SPI_CS_DUMMY = 0,
-#ifdef CONFIG_SPI_CS_PB10
+	SPI_CS_PB1,
 	SPI_CS_PB10,
-#endif
+	SPI_CS_PC4,
+	SPI_CS_PC5,
+	SPI_CS_PF11,
 };
+
+//private
+void spi_cs_init(void);
+void spi_cs_set(int pin, int level);
 
 typedef struct {
 	unsigned cpol : 1; /*clock polarity, 0-> idle low level*/

@@ -1,3 +1,4 @@
+obj-$(CONFIG_SPI_CS_GPIO) += spi_cs.o
 ifeq ($(CONFIG_CPU_STM32),y)
 	obj-$(CONFIG_DRIVER_SPI1) += spi1_stm32.o
 	obj-$(CONFIG_DRIVER_SPI2) += spi2_stm32.o
