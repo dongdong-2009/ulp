@@ -24,9 +24,10 @@ typedef struct {
 	int (*init)(const uart_cfg_t *cfg);
 	int (*putchar)(int data);
 	int (*getchar)(void);
-	int (*isready)(void); //1 or more char has been received
+	int (*poll)(void); //return how many chars left in the rx buffer
 } uart_bus_t;
 
+extern uart_bus_t uart0;
 extern uart_bus_t uart1;
 extern uart_bus_t uart2;
 

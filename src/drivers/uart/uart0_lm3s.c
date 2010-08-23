@@ -38,5 +38,5 @@ uart_bus_t uart0 = {
 	.init = uart_Init,
 	.putchar = uart_putchar,
 	.getchar = uart_getch,
-	.isready = uart_IsNotEmpty,
+	.poll = uart_IsNotEmpty,
 };
