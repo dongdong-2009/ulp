@@ -12,7 +12,11 @@ mainmenu_option next_comment
 	comment 'uart config'
 	source src/drivers/usart/Kconfig
 endmenu
-	
+
+mainmenu_option next_comment
+	comment 'i2c config'
+	source src/drivers/i2c/Kconfig
+endmenu
 
 bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
 if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
@@ -28,6 +32,10 @@ bool "bldc drivers?" CONFIG_DRIVER_MOTOR
 bool "capture driver?" CONFIG_DRIVER_CAPTURE
 bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
 bool "dds chip ad9833" CONFIG_DRIVER_AD9833
+bool "eeprom chip at24cxx" CONFIG_DRIVER_AT24CXX
+if [ "$CONFIG_DRIVER_AT24CXX" = "y" ]; then
+	int "eeprom page size" CONFIG_EEPROM_PAGE_SIZE 8
+fi
 bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
 bool "spi 8 ch 10bit dac chip dac1x8s" CONFIG_DRIVER_DAC1X8S
 bool "general lcd support?" CONFIG_DRIVER_LCD
