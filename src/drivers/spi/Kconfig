@@ -1,0 +1,25 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+bool "spi bus 1?" CONFIG_DRIVER_SPI1
+if [ "$CONFIG_DRIVER_SPI1" = "y" ]; then
+	int "tx fifo size" CONFIG_SPI1_TX_FIFO_SZ 0
+	int "rx fifo size" CONFIG_SPI1_RX_FIFO_SZ 0
+fi
+bool "spi bus 2?" CONFIG_DRIVER_SPI2
+if [ "$CONFIG_DRIVER_SPI2" = "y" ]; then
+	int "tx fifo size" CONFIG_SPI2_TX_FIFO_SZ 0
+	int "rx fifo size" CONFIG_SPI2_RX_FIFO_SZ 0
+fi
+
+#use gpio as chip select
+bool "gpio -> cs?" CONFIG_SPI_CS_GPIO
+if [ "$CONFIG_SPI_CS_GPIO" = "y" ]; then
+	bool "SPI_CS_PB1" CONFIG_SPI_CS_PB1
+	bool "SPI_CS_PB10" CONFIG_SPI_CS_PB10
+	bool "SPI_CS_PC4" CONFIG_SPI_CS_PC4
+	bool "SPI_CS_PC5" CONFIG_SPI_CS_PC5
+	bool "SPI_CS_PF11" CONFIG_SPI_CS_PF11
+fi

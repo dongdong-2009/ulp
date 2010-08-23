@@ -3,6 +3,17 @@
 #
 # Written by miaofng@2010
 #
+mainmenu_option next_comment
+	comment 'spi config'
+	source src/drivers/spi/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'uart config'
+	source src/drivers/usart/Kconfig
+endmenu
+	
+
 bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
 if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
 	choice 'console device select'	" \
@@ -14,25 +25,8 @@ if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
 fi
 bool "enable network mac drivers?" CONFIG_DRIVER_MAC
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
-bool "stepper motor drivers?" CONFIG_DRIVER_STEPPERMOTOR
-if [ "$CONFIG_DRIVER_STEPPERMOTOR" = "y" ]; then
-	int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
-	int "steppermotor steps per round?" CONFIG_STEPPERMOTOR_SPM 200
-	bool "config step mode, half?" CONFIG_STEPPERMOTOR_HALFSTEP
-	bool "config decay mode, fast?" CONFIG_STEPPERMOTOR_FASTDECAYSTEP
-	bool "poweroff motor when in idle state?" CONFIG_STEPPERMOTOR_IDLE_POWEROFF
-fi
+bool "capture driver?" CONFIG_DRIVER_CAPTURE
 bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
-bool "spi bus 1?" CONFIG_DRIVER_SPI1
-if [ "$CONFIG_DRIVER_SPI1" = "y" ]; then
-	int "tx fifo size" CONFIG_SPI1_TX_FIFO_SZ 0
-	int "rx fifo size" CONFIG_SPI1_RX_FIFO_SZ 0
-fi
-bool "spi bus 2?" CONFIG_DRIVER_SPI2
-if [ "$CONFIG_DRIVER_SPI2" = "y" ]; then
-	int "tx fifo size" CONFIG_SPI2_TX_FIFO_SZ 0
-	int "rx fifo size" CONFIG_SPI2_RX_FIFO_SZ 0
-fi
 bool "dds chip ad9833" CONFIG_DRIVER_AD9833
 bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
 bool "spi 8 ch 10bit dac chip dac1x8s" CONFIG_DRIVER_DAC1X8S
@@ -62,10 +56,3 @@ if [ "$CONFIG_DRIVER_KWD" = "y" ]; then
 	bool "keyword phy driver debug command" CONFIG_KWD_CMD
 fi
 bool "add md204l driver?" CONFIG_DRIVER_MD204L
-bool "add usart driver?" CONFIG_DRIVER_USART
-if [ "$CONFIG_DRIVER_USART" = "y" ]; then
-	mainmenu_option next_comment
-	  comment 'Usart Config'
-	  source src/drivers/usart/Kconfig
-	endmenu
-fi

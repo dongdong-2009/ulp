@@ -3,7 +3,7 @@
  */
 
 #include "config.h"
-#include "sm/stepmotor.h"
+#include "stepmotor.h"
 #include "osd/osd.h"
 #include "stm32f10x.h"
 #include "capture.h"
@@ -211,6 +211,24 @@ int sm_SaveConfigToFlash(void)
 	flash_Erase((void *)SM_USER_FLASH_ADDR, 1);
 	flash_Write((void *)SM_USER_FLASH_ADDR, (void const *)(&sm_config), sizeof(sm_config_t));
 	return 0;
+}
+
+/*******************************************************************************
+* Function Name  : TIM1_UP_IRQHandler
+* Description    : This function handles TIM1 overflow and update interrupt 
+*                  request.
+* Input          : None
+* Output         : None
+* Return         : None
+*******************************************************************************/
+void TIM1_UP_IRQHandler(void)
+{
+#if CONFIG_TASK_STEPMOTOR == 1
+	/* Clear TIM1 Update interrupt pending bit */
+	//TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
+	TIM1->SR = (uint16_t)~TIM_IT_Update;
+	sm_isr();
+#endif
 }
 
 void sm_isr(void)

@@ -4,3 +4,8 @@
 # Written by miaofng@2010
 #
 
+int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
+int "steppermotor steps per round?" CONFIG_STEPPERMOTOR_SPM 200
+bool "config step mode, half?" CONFIG_STEPPERMOTOR_HALFSTEP
+bool "config decay mode, fast?" CONFIG_STEPPERMOTOR_FASTDECAYSTEP
+bool "poweroff motor when in idle state?" CONFIG_STEPPERMOTOR_IDLE_POWEROFF

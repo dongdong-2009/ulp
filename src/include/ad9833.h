@@ -4,7 +4,7 @@
 #ifndef __AD9833_H_
 #define __AD9833_H_
 
-#include "device.h"
+#include "spi.h"
 
 #define AD9833_OPT_OUT_SIN ((0 << 1) | (0 << 5)) /*sin waveform out enable*/
 #define AD9833_OPT_OUT_TRI ((1 << 1) | (0 << 5)) /*triangle waveform out enable*/
@@ -12,7 +12,7 @@
 #define AD9833_OPT_DIV (1 << 3) /*Fout = f/2*/
 
 typedef struct {
-	bus_t *bus;
+	spi_bus_t *bus;
 	int idx; //index of chip in the specified bus
 	int option;
 } ad9833_t;

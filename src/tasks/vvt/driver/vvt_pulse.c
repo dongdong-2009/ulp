@@ -9,14 +9,29 @@
 #include "vvt/vvt_pulse.h"
 
 //pravite varibles define
-static ad9833_t knock_dds;
-static ad9833_t vss_dds;
-static ad9833_t wss_dds;
-static ad9833_t rpm_dds;
-static int knock_dds_write_reg(int reg, int val);
-static int vss_dds_write_reg(int reg, int val);
-static int wss_dds_write_reg(int reg, int val);
-static int rpm_dds_write_reg(int reg, int val);
+static ad9833_t knock_dds = {
+	.bus = &spi1,
+	.idx = SPI_CS_PC4,
+	.option = AD9833_OPT_OUT_SIN,
+};
+
+static ad9833_t vss_dds = {
+	.bus = &spi1,
+	.idx = SPI_CS_PF11,
+	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
+};
+
+static ad9833_t wss_dds = {
+	.bus = &spi1,
+	.idx = SPI_CS_PB1,
+	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
+};
+
+static ad9833_t rpm_dds = {
+	.bus = &spi1,
+	.idx = SPI_CS_PC5,
+	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
+};
 
 static void vvt_pulse_adc_Init(void);
 static void vvt_pulse_dds_Init(void);
@@ -123,76 +138,6 @@ void pss_SetVolt(pss_ch_t ch, short mv)
 	GPIO_WriteBit(GPIOG, pin, val);
 }
 
-/*************** private members ********************/
-//dds related define
-static int knock_dds_write_reg(int reg, int val)
-{ 
-	int ret; 
-	GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_RESET); 
-	ret = spi_Write(1, val); 
-	GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_SET);
-	return ret;
-}
-
-static int vss_dds_write_reg(int reg, int val)
-{ 
-	int ret; 
-	GPIO_WriteBit(GPIOF, GPIO_Pin_11, Bit_RESET); 
-	ret = spi_Write(1, val); 
-	GPIO_WriteBit(GPIOF, GPIO_Pin_11, Bit_SET);
-	return ret;
-}
-
-static int wss_dds_write_reg(int reg, int val)
-{ 
-	int ret; 
-	GPIO_WriteBit(GPIOB, GPIO_Pin_1, Bit_RESET); 
-	ret = spi_Write(1, val); 
-	GPIO_WriteBit(GPIOB, GPIO_Pin_1, Bit_SET);
-	return ret;
-}
-
-int rpm_dds_write_reg(int reg, int val)
-{
-	int ret;
-	GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_RESET);
-	ret = spi_Write(1, val);
-	GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_SET);
-	return ret;
-}
-
-static ad9833_t knock_dds = {
-	.io = {
-		.write_reg = knock_dds_write_reg,
-		.read_reg = 0,
-	},
-	.option = AD9833_OPT_OUT_SIN,
-};
-
-static ad9833_t vss_dds = {
-	.io = {
-		.write_reg = vss_dds_write_reg,
-		.read_reg = 0,
-	},
-	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
-};
-
-static ad9833_t wss_dds = {
-	.io = {
-		.write_reg = wss_dds_write_reg,
-		.read_reg = 0,
-	},
-	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
-};
-
-static ad9833_t rpm_dds = {
-	.io = {
-		.write_reg = rpm_dds_write_reg,
-		.read_reg = 0,
-	},
-	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
-};
-
 //for adc init
 static void vvt_pulse_adc_Init(void)
 {
@@ -265,41 +210,6 @@ static void vvt_pulse_adc_Init(void)
 
 static void vvt_pulse_dds_Init(void)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
-	
-	/*knock chip select pins*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_SET); //cs_dds_knock = 1
-
-	/*VSS chip select pins*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOF, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOF, &GPIO_InitStructure);
-	GPIO_WriteBit(GPIOF, GPIO_Pin_11, Bit_SET); //cs_dds_vss = 1
-
-	/*WSS chip select pins*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_1, Bit_SET); //cs_dds_wss = 1
-
-	/*RPM select pins*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_SET); // cs_dds_rpm = 1
-
-	/*chip init*/
 	ad9833_Init(&knock_dds);
 	ad9833_Init(&vss_dds);
 	ad9833_Init(&wss_dds);

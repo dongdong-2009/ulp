@@ -2,6 +2,7 @@
 *	miaofng@2010 initial version
 */
 
+#include "config.h"
 #include "stm32f10x.h"
 #include "spi.h"
 #include "device.h"
@@ -22,9 +23,8 @@
 #define RX_FIFO_SZ CONFIG_SPI2_RX_FIFO_SZ
 #endif
 
-static int spi_Init(const void *cfg)
+static int spi_Init(const spi_cfg_t *spi_cfg)
 {
-	spi_cfg_t *spi_cfg = (spi_cfg_t *)cfg;
 	GPIO_InitTypeDef GPIO_InitStructure;
 	SPI_InitTypeDef  SPI_InitStructure;
 	
@@ -79,14 +79,23 @@ static int spi_Init(const void *cfg)
 	SPI_I2S_DMACmd(spi, SPI_I2S_DMAReq_Tx, ENABLE);
 #endif
 
+#ifdef CONFIG_SPI_CS_GPIO
+	spi_cs_init();
+#endif
 	return 0;
 }
 
 static int spi_Write(int addr, int val)
 {
+#ifdef CONFIG_SPI_CS_GPIO
+	spi_cs_set(addr, 0);
+#endif
 	while (SPI_I2S_GetFlagStatus(spi, SPI_I2S_FLAG_TXE) == RESET);
 	SPI_I2S_SendData(spi, (uint16_t)val);
 	while (SPI_I2S_GetFlagStatus(spi, SPI_I2S_FLAG_RXNE) == RESET);
+#ifdef CONFIG_SPI_CS_GPIO
+	spi_cs_set(addr, 1);
+#endif
 	return SPI_I2S_ReceiveData(spi);
 }
 
@@ -103,7 +112,7 @@ static int spi_DMA_Write(char *pbuf, int len)
 	return 0;
 }
 
-bus_t spi2 = {
+spi_bus_t spi2 = {
 	.init = spi_Init,
 	.wreg = spi_Write,
 	.rreg = NULL,

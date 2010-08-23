@@ -11,37 +11,14 @@
 #include "smpwm.h"
 #include <string.h>
 
-//private members for ad9833
-static int sm_dds_write_reg(int reg, int val);
-
 static ad9833_t sm_dds = {
-	.io = {
-		.write_reg = sm_dds_write_reg,
-		.read_reg = 0,
-	},
+	.bus = &spi1,
+	.idx = SPI_CS_PB10,
 	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
 
-static int sm_dds_write_reg(int reg, int val)
-{
-	int ret;
-	GPIO_WriteBit(GPIOB, GPIO_Pin_10, Bit_RESET);
-	ret = spi_Write(1, val);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_10, Bit_SET);
-	return ret;
-}
-
 void smctrl_Init(void)
 {
-	//init for ad9833
-	GPIO_InitTypeDef GPIO_InitStructure;
-	
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_10, Bit_SET); // sm_dds = 1
 	ad9833_Init(&sm_dds);
 	
 	//init for l6208
