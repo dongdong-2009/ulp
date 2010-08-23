@@ -1,0 +1,19 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+#uart1
+bool "enable uart1" CONFIG_DRIVER_UART1
+if [ "$CONFIG_DRIVER_UART1" = "y" ]; then
+	int "tx fifo size" CONFIG_UART1_TF_SZ 64
+	int "rx fifo size" CONFIG_UART1_RF_SZ 32
+fi
+
+#uart2
+bool "enable uart2" CONFIG_DRIVER_UART2
+if [ "$CONFIG_DRIVER_UART2" = "y" ]; then
+	int "tx fifo size" CONFIG_UART1_TF_SZ 64
+	int "rx fifo size" CONFIG_UART1_RF_SZ 32
+fi

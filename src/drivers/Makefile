@@ -1,7 +1,9 @@
 obj-y += driver.o
 obj-y += time.o
 obj-y += led/
-obj-$(CONFIG_DRIVER_CONSOLE) += console/
+obj-y += uart/
+obj-y += spi/
+obj-$(CONFIG_DRIVER_CONSOLE) += console.o
 obj-$(CONFIG_DRIVER_MAC) += mac/
 obj-$(CONFIG_DRIVER_KWD) += kwd/
 obj-$(CONFIG_DRIVER_MOTOR) += dbg.o
@@ -19,4 +21,3 @@ obj-$(CONFIG_DRIVER_CAPTURE) += capture.o
 obj-$(CONFIG_DRIVER_KEYBOARD) += key/
 obj-$(CONFIG_DRIVER_DISK) += disk/
 obj-$(CONFIG_DRIVER_MD204L) += md204l/
-obj-$(CONFIG_DRIVER_USART) += usart/

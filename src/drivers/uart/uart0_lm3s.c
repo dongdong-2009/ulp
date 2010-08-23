@@ -3,42 +3,40 @@
  */
 
 #include "config.h"
-#include "console.h"
+#include "uart.h"
 #include "lm3s.h"
 
-void console_Init(void)
+int uart_Init(const uart_cfg_t *cfg)
 {
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
 	GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-	UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 115200, \
+	UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), cfg->baud, \
 		(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 }
 
-int console_putchar(char c)
+int uart_putchar(int data)
 {
+	char c = (char) data;
 	UARTCharPut(UART0_BASE, c);
-	if(c == '\n') {
-		UARTCharPut(UART0_BASE, '\r');
-	}
 	return 0;
 }
 
-int console_getch(void)
+int uart_getch(void)
 {
 	int ret;
 	ret = UARTCharGet(UART0_BASE);
 	return ret;
 }
 
-int console_getchar(void)
-{
-	int ret = console_getch();
-	console_putchar((char)ret);
-	return ret;
-}
-
-int console_IsNotEmpty()
+int uart_IsNotEmpty()
 {
 	return (int) UARTCharsAvail(UART0_BASE);
 }
+
+uart_bus_t uart0 = {
+	.init = uart_Init,
+	.putchar = uart_putchar,
+	.getchar = uart_getch,
+	.poll = uart_IsNotEmpty,
+};

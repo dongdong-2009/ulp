@@ -1,50 +1,38 @@
 /* console.c
  * 	miaofng@2009 initial version
+ *	miaofng@2010 update to new api format
  */
 
 #include "config.h"
+#include "uart.h"
 #include "stm32f10x.h"
-#include "console.h"
 
-#if CONFIG_CONSOLE_UART1 == 1
-	#define uart USART1
-	#define dma_ch_tx DMA1_Channel4
-	#define dma_ch_rx DMA1_Channel5
-#elif CONFIG_CONSOLE_UART2 == 1
-	#define uart USART2
-	#define dma_ch_tx DMA1_Channel7
-	#define dma_ch_rx DMA1_Channel6
-#else 
-	//default to uart2
-	#define CONFIG_CONSOLE_UART2 1
-	#define uart USART2
-	#define dma_ch_tx DMA1_Channel7
-	#define dma_ch_rx DMA1_Channel6
-#endif
+#define uart USART2
+#define dma_ch_tx DMA1_Channel7
+#define dma_ch_rx DMA1_Channel6
 
-#if CONFIG_CONSOLE_TX_FIFO_SZ > 0
+#if CONFIG_UART2_TF_SZ > 0
 #define ENABLE_TX_DMA 1
-#define TX_FIFO_SZ CONFIG_CONSOLE_TX_FIFO_SZ
-static char console_fifo_tx[TX_FIFO_SZ];
-static char console_fifo_tn; //nr of bytes to send
-static char console_fifo_tp; //pos of tx fifo start
-static void console_SetupTxDMA(void *p, int n);
+#define TX_FIFO_SZ CONFIG_UART2_TF_SZ
+static char uart_fifo_tx[TX_FIFO_SZ];
+static char uart_fifo_tn; //nr of bytes to send
+static char uart_fifo_tp; //pos of tx fifo start
+static void uart_SetupTxDMA(void *p, int n);
 #endif
 
-#if CONFIG_CONSOLE_RX_FIFO_SZ > 0
+#if CONFIG_UART2_RF_SZ > 0
 #define ENABLE_RX_DMA 1
-#define RX_FIFO_SZ CONFIG_CONSOLE_RX_FIFO_SZ
-static char console_fifo_rx[CONFIG_CONSOLE_RX_FIFO_SZ];
-static char console_fifo_rn;
-static void console_SetupRxDMA(void *p, int n);
+#define RX_FIFO_SZ CONFIG_UART2_RF_SZ
+static char uart_fifo_rx[RX_FIFO_SZ];
+static char uart_fifo_rn;
+static void uart_SetupRxDMA(void *p, int n);
 #endif
 
-void console_Init(void)
+static int uart_Init(const uart_cfg_t *cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef uartinfo;
 
-#ifdef CONFIG_CONSOLE_UART2
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
 #ifdef CONFIG_STM32F10X_CL
 	/*configure PD5<uart2.tx>, PD6<uart2.rx>*/
@@ -70,124 +58,75 @@ void console_Init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 #endif
-#endif /*CONFIG_CONSOLE_UART2*/
-
-#if CONFIG_CONSOLE_UART1
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
-	/*configure PA9<uart1.tx>, PA10<uart1.rx>*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-#endif /*CONFIG_CONSOLE_UART1*/
 
 	/*init serial port*/
 	USART_StructInit(&uartinfo);
-	uartinfo.USART_BaudRate = 115200;
+	uartinfo.USART_BaudRate = cfg->baud;
 	USART_Init(uart, &uartinfo);
 
 #ifdef ENABLE_TX_DMA
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
-	console_SetupTxDMA(console_fifo_tx, 0);
+	uart_SetupTxDMA(uart_fifo_tx, 0);
 	USART_DMACmd(uart, USART_DMAReq_Tx, ENABLE);
-	console_fifo_tn = 0;
-	console_fifo_tp = 0;
+	uart_fifo_tn = 0;
+	uart_fifo_tp = 0;
 #endif
 
 #ifdef ENABLE_RX_DMA
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
-	console_SetupRxDMA(console_fifo_rx, RX_FIFO_SZ);
+	uart_SetupRxDMA(uart_fifo_rx, RX_FIFO_SZ);
 	USART_DMACmd(uart, USART_DMAReq_Rx, ENABLE);
-	console_fifo_rn = 0;
+	uart_fifo_rn = 0;
 #endif
 
 	USART_Cmd(uart, ENABLE);
+	return 0;
 }
 
-int console_putchar(char c)
+static int uart_putchar(int data)
 {
+	char c = (char) data;
 #ifdef ENABLE_TX_DMA
 	int i, j, n;
 	
 	//wait ... no enough fifo space to use
 	do {
 		n = DMA_GetCurrDataCounter(dma_ch_tx);
-	} while(TX_FIFO_SZ - n < 2);
+	} while(TX_FIFO_SZ - n < 1);
 	
 	//copy
 	DMA_Cmd(dma_ch_tx, DISABLE);
 	n = DMA_GetCurrDataCounter(dma_ch_tx);
-	console_fifo_tp += console_fifo_tn - n;
-	if(console_fifo_tp + n + 2 >  TX_FIFO_SZ) {
-		for(i = 0, j = console_fifo_tp; i < n; i ++, j ++) {
+	uart_fifo_tp += uart_fifo_tn - n;
+	if(uart_fifo_tp + n + 2 >  TX_FIFO_SZ) {
+		for(i = 0, j = uart_fifo_tp; i < n; i ++, j ++) {
 			if(i != j)
-				console_fifo_tx[i] = console_fifo_tx[j];
+				uart_fifo_tx[i] = uart_fifo_tx[j];
 		}
-		console_fifo_tp = 0;
+		uart_fifo_tp = 0;
 	}
 	else {
-		i = console_fifo_tp + n;
+		i = uart_fifo_tp + n;
 	}
 	
-	console_fifo_tx[i ++] = c;
+	uart_fifo_tx[i ++] = c;
 	n ++;
-	if(c == '\n') {
-		console_fifo_tx[i ++] = '\r';
-		n ++;
-	}
 	
-	console_fifo_tn = n;
-	console_SetupTxDMA(console_fifo_tx + console_fifo_tp, n);
+	uart_fifo_tn = n;
+	uart_SetupTxDMA(uart_fifo_tx + uart_fifo_tp, n);
 #else
 	USART_SendData(uart, c);
 	while(USART_GetFlagStatus(uart, USART_FLAG_TXE) == RESET);
-	if(c == '\n') {
-		USART_SendData(uart, '\r');
-		while(USART_GetFlagStatus(uart, USART_FLAG_TXE) == RESET);
-	}
 #endif
 	return 0;
 }
 
-int console_getch(void)
-{
-	int ret;
-	
-	/*wait for a char*/
-	while(1) {
-		ret = console_IsNotEmpty();
-		if(ret) break;
-	}
-
-#ifdef ENABLE_RX_DMA
-	ret = console_fifo_rx[console_fifo_rn];
-	console_fifo_rn ++;
-	if(console_fifo_rn >= RX_FIFO_SZ)
-		console_fifo_rn = 0;
-#else
-	ret = USART_ReceiveData(uart);
-#endif
-	return ret;
-}
-
-int console_getchar(void)
-{
-	int ret = console_getch();
-	console_putchar((char)ret);
-	return ret;
-}
-
-int console_IsNotEmpty()
+static int uart_IsNotEmpty(void)
 {
 	int ret;
 #ifdef ENABLE_RX_DMA
 	int rn = RX_FIFO_SZ - DMA_GetCurrDataCounter(dma_ch_rx);
-	ret = rn - console_fifo_rn;
+	ret = rn - uart_fifo_rn;
 	ret += (ret < 0) ? RX_FIFO_SZ : 0;
 #else
 	ret = (int) USART_GetFlagStatus(uart, USART_FLAG_RXNE);
@@ -195,8 +134,29 @@ int console_IsNotEmpty()
 	return ret;
 }
 
+static int uart_getch(void)
+{
+	int ret;
+	
+	/*wait for a char*/
+	while(1) {
+		ret = uart_IsNotEmpty();
+		if(ret) break;
+	}
+
+#ifdef ENABLE_RX_DMA
+	ret = uart_fifo_rx[uart_fifo_rn];
+	uart_fifo_rn ++;
+	if(uart_fifo_rn >= RX_FIFO_SZ)
+		uart_fifo_rn = 0;
+#else
+	ret = USART_ReceiveData(uart);
+#endif
+	return ret;
+}
+
 #ifdef ENABLE_TX_DMA
-static void console_SetupTxDMA(void *p, int n)
+static void uart_SetupTxDMA(void *p, int n)
 {
 	DMA_InitTypeDef DMA_InitStructure;
 
@@ -219,7 +179,7 @@ static void console_SetupTxDMA(void *p, int n)
 #endif
 
 #ifdef ENABLE_RX_DMA
-static void console_SetupRxDMA(void *p, int n)
+static void uart_SetupRxDMA(void *p, int n)
 {
 	DMA_InitTypeDef DMA_InitStructure;
 
@@ -240,3 +200,10 @@ static void console_SetupRxDMA(void *p, int n)
 	DMA_Cmd(dma_ch_rx, ENABLE);
 }
 #endif
+
+uart_bus_t uart2 = {
+	.init = uart_Init,
+	.putchar = uart_putchar,
+	.getchar = uart_getch,
+	.poll = uart_IsNotEmpty,
+};

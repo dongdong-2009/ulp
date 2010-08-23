@@ -10,7 +10,7 @@ endmenu
 
 mainmenu_option next_comment
 	comment 'uart config'
-	source src/drivers/usart/Kconfig
+	source src/drivers/uart/Kconfig
 endmenu
 
 mainmenu_option next_comment
@@ -21,11 +21,10 @@ endmenu
 bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
 if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
 	choice 'console device select'	" \
+		UART0	CONFIG_CONSOLE_UART0 \
 		UART1	CONFIG_CONSOLE_UART1 \
 		UART2	CONFIG_CONSOLE_UART2 \
 	" UART2
-	int "tx fifo size" CONFIG_CONSOLE_TX_FIFO_SZ 64
-	int "rx fifo size" CONFIG_CONSOLE_RX_FIFO_SZ 32
 fi
 bool "enable network mac drivers?" CONFIG_DRIVER_MAC
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
