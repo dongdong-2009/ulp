@@ -17,10 +17,22 @@
 #define __DEBUG_FRAME
 
 #ifdef __DEBUG
+#include <stdarg.h>
 #include "shell/cmd.h"
 #include "common/print.h"
 #include <stdio.h>
 #include <string.h>
+#define debug(...) do { \
+	print(__VA_ARGS__); \
+} while(0)
+#else
+#define debug(...)
+#endif
+
+#ifdef __DEBUG_FRAME
+#define debugf debug
+#else
+#define debugf(...)
 #endif
 
 /*1-> fmt|len, 2-> fmt + len, 4-> fmt + addr + len, default 4*/
@@ -154,26 +166,23 @@ int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 	n += tn;
 	f[n] = kwp_cksum(f, n);
 	n ++;
-#ifdef __DEBUG_FRAME
-	print("kwp tx(%02d):", n);
-	for(int i = 0; i < n; i ++) {
-		print(" %02x", f[i]);
-	}
-	print("\n");
-#endif
 
 	//flush input fifo
 	while(kwp_uart -> poll()) {
 		kwp_uart -> getchar();
 	}
-	
+
 	//send the frame to bus
+	debugf("kwp tx(%02d):", n);
 	for(int i = 0; i < n; i ++) {
 		kwp_uart -> putchar(f[i]);
+		debugf(" %02x", f[i]);
+		
 		//read echo back
 		while(! kwp_uart -> poll());
 		kwp_uart -> getchar();
 	}
+	debugf("\n");
 	
 	return 0;
 }
@@ -203,11 +212,9 @@ int kwp_check(char *pbuf, int ofs)
 		}
 	}
 
-#ifdef __DEBUG
 	if(err < 0) {
-		print("\nNegative Response!\n");
+		debug("\nNegative Response!\n");
 	}
-#endif
 	
 	return err;
 }
@@ -239,12 +246,12 @@ int kwp_recv(char *pbuf, int ms)
 			bytes ++;
 		}
 		
-#ifdef __DEBUG_FRAME
-		print("\rkwp rx(%02d):", bytes);
+		//display
+		debugf("\rkwp rx(%02d):", bytes);
 		for(int i = 0; i < bytes; i ++) {
-			print(" %02x", f[i]);
+			debugf(" %02x", f[i]);
 		}
-#endif
+
 		//full head received
 		if((bytes >= ofs + kwp_head_rn) && (len == 0)) {
 			len = rPLEN(f + ofs) + kwp_head_rn + 1;
@@ -264,10 +271,8 @@ int kwp_recv(char *pbuf, int ms)
 			len = 0;
 		}
 	}
-
-#ifdef __DEBUG
-	print("\n");
-#endif	
+	debugf("\n");
+	
 	return ret;
 }
 
@@ -292,9 +297,7 @@ int kwp_StartComm(char *kb1, char *kb2)
 {	
 	char *pbuf;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 
 	pbuf = kwp_malloc(2);
 	pbuf[0] = SID_81;
@@ -319,9 +322,7 @@ int kwp_StopComm(void)
 {
 	char *pbuf;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 
 	pbuf = kwp_malloc(3);
 	pbuf[0] = SID_82;
@@ -344,9 +345,7 @@ int kwp_AccessCommPara(void)
 	char *pbuf;
 	char p2min, p2max, p3min, p3max, p4min;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 
 	pbuf = kwp_malloc(7);
 	pbuf[0] = SID_83;
@@ -388,9 +387,7 @@ int kwp_StartDiag(char mode, char baud)
 	char *pbuf;
 	int n;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 
 	n = (baud > 0) ? 3 : 2;
 	pbuf = kwp_malloc(3);
@@ -416,9 +413,7 @@ int kwp_SecurityAccessRequest(char mode, short key, int *seed)
 	char *pbuf;
 	int n;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 
 	n = (mode & 0x01) ? 2 : 4;
 	pbuf = kwp_malloc(4);
@@ -454,9 +449,7 @@ int kwp_RequestToDnload(char fmt, int addr, int size, char *plen)
 	char *pbuf;
 	int n = 1;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 
 	pbuf = kwp_malloc(8);
 	pbuf[0] = SID_34;
@@ -492,9 +485,7 @@ int kwp_TransferData(int addr, int alen, int size, char *data)
 	char *pbuf;
 	int i;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 
 	pbuf = kwp_malloc(4 + size);
 	pbuf[0] = SID_36;
@@ -521,9 +512,7 @@ int kwp_RequestTransferExit(void)
 {
 	char *pbuf;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 	
 	pbuf = kwp_malloc(1);
 	pbuf[0] = SID_37;	
@@ -550,9 +539,7 @@ int kwp_StartRoutineByAddr(int addr)
 {
 	char *pbuf;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 
 	pbuf = kwp_malloc(4);
 	pbuf[0] = SID_38;
@@ -572,9 +559,7 @@ int kwp_StartRoutineByLocalId(int id, char *para, int n)
 	char *pbuf;
 	int i = n;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 
 	pbuf = kwp_malloc(n + 3);
 	pbuf[0] = SID_31;
@@ -595,9 +580,7 @@ int kwp_EcuReset(char mode)
 {
 	char *pbuf;
 
-#ifdef __DEBUG
-	print("->%s\n", __FUNCTION__);
-#endif
+	debug("->%s\n", __FUNCTION__);
 
 	pbuf = kwp_malloc(3);
 	pbuf[0] = SID_11;
