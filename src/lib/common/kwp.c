@@ -151,8 +151,9 @@ static char kwp_cksum(const char *p, int n)
 	return (cksum);
 }
 
-int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
+int kwp_send(char *tbuf, int tn, int ms)
 {
+	time_t timeout;
 	int n = kwp_head_tn;
 	char *f = tFRAME(tbuf);
 	
@@ -179,8 +180,14 @@ int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 		debugf(" %02x", f[i]);
 		
 		//read echo back
-		while(! kwp_uart -> poll());
-		kwp_uart -> getchar();
+		timeout = time_get(ms);
+		while(! kwp_uart -> poll() ) {
+			if(time_left(timeout) < 0)
+				break;
+		};
+
+		if(kwp_uart -> poll())
+			kwp_uart -> getchar();
 	}
 	debugf("\n");
 	
@@ -301,7 +308,7 @@ int kwp_StartComm(char *kb1, char *kb2)
 
 	pbuf = kwp_malloc(2);
 	pbuf[0] = SID_81;
-	kwp_transfer(pbuf, 1, pbuf, 3);
+	kwp_send(pbuf, 1, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 
@@ -326,7 +333,7 @@ int kwp_StopComm(void)
 
 	pbuf = kwp_malloc(3);
 	pbuf[0] = SID_82;
-	kwp_transfer(pbuf, 1, pbuf, 3);
+	kwp_send(pbuf, 1, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 		
@@ -350,7 +357,7 @@ int kwp_AccessCommPara(void)
 	pbuf = kwp_malloc(7);
 	pbuf[0] = SID_83;
 	pbuf[1] = 0;
-	kwp_transfer(pbuf, 2, pbuf, 7);
+	kwp_send(pbuf, 2, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 
@@ -369,7 +376,7 @@ int kwp_AccessCommPara(void)
 	pbuf[4] = p3min;
 	pbuf[5] = p3max;
 	pbuf[6] = p4min;
-	kwp_transfer(pbuf, 7, pbuf, 3);
+	kwp_send(pbuf, 7, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 		
@@ -395,7 +402,7 @@ int kwp_StartDiag(char mode, char baud)
 	pbuf[0] = SID_10;
 	pbuf[1] = mode;
 	pbuf[2] = baud;
-	kwp_transfer(pbuf, n, pbuf, 3);
+	kwp_send(pbuf, n, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 		
@@ -424,7 +431,7 @@ int kwp_SecurityAccessRequest(char mode, short key, int *seed)
 		pbuf[2] = (char)(key >> 8);
 		pbuf[3] = (char)(key >> 0);
 	}
-	kwp_transfer(pbuf, n, pbuf, 4);
+	kwp_send(pbuf, n, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 
@@ -463,7 +470,7 @@ int kwp_RequestToDnload(char fmt, int addr, int size, char *plen)
 		pbuf[7] = (char)(size >>  0);	
 		n = 8;
 	}
-	kwp_transfer(pbuf, n, pbuf, 3);
+	kwp_send(pbuf, n, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 		
@@ -495,7 +502,7 @@ int kwp_TransferData(int addr, int alen, int size, char *data)
 	}
 	i = alen + 1;
 	memcpy(&pbuf[i], data, size);
-	kwp_transfer(pbuf, i + size, pbuf, 3);
+	kwp_send(pbuf, i + size, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 
@@ -516,7 +523,7 @@ int kwp_RequestTransferExit(void)
 	
 	pbuf = kwp_malloc(1);
 	pbuf[0] = SID_37;	
-	kwp_transfer(pbuf, 1, pbuf, 3);
+	kwp_send(pbuf, 1, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 
@@ -546,7 +553,7 @@ int kwp_StartRoutineByAddr(int addr)
 	pbuf[1] = (char)(addr >> 16);
 	pbuf[2] = (char)(addr >>  8);
 	pbuf[3] = (char)(addr >>  0);	
-	kwp_transfer(pbuf, 4, pbuf, 4);
+	kwp_send(pbuf, 4, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 
@@ -568,7 +575,7 @@ int kwp_StartRoutineByLocalId(int id, char *para, int n)
 	while(i >= 0) {
 		pbuf[2 + i] = para[i];
 	}
-	kwp_transfer(pbuf, n + 2, pbuf, 4);
+	kwp_send(pbuf, n + 2, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 
@@ -585,7 +592,7 @@ int kwp_EcuReset(char mode)
 	pbuf = kwp_malloc(3);
 	pbuf[0] = SID_11;
 	pbuf[1] = mode;
-	kwp_transfer(pbuf, 2, pbuf, 4);
+	kwp_send(pbuf, 2, KWP_RECV_TIMEOUT_MS);
 	if(kwp_recv(pbuf, KWP_RECV_TIMEOUT_MS))
 		return -1;
 
@@ -608,7 +615,7 @@ int kwp_debug(int n, char *data)
 		pbuf[i] = data[i];
 	}
 	
-	kwp_transfer(pbuf, n, pbuf, 250);
+	kwp_send(pbuf, n, KWP_RECV_TIMEOUT_MS);
 	
 	//display received data
 	f = rFRAME(pbuf);
