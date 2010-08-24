@@ -83,6 +83,41 @@ static int uart_Init(const uart_cfg_t *cfg)
 	return 0;
 }
 
+#ifdef CONFIG_UART_KWP_SUPPORT
+static int uart_wake(int op)
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+	GPIO_TypeDef* GPIOx;
+	
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+#ifdef CONFIG_STM32F10X_CL
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+	GPIOx = GPIOD;
+#else
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+	GPIOx = GPIOA;
+#endif
+
+	switch (op) {
+	case WAKE_EN:
+		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+		GPIO_Init(GPIOx, &GPIO_InitStructure);
+		break;
+	case WAKE_LO:
+		GPIO_WriteBit(GPIOx, GPIO_InitStructure.GPIO_Pin, Bit_RESET);
+		break;
+	case WAKE_HI:
+		GPIO_WriteBit(GPIOx, GPIO_InitStructure.GPIO_Pin, Bit_SET);
+		break;
+	case WAKE_RS:
+		GPIO_Init(GPIOx, &GPIO_InitStructure);
+		break;
+	default:
+	}
+}
+#endif
+
 static int uart_putchar(int data)
 {
 	char c = (char) data;
@@ -206,4 +241,7 @@ uart_bus_t uart2 = {
 	.putchar = uart_putchar,
 	.getchar = uart_getch,
 	.poll = uart_IsNotEmpty,
+#ifdef CONFIG_UART_KWP_SUPPORT
+	.wake = uart_wake,
+#endif
 };
