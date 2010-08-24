@@ -14,7 +14,7 @@
 #include "time.h"
 
 #define __DEBUG
-//#define __DEBUG_FRAME
+#define __DEBUG_FRAME
 
 #ifdef __DEBUG
 #include "shell/cmd.h"
@@ -171,7 +171,7 @@ int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 	for(int i = 0; i < n; i ++) {
 		kwp_uart -> putchar(f[i]);
 		//read echo back
-		while(!kwp_poll());
+		while(! kwp_uart -> poll());
 		kwp_uart -> getchar();
 	}
 	
@@ -630,12 +630,18 @@ int kwp_debug(int n, char *data)
 	//display received data
 	f = rFRAME(pbuf);
 	timeout = time_get(2000);
+	bytes = 0;
 	while(1) {
 		if(time_left(timeout) < 0) {
 			break;
 		}
 		
-		bytes = kwd_poll(1);
+		//try to receive from bus
+		while(kwp_uart -> poll()) {
+			f[bytes] = kwp_uart -> getchar();
+			bytes ++;
+		}
+		
 		print("\rkwp rx(%02d):", bytes);
 		for(int i = 0; i < bytes; i ++) {
 			print(" %02x", f[i]);
@@ -680,7 +686,7 @@ static void cmd_kwp_task(void *pvParameters)
 	struct cmd_kwp_msg msg;
 	while(xQueueReceive(cmd_kwp_queue, &msg, portMAX_DELAY) == pdPASS) {
 		if(msg.cmd == CMD_WAKE) {
-			kwp_Init();
+			kwp_Init(&uart1);
 			kwp_EstablishComm();
 		}
 		else {
