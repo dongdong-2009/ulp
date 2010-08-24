@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "time.h"
+#include "uart.h"
 
 #include "ff.h"
 
@@ -38,8 +39,7 @@ int mt2x_Init(void)
 int mt2x_Prog(void)
 {
 	int err;
-	
-	kwp_Init();
+	kwp_Init(& uart1);
 	err = util_interpret();
 	util_close();
 	return err;

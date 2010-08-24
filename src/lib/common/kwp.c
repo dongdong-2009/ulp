@@ -5,7 +5,7 @@
 
 #include "config.h"
 #include "common/kwp.h"
-#include "kwd.h"
+#include "uart.h"
 #include <stdlib.h>
 
 #include "FreeRTOS.h"
@@ -24,6 +24,7 @@
 #endif
 
 /*1-> fmt|len, 2-> fmt + len, 4-> fmt + addr + len, default 4*/
+static uart_bus_t *kwp_uart;
 static char kwp_head_tn;
 static char kwp_head_rn;
 static char kwp_tar;
@@ -39,13 +40,18 @@ static kwp_err_t kwp_err;
 #define rPBUF(frame) ((frame) + kwp_head_rn)
 #define rPLEN(frame) ((kwp_head_rn & 0x01)? ((*(frame + 0)) & 0x3f) : (*((frame) + kwp_head_rn - 1)))
 
-int kwp_Init(void)
+int kwp_Init(uart_bus_t *uart)
 {
+	uart_cfg_t cfg = UART_CFG_DEF;
+
+	kwp_uart = uart;
 	kwp_head_tn = 4;
 	kwp_head_rn = 3;
 	kwp_tar = KWP_DEVICE_ID;
 	kwp_src = KWP_TESTER_ID;
-	kwd_init();
+	
+	cfg.baud = KWP_BAUD;
+	kwp_uart -> init(&cfg);
 	return 0;
 }
 
@@ -75,22 +81,22 @@ void kwp_SetFormat(char kb1, char kb2)
 int kwp_EstablishComm(void)
 {
 	//fast init is the only wakeup protocol supported now
-	kwd_wake(KWD_WKOP_EN);
-	kwd_wake(KWD_WKOP_HI);
+	kwp_uart -> wake(WAKE_EN);
+	kwp_uart -> wake(WAKE_HI);
 	mdelay(300);
 
 	//set low
-	kwd_wake(KWD_WKOP_LO);
+	kwp_uart -> wake(WAKE_LO);
 	//vTaskDelay(KWP_FAST_INIT_MS * 1000 / CONFIG_TICK_HZ);
 	mdelay(KWP_FAST_INIT_MS);
 	
 	//set high
-	kwd_wake(KWD_WKOP_HI);
+	kwp_uart -> wake(WAKE_HI);
 	//vTaskDelay(KWP_FAST_INIT_MS * 1000 / CONFIG_TICK_HZ);
 	mdelay(KWP_FAST_INIT_MS);
 	
 	//reset
-	kwd_wake(KWD_WKOP_RS);
+	kwp_uart -> wake(WAKE_RS);
 	
 	//start comm
 	kwp_StartComm(0, 0); //flush serial port
@@ -155,7 +161,21 @@ int kwp_transfer(char *tbuf, int tn, char *rbuf, int rn)
 	}
 	print("\n");
 #endif
-	return kwd_transfer(f, n, rFRAME(rbuf), 255);
+
+	//flush input fifo
+	while(kwp_uart -> poll()) {
+		kwp_uart -> getchar();
+	}
+	
+	//send the frame to bus
+	for(int i = 0; i < n; i ++) {
+		kwp_uart -> putchar(f[i]);
+		//read echo back
+		while(!kwp_poll());
+		kwp_uart -> getchar();
+	}
+	
+	return 0;
 }
 
 int kwp_check(char *pbuf, int ofs)
@@ -202,6 +222,7 @@ int kwp_recv(char *pbuf, int ms)
 	ofs = 0;
 	len = 0;
 	timeout = time_get(ms);
+	bytes = 0;
 	while(1) {
 		//timeout?
 		if(time_left(timeout) < 0) {
@@ -212,7 +233,12 @@ int kwp_recv(char *pbuf, int ms)
 			break;
 		}
 		
-		bytes = kwd_poll(1);
+		//try to receive from bus
+		while(kwp_uart -> poll()) {
+			f[bytes] = kwp_uart -> getchar();
+			bytes ++;
+		}
+		
 #ifdef __DEBUG_FRAME
 		print("\rkwp rx(%02d):", bytes);
 		for(int i = 0; i < bytes; i ++) {

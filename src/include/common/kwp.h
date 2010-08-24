@@ -8,6 +8,7 @@
 
 /* fast initialization
 */
+#define KWP_BAUD 10400
 #define KWP_FAST_INIT_MS 25
 #define KWP_RECV_TIMEOUT_MS 500
 
