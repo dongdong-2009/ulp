@@ -1,0 +1,6 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by dusk@2010
+#
+bool "stm32 usb periph?" CONFIG_DRIVER_STM32_USB
