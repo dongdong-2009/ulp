@@ -1,10 +1,15 @@
 /* lcd1602.h
  * 	dusk@2010 initial version
+ *	miaofng@2010, introduce lpt driver as its bottom device
  */
 #ifndef __LCD1602_H_
 #define __LCD1602_H_
 
-#include "stm32f10x.h"
+//REGS, A0 = RS A1 = R/W_
+#define CMD 0X00 //00
+#define STA 0X02 //10
+#define DIN 0X01 // 01
+#define DOU 0X03 // 11
 
 #define LCD1602_COMMAND_OFFSCREEN 0X08
 #define LCD1602_COMMAND_CLRSCREEN 0X01
