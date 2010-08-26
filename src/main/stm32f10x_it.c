@@ -28,8 +28,6 @@
 #include "sys/task.h"
 #include <stdio.h>
 #include "usb_lib.h"
-#include "usb_istr.h"
-#include "usb_pwr.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -394,6 +392,7 @@ void USB_HP_CAN1_TX_IRQHandler(void)
 void USB_LP_CAN1_RX0_IRQHandler(void)
 {
 #ifdef CONFIG_USE_STM32_USB_DRIVER
+	extern void USB_Istr(void);
 	USB_Istr();
 #endif
 }
