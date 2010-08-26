@@ -49,3 +49,10 @@ if [ "$CONFIG_LIB_COMMON" = "y" ]; then
 		source src/lib/common/Kconfig
 	endmenu	
 fi
+
+if [ "$CONFIG_LIB_UDISK" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'mass storage'
+		source src/lib/mass_storage/Kconfig
+	endmenu	
+fi
