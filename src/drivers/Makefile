@@ -14,6 +14,7 @@ obj-$(CONFIG_DRIVER_MCP41X) += mcp41x.o
 obj-$(CONFIG_DRIVER_DAC1X8S) += dac1x8s.o
 obj-y += spi/
 obj-y += i2c/
+obj-y += usb/
 obj-$(CONFIG_DRIVER_VVT) += mcao.o
 obj-$(CONFIG_DRIVER_FLASH_STM32) += flash.o
 obj-$(CONFIG_DRIVER_LCD) += lcd/
