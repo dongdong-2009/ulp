@@ -5,9 +5,11 @@
 #ifndef __KWP_H_
 #define __KWP_H_
 
+#include "uart.h"
 
 /* fast initialization
 */
+#define KWP_BAUD 10400
 #define KWP_FAST_INIT_MS 25
 #define KWP_RECV_TIMEOUT_MS 500
 
@@ -139,7 +141,7 @@ typedef struct {
 #define KWP_DEVICE_ID 0X11
 #define KWP_TESTER_ID 0XF1
 
-int kwp_Init(void);
+int kwp_Init(uart_bus_t *uart);
 int kwp_GetLastErr(char *rid, char *sid, char *code); /*0->no err*/
 void kwp_SetAddr(char tar, char src);
 void kwp_SetFormat(char kb1, char kb2);

@@ -4,6 +4,9 @@
 # Written by miaofng@2010
 #
 
+#common config options
+bool "KWP2000 wakeup support" CONFIG_UART_KWP_SUPPORT
+
 #uart1
 bool "enable uart1" CONFIG_DRIVER_UART1
 if [ "$CONFIG_DRIVER_UART1" = "y" ]; then

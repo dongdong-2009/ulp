@@ -6,10 +6,20 @@
 #ifndef __UART_H_
 #define __UART_H_
 
+#include "config.h"
+
 //baudrate
 enum {
 	BAUD_9600 = 9600,
 	BAUD_115200 = 115200,
+};
+
+//wake ops, special support for keyword fast init protocol
+enum {
+	WAKE_EN, //enable goio drive mode
+	WAKE_LO,
+	WAKE_HI,
+	WAKE_RS, //reset to normal uart mode
 };
 
 typedef struct {
@@ -25,6 +35,10 @@ typedef struct {
 	int (*putchar)(int data);
 	int (*getchar)(void);
 	int (*poll)(void); //return how many chars left in the rx buffer
+	
+#ifdef CONFIG_UART_KWP_SUPPORT
+	int (*wake)(int op);
+#endif
 } uart_bus_t;
 
 extern uart_bus_t uart0;

@@ -5,7 +5,6 @@ obj-y += uart/
 obj-y += spi/
 obj-$(CONFIG_DRIVER_CONSOLE) += console.o
 obj-$(CONFIG_DRIVER_MAC) += mac/
-obj-$(CONFIG_DRIVER_KWD) += kwd/
 obj-$(CONFIG_DRIVER_MOTOR) += dbg.o
 obj-$(CONFIG_DRIVER_MOTOR) += vsm.o
 obj-$(CONFIG_DRIVER_AD9833) += ad9833.o

@@ -47,5 +47,5 @@ int console_getchar(void)
 
 int console_IsNotEmpty(void)
 {
-	return uart_con -> isready();
+	return uart_con -> poll();
 }
