@@ -1,0 +1,26 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+#config lpt port bus width
+choice 'bus width'	" \
+		8BIT	CONFIG_LPT_WIDTH_8BIT \
+		16BIT	CONFIG_LPT_WIDTH_16BIT \
+	" 8BIT
+
+#gpio emulate
+bool "gpio emulated lpt bus?" CONFIG_LPT_GPIO
+if [ "$CONFIG_LPT_GPIO" = "y" ]; then
+	choice 'bus mode'	" \
+		NORMAL	CONFIG_LPT_MODE_NORMAL \
+		LCD1602	CONFIG_LPT_MODE_1602 \
+	" NORMAL
+	#bus period
+	int "bus period, unit: ns" CONFIG_LPT_T 400
+	#bus access time
+	int "bus access time, unit: ns" CONFIG_LPT_TP 200
+fi
+
+#extern memory bus such as FSMC
