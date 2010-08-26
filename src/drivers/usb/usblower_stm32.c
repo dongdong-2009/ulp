@@ -7,24 +7,24 @@
 
 void usblower_Init(void)
 {
+	GPIO_InitTypeDef GPIO_InitStructure;
 	NVIC_InitTypeDef NVIC_InitStructure;
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 
-#ifdef USE_STM3210C_EVAL
-	RCC_OTGFSCLKConfig(RCC_OTGFSCLKSource_PLLVCO_Div3);
-	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_OTG_FS, ENABLE) ;
-#else
-	RCC_USBCLKConfig(RCC_USBCLKSource_PLLCLK_1Div5);
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USB, ENABLE);
+	//USB PULL-UP resister GPIO config
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
+	
+#ifdef CONFIG_USB_PULLUP_PD2
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+	GPIO_SetBits(GPIOD, GPIO_Pin_2);
 #endif
 
-#ifdef STM32F10X_CL 
-	NVIC_InitStructure.NVIC_IRQChannel = OTG_FS_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure);
-#else
+	RCC_USBCLKConfig(RCC_USBCLKSource_PLLCLK_1Div5);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USB, ENABLE);
+	
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN1_RX0_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
@@ -36,5 +36,18 @@ void usblower_Init(void)
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
-#endif /* STM32F10X_CL */
+}
+
+void usblower_PullupEnable(void)
+{
+#ifdef CONFIG_USB_PULLUP_PD2
+	GPIO_ResetBits(GPIOD, GPIO_Pin_2);
+#endif
+}
+
+void usblower_PullupDisable(void)
+{
+#ifdef CONFIG_USB_PULLUP_PD2
+	GPIO_SetBits(GPIOD, GPIO_Pin_2);
+#endif
 }
