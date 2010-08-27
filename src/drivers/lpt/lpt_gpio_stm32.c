@@ -108,11 +108,19 @@ static int lpt_init(void)
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 #endif
 
+#ifdef CONFIG_LPT_MODE_1602
+	cs_set(L);
+#else
+	cs_set(H);
+	we_set(H);
+	oe_set(H);
+
 	//bus reset
-#ifdef rst_set
+	#ifdef rst_set
 	rst_set(L);
 	ndelay(10000);
 	rst_set(H);
+	#endif
 #endif
 
 	return 0;
