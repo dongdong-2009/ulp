@@ -120,7 +120,12 @@ static int lpt_init(void)
 
 static int lpt_setaddr(int addr)
 {
+#ifdef CONFIG_LPT_PINMAP_DEF8
 	GPIO_WriteBit(GPIOC, GPIO_Pin_9, (BitAction) (addr & 1));
+#endif
+#ifdef CONFIG_LPT_PINMAP_ZF32
+	GPIO_WriteBit(GPIOC, GPIO_Pin_10, (BitAction) (addr & 1));
+#endif
 	return 0;
 }
 
