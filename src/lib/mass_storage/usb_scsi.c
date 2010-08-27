@@ -87,7 +87,7 @@ void SCSI_Inquiry_Cmd(uint8_t lun)
 void SCSI_ReadFormatCapacity_Cmd(uint8_t lun)
 {
 
-  if (MAL_GetStatus(lun) != 0 )
+  if (MALO_GetStatus(lun) != 0 )
   {
     Set_Scsi_Sense_Data(CBW.bLUN, NOT_READY, MEDIUM_NOT_PRESENT);
     Set_CSW (CSW_CMD_FAILED, SEND_CSW_ENABLE);
@@ -115,7 +115,7 @@ void SCSI_ReadFormatCapacity_Cmd(uint8_t lun)
 void SCSI_ReadCapacity10_Cmd(uint8_t lun)
 {
 
-  if (MAL_GetStatus(lun))
+  if (MALO_GetStatus(lun))
   {
     Set_Scsi_Sense_Data(CBW.bLUN, NOT_READY, MEDIUM_NOT_PRESENT);
     Set_CSW (CSW_CMD_FAILED, SEND_CSW_ENABLE);
@@ -328,7 +328,7 @@ void SCSI_Valid_Cmd(uint8_t lun)
 *******************************************************************************/
 void SCSI_TestUnitReady_Cmd(uint8_t lun)
 {
-  if (MAL_GetStatus(lun))
+  if (MALO_GetStatus(lun))
   {
     Set_Scsi_Sense_Data(CBW.bLUN, NOT_READY, MEDIUM_NOT_PRESENT);
     Set_CSW (CSW_CMD_FAILED, SEND_CSW_ENABLE);
@@ -349,7 +349,7 @@ void SCSI_TestUnitReady_Cmd(uint8_t lun)
 *******************************************************************************/
 void SCSI_Format_Cmd(uint8_t lun)
 {
-  if (MAL_GetStatus(lun))
+  if (MALO_GetStatus(lun))
   {
     Set_Scsi_Sense_Data(CBW.bLUN, NOT_READY, MEDIUM_NOT_PRESENT);
     Set_CSW (CSW_CMD_FAILED, SEND_CSW_ENABLE);

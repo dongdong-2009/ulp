@@ -70,7 +70,7 @@ void Read_Memory(uint8_t lun, uint32_t Memory_Offset, uint32_t Transfer_Length)
   {
     if (!Block_Read_count)
     {
-      MAL_Read(lun ,
+      MALO_Read(lun ,
                Offset ,
                Data_Buffer,
                Mass_Block_Size[lun]);
@@ -142,7 +142,7 @@ void Write_Memory (uint8_t lun, uint32_t Memory_Offset, uint32_t Transfer_Length
     if (!(W_Length % Mass_Block_Size[lun]))
     {
       Counter = 0;
-      MAL_Write(lun ,
+      MALO_Write(lun ,
                 W_Offset - Mass_Block_Size[lun],
                 Data_Buffer,
                 Mass_Block_Size[lun]);

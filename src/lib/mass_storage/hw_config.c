@@ -4,7 +4,6 @@
 
 #include "stm32f10x.h"
 #include "hw_config.h"
-#include "platform_config.h"
 #include "mass_mal.h"
 #include "usb_desc.h"
 #include "usb_pwr.h"

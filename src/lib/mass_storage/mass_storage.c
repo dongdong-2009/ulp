@@ -14,7 +14,7 @@
 
 void mass_storage_Init(void)
 {
-	MAL_Init(0);
+	MALO_Init(0);
 	usblower_Init();
 
 	//init usb stack
@@ -43,6 +43,9 @@ static int cmd_udisk_func(int argc, char *argv[])
 
 	if(!strcmp(argv[1], "init"))
 		mass_storage_Init();
+
+	if(!strcmp(argv[1], "remove"))
+		usblower_PullupDisable();
 
 	return 0;
 }

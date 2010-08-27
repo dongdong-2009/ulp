@@ -1,7 +1,5 @@
 obj-y += mass_storage.o
 obj-y += hw_config.o
-obj-y += mass_mal.o
-obj-y += msd.o
 obj-y += memory.o
 obj-y += scsi_data.o
 obj-y += usb_bot.o
