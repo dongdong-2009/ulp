@@ -16,13 +16,21 @@
 /* Includes ------------------------------------------------------------------*/
 #include "mass_mal.h"
 #include "msd.h"
+#include "config.h"
 
+//global members for mass storage
+#ifdef CONFIG_LIB_UDISK
+unsigned int Mass_Memory_Size[2];
+unsigned int Mass_Block_Size[2];
+unsigned int Mass_Block_Count[2];
+volatile unsigned int Status = 0;
+#endif
+
+//private members for spi sdcard
 static SD_CardInfo SDCardInfo;
 extern mmc_t spi_card;
 static mmc_t *pMMC;
 
-/* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
 /*******************************************************************************
 * Function Name  : MAL_Init
 * Description    : Initializes the Media on the STM32
@@ -111,8 +119,18 @@ int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count)
 *******************************************************************************/
 int MAL_GetStatus ()
 {
-	//detect the card
-	return 0;
+	uint32_t temp_block_mul = 0;
+	SD_CSD MSD_csd;
+	uint32_t DeviceSizeMul = 0;
+
+	MSD_GetCSDRegister(&MSD_csd);
+	DeviceSizeMul = MSD_csd.DeviceSizeMul + 2;
+	temp_block_mul = (1 << MSD_csd.RdBlockLen)/ 512;
+	Mass_Block_Count[0] = ((MSD_csd.DeviceSize + 1) * (1 << (DeviceSizeMul))) * temp_block_mul;
+	Mass_Block_Size[0] = 512;
+	Mass_Memory_Size[0] = (Mass_Block_Count[0] * Mass_Block_Size[0]);
+
+	return MAL_OK;
 }
 
 int MAL_GetCardInfo(void)
@@ -147,34 +165,6 @@ int NOP(void)
 }
 
 #if 1
-uint32_t Mass_Memory_Size[2];
-uint32_t Mass_Block_Size[2];
-uint32_t Mass_Block_Count[2];
-__IO uint32_t Status = 0;
-
-#define MAL_OK   0
-#define MAL_FAIL 1
-#define MAX_LUN  1
-
-uint16_t MALO_Init(uint8_t lun)
-{
-  uint16_t status = MAL_OK;
-
-  switch (lun)
-  {
-    case 0:
-      MSD_Init();
-      break;
-#ifdef USE_STM3210E_EVAL
-    case 1:
-      status = NAND_Init();
-      break;
-#endif
-    default:
-      return MAL_FAIL;
-  }
-  return status;
-}
 /*******************************************************************************
 * Function Name  : MAL_Write
 * Description    : Write sectors
@@ -228,32 +218,6 @@ uint16_t MALO_Read(uint8_t lun, uint32_t Memory_Offset, uint32_t *Readbuff, uint
   return MAL_OK;
 }
 
-/*******************************************************************************
-* Function Name  : MAL_GetStatus
-* Description    : Get status
-* Input          : None
-* Output         : None
-* Return         : None
-*******************************************************************************/
-uint16_t MALO_GetStatus (uint8_t lun)
-{
-  uint32_t temp_block_mul = 0;
-  SD_CSD MSD_csd;
-  uint32_t DeviceSizeMul = 0;
-
-  if (lun == 0)
-  {
-    MSD_GetCSDRegister(&MSD_csd);
-    DeviceSizeMul = MSD_csd.DeviceSizeMul + 2;
-    temp_block_mul = (1 << MSD_csd.RdBlockLen)/ 512;
-    Mass_Block_Count[0] = ((MSD_csd.DeviceSize + 1) * (1 << (DeviceSizeMul))) * temp_block_mul;
-    Mass_Block_Size[0] = 512;
-    Mass_Memory_Size[0] = (Mass_Block_Count[0] * Mass_Block_Size[0]);
-
-      
-  }
-  return MAL_OK;
-}
 #endif
 
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/

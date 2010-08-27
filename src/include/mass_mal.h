@@ -116,6 +116,9 @@ typedef struct {
 #define USE_STM3210B_EVAL
 #undef USE_STM3210E_EVAL
 
+#define MAL_OK   0
+#define MAL_FAIL 1
+#define MAX_LUN  1
 
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
@@ -128,8 +131,6 @@ int MAL_Write(const unsigned char *buff, unsigned int sector, unsigned char coun
 int MMC_disk_ioctl(unsigned ctrl, void *buff);
 int NOP(void);
 
-uint16_t MALO_Init (uint8_t lun);
-uint16_t MALO_GetStatus (uint8_t lun);
 uint16_t MALO_Read(uint8_t lun, uint32_t Memory_Offset, uint32_t *Readbuff, uint16_t Transfer_Length);
 uint16_t MALO_Write(uint8_t lun, uint32_t Memory_Offset, uint32_t *Writebuff, uint16_t Transfer_Length);
 #endif /* __MASS_MAL_H */

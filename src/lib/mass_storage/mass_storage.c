@@ -14,7 +14,7 @@
 
 void mass_storage_Init(void)
 {
-	MALO_Init(0);
+	MAL_Init();
 	usblower_Init();
 
 	//init usb stack
