@@ -26,6 +26,11 @@
 	cs/enable		PC11
 */
 #define CONFIG_LPT_WIDTH_8BIT
+#define db_pins ( \
+	GPIO_Pin_0 | GPIO_Pin_1| GPIO_Pin_2| GPIO_Pin_3 | \
+	GPIO_Pin_4 | GPIO_Pin_5| GPIO_Pin_6| GPIO_Pin_7 \
+)
+#define db_bank GPIOC
 #define cs_set(level) GPIO_WriteBit(GPIOC, GPIO_Pin_11, level)
 #define we_set(level) GPIO_WriteBit(GPIOC, GPIO_Pin_8, level)
 #define oe_set(level) GPIO_WriteBit(GPIOC, GPIO_Pin_13, level)
@@ -41,6 +46,11 @@
 	rst			PC11
 */
 #define CONFIG_LPT_WIDTH_8BIT
+#define db_pins ( \
+	GPIO_Pin_0 | GPIO_Pin_1| GPIO_Pin_2| GPIO_Pin_3 | \
+	GPIO_Pin_4 | GPIO_Pin_5| GPIO_Pin_6| GPIO_Pin_7 \
+)
+#define db_bank GPIOC
 #define cs_set(level) GPIO_WriteBit(GPIOC, GPIO_Pin_12, level)
 #define we_set(level) GPIO_WriteBit(GPIOC, GPIO_Pin_9, level)
 #define oe_set(level) GPIO_WriteBit(GPIOC, GPIO_Pin_8, level)
@@ -58,26 +68,14 @@ static int lpt_init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 
 	//config data bus as open drain output
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_1;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_2;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_3;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_4;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_5;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_6;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_7;
-#ifdef CONFIG_LPT_WIDTH_16BIT
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_8;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_9;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_10;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_11;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_12;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_13;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_14;
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_15;
-#endif
+	GPIO_InitStructure.GPIO_Pin = db_pins;
+#ifdef CONFIG_LPT_DB_OD
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+#endif
+#ifdef CONFIG_LPT_DB_PP
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+#endif
+	GPIO_Init(db_bank, &GPIO_InitStructure);
 
 #ifdef CONFIG_LPT_PINMAP_DEF8
 	//config addr bus as pushpull out
@@ -140,22 +138,41 @@ static int lpt_setaddr(int addr)
 static int lpt_setdata(int data)
 {
 #ifdef CONFIG_LPT_WIDTH_8BIT
-	GPIO_SetBits(GPIOC, 0x00ff & data);
-	GPIO_ResetBits(GPIOC, 0x00ff & (~ data));
+	GPIO_SetBits(db_bank, 0x00ff & data);
+	GPIO_ResetBits(db_bank, 0x00ff & (~ data));
 #else
-	GPIO_Write(GPIOC, data);
+	GPIO_Write(db_bank, data);
 #endif
 	return 0;
 }
 
 static int lpt_getdata(void)
 {
-	int value = GPIO_ReadInputData(GPIOC);
+	GPIO_InitTypeDef GPIO_InitStructure;
+	int value;
+
+#ifdef CONFIG_LPT_DB_PP
+	//gpio output -> input
+	GPIO_InitStructure.GPIO_Pin = db_pins;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(db_bank, &GPIO_InitStructure);
+#endif
+	
+	value = GPIO_ReadInputData(db_bank);
 	
 #ifdef CONFIG_LPT_WIDTH_8BIT
 	value &= 0x00ff;
 #else
 	value &= 0xffff;
+#endif
+
+#ifdef CONFIG_LPT_DB_PP
+	//gpio input -> output
+	GPIO_InitStructure.GPIO_Pin = db_pins;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(db_bank, &GPIO_InitStructure);
 #endif
 
 	return value;

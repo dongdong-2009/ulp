@@ -12,10 +12,15 @@ if [ "$CONFIG_LPT_GPIO" = "y" ]; then
 		DEF16BIT	CONFIG_LPT_PINMAP_DEF16 \
 		ZF32	CONFIG_LPT_PINMAP_ZF32 \
 	" DEF8BIT
+	choice 'data bus drive type'	" \
+		OPENDRAIN	CONFIG_LPT_DB_OD \
+		PUSHPULL	CONFIG_LPT_DB_PP \
+	" OPENDRAIN
 	choice 'bus timing mode'	" \
 		NORMAL	CONFIG_LPT_MODE_NORMAL \
 		LCD1602	CONFIG_LPT_MODE_1602 \
 	" NORMAL
+	
 	#bus period
 	int "bus period, unit: ns" CONFIG_LPT_T 400
 	#bus access time
