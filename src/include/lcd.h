@@ -18,6 +18,9 @@
 #define PURPLE RGB(0xff, 0x00, 0xff)
 #define CYAN RGB(0x00, 0xff, 0xff)
 
+#define COLOR_BG_DEF	WHITE
+#define COLOR_FG_DEF	BLACK
+
 typedef struct {
 	int w; //width
 	int h; //height

@@ -18,6 +18,13 @@ mainmenu_option next_comment
 	source src/drivers/lpt/Kconfig
 endmenu
 
+if [ "$CONFIG_DRIVER_LCD" = "y" ]; then
+mainmenu_option next_comment
+	comment 'lcd config'
+	source src/drivers/lcd/Kconfig
+endmenu
+fi
+
 bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
 if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
 	choice 'console device select'	" \
@@ -26,6 +33,7 @@ if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
 		UART2	CONFIG_CONSOLE_UART2 \
 	" UART2
 fi
+bool "general lcd support?" CONFIG_DRIVER_LCD
 bool "enable network mac drivers?" CONFIG_DRIVER_MAC
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
 bool "capture driver?" CONFIG_DRIVER_CAPTURE
@@ -33,14 +41,6 @@ bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
 bool "dds chip ad9833" CONFIG_DRIVER_AD9833
 bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
 bool "spi 8 ch 10bit dac chip dac1x8s" CONFIG_DRIVER_DAC1X8S
-bool "general lcd support?" CONFIG_DRIVER_LCD
-if [ "$CONFIG_DRIVER_LCD" = "y" ]; then
-	bool "shell cmd for lcd debug" CONFIG_DRIVER_LCD_CMD
-	bool "lcd driver for lcd1602" CONFIG_DRIVER_LCD1602
-	bool "stm32 bus driver for lcd1602" CONFIG_STM32_LCD1602_BUS
-	bool "lcd driver for ili932x" CONFIG_DRIVER_ILI932X
-	bool "lcd driver for s6b33bc" CONFIG_DRIVER_S6B33
-fi
 bool "general keyboard driver" CONFIG_DRIVER_KEYBOARD
 bool "adc key driver" CONFIG_DRIVER_ADCKEY
 bool "gpio key driver" CONFIG_DRIVER_GPIOKEY
