@@ -4,16 +4,15 @@
 # Written by miaofng@2010
 #
 
-#config lpt port bus width
-choice 'bus width'	" \
-		8BIT	CONFIG_LPT_WIDTH_8BIT \
-		16BIT	CONFIG_LPT_WIDTH_16BIT \
-	" 8BIT
-
 #gpio emulate
 bool "gpio emulated lpt bus?" CONFIG_LPT_GPIO
 if [ "$CONFIG_LPT_GPIO" = "y" ]; then
-	choice 'bus mode'	" \
+	choice 'bus pinmap type'	" \
+		DEF8BIT	CONFIG_LPT_PINMAP_DEF8 \
+		DEF16BIT	CONFIG_LPT_PINMAP_DEF16 \
+		ZF32	CONFIG_LPT_PINMAP_ZF32 \
+	" DEF8BIT
+	choice 'bus timing mode'	" \
 		NORMAL	CONFIG_LPT_MODE_NORMAL \
 		LCD1602	CONFIG_LPT_MODE_1602 \
 	" NORMAL
