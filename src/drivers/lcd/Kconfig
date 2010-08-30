@@ -1,0 +1,14 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+choice 'lcd select'	" \
+	LCD1602	CONFIG_LCD_1602 \
+	ILI932X	CONFIG_LCD_ILI932X \
+	S6B33C	CONFIG_LCD_S6B33 \
+	ILI9161	CONFIG_LCD_ILI9161 \
+" LCD1602
+	
+bool "shell cmd for lcd debug" CONFIG_LCD_CMD
+

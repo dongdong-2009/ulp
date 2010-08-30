@@ -7,40 +7,16 @@
 #include "lcd1602.h"
 #include "time.h"
 #include <string.h>
+#include "lpt.h"
 
-#define LCD1602_RW	GPIO_Pin_8
-#define LCD1602_RS	GPIO_Pin_9
-#define LCD1602_E	GPIO_Pin_11
-
-#define LCD1602_PORT (GPIO_Pin_All&0x00ff)
+static lpt_bus_t *lcd_bus;
 
 static lcd1602_status lcd1602_ReadStaus(void)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
-	uint16_t i=0;
+	int value = lcd_bus -> read(STA);
 	lcd1602_status status;
 	
-	/* Configure PC.0-PC.7 as Input floating */
-	GPIO_InitStructure.GPIO_Pin = LCD1602_PORT;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	
-	GPIO_ResetBits(GPIOC, LCD1602_RS);
-	GPIO_SetBits(GPIOC, LCD1602_RW);
-	GPIO_SetBits(GPIOC, LCD1602_E);
-	
-	i = GPIO_ReadInputData(GPIOC);
-	status = (i&0x0080) ? Bit_Busy : Bit_Ok;
-
-	GPIO_ResetBits(GPIOC, LCD1602_E);
-
-	/* Configure PC.0-PC.7 as Output push-pull */
-	GPIO_InitStructure.GPIO_Pin = LCD1602_PORT;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	
+	status = (value & 0x0080) ? Bit_Busy : Bit_Ok;	
 	return status;
 }
 
@@ -65,41 +41,18 @@ static int lcd1602_wait(void)
 	return ret;
 }
 
-static void lcd1602_WriteCommand(uint8_t command)
+static void lcd1602_WriteCommand(char command)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;	
-	
-	/* Configure PC.0-PC.7 as Output push-pull */
-	GPIO_InitStructure.GPIO_Pin = LCD1602_PORT;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	lcd_bus -> write(CMD, command);
+}
 
-	GPIO_SetBits(GPIOC,LCD1602_PORT&command);
-	GPIO_ResetBits(GPIOC,LCD1602_PORT&(~command));
-
-	GPIO_ResetBits(GPIOC, LCD1602_RS);
-	GPIO_ResetBits(GPIOC, LCD1602_RW);
-	GPIO_SetBits(GPIOC, LCD1602_E);
-	udelay(1);
-	GPIO_ResetBits(GPIOC, LCD1602_E);
+static void lcd1602_WriteData(char data)
+{
+	lcd_bus -> write(DIN, data);
 }
 
 int lcd1602_Init(void)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
-
-	/* Enable GPIOC clock */
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
-  
-	/* Configure PC.8 PC.9 PC.11 as Output push-pull */
-	GPIO_InitStructure.GPIO_Pin = LCD1602_RW | LCD1602_RS | LCD1602_E;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-
-	GPIO_ResetBits(GPIOC, LCD1602_E);
-
 	mdelay(15);
 	lcd1602_WriteCommand(LCD1602_COMMAND_SETMODE);
 	mdelay(5);
@@ -126,34 +79,27 @@ int lcd1602_Init(void)
 	return 0;
 }
 
-int lcd1602_WriteChar(int row,int column,int8_t ch)
+int lcd1602_WriteChar(int row,int column,char ch)
 {
-	uint8_t i=0;
+	char i=0;
 
 	i = row ? (0xc0 + column):(0x80 + column);
 
 	//check the busy bit
 	lcd1602_wait();
 	lcd1602_WriteCommand(i);
-	
+
 	//check the busy bit
 	lcd1602_wait();
-	GPIO_SetBits(GPIOC,LCD1602_PORT&ch);
-	GPIO_ResetBits(GPIOC,LCD1602_PORT&(~ch));
+	lcd1602_WriteData(ch);
 	
-	GPIO_SetBits(GPIOC, LCD1602_RS);
-	GPIO_ResetBits(GPIOC, LCD1602_RW);
-	GPIO_SetBits(GPIOC, LCD1602_E);
-	udelay(1);
-	GPIO_ResetBits(GPIOC, LCD1602_E); 
-
 	return 0;
 }
 
 int lcd1602_WriteString(int column, int row, const char *s)
 {
-	uint8_t i=0,size;
-	size = (uint8_t)strlen(s);
+	char i=0,size;
+	size = (char)strlen(s);
 	
 #if 0
 	for( i = 0 ; i < size ; i++){
@@ -171,15 +117,7 @@ int lcd1602_WriteString(int column, int row, const char *s)
 	for( i = 0 ; i < size ; i++){
 		//check the busy bit
 		lcd1602_wait();
-		GPIO_SetBits(GPIOC,LCD1602_PORT&(*s));
-		GPIO_ResetBits(GPIOC,LCD1602_PORT&(~(*s)));
-	
-		GPIO_SetBits(GPIOC, LCD1602_RS);
-		GPIO_ResetBits(GPIOC, LCD1602_RW);
-		GPIO_SetBits(GPIOC, LCD1602_E);
-		udelay(1);
-		GPIO_ResetBits(GPIOC, LCD1602_E);
-		s++;
+		lcd1602_WriteData(*s ++);
 	}
 #endif
 
@@ -207,6 +145,8 @@ static const lcd_t lcd1602 = {
 
 static void lcd1602_reg(void)
 {
+	lcd_bus = &lpt;
+	lcd_bus->init();
 	lcd_add(&lcd1602);
 }
 driver_init(lcd1602_reg);

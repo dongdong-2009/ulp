@@ -1,6 +1,6 @@
 obj-y += lcd.o
-obj-$(CONFIG_DRIVER_LCD_CMD) += lcd_cmd.o
-obj-$(CONFIG_DRIVER_LCD1602) += lcd1602.o
-obj-$(CONFIG_STM32_LCD1602_BUS) += stm32_lcd1602_bus.o
-obj-$(CONFIG_DRIVER_ILI932X) += ili9320.o
-obj-$(CONFIG_DRIVER_S6B33) += s6b33.o
+obj-$(CONFIG_LCD_CMD) += lcd_cmd.o
+obj-$(CONFIG_LCD_1602) += lcd1602.o
+obj-$(CONFIG_LCD_ILI932X) += ili9320.o
+obj-$(CONFIG_LCD_S6B33) += s6b33.o
+obj-$(CONFIG_LCD_ILI9161) += ili9161.o

@@ -9,13 +9,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lcd.h"
+#include "pwm.h"
 
 static int cmd_lcd_func(int argc, char *argv[])
 {
-	int row, col;
+	int row, col, duty;
+	pwm_cfg_t cfg = PWM_CFG_DEF;
+	const pwm_bus_t *pwm = &pwm23; //zf32 board, for backlight ctrl
 	
 	const char *usage = {
-		"usage:\n" \
+		"usage:\n"
+		"lcd bl hz duty	duty: 0-99\n"
 		"lcd init\n"
 		"lcd puts x y str\n"
 		"lcd w reg val\n"
@@ -27,6 +31,15 @@ static int cmd_lcd_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(argc > 2) {
+		if(argv[1][0] == 'b') {
+			sscanf(argv[2], "%d", &cfg.hz);
+			sscanf(argv[3], "%d", &duty);
+			cfg.fs = 100;
+			pwm -> init(&cfg);
+			pwm -> set(duty);
+			return 0;
+		}
+		
 		if(argv[1][0] == 'w') {
 			//write reg
 			sscanf(argv[2], "%x", &row);
