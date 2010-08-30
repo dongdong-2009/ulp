@@ -70,10 +70,13 @@ void Read_Memory(uint8_t lun, uint32_t Memory_Offset, uint32_t Transfer_Length)
   {
     if (!Block_Read_count)
     {
+#if 0
       MALO_Read(lun ,
                Offset ,
                Data_Buffer,
                Mass_Block_Size[lun]);
+#endif
+	  MAL_Read((unsigned char *)Data_Buffer, (Offset >> 9), 1);
 
       USB_SIL_Write(EP1_IN, (uint8_t *)Data_Buffer, BULK_MAX_PACKET_SIZE);
 
@@ -142,10 +145,13 @@ void Write_Memory (uint8_t lun, uint32_t Memory_Offset, uint32_t Transfer_Length
     if (!(W_Length % Mass_Block_Size[lun]))
     {
       Counter = 0;
+#if 0
       MALO_Write(lun ,
                 W_Offset - Mass_Block_Size[lun],
                 Data_Buffer,
                 Mass_Block_Size[lun]);
+#endif
+      MAL_Write((unsigned char *)Data_Buffer, ((W_Offset - Mass_Block_Size[lun]) >> 9), 1);
     }
 
     CSW.dDataResidue -= Data_Len;

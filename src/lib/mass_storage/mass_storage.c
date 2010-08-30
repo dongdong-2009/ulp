@@ -33,7 +33,8 @@ static int cmd_udisk_func(int argc, char *argv[])
 {
 	const char usage[] = { \
 		" usage:\n" \
-		" udisk init, enable mass storage \n" \
+		" udisk init,     enable mass storage disk \n" \
+		" udisk poweroff, poweroff mass storage disk \n" \
 	};
 
 	if(argc < 2) {
@@ -44,8 +45,8 @@ static int cmd_udisk_func(int argc, char *argv[])
 	if(!strcmp(argv[1], "init"))
 		mass_storage_Init();
 
-	if(!strcmp(argv[1], "remove"))
-		usblower_PullupDisable();
+	if(!strcmp(argv[1], "poweroff"))
+		PowerOff();
 
 	return 0;
 }

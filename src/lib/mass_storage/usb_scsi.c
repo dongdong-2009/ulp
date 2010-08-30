@@ -328,7 +328,7 @@ void SCSI_Valid_Cmd(uint8_t lun)
 *******************************************************************************/
 void SCSI_TestUnitReady_Cmd(uint8_t lun)
 {
-  if (MALO_GetStatus(lun))
+  if (MAL_GetStatus())
   {
     Set_Scsi_Sense_Data(CBW.bLUN, NOT_READY, MEDIUM_NOT_PRESENT);
     Set_CSW (CSW_CMD_FAILED, SEND_CSW_ENABLE);
