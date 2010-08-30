@@ -175,6 +175,7 @@ int ili_Initializtion(void)
 	if(id != 0x9161)
 		return -1;
 
+#if 0
 	//gram read/write self test
 	ili_WriteRegister(0x21, 0x0000);
 	ili_WriteRegister(0x22, 0xaa00);
@@ -183,6 +184,7 @@ int ili_Initializtion(void)
 	id = ili_ReadRegister(0x22); //transfer data from RDR to bus
 	if(id != 0xaa00)
 		return -1;
+#endif
 
 	//init first time
 	ili_WriteRegister(0x01, 0x0113); //driver output ctrl[SM = 0|  GS = 0 | SS = 1| NL = 10011]
