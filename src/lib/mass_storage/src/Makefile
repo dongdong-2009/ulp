@@ -1,0 +1,11 @@
+obj-y += mass_storage.o
+obj-y += hw_config.o
+obj-y += memory.o
+obj-y += scsi_data.o
+obj-y += usb_bot.o
+obj-y += usb_desc.o
+obj-y += usb_endp.o
+obj-y += usb_istr.o
+obj-y += usb_prop.o
+obj-y += usb_pwr.o
+obj-y += usb_scsi.o
