@@ -184,8 +184,8 @@ int ili_Initializtion(void)
 	if(id != 0xaa00)
 		return -1;
 
-#if 0
 	//init first time
+	ili_WriteRegister(0x01, 0x0113); //driver output ctrl[SM = 0|  GS = 0 | SS = 1| NL = 10011]
 	ili_WriteRegister(0x02, 0x0700); //lcd drive waveform control
 	ili_WriteRegister(0x05, 0x0030); //entry mode setting
 
@@ -199,6 +199,7 @@ int ili_Initializtion(void)
 	ili_WriteRegister(0x0F, 0x0000); //gate scan ctrl
 	ili_WriteRegister(0x21, 0x0000); //cursor set
 	ili_WriteRegister(0x14, 0x9F00); //1st screen drive position
+	ili_WriteRegister(0x4f, 0x0018); //oscillator ctrl register [ RADJ = 11000] 232Khz
 	ili_WriteRegister(0x16, 0x7F00); //h-RAM window
 	ili_WriteRegister(0x17, 0x9F00); //v-RAM window
 	mdelay(50);
@@ -213,7 +214,7 @@ int ili_Initializtion(void)
 	mdelay(10);
 
 	//power settings
-	ili_WriteRegister(0x03, 0x0110); //power ctrl 1
+	ili_WriteRegister(0x03, 0x0110); //power ctrl 1[BT = 001 | DC = 000 | AP = 100]
 	ili_WriteRegister(0x09, 0x0006); //power ctrl 2
 	mdelay(10);
 	ili_WriteRegister(0x0D, 0x0013); //power ctrl 4
@@ -241,65 +242,6 @@ int ili_Initializtion(void)
 	mdelay(40);
 	ili_WriteRegister(0x07, 0x0037);
 	mdelay(40);
-#else
-	//init 1st time
-	ili_WriteRegister(0x01, 0x0113);
-	ili_WriteRegister(0x02, 0x0700);
-	ili_WriteRegister(0x05, 0x0030);
-	ili_WriteRegister(0x25, 0x0000);
-	ili_WriteRegister(0x08, 0x0202);
-	ili_WriteRegister(0x0a, 0x0000);
-	ili_WriteRegister(0x0b, 0x0000);
-
-	ili_WriteRegister(0x0c, 0x0000);
-	ili_WriteRegister(0x0f, 0x0000);
-	ili_WriteRegister(0x21, 0x0000);
-	ili_WriteRegister(0x14, 0x9f00);
-	ili_WriteRegister(0x4f, 0x0018);
-	ili_WriteRegister(0x16, 0x7f00);
-
-	ili_WriteRegister(0x17, 0x9f00);
-	mdelay(50);
-	ili_WriteRegister(0x03, 0x0000);
-	mdelay(10);
-
-	ili_WriteRegister(0x09, 0x0000);
-	mdelay(10);
-	ili_WriteRegister(0x0d, 0x0000);
-	mdelay(10);
-	ili_WriteRegister(0x0e, 0x0000);
-	mdelay(10);
-
-	//power settings
-	ili_WriteRegister(0x03, 0x0410);
-	ili_WriteRegister(0x09, 0x0006);
-	mdelay(10);
-	ili_WriteRegister(0x0d, 0x0013);
-	mdelay(50);
-	ili_WriteRegister(0x0e, 0x2d55);
-
-	//init 2nd time
-	ili_WriteRegister(0x30, 0x0404);
-	ili_WriteRegister(0x31, 0x0707);
-	ili_WriteRegister(0x32, 0x0404);
-	ili_WriteRegister(0x33, 0x0305);
-	ili_WriteRegister(0x34, 0x0000);
-	ili_WriteRegister(0x35, 0x0000);
-	ili_WriteRegister(0x36, 0x0407);
-	ili_WriteRegister(0x37, 0x0502);
-	ili_WriteRegister(0x3a, 0x1e00);
-	ili_WriteRegister(0x3b, 0x060c);
-
-	//disp on
-	ili_WriteRegister(0x07, 0x0001);
-	mdelay(40);
-	ili_WriteRegister(0x07, 0x0021);
-	mdelay(40);
-	ili_WriteRegister(0x07, 0x0023);
-	mdelay(40);
-	ili_WriteRegister(0x07, 0x0037);
-	mdelay(40);
-#endif
 
 	ili_Clear();
 	return 0;
