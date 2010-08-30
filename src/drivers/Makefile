@@ -4,6 +4,7 @@ obj-y += led/
 obj-y += uart/
 obj-y += spi/
 obj-y += lpt/
+obj-y += pwm/
 obj-$(CONFIG_DRIVER_CONSOLE) += console.o
 obj-$(CONFIG_DRIVER_MAC) += mac/
 obj-$(CONFIG_DRIVER_MOTOR) += dbg.o
