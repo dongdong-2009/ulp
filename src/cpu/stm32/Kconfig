@@ -13,3 +13,4 @@ bool "use stm32 std periph driver?" CONFIG_USE_STDPERIPH_DRIVER y
 if [ "$CONFIG_STM32F10X_CL" = "y"]; then
 	bool "use stm32 std ethernet driver?" CONFIG_USE_STDETHERNET_DRIVER y
 fi
+bool "use stm32 usb device driver?" CONFIG_USE_STM32_USB_DRIVER n

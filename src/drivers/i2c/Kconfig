@@ -1,0 +1,7 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+bool "i2c bus 1?" CONFIG_DRIVER_I2C1
+bool "i2c bus 2?" CONFIG_DRIVER_I2C2

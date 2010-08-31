@@ -1,0 +1,9 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by dusk@2010
+#
+bool "stm32 usb periph?" CONFIG_DRIVER_STM32_USB
+if ["$CONFIG_DRIVER_STM32_USB" = "y"]; then
+	bool "enable usb pull up gpio,PD2?" CONFIG_USB_PULLUP_PD2
+fi

@@ -15,6 +15,7 @@ bool "lwip -tcp/ip protocol stack" CONFIG_LIB_LWIP
 bool "fatfs - vfat file system" CONFIG_LIB_FATFS
 bool "common - common routine library" CONFIG_LIB_COMMON
 bool "FreeRTOS - realtime operating system" CONFIG_LIB_FREERTOS
+bool "mass storage - virtual usb disk" CONFIG_LIB_UDISK
 
 mainmenu_option next_comment
 	comment 'library detail configuration'

@@ -14,6 +14,16 @@ mainmenu_option next_comment
 endmenu
 
 mainmenu_option next_comment
+	comment 'i2c config'
+	source src/drivers/i2c/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'usb config'
+	source src/drivers/usb/Kconfig
+endmenu
+
+mainmenu_option next_comment
 	comment 'lpt config'
 	source src/drivers/lpt/Kconfig
 endmenu
@@ -44,6 +54,7 @@ bool "bldc drivers?" CONFIG_DRIVER_MOTOR
 bool "capture driver?" CONFIG_DRIVER_CAPTURE
 bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
 bool "dds chip ad9833" CONFIG_DRIVER_AD9833
+bool "eeprom chip at24cxx" CONFIG_DRIVER_AT24CXX
 bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
 bool "spi 8 ch 10bit dac chip dac1x8s" CONFIG_DRIVER_DAC1X8S
 bool "general keyboard driver" CONFIG_DRIVER_KEYBOARD

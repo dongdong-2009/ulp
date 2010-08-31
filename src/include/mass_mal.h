@@ -112,6 +112,9 @@ typedef struct {
 #define MMC_disk_read MAL_Read
 #define MMC_disk_write MAL_Write
 
+#define MAL_OK   0
+#define MAL_FAIL 1
+#define MAX_LUN  1
 
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
@@ -123,6 +126,7 @@ int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count);
 int MAL_Write(const unsigned char *buff, unsigned int sector, unsigned char count);
 int MMC_disk_ioctl(unsigned ctrl, void *buff);
 int NOP(void);
+
 #endif /* __MASS_MAL_H */
 
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/

@@ -1,0 +1,4 @@
+ifeq ($(CONFIG_CPU_STM32),y)
+	obj-$(CONFIG_DRIVER_I2C1) += i2c1_stm32.o
+	obj-$(CONFIG_DRIVER_I2C2) += i2c2_stm32.o
+endif

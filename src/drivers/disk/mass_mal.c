@@ -15,13 +15,22 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "mass_mal.h"
+#include "msd.h"
+#include "config.h"
 
+//global members for mass storage
+#ifdef CONFIG_LIB_UDISK
+unsigned int Mass_Memory_Size[2];
+unsigned int Mass_Block_Size[2];
+unsigned int Mass_Block_Count[2];
+volatile unsigned int Status = 0;
+#endif
+
+//private members for spi sdcard
 static SD_CardInfo SDCardInfo;
 extern mmc_t spi_card;
 static mmc_t *pMMC;
 
-/* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
 /*******************************************************************************
 * Function Name  : MAL_Init
 * Description    : Initializes the Media on the STM32
@@ -50,14 +59,14 @@ int MAL_Init()
 /*******************************************************************************
 * Function Name  : MAL_Write
 * Description    : Write sectors
-* Input          : None
+* Input          : sector is sector addr,phy addr = sector << 9
 * Output         : None
 * Return         : None
 *******************************************************************************/
 int MAL_Write(const unsigned char *buff, unsigned int sector, unsigned char count)
 {
 	int status = 0;
-	// if ver = SD2.0 HC, sector need <<9
+	// if ver != SD2.0 HC, sector need <<9
 	if(SDCardInfo.CardType != CARDTYPE_SDV2HC)
 		sector = sector<<9;
 
@@ -110,8 +119,18 @@ int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count)
 *******************************************************************************/
 int MAL_GetStatus ()
 {
-	//detect the card
-	return 0;
+	uint32_t temp_block_mul = 0;
+	SD_CSD MSD_csd;
+	uint32_t DeviceSizeMul = 0;
+
+	MSD_GetCSDRegister(&MSD_csd);
+	DeviceSizeMul = MSD_csd.DeviceSizeMul + 2;
+	temp_block_mul = (1 << MSD_csd.RdBlockLen)/ 512;
+	Mass_Block_Count[0] = ((MSD_csd.DeviceSize + 1) * (1 << (DeviceSizeMul))) * temp_block_mul;
+	Mass_Block_Size[0] = 512;
+	Mass_Memory_Size[0] = (Mass_Block_Count[0] * Mass_Block_Size[0]);
+
+	return MAL_OK;
 }
 
 int MAL_GetCardInfo(void)
@@ -142,5 +161,4 @@ int NOP(void)
 {
 	return 0;
 }
-
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/

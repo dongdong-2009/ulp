@@ -27,6 +27,7 @@
 #include "sys/system.h"
 #include "sys/task.h"
 #include <stdio.h>
+#include "usb_lib.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -373,8 +374,11 @@ void ADC1_2_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void USB_HP_CAN_TX_IRQHandler(void)
+void USB_HP_CAN1_TX_IRQHandler(void)
 {
+#ifdef CONFIG_USE_STM32_USB_DRIVER
+	CTR_HP();
+#endif
 }
 
 /*******************************************************************************
@@ -385,8 +389,12 @@ void USB_HP_CAN_TX_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void USB_LP_CAN_RX0_IRQHandler(void)
+void USB_LP_CAN1_RX0_IRQHandler(void)
 {
+#ifdef CONFIG_USE_STM32_USB_DRIVER
+	extern void USB_Istr(void);
+	USB_Istr();
+#endif
 }
 
 /*******************************************************************************
