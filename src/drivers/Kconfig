@@ -55,8 +55,11 @@ if [ "$CONFIG_DRIVER_RCKEY" = "y" ]; then
 		rc5	CONFIG_RCKEY_PROTOCOL_RC5 \
 	" rc5
 fi
-bool "general disk support for fatfs?" CONFIG_DRIVER_DISK
+bool "enable sd card driver?" CONFIG_DRIVER_DISK
 if [ "$CONFIG_DRIVER_DISK" = "y" ]; then
-	bool "spi sdcard driver support" CONFIG_DRIVER_SPISDCARD
+	choice 'sd card bus select'	" \
+		SPI1	CONFIG_SD_BUS_SPI1 \
+		SPI2	CONFIG_SD_BUS_SPI2 \
+	" SPI
 fi
 bool "add md204l driver?" CONFIG_DRIVER_MD204L

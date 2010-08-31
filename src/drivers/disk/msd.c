@@ -28,14 +28,19 @@
 /* Includes ------------------------------------------------------------------*/
 #include "mass_mal.h"
 #include "msd.h"
+#include "config.h"
+#include "spi.h"
+
+static const spi_bus_t *msd_bus;
+static char msd_bus_idx;
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Select MSD Card: ChipSelect pin low  */
-#define MSD_CS_LOW()     GPIO_ResetBits(MSD_CS_PORT, MSD_CS_PIN)
+#define MSD_CS_LOW() msd_bus -> csel(msd_bus_idx, 0)
 /* Deselect MSD Card: ChipSelect pin high */
-#define MSD_CS_HIGH()    GPIO_SetBits(MSD_CS_PORT, MSD_CS_PIN)
+#define MSD_CS_HIGH() msd_bus -> csel(msd_bus_idx, 1)
 
 mmc_t spi_card = {
 	MSD_Init,
@@ -57,9 +62,9 @@ static void SPI_Config(void);
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_Init(void)
+unsigned char MSD_Init(void)
 {
-	uint32_t i = 0;
+	unsigned i = 0;
 	unsigned char buff[4];
 
 	/* Initialize MSD_SPI */
@@ -220,10 +225,10 @@ uint8_t MSD_Init(void)
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_WriteBlock(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite)
+unsigned char MSD_WriteBlock(unsigned char* pBuffer, unsigned WriteAddr, unsigned short NumByteToWrite)
 {
-  uint32_t i = 0;
-  uint8_t rvalue = MSD_RESPONSE_FAILURE;
+  unsigned i = 0;
+  unsigned char rvalue = MSD_RESPONSE_FAILURE;
 
   /* MSD chip select low */
   MSD_CS_LOW();
@@ -274,10 +279,10 @@ uint8_t MSD_WriteBlock(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_ReadBlock(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRead)
+unsigned char MSD_ReadBlock(unsigned char* pBuffer, unsigned ReadAddr, unsigned short NumByteToRead)
 {
-  uint32_t i = 0;
-  uint8_t rvalue = MSD_RESPONSE_FAILURE;
+  unsigned i = 0;
+  unsigned char rvalue = MSD_RESPONSE_FAILURE;
 
   /* MSD chip select low */
   MSD_CS_LOW();
@@ -325,10 +330,10 @@ uint8_t MSD_ReadBlock(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRea
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_WriteBuffer(const uint8_t* pBuffer, uint32_t WriteAddr, uint8_t NbrOfBlock)
+unsigned char MSD_WriteBuffer(const unsigned char* pBuffer, unsigned WriteAddr, unsigned char NbrOfBlock)
 {
-  uint32_t i = 0, Offset = 0;
-  uint8_t rvalue = MSD_RESPONSE_FAILURE;
+  unsigned i = 0, Offset = 0;
+  unsigned char rvalue = MSD_RESPONSE_FAILURE;
 
   /* MSD chip select low */
   MSD_CS_LOW();
@@ -393,10 +398,10 @@ uint8_t MSD_WriteBuffer(const uint8_t* pBuffer, uint32_t WriteAddr, uint8_t NbrO
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint8_t NbrOfBlock)
+unsigned char MSD_ReadBuffer(unsigned char* pBuffer, unsigned ReadAddr, unsigned char NbrOfBlock)
 {
-  uint32_t i = 0, Offset = 0;
-  uint8_t rvalue = MSD_RESPONSE_FAILURE;
+  unsigned i = 0, Offset = 0;
+  unsigned char rvalue = MSD_RESPONSE_FAILURE;
 
   /* MSD chip select low */
   MSD_CS_LOW();
@@ -455,11 +460,11 @@ uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint8_t NbrOfBlock)
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_GetCSDRegister(SD_CSD* MSD_csd)
+unsigned char MSD_GetCSDRegister(SD_CSD* MSD_csd)
 {
-  uint32_t i = 0;
-  uint8_t rvalue = MSD_RESPONSE_FAILURE;
-  uint8_t CSD_Tab[16];
+  unsigned i = 0;
+  unsigned char rvalue = MSD_RESPONSE_FAILURE;
+  unsigned char CSD_Tab[16];
 
   /* MSD chip select low */
   MSD_CS_LOW();
@@ -575,11 +580,11 @@ uint8_t MSD_GetCSDRegister(SD_CSD* MSD_csd)
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_GetCIDRegister(SD_CID* MSD_cid)
+unsigned char MSD_GetCIDRegister(SD_CID* MSD_cid)
 {
-  uint32_t i = 0;
-  uint8_t rvalue = MSD_RESPONSE_FAILURE;
-  uint8_t CID_Tab[16];
+  unsigned i = 0;
+  unsigned char rvalue = MSD_RESPONSE_FAILURE;
+  unsigned char CID_Tab[16];
 
   /* MSD chip select low */
   MSD_CS_LOW();
@@ -649,7 +654,7 @@ uint8_t MSD_GetCIDRegister(SD_CID* MSD_cid)
   return rvalue;
 }
 
-uint8_t MSD_GetCardInfo(SD_CardInfo * pSDCardInfo)
+unsigned char MSD_GetCardInfo(SD_CardInfo * pSDCardInfo)
 {
 	unsigned char status = 0;
 
@@ -682,21 +687,21 @@ uint8_t MSD_GetCardInfo(SD_CardInfo * pSDCardInfo)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void MSD_SendCmd(uint8_t Cmd, uint32_t Arg, uint8_t Crc)
+void MSD_SendCmd(unsigned char Cmd, unsigned Arg, unsigned char Crc)
 {
-  uint32_t i = 0x00;
-  uint8_t Frame[6];
+  unsigned i = 0x00;
+  unsigned char Frame[6];
 
   /* Construct byte1 */
   Frame[0] = Cmd;
   /* Construct byte2 */
-  Frame[1] = (uint8_t)(Arg >> 24);
+  Frame[1] = (unsigned char)(Arg >> 24);
   /* Construct byte3 */
-  Frame[2] = (uint8_t)(Arg >> 16);
+  Frame[2] = (unsigned char)(Arg >> 16);
   /* Construct byte4 */
-  Frame[3] = (uint8_t)(Arg >> 8);
+  Frame[3] = (unsigned char)(Arg >> 8);
   /* Construct byte5 */
-  Frame[4] = (uint8_t)(Arg);
+  Frame[4] = (unsigned char)(Arg);
   /* Construct CRC: byte6 */
   Frame[5] = (Crc);
 
@@ -718,10 +723,10 @@ void MSD_SendCmd(uint8_t Cmd, uint32_t Arg, uint8_t Crc)
 *                   - status 110: Data rejected due to a Write error.
 *                   - status 111: Data rejected due to other error.
 *******************************************************************************/
-uint8_t MSD_GetDataResponse(void)
+unsigned char MSD_GetDataResponse(void)
 {
-  uint32_t i = 0;
-  uint8_t response, rvalue;
+  unsigned i = 0;
+  unsigned char response, rvalue;
 
   while (i <= 64)
   {
@@ -770,9 +775,9 @@ uint8_t MSD_GetDataResponse(void)
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_GetResponse(uint8_t Response)
+unsigned char MSD_GetResponse(unsigned char Response)
 {
-  uint32_t Count = 0xFFF;
+  unsigned Count = 0xFFF;
 
   /* Check if response is got or a timeout is happen */
   while ((MSD_ReadByte() != Response) && Count)
@@ -799,9 +804,9 @@ uint8_t MSD_GetResponse(uint8_t Response)
 * Output         : None
 * Return         : The MSD status.
 *******************************************************************************/
-uint16_t MSD_GetStatus(void)
+unsigned short MSD_GetStatus(void)
 {
-  uint16_t Status = 0;
+  unsigned short Status = 0;
 
   /* MSD chip select low */
   MSD_CS_LOW();
@@ -809,7 +814,7 @@ uint16_t MSD_GetStatus(void)
   MSD_SendCmd(MSD_SEND_STATUS, 0, 0xFF);
 
   Status = MSD_ReadByte();
-  Status |= (uint16_t)(MSD_ReadByte() << 8);
+  Status |= (unsigned short)(MSD_ReadByte() << 8);
 
   /* MSD chip select high */
   MSD_CS_HIGH();
@@ -827,7 +832,7 @@ uint16_t MSD_GetStatus(void)
 * Return         : The MSD Response: - MSD_RESPONSE_FAILURE: Sequence failed
 *                                    - MSD_RESPONSE_NO_ERROR: Sequence succeed
 *******************************************************************************/
-uint8_t MSD_GoIdleState(void)
+unsigned char MSD_GoIdleState(void)
 {
   /* MSD chip select low */
   MSD_CS_LOW();
@@ -874,18 +879,9 @@ uint8_t MSD_GoIdleState(void)
 * Output         : None
 * Return         : None.
 *******************************************************************************/
-void MSD_WriteByte(uint8_t Data)
+void MSD_WriteByte(unsigned char Data)
 {
-  /* Wait until the transmit buffer is empty */
-  while (SPI_I2S_GetFlagStatus(MSD_SPI, SPI_I2S_FLAG_TXE) == RESET);
-  /* Send the byte */
-  SPI_I2S_SendData(MSD_SPI, Data);
-
-  /* Wait until a data is received */
-  while (SPI_I2S_GetFlagStatus(MSD_SPI, SPI_I2S_FLAG_RXNE) == RESET);
-  /* Get the received data */
-  SPI_I2S_ReceiveData(MSD_SPI);
-  
+	msd_bus -> wreg(msd_bus_idx, Data);
 }
 
 /*******************************************************************************
@@ -895,22 +891,9 @@ void MSD_WriteByte(uint8_t Data)
 * Output         : None
 * Return         : The received byte.
 *******************************************************************************/
-uint8_t MSD_ReadByte(void)
+unsigned char MSD_ReadByte(void)
 {
-  uint8_t Data = 0;
-
-  /* Wait until the transmit buffer is empty */
-  while (SPI_I2S_GetFlagStatus(MSD_SPI, SPI_I2S_FLAG_TXE) == RESET);
-  /* Send the byte */
-  SPI_I2S_SendData(MSD_SPI, DUMMY);
-
-  /* Wait until a data is received */
-  while (SPI_I2S_GetFlagStatus(MSD_SPI, SPI_I2S_FLAG_RXNE) == RESET);
-  /* Get the received data */
-  Data = SPI_I2S_ReceiveData(MSD_SPI);
-
-  /* Return the shifted data */
-  return Data;
+	return (char) msd_bus -> rreg(msd_bus_idx);
 }
 
 /*******************************************************************************
@@ -922,59 +905,24 @@ uint8_t MSD_ReadByte(void)
 *******************************************************************************/
 static void SPI_Config(void)
 {
-  GPIO_InitTypeDef  GPIO_InitStructure;
-  SPI_InitTypeDef   SPI_InitStructure;
-
-  /* MSD_SPI_PORT and MSD_CS_PORT Periph clock enable */
-  RCC_APB2PeriphClockCmd(MSD_SPI_GPIO_PORT_CLOCK | MSD_CS_GPIO_PORT_CLOCK | \
-                         RCC_APB2Periph_AFIO, ENABLE);
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
-
-  /* MSD_SPI Periph clock enable */
-#ifdef USE_STM3210B_EVAL
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);
-#elif defined (USE_STM3210C_EVAL)
-  RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI3, ENABLE);
-#endif /* USE_STM3210B_EVAL */
-
-  /* Remap the SPI pins if needed */
-#ifdef SPI_REMAPPED
-  GPIO_PinRemapConfig(MSD_SPI_GPIO_REMAP, ENABLE);
-#endif /* SPI_REMAPPED */
-
-  /* Configure MSD_SPI pins: SCK, MISO and MOSI */
-  GPIO_InitStructure.GPIO_Pin = MSD_SPI_PIN_SCK | MSD_SPI_PIN_MISO | MSD_SPI_PIN_MOSI;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-  GPIO_Init(MSD_SPI_PORT, &GPIO_InitStructure);
-
-  /* Configure CS pin */
-  GPIO_InitStructure.GPIO_Pin = MSD_CS_PIN;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-  GPIO_Init(MSD_CS_PORT, &GPIO_InitStructure);
-#if CONFIG_STM32F10X_CL == 1
-  /* Configure CS pin */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-  GPIO_Init(GPIOC, &GPIO_InitStructure);
-  GPIO_ResetBits(GPIOC, GPIO_Pin_4);
+	spi_cfg_t cfg = SPI_CFG_DEF;
+	cfg.cpol = 0;
+	cfg.cpha = 0;
+	cfg.bits = 8;
+	cfg.bseq = 1;
+	cfg.csel = 1;
+	
+#ifdef CONFIG_SD_BUS_SPI1
+	msd_bus = &spi1;
+	msd_bus_idx = (char) SPI_1_NSS;
 #endif
-  /* MSD_SPI Config */
-  SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
-  SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
-  SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
-  SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
-  SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge; 
-  SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-  SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;
-  SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
-  SPI_InitStructure.SPI_CRCPolynomial = 7;
-  SPI_Init(MSD_SPI, &SPI_InitStructure);
 
-  /* MSD_SPI enable */
-  SPI_Cmd(MSD_SPI, ENABLE);
+#ifdef CONFIG_SD_BUS_SPI2
+	msd_bus = &spi2;
+	msd_bus_idx = (char) SPI_2_NSS;
+#endif
+
+	msd_bus -> init(&cfg);
 }
 
 

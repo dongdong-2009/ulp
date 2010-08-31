@@ -117,9 +117,7 @@ int MAL_GetStatus ()
 int MAL_GetCardInfo(void)
 {
 	int status = 0;
-#ifdef USE_STM3210B_EVAL
 	status = pMMC->getcardinfo(&SDCardInfo);
-#endif
 	return status;
 }
 

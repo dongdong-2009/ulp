@@ -17,58 +17,6 @@
 #ifndef __MSD_H
 #define __MSD_H
 
-/* Includes ------------------------------------------------------------------*/
-#include "stm32f10x.h"
-#include "mass_mal.h"
-
-/* Pins related Hardware Configuration defines */
-#if defined (USE_STM3210B_EVAL)
-
-#define MSD_SPI                       SPI1
-#define MSD_SPI_PORT                  GPIOA
-#define MSD_SPI_GPIO_PORT_CLOCK       RCC_APB2Periph_GPIOA
-#define MSD_SPI_PIN_SCK               GPIO_Pin_5
-#define MSD_SPI_PIN_MISO              GPIO_Pin_6
-#define MSD_SPI_PIN_MOSI              GPIO_Pin_7
-#define MSD_CS_PORT                   GPIOA
-#define MSD_CS_GPIO_PORT_CLOCK        RCC_APB2Periph_GPIOA
-#define MSD_CS_PIN                    GPIO_Pin_4
-
-
-#elif defined (USE_STM3210E_EVAL)
-
-/* Uncomment this line to enable remapping of SPI pins */
-//#define SPI_REMAPPED 
-
-#define MSD_SPI                       0
-#define MSD_SPI_PORT                  0
-#define MSD_SPI_GPIO_PORT_CLOCK       0
-#define MSD_SPI_PIN_SCK               0
-#define MSD_SPI_PIN_MISO              0
-#define MSD_SPI_PIN_MOSI              0
-#define MSD_SPI_GPIO_REMAP            0
-#define MSD_CS_PORT                   0
-#define MSD_CS_GPIO_PORT_CLOCK        0
-#define MSD_CS_PIN                    0
-
-#elif defined (USE_STM3210C_EVAL)
-
-/* Uncomment this line to enable remapping of SPI pins */
-#define SPI_REMAPPED 
-
-#define MSD_SPI                       SPI3
-#define MSD_SPI_PORT                  GPIOC
-#define MSD_SPI_GPIO_PORT_CLOCK       RCC_APB2Periph_GPIOC
-#define MSD_SPI_PIN_SCK               GPIO_Pin_10
-#define MSD_SPI_PIN_MISO              GPIO_Pin_11
-#define MSD_SPI_PIN_MOSI              GPIO_Pin_12
-#define MSD_SPI_GPIO_REMAP            GPIO_Remap_SPI3
-#define MSD_CS_PORT                   GPIOA
-#define MSD_CS_GPIO_PORT_CLOCK        RCC_APB2Periph_GPIOA
-#define MSD_CS_PIN                    GPIO_Pin_4
-
-#endif /* USE_STM3210B_EVAL */
-
 /* Block Size */
 #define BLOCK_SIZE    512
 
@@ -140,25 +88,25 @@
 /* Exported functions ------------------------------------------------------- */
 
 /*----- High layer function -----*/
-uint8_t MSD_Init(void);
-uint8_t MSD_WriteBlock(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite);
-uint8_t MSD_ReadBlock(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRead);
-uint8_t MSD_WriteBuffer(const uint8_t* pBuffer, uint32_t WriteAddr, uint8_t NbrOfBlock);
-uint8_t MSD_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint8_t NbrOfBlock);
-uint8_t MSD_GetCSDRegister(SD_CSD* MSD_csd);
-uint8_t MSD_GetCIDRegister(SD_CID* MSD_cid);
-uint8_t MSD_GetCardInfo(SD_CardInfo * pSDCardInfo);
+unsigned char MSD_Init(void);
+unsigned char MSD_WriteBlock(unsigned char* pBuffer, unsigned WriteAddr, unsigned short NumByteToWrite);
+unsigned char MSD_ReadBlock(unsigned char* pBuffer, unsigned ReadAddr, unsigned short NumByteToRead);
+unsigned char MSD_WriteBuffer(const unsigned char* pBuffer, unsigned WriteAddr, unsigned char NbrOfBlock);
+unsigned char MSD_ReadBuffer(unsigned char* pBuffer, unsigned ReadAddr, unsigned char NbrOfBlock);
+unsigned char MSD_GetCSDRegister(SD_CSD* MSD_csd);
+unsigned char MSD_GetCIDRegister(SD_CID* MSD_cid);
+unsigned char MSD_GetCardInfo(SD_CardInfo * pSDCardInfo);
 
 /*----- Medium layer function -----*/
-void MSD_SendCmd(uint8_t Cmd, uint32_t Arg, uint8_t Crc);
-uint8_t MSD_GetResponse(uint8_t Response);
-uint8_t MSD_GetDataResponse(void);
-uint8_t MSD_GoIdleState(void);
-uint16_t MSD_GetStatus(void);
+void MSD_SendCmd(unsigned char Cmd, unsigned Arg, unsigned char Crc);
+unsigned char MSD_GetResponse(unsigned char Response);
+unsigned char MSD_GetDataResponse(void);
+unsigned char MSD_GoIdleState(void);
+unsigned short MSD_GetStatus(void);
 
 /*----- Low layer function -----*/
-void MSD_WriteByte(uint8_t byte);
-uint8_t MSD_ReadByte(void);
+void MSD_WriteByte(unsigned char byte);
+unsigned char MSD_ReadByte(void);
 
 #endif /* __MSD_H */
 
