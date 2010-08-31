@@ -45,7 +45,7 @@ int MAL_Init()
 #ifdef USE_STM3210E_EVAL
       status = SD_Init();
       status = SD_GetCardInfo(&SDCardInfo);
-      status = SD_SelectDeselect((uint32_t) (SDCardInfo.RCA << 16));
+      status = SD_SelectDeselect((unsigned) (SDCardInfo.RCA << 16));
       status = SD_EnableWideBusOperation(SDIO_BusWide_4b);
       status = SD_SetDeviceMode(SD_DMA_MODE);
 #else
@@ -119,9 +119,9 @@ int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count)
 *******************************************************************************/
 int MAL_GetStatus ()
 {
-	uint32_t temp_block_mul = 0;
+	unsigned temp_block_mul = 0;
 	SD_CSD MSD_csd;
-	uint32_t DeviceSizeMul = 0;
+	unsigned DeviceSizeMul = 0;
 
 	MSD_GetCSDRegister(&MSD_csd);
 	DeviceSizeMul = MSD_csd.DeviceSizeMul + 2;
