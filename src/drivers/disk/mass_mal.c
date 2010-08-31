@@ -119,6 +119,7 @@ int MAL_Read(unsigned char *buff, unsigned int sector, unsigned char count)
 *******************************************************************************/
 int MAL_GetStatus ()
 {
+#ifdef CONFIG_LIB_UDISK
 	unsigned temp_block_mul = 0;
 	SD_CSD MSD_csd;
 	unsigned DeviceSizeMul = 0;
@@ -129,7 +130,7 @@ int MAL_GetStatus ()
 	Mass_Block_Count[0] = ((MSD_csd.DeviceSize + 1) * (1 << (DeviceSizeMul))) * temp_block_mul;
 	Mass_Block_Size[0] = 512;
 	Mass_Memory_Size[0] = (Mass_Block_Count[0] * Mass_Block_Size[0]);
-
+#endif
 	return MAL_OK;
 }
 

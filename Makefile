@@ -31,7 +31,10 @@ ifeq ($(CONFIG_CPU_STM32),y)
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/cmsis/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/StdPeriph/inc/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/STM32_ETH_Driver/inc/
+endif
+ifeq ($(CONFIG_USE_STM32_USB_DRIVER),y)
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/stm32/STM32_USB_Driver/inc/
+	$(IAR_TOOL) inc $(IAR_FILE) src/lib/mass_storage/inc/
 endif
 ifeq ($(CONFIG_CPU_LM3S),y)
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/lm3s/cmsis/
@@ -44,9 +47,6 @@ ifeq ($(CONFIG_LIB_LWIP), y)
 endif
 ifeq ($(CONFIG_LIB_FATFS), y)
 	$(IAR_TOOL) inc $(IAR_FILE) src/lib/fatfs/
-endif
-ifeq ($(CONFIG_LIB_UDISK), y)
-	$(IAR_TOOL) inc $(IAR_FILE) src/lib/mass_storage/inc/
 endif
 	$(IAR_TOOL) inc $(IAR_FILE) src/lib/FreeRTOS/Source/include/
 

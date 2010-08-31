@@ -27,7 +27,9 @@
 #include "sys/system.h"
 #include "sys/task.h"
 #include <stdio.h>
+#ifdef CONFIG_USE_STM32_USB_DRIVER
 #include "usb_lib.h"
+#endif
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
