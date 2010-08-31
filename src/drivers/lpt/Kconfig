@@ -17,9 +17,9 @@ if [ "$CONFIG_LPT_GPIO" = "y" ]; then
 		PUSHPULL	CONFIG_LPT_DB_PP \
 	" OPENDRAIN
 	choice 'bus timing mode'	" \
-		NORMAL	CONFIG_LPT_MODE_NORMAL \
-		LCD1602	CONFIG_LPT_MODE_1602 \
-	" NORMAL
+		I80	CONFIG_LPT_MODE_NORMAL \
+		M68	CONFIG_LPT_MODE_1602 \
+	" I80
 	
 	#bus period
 	int "bus period, unit: ns" CONFIG_LPT_T 400
