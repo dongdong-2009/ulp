@@ -8,12 +8,18 @@
 #ifdef CONFIG_CPU_STM32
 #include "stm32f10x.h"
 
-void spi_cs_init(void)
+int spi_cs_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	
+
+#ifdef CONFIG_SPI_CS_PA4
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+#endif
+
 #ifdef CONFIG_SPI_CS_PB1
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
@@ -23,6 +29,12 @@ void spi_cs_init(void)
 #ifdef CONFIG_SPI_CS_PB10
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+#endif
+
+#ifdef CONFIG_SPI_CS_PB12
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 #endif
 
@@ -43,14 +55,22 @@ void spi_cs_init(void)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
 	GPIO_Init(GPIOF, &GPIO_InitStructure);
 #endif
+
+	return 0;
 }
 
-void spi_cs_set(int addr, int level)
+int spi_cs_set(int addr, int level)
 {
 	BitAction ba = Bit_RESET;
 	if(level)
 		ba = Bit_SET;
-	
+
+#ifdef CONFIG_SPI_CS_PA4
+	if(addr == SPI_CS_PA4) {
+		GPIO_WriteBit(GPIOA, GPIO_Pin_4, ba);
+	}
+#endif
+
 #ifdef CONFIG_SPI_CS_PB1
 	if(addr == SPI_CS_PB1) {
 		GPIO_WriteBit(GPIOB, GPIO_Pin_1, ba);
@@ -60,6 +80,12 @@ void spi_cs_set(int addr, int level)
 #ifdef CONFIG_SPI_CS_PB10
 	if(addr == SPI_CS_PB10) {
 		GPIO_WriteBit(GPIOB, GPIO_Pin_10, ba);
+	}
+#endif
+
+#ifdef CONFIG_SPI_CS_PB12
+	if(addr == SPI_CS_PB12) {
+		GPIO_WriteBit(GPIOB, GPIO_Pin_12, ba);
 	}
 #endif
 
@@ -80,6 +106,8 @@ void spi_cs_set(int addr, int level)
 		GPIO_WriteBit(GPIOF, GPIO_Pin_11, ba);
 	}
 #endif
+	
+	return 0;
 }
 
 #endif
