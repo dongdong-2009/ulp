@@ -13,7 +13,6 @@ obj-$(CONFIG_DRIVER_AD9833) += ad9833.o
 obj-$(CONFIG_DRIVER_AT24CXX) += at24cxx.o
 obj-$(CONFIG_DRIVER_MCP41X) += mcp41x.o
 obj-$(CONFIG_DRIVER_DAC1X8S) += dac1x8s.o
-obj-y += spi/
 obj-y += i2c/
 obj-y += usb/
 obj-$(CONFIG_DRIVER_VVT) += mcao.o
