@@ -19,7 +19,7 @@ static int cmd_lcd_func(int argc, char *argv[])
 	
 	const char *usage = {
 		"usage:\n"
-		"lcd bl hz duty	duty: 0-99\n"
+		"lcd bl hz duty	duty: 0-9\n"
 		"lcd init\n"
 		"lcd puts x y str\n"
 		"lcd w reg val\n"
@@ -32,9 +32,15 @@ static int cmd_lcd_func(int argc, char *argv[])
 	}
 	else if(argc > 2) {
 		if(argv[1][0] == 'b') {
-			sscanf(argv[2], "%d", &cfg.hz);
-			sscanf(argv[3], "%d", &duty);
-			cfg.fs = 100;
+			if(argc > 3) {
+				sscanf(argv[2], "%d", &cfg.hz);
+				sscanf(argv[3], "%d", &duty);
+			}
+			else {
+				cfg.hz = 500000; /*500KHz*/
+				duty = 2;
+			}
+			cfg.fs = 10;
 			pwm -> init(&cfg);
 			pwm -> set(duty);
 			return 0;
