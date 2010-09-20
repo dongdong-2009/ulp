@@ -14,6 +14,11 @@ mainmenu_option next_comment
 endmenu
 
 mainmenu_option next_comment
+	comment 'can config'
+	source src/drivers/can/Kconfig
+endmenu
+
+mainmenu_option next_comment
 	comment 'i2c config'
 	source src/drivers/i2c/Kconfig
 endmenu

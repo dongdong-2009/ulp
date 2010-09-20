@@ -1,0 +1,71 @@
+/*
+ *	miaofng@2010 can debugger initial version
+ */
+
+#include "config.h"
+#include "shell/cmd.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "can.h"
+
+static const can_bus_t *can_bus;
+
+static int cmd_can_func(int argc, char *argv[])
+{
+	int x;
+	can_cfg_t cfg = CAN_CFG_DEF;
+	can_msg_t msg;
+	const char *usage = {
+		"usage:\n"
+		"can init ch baud		init can hw interface\n"
+		"can send id d0 ...	can send, 11bit id\n"
+		"can sene id d0 ...	can send, 29bit id\n"
+		"can recv			can bus monitor\n"
+	};
+	
+	if(argc > 2) {
+		if(argv[1][0] == 'i') { //can init
+			sscanf(argv[2], "%d", &x); //ch
+			sscanf(argv[3], "%d", &cfg.baud); //baud
+#ifdef CONFIG_DRIVER_CAN1
+			//default to can1
+			can_bus = &can1;
+#endif
+#ifdef CONFIG_DRIVER_CAN2
+			if(x == 2)
+				can_bus = &can2;
+#endif
+			can_bus -> init(&cfg);
+			return 0;
+		}
+		
+		if(argv[1][3] == 'v') { //recv, can monitor
+			if(!can_bus -> recv(&msg)) {
+				//printf can frame
+				printf("R%08x", msg.id);
+				for(x = 0; x < msg.dlc; x ++) {
+					printf("%02x", msg.data[x]);
+				}
+				printf("\n");
+			}
+			return 1;
+		}
+		
+		//can send/t
+		msg.dlc = argc - 3;
+		msg.flag = (argv[1][3] == 'e') ? 0 : CAN_FLAG_EXT;
+		sscanf(argv[2], "%x", &msg.id); //id
+		for(x = 0; x < msg.dlc; x ++) {
+			sscanf(argv[3 + x], "%x", &msg.data[x]);
+		}
+		while(can_bus -> send(&msg));
+		return 0;
+	}
+
+	printf("%s", usage);
+	return 0;
+}
+
+const cmd_t cmd_can = {"can", cmd_can_func, "can monitor/debugger"};
+DECLARE_SHELL_CMD(cmd_can)
