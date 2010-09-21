@@ -16,7 +16,7 @@ static int cmd_lcd_func(int argc, char *argv[])
 	int row, col, duty;
 	pwm_cfg_t cfg = PWM_CFG_DEF;
 	const pwm_bus_t *pwm = &pwm23; //zf32 board, for backlight ctrl
-	
+
 	const char *usage = {
 		"usage:\n"
 		"lcd bl hz duty	duty: 0-9\n"
@@ -25,12 +25,13 @@ static int cmd_lcd_func(int argc, char *argv[])
 		"lcd w reg val\n"
 		"lcd r reg\n"
 	};
-	
-	if(argc == 2) {
-		lcd_init();
-		return 0;
-	}
-	else if(argc > 2) {
+
+	if(argc >= 2) {
+		if(argv[1][0] == 'i') { //lcd init
+			lcd_init();
+			return 0;
+		}
+
 		if(argv[1][0] == 'b') {
 			if(argc > 3) {
 				sscanf(argv[2], "%d", &cfg.hz);
@@ -45,7 +46,7 @@ static int cmd_lcd_func(int argc, char *argv[])
 			pwm -> set(duty);
 			return 0;
 		}
-		
+
 		if(argv[1][0] == 'w') {
 			//write reg
 			sscanf(argv[2], "%x", &row);
@@ -54,14 +55,14 @@ static int cmd_lcd_func(int argc, char *argv[])
 			printf("reg[0x%x] = 0x%x)\n", row, col);
 			return 0;
 		}
-		
+
 		if(argv[2][0] == 'r') {
 			sscanf(argv[2], "%x", &row);
 			col = lcd_readreg(row);
 			printf("reg[0x%x] = 0x%x)\n", row, col);
 			return 0;
 		}
-		
+
 		row = atoi(argv[2]);
 		col = atoi(argv[3]);
 		lcd_puts(row, col, argv[4]);
