@@ -19,48 +19,62 @@ static int cmd_can_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"can init ch baud		init can hw interface\n"
-		"can send id d0 ...	can send, 11bit id\n"
-		"can sene id d0 ...	can send, 29bit id\n"
+		"can send id d0 ...		can send, 11bit id\n"
+		"can sene id d0 ...		can send, 29bit id\n"
 		"can recv			can bus monitor\n"
 	};
-	
-	if(argc > 2) {
+
+	if(argc > 1) {
 		if(argv[1][0] == 'i') { //can init
 			sscanf(argv[2], "%d", &x); //ch
 			sscanf(argv[3], "%d", &cfg.baud); //baud
+			can_bus = NULL;
 #ifdef CONFIG_DRIVER_CAN1
 			//default to can1
-			can_bus = &can1;
+			if(x == 1)
+				can_bus = &can1;
 #endif
 #ifdef CONFIG_DRIVER_CAN2
 			if(x == 2)
 				can_bus = &can2;
 #endif
-			can_bus -> init(&cfg);
+			if(can_bus != NULL)
+				can_bus -> init(&cfg);
+			else
+				printf("can interface doesn't exist\n");
+
 			return 0;
 		}
-		
-		if(argv[1][3] == 'v') { //recv, can monitor
-			if(!can_bus -> recv(&msg)) {
-				//printf can frame
-				printf("R%08x", msg.id);
-				for(x = 0; x < msg.dlc; x ++) {
-					printf("%02x", msg.data[x]);
-				}
-				printf("\n");
+
+		if(argv[1][0] == 's') {//can send/t
+			msg.dlc = argc - 3;
+			msg.flag = (argv[1][3] == 'e') ? 0 : CAN_FLAG_EXT;
+			sscanf(argv[2], "%x", &msg.id); //id
+			for(x = 0; x < msg.dlc; x ++) {
+				sscanf(argv[3 + x], "%x", (int *)&msg.data[x]);
 			}
-			return 1;
+
+			if(can_bus -> send(&msg)) {
+				printf("can send fail\n");
+			}
+			return 0;
 		}
-		
-		//can send/t
-		msg.dlc = argc - 3;
-		msg.flag = (argv[1][3] == 'e') ? 0 : CAN_FLAG_EXT;
-		sscanf(argv[2], "%x", &msg.id); //id
-		for(x = 0; x < msg.dlc; x ++) {
-			sscanf(argv[3 + x], "%x", &msg.data[x]);
+	}
+
+	//can recv, monitor
+	if(argc == 0 || argv[1][3] == 'v') {
+		if(!can_bus -> recv(&msg)) {
+			//printf can frame
+			if(msg.flag & CAN_FLAG_EXT)
+				printf("R%08x ", msg.id);
+			else
+				printf("R%03x ", msg.id);
+			for(x = 0; x < msg.dlc; x ++) {
+				printf("%02x ", msg.data[x]);
+			}
+			printf("\n");
 		}
-		while(can_bus -> send(&msg));
-		return 0;
+		return 1;
 	}
 
 	printf("%s", usage);
