@@ -8,7 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "can.h"
+#include "time.h"
 
+static time_t timer;
 static const can_bus_t *can_bus;
 
 static int cmd_can_func(int argc, char *argv[])
@@ -25,6 +27,7 @@ static int cmd_can_func(int argc, char *argv[])
 	};
 
 	if(argc > 1) {
+		timer = time_get(0);
 		if(argv[1][0] == 'i') { //can init
 			sscanf(argv[2], "%d", &x); //ch
 			sscanf(argv[3], "%d", &cfg.baud); //baud
@@ -64,6 +67,8 @@ static int cmd_can_func(int argc, char *argv[])
 	//can recv, monitor
 	if(argc == 0 || argv[1][3] == 'v') {
 		if(!can_bus -> recv(&msg)) {
+			printf("%06dms ", (int)((time_get(0) - timer)*1000/CONFIG_TICK_HZ));
+			
 			//printf can frame
 			if(msg.flag & CAN_FLAG_EXT)
 				printf("R%08x ", msg.id);
