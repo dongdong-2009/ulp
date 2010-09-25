@@ -1,0 +1,16 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+bool "general key driver" CONFIG_DRIVER_KEYBOARD
+if [ "$CONFIG_DRIVER_KEYBOARD" = "y" ]; then
+	bool "adc key driver" CONFIG_DRIVER_ADCKEY
+	bool "gpio key driver" CONFIG_DRIVER_GPIOKEY
+	bool "general remote control driver" CONFIG_DRIVER_RCKEY
+	if [ "$CONFIG_DRIVER_RCKEY" = "y" ]; then
+		choice 'remote control protocol'	" \
+			rc5	CONFIG_RCKEY_PROTOCOL_RC5 \
+		" rc5
+	fi
+fi

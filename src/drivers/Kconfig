@@ -3,29 +3,10 @@
 #
 # Written by miaofng@2010
 #
-mainmenu_option next_comment
-	comment 'spi config'
-	source src/drivers/spi/Kconfig
-endmenu
 
 mainmenu_option next_comment
 	comment 'uart config'
 	source src/drivers/uart/Kconfig
-endmenu
-
-mainmenu_option next_comment
-	comment 'can config'
-	source src/drivers/can/Kconfig
-endmenu
-
-mainmenu_option next_comment
-	comment 'i2c config'
-	source src/drivers/i2c/Kconfig
-endmenu
-
-mainmenu_option next_comment
-	comment 'usb config'
-	source src/drivers/usb/Kconfig
 endmenu
 
 mainmenu_option next_comment
@@ -34,16 +15,54 @@ mainmenu_option next_comment
 endmenu
 
 mainmenu_option next_comment
-	comment 'pwm config'
-	source src/drivers/pwm/Kconfig
+	comment 'spi config'
+	source src/drivers/spi/Kconfig
 endmenu
 
-if [ "$CONFIG_DRIVER_LCD" = "y" ]; then
+mainmenu_option next_comment
+	comment 'i2c config'
+	source src/drivers/i2c/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'can config'
+	source src/drivers/can/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'usb config'
+	source src/drivers/usb/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'mac config'
+	source src/drivers/mac/Kconfig
+endmenu
+
 mainmenu_option next_comment
 	comment 'lcd config'
 	source src/drivers/lcd/Kconfig
 endmenu
-fi
+
+mainmenu_option next_comment
+	comment 'key config'
+	source src/drivers/key/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'pwm config'
+	source src/drivers/pwm/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'disk config'
+	source src/drivers/disk/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'misc config'
+	source src/drivers/Kconfig.misc
+endmenu
 
 bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
 if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
@@ -53,29 +72,3 @@ if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
 		UART2	CONFIG_CONSOLE_UART2 \
 	" UART2
 fi
-bool "general lcd support?" CONFIG_DRIVER_LCD
-bool "enable network mac drivers?" CONFIG_DRIVER_MAC
-bool "bldc drivers?" CONFIG_DRIVER_MOTOR
-bool "capture driver?" CONFIG_DRIVER_CAPTURE
-bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
-bool "dds chip ad9833" CONFIG_DRIVER_AD9833
-bool "eeprom chip at24cxx" CONFIG_DRIVER_AT24CXX
-bool "digital pot chip mcp41x" CONFIG_DRIVER_MCP41X
-bool "spi 8 ch 10bit dac chip dac1x8s" CONFIG_DRIVER_DAC1X8S
-bool "general keyboard driver" CONFIG_DRIVER_KEYBOARD
-bool "adc key driver" CONFIG_DRIVER_ADCKEY
-bool "gpio key driver" CONFIG_DRIVER_GPIOKEY
-bool "general remote control driver" CONFIG_DRIVER_RCKEY
-if [ "$CONFIG_DRIVER_RCKEY" = "y" ]; then
-	choice 'remote control protocol'	" \
-		rc5	CONFIG_RCKEY_PROTOCOL_RC5 \
-	" rc5
-fi
-bool "enable sd card driver?" CONFIG_DRIVER_DISK
-if [ "$CONFIG_DRIVER_DISK" = "y" ]; then
-	choice 'sd card bus select'	" \
-		SPI1	CONFIG_SD_BUS_SPI1 \
-		SPI2	CONFIG_SD_BUS_SPI2 \
-	" SPI
-fi
-bool "add md204l driver?" CONFIG_DRIVER_MD204L

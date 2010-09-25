@@ -5,3 +5,4 @@
 #
 bool "i2c bus 1?" CONFIG_DRIVER_I2C1
 bool "i2c bus 2?" CONFIG_DRIVER_I2C2
+bool "chip at24cxx(eeprom)" CONFIG_DRIVER_AT24CXX

@@ -1,0 +1,12 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+bool "general disk driver?" CONFIG_DRIVER_DISK
+if [ "$CONFIG_DRIVER_DISK" = "y" ]; then
+	choice 'sd card bus select'	" \
+		SPI1	CONFIG_SD_BUS_SPI1 \
+		SPI2	CONFIG_SD_BUS_SPI2 \
+	" SPI
+fi

@@ -1,0 +1,7 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+bool "general mac drivers?" CONFIG_DRIVER_MAC
