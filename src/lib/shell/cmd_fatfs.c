@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "ff.h"
+#include "FreeRTOS.h"
 
 static FATFS fs;
 
