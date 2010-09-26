@@ -23,13 +23,17 @@
 #define RX_FIFO_SZ CONFIG_SPI1_RX_FIFO_SZ
 #endif
 
+#ifdef CONFIG_SPI1_CS_SOFT
 static char flag_csel;
+#endif
 
 static int spi_Init(const spi_cfg_t *spi_cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	SPI_InitTypeDef  SPI_InitStructure;
+#ifdef CONFIG_SPI1_CS_SOFT
 	flag_csel = spi_cfg -> csel;
+#endif
 	
 	/* pin map:	SPI1		SPI2
 		NSS		PA4		PB12

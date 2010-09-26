@@ -23,13 +23,17 @@
 #define RX_FIFO_SZ CONFIG_SPI2_RX_FIFO_SZ
 #endif
 
+#ifdef CONFIG_SPI2_CS_SOFT
 static char flag_csel;
+#endif
 
 static int spi_Init(const spi_cfg_t *spi_cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	SPI_InitTypeDef  SPI_InitStructure;
+#ifdef CONFIG_SPI2_CS_SOFT
 	flag_csel = spi_cfg -> csel;
+#endif
 	
 	/* pin map:	SPI1		SPI2
 		NSS		PA4		PB12
@@ -102,7 +106,7 @@ static int spi_Write(int addr, int val)
 #ifdef CONFIG_SPI2_CS_SOFT
 	/*cs low*/
 	if(!flag_csel)
-	spi_cs_set(addr, 0);
+		spi_cs_set(addr, 0);
 #endif
 	
 	while (SPI_I2S_GetFlagStatus(spi, SPI_I2S_FLAG_TXE) == RESET);
@@ -113,7 +117,7 @@ static int spi_Write(int addr, int val)
 #ifdef CONFIG_SPI2_CS_SOFT
 	/*cs high*/
 	if(!flag_csel)
-	spi_cs_set(addr, 1);
+		spi_cs_set(addr, 1);
 #endif
 
 	return ret;
