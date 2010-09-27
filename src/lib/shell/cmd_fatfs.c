@@ -24,7 +24,7 @@ static int cmd_fatfs_func(int argc, char *argv[])
 	char buffer[9];
 	unsigned int br;
 	
-	const char usage[] = { \
+	const char *usage = { \
 		"usage:\n " \
 		"fatfs mount      ,mount a disk \n " \
 		"fatfs umount     ,umount a disk \n " \
