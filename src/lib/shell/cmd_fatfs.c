@@ -16,14 +16,14 @@ static int cmd_fatfs_func(int argc, char *argv[])
 {
 	FRESULT res;
 	FIL file;
-	FILINFO fileinfo;
+	FILINFO fileinfo = {.lfsize = 0, };
 	DIR fdir;
 
 	char *filename;
 	char path[] = "";
 	char buffer[9];
 	unsigned int br;
-
+	
 	const char usage[] = { \
 		"usage:\n " \
 		"fatfs mount      ,mount a disk \n " \
