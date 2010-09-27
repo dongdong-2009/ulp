@@ -7,6 +7,11 @@ bool "general key driver" CONFIG_DRIVER_KEYBOARD
 if [ "$CONFIG_DRIVER_KEYBOARD" = "y" ]; then
 	bool "adc key driver" CONFIG_DRIVER_ADCKEY
 	bool "gpio key driver" CONFIG_DRIVER_GPIOKEY
+	if [ "$CONFIG_DRIVER_GPIOKEY" = "y" ]; then
+		choice 'keyboard layout select'	" \
+			goldbull	CONFIG_GPIOKEY_LAYOUT_GB \
+		" goldbull
+	fi
 	bool "general remote control driver" CONFIG_DRIVER_RCKEY
 	if [ "$CONFIG_DRIVER_RCKEY" = "y" ]; then
 		choice 'remote control protocol'	" \
