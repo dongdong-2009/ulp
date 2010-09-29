@@ -32,10 +32,10 @@ enum {
 };
 
 typedef struct osd_item_s {
-	int x; //hor position
-	int y; //vert position
-	int w; //width
-	int h; //height
+	char x; //hor position
+	char y; //vert position
+	char w; //width
+	char h; //height
 	int v; //value
 	int (*draw)(const struct osd_item_s *item, int status); //draw function
 	int option; //misc draw options, refer to misc options
