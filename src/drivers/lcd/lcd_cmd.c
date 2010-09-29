@@ -13,13 +13,18 @@
 
 static int cmd_lcd_func(int argc, char *argv[])
 {
-	int row, col, duty;
+	int row, col;
+#ifdef CONFIG_DRIVER_PWM2
+	int duty;
 	pwm_cfg_t cfg = PWM_CFG_DEF;
 	const pwm_bus_t *pwm = &pwm23; //zf32 board, for backlight ctrl
+#endif
 
 	const char *usage = {
 		"usage:\n"
+#ifdef CONFIG_DRIVER_PWM2
 		"lcd bl hz duty	duty: 0-9\n"
+#endif
 		"lcd init\n"
 		"lcd puts x y str\n"
 		"lcd w reg val\n"
@@ -31,7 +36,7 @@ static int cmd_lcd_func(int argc, char *argv[])
 			lcd_init();
 			return 0;
 		}
-
+#ifdef CONFIG_DRIVER_PWM2
 		if(argv[1][0] == 'b') {
 			if(argc > 3) {
 				sscanf(argv[2], "%d", &cfg.hz);
@@ -46,7 +51,7 @@ static int cmd_lcd_func(int argc, char *argv[])
 			pwm -> set(duty);
 			return 0;
 		}
-
+#endif
 		if(argv[1][0] == 'w') {
 			//write reg
 			sscanf(argv[2], "%x", &row);

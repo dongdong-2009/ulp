@@ -146,6 +146,7 @@ static short ili9320_BGR2RGB(short c)
 	return rgb;
 }
 
+#if 0
 static short ili9320_GetPoint(short x, short y)
 {
 	short temp;
@@ -170,6 +171,7 @@ void ili9320_SetPoint(short x, short y, short point)
 	ili9320_WriteData(point);
 	Set_Cs;
 }
+#endif
 
 /*clear the screen with the default bkcolor*/
 static int ili9320_Clear(void)
@@ -251,6 +253,7 @@ int ili9320_set_color(int fg, int bg)
 {
 	fgcolor = ili9320_RGB2BGR((unsigned short) fg);
 	bgcolor = ili9320_RGB2BGR((unsigned short) bg);
+	return 0;
 }
 
 int ili9320_Initializtion(void)

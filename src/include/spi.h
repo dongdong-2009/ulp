@@ -30,7 +30,7 @@ typedef struct {
 	unsigned cpha : 1; /*clock phase, 0-> first edge active*/
 	unsigned bits : 5; /*bits of a frame, 0~31*/
 	unsigned bseq : 1; /*bit sequency, 0->lsb*/
-	unsigned csel : 1; /*csel on/off, 1 -> driver will control cs signal by itself */
+	unsigned csel : 1; /*csel on/off, 1 -> cs signal will be manually controlled by csel() method */
 } spi_cfg_t;
 
 #define SPI_CFG_DEF { \

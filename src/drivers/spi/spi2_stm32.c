@@ -23,10 +23,17 @@
 #define RX_FIFO_SZ CONFIG_SPI2_RX_FIFO_SZ
 #endif
 
+#ifdef CONFIG_SPI2_CS_SOFT
+static char flag_csel;
+#endif
+
 static int spi_Init(const spi_cfg_t *spi_cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	SPI_InitTypeDef  SPI_InitStructure;
+#ifdef CONFIG_SPI2_CS_SOFT
+	flag_csel = spi_cfg -> csel;
+#endif
 	
 	/* pin map:	SPI1		SPI2
 		NSS		PA4		PB12
@@ -38,7 +45,10 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+#ifdef CONFIG_SPI2_CS_HARD
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_12;
+#endif
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
@@ -49,7 +59,11 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	SPI_InitStructure.SPI_DataSize = (spi_cfg->bits > 8) ? SPI_DataSize_16b : SPI_DataSize_8b;
 	SPI_InitStructure.SPI_CPOL = (spi_cfg->cpol) ? SPI_CPOL_High : SPI_CPOL_Low;
 	SPI_InitStructure.SPI_CPHA = (spi_cfg->cpha) ? SPI_CPHA_2Edge : SPI_CPHA_1Edge;
+#ifdef CONFIG_SPI2_CS_HARD
+	SPI_InitStructure.SPI_NSS = SPI_NSS_Hard;
+#else
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
+#endif
 	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
 	SPI_InitStructure.SPI_FirstBit = (spi_cfg->bseq) ? SPI_FirstBit_MSB : SPI_FirstBit_LSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
@@ -79,7 +93,7 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	SPI_I2S_DMACmd(spi, SPI_I2S_DMAReq_Tx, ENABLE);
 #endif
 
-#ifdef CONFIG_SPI_CS_GPIO
+#ifdef CONFIG_SPI2_CS_SOFT
 	spi_cs_init();
 #endif
 	return 0;
@@ -87,16 +101,31 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 
 static int spi_Write(int addr, int val)
 {
-#ifdef CONFIG_SPI_CS_GPIO
-	spi_cs_set(addr, 0);
+	int ret = 0;
+	
+#ifdef CONFIG_SPI2_CS_SOFT
+	/*cs low*/
+	if(!flag_csel)
+		spi_cs_set(addr, 0);
 #endif
+	
 	while (SPI_I2S_GetFlagStatus(spi, SPI_I2S_FLAG_TXE) == RESET);
 	SPI_I2S_SendData(spi, (uint16_t)val);
 	while (SPI_I2S_GetFlagStatus(spi, SPI_I2S_FLAG_RXNE) == RESET);
-#ifdef CONFIG_SPI_CS_GPIO
-	spi_cs_set(addr, 1);
+	ret = SPI_I2S_ReceiveData(spi);
+	
+#ifdef CONFIG_SPI2_CS_SOFT
+	/*cs high*/
+	if(!flag_csel)
+		spi_cs_set(addr, 1);
 #endif
-	return SPI_I2S_ReceiveData(spi);
+
+	return ret;
+}
+
+static int spi_Read(int addr)
+{
+	return spi_Write(addr, 0xff);
 }
 
 static int spi_DMA_Write(char *pbuf, int len)
@@ -115,7 +144,14 @@ static int spi_DMA_Write(char *pbuf, int len)
 spi_bus_t spi2 = {
 	.init = spi_Init,
 	.wreg = spi_Write,
-	.rreg = NULL,
+	.rreg = spi_Read,
+#ifndef CONFIG_SPI2_CS_SOFT
+	.csel = NULL,
+#else
+	.csel = spi_cs_set,
+#endif
+	
+	/*reserved*/
 	.wbuf = spi_DMA_Write,
 	.rbuf = NULL,
 };
