@@ -191,7 +191,7 @@ static osd_dialog_t *dlg_CreateDialog(const osd_command_t *pcmd)
 	osd_dialog_t *pdlg;
 	osd_group_t *pgrp;
 	osd_item_t *pitem;
-	FILINFO fileinfo;
+	FILINFO fileinfo = {.lfsize = 0, };
 	DIR fdir;
 	
 	//create groups, maxium 10

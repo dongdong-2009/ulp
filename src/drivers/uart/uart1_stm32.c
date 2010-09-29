@@ -95,7 +95,10 @@ static int uart_wake(int op)
 		GPIO_Init(GPIOx, &GPIO_InitStructure);
 		break;
 	default:
+		break;
 	}
+	
+	return 0;
 }
 #endif
 

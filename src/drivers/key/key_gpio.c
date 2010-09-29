@@ -15,7 +15,7 @@ static key_t key; //this for up designer
 static char key_counter;
 static time_t key_timer;
 
-#if CONFIG_TASK_HVP == 1
+#if CONFIG_GPIOKEY_LAYOUT_GB == 1
 #include "stm32f10x.h"
 
 static int key_hwinit(void)
