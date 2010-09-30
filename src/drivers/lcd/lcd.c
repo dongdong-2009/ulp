@@ -8,44 +8,38 @@
 #include <stdlib.h>
 #include <string.h>
 #include "FreeRTOS.h"
+#include "common/glib.h"
 
 static const lcd_t *lcd;
-static int lcd_xoffset;
-static int lcd_yoffset;
+static rect_t lcd_rect;
 
 int lcd_add(const lcd_t *dev)
 {
 	lcd = dev;
 	lcd->init();
+	rect_set(&lcd_rect, 0, 0, lcd -> w, lcd -> h);
 	return 0;
 }
 
 int lcd_init(void)
 {
 	int ret = -1;
-
-	lcd_xoffset = 0;
-	lcd_yoffset = 0;
-
-	if(lcd != NULL)
+	
+	rect_zero(&lcd_rect);
+	if(lcd != NULL) {
+		rect_set(&lcd_rect, 0, 0, lcd -> w, lcd -> h);
 		ret = lcd->init();
+	}
 
 	return ret;
 }
 
 int lcd_puts(int x, int y, const char *str)
 {
-	int ret = -1;
-
-	x -= lcd_xoffset;
-	y -= lcd_yoffset;
-
-	if((y >= lcd->h) || (x >= lcd->w) || (y < 0) || (x < 0)) {
-		return ret;
-	}
-
-	ret = lcd->puts(x, y, str);
-	return ret;
+	x -= lcd_rect.x1;
+	y -= lcd_rect.y1;
+	
+	return lcd->puts(x, y, str);
 }
 
 int lcd_clear_all(void)
@@ -79,15 +73,11 @@ int lcd_clear_rect(int x, int y, int w, int h)
 	int i;
 	char *str;
 
-	x -= lcd_xoffset;
-	y -= lcd_yoffset;
+	x -= lcd_rect.x1;
+	y -= lcd_rect.y1;
 
 	if(lcd->clear_rect != NULL)
 		return lcd->clear_rect(x, y, w, h);
-
-	if((y >= lcd->h) || (x >= lcd->w) || (y < 0) || (x < 0)) {
-		return ret;
-	}
 
 	str = MALLOC(w + 1);
 	memset(str, ' ', w);
@@ -107,29 +97,22 @@ int lcd_scroll(int xoffset, int yoffset)
 {
 	int ret = -1;
 
-	if((xoffset < 0) && (yoffset < 0))
-		return (int)(lcd->scroll == NULL);
-
+	xoffset -= lcd_rect.x1;
+	yoffset -= lcd_rect.y1;
+	
 	if(lcd->scroll != NULL)
 		ret = lcd->scroll(xoffset, yoffset);
 	else {
-		lcd_xoffset = xoffset;
-		lcd_yoffset = yoffset;
+		rect_move(&lcd_rect, xoffset, yoffset);
 		ret = 0;
 	}
 
 	return ret;
 }
 
-int lcd_is_visible(int x, int y)
+int lcd_is_visible(const rect_t *r)
 {
-	int result = 0;
-	result += (x < lcd_xoffset);
-	result += (x >= lcd_xoffset + lcd->w);
-	result += (y < lcd_yoffset);
-	result += (y >= lcd_yoffset + lcd->h);
-	
-	return result;
+	return rect_have_rect(&lcd_rect, r);
 }
 
 int lcd_set_color(int fg, int bg)

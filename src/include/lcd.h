@@ -5,6 +5,7 @@
 #define __LCD_H_
 
 #include "config.h"
+#include "common/glib.h"
 
 #define RGB565(r, g, b)	((r & 0x1f) | ((g & 0x3f) << 5) | ((b & 0x1f) << 11))
 #define RGB RGB565
@@ -41,7 +42,7 @@ int lcd_puts(int x, int y, const char *str);
 int lcd_clear_all(void);
 int lcd_clear_rect(int x, int y, int w, int h);
 int lcd_scroll(int xoffset, int yoffset);
-int lcd_is_visible(int x, int y);
+int lcd_is_visible(const rect_t *r);
 int lcd_set_color(int fg, int bg);
 
 //debug purpose
