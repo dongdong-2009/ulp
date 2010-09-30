@@ -195,7 +195,7 @@ static osd_dialog_t *dlg_CreateDialog(const osd_command_t *pcmd)
 	DIR fdir;
 	
 	//create groups, maxium 10
-	pgrp = MALLOC(sizeof(osd_group_t) * 11);
+	pgrp = MALLOC(sizeof(osd_group_t) * 21);
 	if(!pgrp)
 		return NULL;
 	
