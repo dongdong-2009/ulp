@@ -20,78 +20,71 @@
 int osd_SelectNextGroup(void) //change focus
 {
 	osd_dialog_k *kdlg = (osd_dialog_k *) osd_GetActiveDialog();
-	osd_group_k *kgrp, *kgrp_old;
-	int flag = 0;
+	osd_group_k *kgrp;
 	
 	if(kdlg == NULL)
 		return 0;
 	
 	//find next and set focus tag
-	kgrp_old = kdlg->active_kgrp;
-	kgrp = (kgrp_old == NULL) ? kdlg->kgrps : kgrp_old->next;
-	for(; kgrp != NULL; kgrp = kgrp->next)
-	{
-		if(kgrp->status >= STATUS_NORMAL) {
-			//found a new one
-			kgrp->focus = 1;
-			kdlg->active_kgrp = kgrp;
-			if(kgrp_old != NULL)
-				kgrp_old->focus = 0;
-			flag = 1;
+	kgrp = (kdlg->active_kgrp == NULL) ? kdlg->kgrps : kdlg->active_kgrp->next;
+	for(; kgrp != NULL; kgrp = kgrp->next) {
+		if(!osd_grp_select(kdlg, kgrp)) {
 			break;
 		}
 	}
-	
-	if(!flag)
-		return 0;
-	
-	flag = osd_eng_scroll(-1, -1);
-	if(flag) {
-		//hardware scroll is not supported, redraw all
-		osd_HideDialog(kdlg);
-		if(osd_eng_is_visible(0, kgrp->grp->items->y))
-			osd_eng_scroll(0, kgrp->grp->items->y);
-		osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERFOCUSCHANGE);
-	}
-	return 0;
+
+	return (kgrp == NULL);
 }
 
 int osd_SelectPrevGroup(void) //change focus
 {
 	osd_dialog_k *kdlg = (osd_dialog_k *) osd_GetActiveDialog();
-	osd_group_k *kgrp, *kgrp_old;
-	int flag = 0;
+	osd_group_k *kgrp;
 	
 	if(kdlg == NULL)
 		return 0;
 	
-	kgrp_old = (kdlg->active_kgrp == NULL) ? kdlg->kgrps : kdlg->active_kgrp;
-	
 	//find next and set focus tag
-	for(kgrp = kgrp_old->prev; kgrp != NULL; kgrp = kgrp->prev)
-	{
-		if(kgrp->status >= STATUS_NORMAL) {
-			//found a new one
-			kgrp->focus = 1;
-			kdlg->active_kgrp = kgrp;
-			kgrp_old->focus = 0;
-			flag = 1;
+	kgrp = (kdlg->active_kgrp == NULL) ? kdlg->kgrps : kdlg->active_kgrp->prev;
+	for(; kgrp != NULL; kgrp = kgrp->prev) {
+		if(!osd_grp_select(kdlg, kgrp)) {
 			break;
 		}
 	}
+
+	return (kgrp == NULL);
+}
+
+int osd_SelectGroup(const osd_group_t *grp)
+{
+	osd_dialog_k *kdlg = (osd_dialog_k *) osd_GetActiveDialog();
+	osd_group_k *kgrp;
 	
-	if(!flag)
+	if(kdlg == NULL)
 		return 0;
 	
-	flag = osd_eng_scroll(-1, -1);
-	if(flag) {
-		//hardware scroll is not supported, redraw all
-		osd_HideDialog(kdlg);
-		if(osd_eng_is_visible(0, kgrp->grp->items->y))
-			osd_eng_scroll(0, kgrp->grp->items->y);
-		osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERFOCUSCHANGE);
+	//find next and set focus tag
+	kgrp = kdlg->kgrps;
+	for(; kgrp != NULL; kgrp = kgrp->next) {
+		if(kgrp -> grp == grp) {
+			return osd_grp_select(kdlg, kgrp);
+		}
+	}
+
+	return -1;
+}
+
+int osd_grp_select(struct osd_dialog_ks *kdlg, osd_group_k *kgrp)
+{	
+	if(kgrp -> status < STATUS_NORMAL)
+		return -1;
+
+	if(kdlg->active_kgrp != NULL) {
+		kdlg->active_kgrp->focus = 0;
 	}
 	
+	kgrp->focus = 1;
+	kdlg->active_kgrp = kgrp;
 	return 0;
 }
 
@@ -110,46 +103,20 @@ osd_group_t *osd_GetCurrentGroup(void)
 int osd_ConstructGroup(const osd_group_t *grp)
 {
 	osd_group_k *kgrp;
-	const osd_item_t *item;
-	osd_item_k *kitem, *k;
 
 	kgrp = MALLOC(sizeof(osd_group_k));
 	kgrp->grp = grp;
 	kgrp->next = NULL;
 	kgrp->prev = NULL;
-	kgrp->runtime_kitems = NULL;
-	kgrp->status = STATUS_HIDE;
+	kgrp->status = osd_grp_get_status(grp);
 	kgrp->focus = 0;
 
-	//fill runtime_kitems
-	for(item = grp->items; (item != NULL) && (item->draw != NULL); item ++)
-	{
-		k = (osd_item_k *) osd_ConstructItem(item);
-		if(k != NULL) {
-			if(kgrp->runtime_kitems == NULL) {
-				kgrp->runtime_kitems = k;
-			}
-			else {
-				kitem->next = k;
-			}
-			
-			kitem = k;
-		}
-	}
-
+	osd_grp_get_rect(kgrp, &kgrp->margin);
 	return (int)kgrp;
 }
 
 int osd_DestroyGroup(osd_group_k *kgrp)
 {
-	osd_item_k *kitem, *kitem_next;
-	
-	for(kitem = kgrp->runtime_kitems; kitem != NULL;)
-	{
-		kitem_next = kitem->next;
-		osd_DestroyItem(kitem);
-		kitem = kitem_next;
-	}
 	FREE(kgrp);
 	return 0;
 }
@@ -172,52 +139,99 @@ static int set_color(int status)
 int osd_ShowGroup(osd_group_k *kgrp, int update)
 {
 	int status;
-	int (*get_status)(const osd_group_t *grp);
 	const osd_group_t *grp;
 	const osd_item_t *item;
-	osd_item_k *kitem;
+	
+	if(!osd_eng_is_visible(&kgrp -> margin))
+		return 0;
 	
 	//evaluate new group status
 	grp = kgrp->grp;
-	if(grp->option & GROUP_RUNTIME_STATUS == GROUP_RUNTIME_STATUS) {
-		get_status = (int (*)(const osd_group_t *)) grp->order;
-		status = get_status(grp);
-	}
-	else
-		status = STATUS_NORMAL; //grp->order;
-
+	status = osd_grp_get_status(grp);
 	if(kgrp->focus)
 		status = STATUS_FOCUSED;
 	
 	set_color(status);
-	if(status != kgrp->status) { //all items needs to be redraw
-		kgrp->status = status;
-		for(item = grp->items; (item != NULL) && (item->draw != NULL); item ++) {
+	for(item = grp->items; (item != NULL) && (item->draw != NULL); item ++) {
+		if(kgrp->status != status)
 			osd_HideItem(item);
-			osd_ShowItem(item, status);
-		}
-	}
-	else {
-		for(kitem = kgrp->runtime_kitems; kitem != NULL; kitem = kitem->next) {
-			item = kitem->item;
-			if(item->update >= update) {
-				osd_HideItem(kitem->item);
-				osd_ShowItem(kitem->item, status);
-			}
-		}
+		osd_ShowItem(item, status);
 	}
 	
+	kgrp->status = status;
 	return 0;
 }
 
 int osd_HideGroup(osd_group_k *kgrp)
 {
+	int status;
+	const osd_group_t *grp;
 	const osd_item_t *item;
-	kgrp->status = STATUS_HIDE;
-	set_color(kgrp->status);
-	//kgrp->focus = 0;
+	
+	if(!osd_eng_is_visible(&kgrp -> margin))
+		return 0;
+
+	//evaluate new group status
+	grp = kgrp->grp;
+	status = osd_grp_get_status(grp);
+	if(kgrp->focus)
+		status = STATUS_FOCUSED;
+
+	set_color(status);
+	kgrp->status = status;
 	for(item = kgrp->grp->items; (item != NULL) && (item->draw != NULL); item ++)
 		osd_HideItem(item);
 			
 	return 0;
 }
+
+int osd_grp_get_status(const osd_group_t *grp)
+{
+	int status = grp -> order;
+	int (*get_status)(const osd_group_t *grp);
+	
+	if(grp->option & GROUP_RUNTIME_STATUS == GROUP_RUNTIME_STATUS) {
+		get_status = (int (*)(const osd_group_t *)) grp -> order;
+		status = get_status(grp);
+	}
+	
+	if(status > STATUS_NORMAL)
+		status = STATUS_NORMAL;
+	return status;
+}
+
+rect_t *osd_grp_get_rect(const osd_group_k *kgrp, rect_t *margin)
+{
+	rect_t r;
+	const osd_item_t *item;
+	
+	rect_zero(margin);
+	for(item = kgrp->grp->items; (item != NULL) && (item->draw != NULL); item ++) {
+		rect_set(&r, item->x, item->y, item->w, item->h);
+		rect_merge(margin, &r);
+	}
+	return margin;
+}
+
+#ifdef CONFIG_OSD_PD
+int osd_grp_react(osd_group_k *kgrp, int event, const dot_t *p)
+{
+	const osd_item_t *item;
+	rect_t r;
+	int event;
+	
+	//find the item to be responsible for the event
+	for(item = kgrp->grp->items; (item != NULL) && (item->draw != NULL); item ++) {
+		rect_set(&r, item->x, item->y, item->w, item->h);
+		if(rect_have(&r, p))
+			break;
+	}
+
+	//item event?
+	if(item != NULL)
+		event = osd_item_react(item, event, p);
+	
+	//default to KEY_ENTER event
+	return (event == OSDE_NONE) ? KEY_ENTER : event;
+}
+#endif

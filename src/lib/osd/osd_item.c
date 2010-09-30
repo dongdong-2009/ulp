@@ -11,32 +11,23 @@
 #include "FreeRTOS.h"
 #include <stdlib.h>
 
-//item construct/destroy/show/hide ops
-int osd_ConstructItem(const osd_item_t *item)
-{
-	osd_item_k *kitem = NULL;
-	
-	if(item->runtime || item->update == ITEM_UPDATE_ALWAYS) {
-		kitem = MALLOC(sizeof(osd_item_k));
-		kitem->item = item;
-		kitem->next = NULL;
-	}
-	
-	return (int)kitem;
-}
-
-int osd_DestroyItem(osd_item_k *kitem)
-{
-	FREE(kitem);
-	return 0;
-}
-
 int osd_ShowItem(const osd_item_t *item, int status)
 {
-	return item->draw(item, status);
+	return item->draw->draw(item, status);
 }
 
 int osd_HideItem(const osd_item_t *item)
 {
 	return osd_eng_clear_rect(item->x, item->y, item->w, item->h);
 }
+
+#ifdef CONFIG_OSD_PD
+int osd_item_react(osd_item_t *item, int event, const dot_t *p)
+{
+	int event = OSDE_NONE;
+	if(item->draw->react != NULL)
+		event = item->draw->react(item, event, p);
+	return event;
+}
+#endif
+

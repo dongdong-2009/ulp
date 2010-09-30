@@ -7,6 +7,7 @@
 
 #include "config.h"
 #include "osd/osd_dialog.h"
+#include "osd/osd_event.h"
 #include "FreeRTOS.h"
 #include <stdlib.h>
 
@@ -62,7 +63,7 @@ int osd_ConstructDialog(const osd_dialog_t *dlg)
 		}
 	}
 
-	osd_ShowDialog(kdlg, ITEM_UPDATE_NEVER);
+	osd_dlg_get_rect(kdlg, &kdlg->margin);
 	return (int)kdlg;
 }
 
@@ -108,3 +109,47 @@ int osd_HideDialog(osd_dialog_k *kdlg)
 	
 	return 0;
 }
+
+rect_t *osd_dlg_get_rect(const osd_dialog_k *kdlg, rect_t *margin)
+{
+	rect_t r;
+	osd_group_k *kgrp;
+	
+	rect_zero(margin);
+	for(kgrp = kdlg->kgrps; kgrp != NULL; kgrp = kgrp->next) {
+		osd_grp_get_rect(kgrp, &r);
+		rect_merge(margin, &r);
+	}
+	return margin;
+}
+
+#ifdef CONFIG_OSD_PD
+int osd_dlg_react(osd_dialog_k *kdlg, int event, const dot_t *p)
+{
+	int event = OSDE_NONE;
+	osd_group_k *kgrp;
+	
+	//event occurs outside my dialog?
+	if(!rect_have(&kdlg->margin, p))
+		return event;
+	
+	//event occurs outside active group?
+	if(rect_have(&kdlg->active_kgrp->margin, p)) {
+		event = osd_grp_react(kdlg->active_kgrp, event, p);
+	}
+	else {
+		//change focus
+		for(kgrp = kdlg->kgrps; kgrp != NULL; kgrp = kgrp->next) {
+			if(rect_have(&kgrp->margin, p))
+				break;
+		}
+		
+		if(kgrp != NULL) {
+			if(!osd_grp_select(kdlg, kgrp))
+				event = OSDE_FOCUS;
+		}
+	}
+	
+	return event;
+}
+#endif

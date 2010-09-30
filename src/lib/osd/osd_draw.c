@@ -46,6 +46,13 @@ int item_DrawTxt(const osd_item_t *item, int status)
 	return 0;
 }
 
+widget_t widget_text = {
+	.draw = item_DrawTxt,
+#ifdef CONFIG_OSD_PD
+	.react = NULL,
+#endif
+};
+
 int item_DrawInt(const osd_item_t *item, int status)
 {
 	int value;
@@ -79,5 +86,11 @@ int item_DrawInt(const osd_item_t *item, int status)
 	return 0;
 }
 
+widget_t widget_int = {
+	.draw = item_DrawInt,
+#ifdef CONFIG_OSD_PD
+	.react = NULL,
+#endif
+};
 
 

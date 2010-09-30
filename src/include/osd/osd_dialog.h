@@ -4,8 +4,10 @@
 #ifndef __OSD_DIALOG_H_
 #define __OSD_DIALOG_H_
 
+#include "config.h"
 #include "osd/osd_cmd.h"
 #include "osd/osd_group.h"
+#include "common/glib.h"
 
 //dialog option
 enum {
@@ -20,10 +22,11 @@ typedef struct osd_dialog_s {
 } osd_dialog_t;
 
 //private, osd kernel data object, RAM
-typedef struct {
+typedef struct osd_dialog_ks {
 	const osd_dialog_t *dlg;
 	osd_group_k *kgrps; //groups currently on screen
 	osd_group_k *active_kgrp;
+	rect_t margin;
 } osd_dialog_k;
 
 //public api
@@ -35,5 +38,8 @@ int osd_DestroyDialog(int handle);
 //private
 int osd_ShowDialog(osd_dialog_k *kdlg, int update);
 int osd_HideDialog(osd_dialog_k *kdlg);
-
+rect_t *osd_dlg_get_rect(const osd_dialog_k *kdlg, rect_t *margin);
+#ifdef CONFIG_OSD_PD
+int osd_dlg_react(osd_dialog_k *kdlg, int event, const dot_t *p);
+#endif
 #endif /*__OSD_DIALOG_H_*/
