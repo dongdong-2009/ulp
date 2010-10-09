@@ -39,7 +39,7 @@ int osd_DestroyDialog(int handle);
 int osd_ShowDialog(osd_dialog_k *kdlg, int update);
 int osd_HideDialog(osd_dialog_k *kdlg);
 rect_t *osd_dlg_get_rect(const osd_dialog_k *kdlg, rect_t *margin);
-#ifdef CONFIG_OSD_PD
+#ifdef CONFIG_DRIVER_PD
 int osd_dlg_react(osd_dialog_k *kdlg, int event, const dot_t *p);
 #endif
 #endif /*__OSD_DIALOG_H_*/

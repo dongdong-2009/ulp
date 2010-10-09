@@ -35,7 +35,7 @@ struct osd_item_s;
 
 typedef struct {
 	int (*draw)(const struct osd_item_s *item, int status); //draw function
-#ifdef CONFIG_OSD_PD
+#ifdef CONFIG_DRIVER_PD
 	int (*react)(const struct osd_item_s *item, int event, const dot_t *p);
 #endif
 } widget_t;
@@ -55,7 +55,7 @@ typedef struct osd_item_s {
 //private
 int osd_ShowItem(const osd_item_t *item, int status);
 int osd_HideItem(const osd_item_t *item);
-#ifdef CONFIG_OSD_PD
+#ifdef CONFIG_DRIVER_PD
 int osd_item_react(osd_item_t *item, int event, const dot_t *p);
 #endif
 

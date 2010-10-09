@@ -123,7 +123,7 @@ rect_t *osd_dlg_get_rect(const osd_dialog_k *kdlg, rect_t *margin)
 	return margin;
 }
 
-#ifdef CONFIG_OSD_PD
+#ifdef CONFIG_DRIVER_PD
 int osd_dlg_react(osd_dialog_k *kdlg, int event, const dot_t *p)
 {
 	int event = OSDE_NONE;

@@ -21,7 +21,7 @@ int osd_HideItem(const osd_item_t *item)
 	return osd_eng_clear_rect(item->x, item->y, item->w, item->h);
 }
 
-#ifdef CONFIG_OSD_PD
+#ifdef CONFIG_DRIVER_PD
 int osd_item_react(osd_item_t *item, int event, const dot_t *p)
 {
 	int event = OSDE_NONE;

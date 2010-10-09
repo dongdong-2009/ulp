@@ -4,5 +4,3 @@
 # Written by miaofng@2010
 #
 
-bool "pointing device support?" CONFIG_OSD_PD
-

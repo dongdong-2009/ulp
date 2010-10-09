@@ -213,7 +213,7 @@ rect_t *osd_grp_get_rect(const osd_group_k *kgrp, rect_t *margin)
 	return margin;
 }
 
-#ifdef CONFIG_OSD_PD
+#ifdef CONFIG_DRIVER_PD
 int osd_grp_react(osd_group_k *kgrp, int event, const dot_t *p)
 {
 	const osd_item_t *item;
