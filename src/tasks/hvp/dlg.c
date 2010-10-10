@@ -191,7 +191,10 @@ static osd_dialog_t *dlg_CreateDialog(const osd_command_t *pcmd)
 	osd_dialog_t *pdlg;
 	osd_group_t *pgrp;
 	osd_item_t *pitem;
-	FILINFO fileinfo = {.lfsize = 0, };
+	FILINFO fileinfo;
+#ifdef CONFIG_FATFS_LFN
+	fileinfo.lfsize = 0;
+#endif
 	DIR fdir;
 	
 	//create groups, maxium 10
