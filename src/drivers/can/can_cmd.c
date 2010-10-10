@@ -9,13 +9,128 @@
 #include <string.h>
 #include "can.h"
 #include "time.h"
+#include "linux/list.h"
+#include "FreeRTOS.h"
+
+#define CONFIG_CAN_CMD_QUEUE
+
+struct can_queue_s {
+	int ms;
+	time_t timer;
+	can_msg_t msg;
+	struct list_head list;
+};
 
 static time_t timer;
 static const can_bus_t *can_bus;
+static char can_flag = 0;
+
+void can_msg_print(can_msg_t *msg, char *str)
+{
+	int i;
+	printf("ID = %04X: ", msg -> id);
+	for( i = 0; i < msg -> dlc; i ++) {
+		printf("%02x ", msg -> data[i]);
+	}
+	
+	if(str)
+		printf("%s", str);
+}
+
+#ifdef CONFIG_CAN_CMD_QUEUE
+static LIST_HEAD(can_queue);
+
+int can_queue_add(int ms, can_msg_t *msg)
+{
+	struct list_head *pos;
+	struct can_queue_s *new, *q = NULL;
+	
+	//prepare new queue unit
+	new = MALLOC(sizeof(struct can_queue_s));
+	if(new == NULL) {
+		printf("error: out of memory!\n");
+		return 0;
+	}
+	
+	new -> timer = 0;
+	new -> ms = ms;
+	memcpy(&new -> msg, msg, sizeof(can_msg_t));
+	INIT_LIST_HEAD(&new -> list);
+	
+	//check current queue, find the id?
+	list_for_each(pos, &can_queue) {
+		q = list_entry(pos, can_queue_s, list);
+		if(q -> msg.id == msg -> id) { //found one
+			list_replace(pos, &new -> list);
+			FREE(q);
+			return 0;
+		}
+	}
+	
+	list_add(&new -> list, &can_queue);
+	return 0;
+}
+
+void can_queue_print(void)
+{
+	struct list_head *pos;
+	struct can_queue_s *q;
+	
+	printf("queue list:\n");
+	list_for_each(pos, &can_queue) {
+		q = list_entry(pos, can_queue_s, list);
+		can_msg_print(&q -> msg, 0);
+		printf("T = %03dms\n", q -> ms);
+	}
+}
+
+void can_queue_clear(void)
+{
+	struct list_head *pos;
+	struct can_queue_s *q;
+
+	list_for_each(pos, &can_queue) {
+		q = list_entry(pos, can_queue_s, list);
+		FREE(q);
+	}
+	
+	INIT_LIST_HEAD(&can_queue);
+}
+
+int can_queue_run(void)
+{
+	struct list_head *pos;
+	struct can_queue_s *q;
+
+	if(!can_flag)
+		return 0;
+
+	list_for_each(pos, &can_queue) {
+		q = list_entry(pos, can_queue_s, list);
+		if(q -> timer == 0 || time_left(q -> timer) < 0) {
+			q -> timer = time_get(q -> ms);
+			
+			//send the msg now
+			printf("%06dms ", (int)((time_get(0) - timer)*1000/CONFIG_TICK_HZ));
+			if(can_bus -> send(&q -> msg)) {
+				can_msg_print(&q -> msg, " ..fail\n");
+			}
+			else {
+				can_msg_print(&q -> msg, "\n");
+			}
+		}
+	}
+	
+	return 1;
+}
+#endif
 
 static int cmd_can_func(int argc, char *argv[])
 {
 	int x;
+#ifdef CONFIG_CAN_CMD_QUEUE
+	int ms;
+#endif
 	can_cfg_t cfg = CAN_CFG_DEF;
 	can_msg_t msg;
 	const char *usage = {
@@ -24,11 +139,16 @@ static int cmd_can_func(int argc, char *argv[])
 		"can send id d0 ...		can send, 11bit id\n"
 		"can sene id d0 ...		can send, 29bit id\n"
 		"can recv			can bus monitor\n"
+		"can qedit ms id d0 ...		can queue edit, 11bit id\n"
+		"can qrun			run can queue now\n"
 	};
 
 	if(argc > 1) {
-		timer = time_get(0);
+		can_flag = 1;
 		if(argv[1][0] == 'i') { //can init
+#ifdef CONFIG_CAN_CMD_QUEUE
+			can_queue_clear();
+#endif
 			if(argc >= 3) {
 				sscanf(argv[2], "%d", &x); //ch
 			}
@@ -74,8 +194,38 @@ static int cmd_can_func(int argc, char *argv[])
 			}
 			return 0;
 		}
+
+#ifdef CONFIG_CAN_CMD_QUEUE
+		if (!strcmp(argv[1], "qedit")) { //queue edit
+			msg.dlc = argc - 4;
+			if(msg.dlc > 8) {
+				msg.dlc = 8;
+				printf("warnning: msg is too long!!!\n");
+			}
+			msg.flag = 0;
+			sscanf(argv[2], "%d", &ms); //id
+			sscanf(argv[3], "%x", &msg.id); //id
+			for(x = 0; x < msg.dlc; x ++) {
+				sscanf(argv[4 + x], "%x", (int *)&msg.data[x]);
+			}
+			
+			can_queue_add(ms, &msg);
+			can_queue_print();
+			return 0;
+		}
+		
+		if (!strcmp(argv[1], "qrun")) { //queue run
+			can_flag = 1;
+			timer = time_get(0);
+			return can_queue_run();
+		}
+#endif
+		timer = time_get(0);
 	}
 
+	if(can_queue_run())
+		return 1;
+	
 	//can recv, monitor
 	if(argc == 0 || argv[1][3] == 'v') {
 		if(!can_bus -> recv(&msg)) {
