@@ -144,7 +144,7 @@ static int cmd_can_func(int argc, char *argv[])
 	};
 
 	if(argc > 1) {
-		can_flag = 1;
+		can_flag = 0;
 		if(argv[1][0] == 'i') { //can init
 #ifdef CONFIG_CAN_CMD_QUEUE
 			can_queue_clear();
