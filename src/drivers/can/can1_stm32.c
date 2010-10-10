@@ -104,7 +104,7 @@ int can_recv(can_msg_t *msg)
 	
 	if(CAN_MessagePending(CAN1, CAN_FIFO0) > 0)
 		CAN_Receive(CAN1, CAN_FIFO0, &msg_st);
-	else if(CAN_MessagePending(CAN1, CAN_FIFO0) > 0)
+	else if(CAN_MessagePending(CAN1, CAN_FIFO1) > 0)
 		CAN_Receive(CAN1, CAN_FIFO1, &msg_st);
 	else
 		return -1;
