@@ -20,7 +20,7 @@ static int cmd_can_func(int argc, char *argv[])
 	can_msg_t msg;
 	const char *usage = {
 		"usage:\n"
-		"can init ch baud		init can hw interface\n"
+		"can init ch baud		init can hw interface, def to CH1+500K\n"
 		"can send id d0 ...		can send, 11bit id\n"
 		"can sene id d0 ...		can send, 29bit id\n"
 		"can recv			can bus monitor\n"
@@ -29,8 +29,19 @@ static int cmd_can_func(int argc, char *argv[])
 	if(argc > 1) {
 		timer = time_get(0);
 		if(argv[1][0] == 'i') { //can init
-			sscanf(argv[2], "%d", &x); //ch
-			sscanf(argv[3], "%d", &cfg.baud); //baud
+			if(argc >= 3) {
+				sscanf(argv[2], "%d", &x); //ch
+			}
+			else { //default to channel 1
+				x = 1;
+			}
+			if(argc >= 4) {
+				sscanf(argv[3], "%d", &cfg.baud); //baud
+			}
+			else { //default to baud 500K
+				cfg.baud = 500000;
+			}
+			
 			can_bus = NULL;
 #ifdef CONFIG_DRIVER_CAN1
 			//default to can1
@@ -41,6 +52,7 @@ static int cmd_can_func(int argc, char *argv[])
 			if(x == 2)
 				can_bus = &can2;
 #endif
+
 			if(can_bus != NULL)
 				can_bus -> init(&cfg);
 			else
