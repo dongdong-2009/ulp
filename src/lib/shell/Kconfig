@@ -4,6 +4,10 @@
 # Written by miaofng@2010
 #
 
+int "max bytes of a shell command?" CONFIG_SHELL_LEN_CMD_MAX 64
+int "max paras of a shell command?" CONFIG_SHELL_NR_PARA_MAX 16
+int "max bytes of command history?" CONFIG_SHELL_LEN_HIS_MAX 256
+
 if [ "$CONFIG_TASK_SHELL" = "y" -a "$CONFIG_TASK_MOTOR" = "y"]; then
 	bool "enable commands for motor?" CONFIG_SHELL_MOTOR
 	bool "enable commands for motor debug?" CONFIG_SHELL_MOTOR_DEBUG

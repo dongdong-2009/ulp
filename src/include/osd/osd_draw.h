@@ -6,11 +6,11 @@
 
 #include "osd/osd_item.h"
 
-//item draw options
-#define ITEM_DRAW_TXT	item_DrawTxt
-#define ITEM_DRAW_INT	item_DrawInt
+extern widget_t widget_text;
+extern widget_t widget_int;
 
-int item_DrawTxt(const osd_item_t *item, int status);
-int item_DrawInt(const osd_item_t *item, int status);
+//item draw options
+#define ITEM_DRAW_TXT	(&widget_text)
+#define ITEM_DRAW_INT	(&widget_int)
 
 #endif /*__OSD_DRAW_H_*/
