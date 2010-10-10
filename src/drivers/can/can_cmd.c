@@ -197,6 +197,10 @@ static int cmd_can_func(int argc, char *argv[])
 
 #ifdef CONFIG_CAN_CMD_QUEUE
 		if (!strcmp(argv[1], "qedit")) { //queue edit
+			if(argc < 4) {
+				can_queue_print();
+				return 0;
+			}
 			msg.dlc = argc - 4;
 			if(msg.dlc > 8) {
 				msg.dlc = 8;
