@@ -45,6 +45,11 @@ mainmenu_option next_comment
 endmenu
 
 mainmenu_option next_comment
+	comment 'pd config'
+	source src/drivers/pd/Kconfig
+endmenu
+
+mainmenu_option next_comment
 	comment 'key config'
 	source src/drivers/key/Kconfig
 endmenu

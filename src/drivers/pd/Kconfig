@@ -1,0 +1,16 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+bool "general pointing device support?" CONFIG_DRIVER_PD
+
+if [ "$CONFIG_DRIVER_PD" = "y" ]; then
+choice 'touch screen chip select'	" \
+	TSC2046	CONFIG_PD_TSC2046 \
+	RSM1843	CONFIG_PD_RSM1843 \
+" TSC2046
+	
+bool "pd debug command" CONFIG_PD_CMD
+fi
+

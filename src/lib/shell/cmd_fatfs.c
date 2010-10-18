@@ -16,7 +16,10 @@ static int cmd_fatfs_func(int argc, char *argv[])
 {
 	FRESULT res;
 	FIL file;
-	FILINFO fileinfo = {.lfsize = 0, };
+	FILINFO fileinfo;
+#ifdef CONFIG_FATFS_LFN
+	fileinfo.lfsize = 0;
+#endif
 	DIR fdir;
 
 	char *filename;

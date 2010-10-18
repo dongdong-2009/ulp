@@ -36,6 +36,27 @@
 #define oe_set(level) GPIO_WriteBit(GPIOC, GPIO_Pin_13, level)
 #endif
 
+#ifdef CONFIG_LPT_PINMAP_DEF16
+/* pinmap:
+	data bus		PC0~15
+	addr bus		PB5
+	we/wr		PB1
+	oe		PB0
+	cs/enable		PB10
+*/
+#define CONFIG_LPT_WIDTH_16BIT
+#define db_pins ( \
+	GPIO_Pin_0 | GPIO_Pin_1| GPIO_Pin_2| GPIO_Pin_3 | \
+	GPIO_Pin_4 | GPIO_Pin_5| GPIO_Pin_6| GPIO_Pin_7 | \
+	GPIO_Pin_8 | GPIO_Pin_9| GPIO_Pin_10| GPIO_Pin_11 | \
+	GPIO_Pin_12 | GPIO_Pin_13| GPIO_Pin_14| GPIO_Pin_15 \
+)
+#define db_bank GPIOC
+#define cs_set(level) GPIO_WriteBit(GPIOB, GPIO_Pin_10, level)
+#define we_set(level) GPIO_WriteBit(GPIOB, GPIO_Pin_1, level)
+#define oe_set(level) GPIO_WriteBit(GPIOB, GPIO_Pin_0, level)
+#endif
+
 #ifdef CONFIG_LPT_PINMAP_ZF32
 /* pinmap:
 	data bus		PC0~7
@@ -91,6 +112,18 @@ static int lpt_init(void)
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 #endif
 
+#ifdef CONFIG_LPT_PINMAP_DEF16
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+
+	//config ctrl pins as pushpull out
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0; //RD
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_1; //WR
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_5; //A0
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_10; //CS
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+#endif
+
 #ifdef CONFIG_LPT_PINMAP_ZF32
 	//config addr bus as pushpull out
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
@@ -129,6 +162,9 @@ static int lpt_setaddr(int addr)
 #ifdef CONFIG_LPT_PINMAP_DEF8
 	GPIO_WriteBit(GPIOC, GPIO_Pin_9, (BitAction) (addr & 1));
 #endif
+#ifdef CONFIG_LPT_PINMAP_DEF16
+	GPIO_WriteBit(GPIOB, GPIO_Pin_5, (BitAction) (addr & 1));
+#endif
 #ifdef CONFIG_LPT_PINMAP_ZF32
 	GPIO_WriteBit(GPIOC, GPIO_Pin_10, (BitAction) (addr & 1));
 #endif
@@ -148,33 +184,13 @@ static int lpt_setdata(int data)
 
 static int lpt_getdata(void)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
-	int value;
-
-#ifdef CONFIG_LPT_DB_PP
-	//gpio output -> input
-	GPIO_InitStructure.GPIO_Pin = db_pins;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(db_bank, &GPIO_InitStructure);
-#endif
-	
-	value = GPIO_ReadInputData(db_bank);
+	int value = GPIO_ReadInputData(db_bank);
 	
 #ifdef CONFIG_LPT_WIDTH_8BIT
 	value &= 0x00ff;
 #else
 	value &= 0xffff;
 #endif
-
-#ifdef CONFIG_LPT_DB_PP
-	//gpio input -> output
-	GPIO_InitStructure.GPIO_Pin = db_pins;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(db_bank, &GPIO_InitStructure);
-#endif
-
 	return value;
 }
 
@@ -208,9 +224,19 @@ static int lpt_read(int addr)
 {
 	int data;
 
+	//gpio output -> input
+#ifdef CONFIG_LPT_DB_PP
+	GPIO_InitTypeDef GPIO_InitStructure;
+	GPIO_InitStructure.GPIO_Pin = db_pins;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(db_bank, &GPIO_InitStructure);
+#else /*CONFIG_LPT_DB_OD*/
+	lpt_setdata(0xffff); //open drain bus, to avoid pull down
+#endif
+
 #ifdef CONFIG_LPT_MODE_1602
 	lpt_setaddr(addr);
-	lpt_setdata(0xffff); //open drain bus, to avoid pull down
 	we_set(H);
 	ndelay(t0);
 	cs_set(H); //enable
@@ -220,7 +246,6 @@ static int lpt_read(int addr)
 	ndelay(t0);
 #else
 	lpt_setaddr(addr);
-	lpt_setdata(0xffff); //open drain bus, to avoid pull down
 	cs_set(L);
 	ndelay(t0);
 	oe_set(L); //read op
@@ -229,6 +254,14 @@ static int lpt_read(int addr)
 	oe_set(H);
 	ndelay(t0);
 	cs_set(H);
+#endif
+
+	//gpio input -> output
+#ifdef CONFIG_LPT_DB_PP
+	GPIO_InitStructure.GPIO_Pin = db_pins;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(db_bank, &GPIO_InitStructure);
 #endif
 
 	return data;

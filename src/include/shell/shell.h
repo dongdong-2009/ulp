@@ -4,6 +4,8 @@
 #ifndef __SHELL_H_
 #define __SHELL_H_
 
+#include "config.h"
+
 #ifndef CONFIG_SHELL_PROMPT
 #define CONFIG_SHELL_PROMPT "bldc# "
 #endif

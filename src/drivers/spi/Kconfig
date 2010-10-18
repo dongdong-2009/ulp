@@ -23,6 +23,17 @@ if [ "$CONFIG_DRIVER_SPI2" = "y" ]; then
 	int "tx fifo size" CONFIG_SPI2_TX_FIFO_SZ 0
 	int "rx fifo size" CONFIG_SPI2_RX_FIFO_SZ 0
 fi
+bool "spi bus 3?" CONFIG_DRIVER_SPI3
+if [ "$CONFIG_DRIVER_SPI3" = "y" ]; then
+	bool "remap to PC10..12" CONFIG_SPI3_REMAP
+	choice 'cs control method'	" \
+		NONE	CONFIG_SPI3_CS_NONE \
+		HARD	CONFIG_SPI3_CS_HARD \
+		SOFT	CONFIG_SPI3_CS_SOFT \
+	" SOFT
+	int "tx fifo size" CONFIG_SPI3_TX_FIFO_SZ 0
+	int "rx fifo size" CONFIG_SPI3_RX_FIFO_SZ 0
+fi
 
 mainmenu_option next_comment
 	comment 'soft cs config'

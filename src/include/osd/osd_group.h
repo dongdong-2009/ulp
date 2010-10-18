@@ -6,6 +6,7 @@
 
 #include "osd/osd_cmd.h"
 #include "osd/osd_item.h"
+#include "common/glib.h"
 
 //group option
 enum {
@@ -14,9 +15,8 @@ enum {
 };
 
 //group status
-enum { 
-	STATUS_HIDE = -2,
-	STATUS_VISIBLE,
+enum {
+	STATUS_VISIBLE = -2,
 	STATUS_GRAYED,
 	STATUS_NORMAL,
 	STATUS_FOCUSED,
@@ -25,7 +25,7 @@ enum {
 typedef struct osd_group_s {
 	const osd_item_t *items;
 	const osd_command_t *cmds;
-	int order; //focus order or group status or a status func, refer to item/group status in item.h
+	int order; //group status or a status func
 	int option;
 } osd_group_t;
 
@@ -35,16 +35,18 @@ typedef struct osd_group_s {
 #define COLOR_FG_FOCUS WHITE
 #define COLOR_BG_FOCUS BLUE
 
+struct osd_dialog_ks;
 typedef struct osd_group_ks {
 	const osd_group_t *grp;
-	osd_item_k *runtime_kitems;
 	short status;
 	short focus;
 	struct osd_group_ks *next;
 	struct osd_group_ks *prev;
+	rect_t margin;
 } osd_group_k;
 
 //api
+int osd_SelectGroup(const osd_group_t *grp);
 int osd_SelectNextGroup(void); //change focus
 int osd_SelectPrevGroup(void); //change focus
 osd_group_t *osd_GetCurrentGroup(void);
@@ -54,5 +56,10 @@ int osd_ConstructGroup(const osd_group_t *grp);
 int osd_DestroyGroup(osd_group_k *kgrp);
 int osd_ShowGroup(osd_group_k *kgrp, int update);
 int osd_HideGroup(osd_group_k *kgrp);
-
+int osd_grp_select(struct osd_dialog_ks *kdlg, osd_group_k *kgrp);
+int osd_grp_get_status(const osd_group_t *grp);
+rect_t *osd_grp_get_rect(const osd_group_k *kgrp, rect_t *margin);
+#ifdef CONFIG_DRIVER_PD
+int osd_grp_react(osd_group_k *kgrp, int event, const dot_t *p);
+#endif
 #endif /*__OSD_GROUP_H_*/

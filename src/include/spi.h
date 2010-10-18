@@ -18,6 +18,7 @@ enum {
 	SPI_2_NSS = SPI_CS_PB12,
 	SPI_CS_PC4,
 	SPI_CS_PC5,
+	SPI_CS_PC8,
 	SPI_CS_PF11,
 };
 

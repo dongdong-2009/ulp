@@ -15,8 +15,15 @@
  * @member:	the name of the member within the struct.
  *
  */
+ 
+#if 0
 #define container_of(ptr, type, member) ({			\
 	char *__mptr = (ptr);	\
 	(type *)( __mptr - offsetof(type,member) );})
+#else
+#define container_of(ptr, type, member) ( \
+	(struct type *)( (char *)(ptr) - offsetof(type, member) ) \
+)
+#endif
 
 #endif

@@ -7,23 +7,23 @@
 #include "spi.h"
 #include "device.h"
 
-#if CONFIG_DRIVER_SPI2 == 1
-	#define spi SPI2
-	#define dma_ch_tx DMA1_Channel5
-	#define dma_ch_rx DMA1_Channel4
+#if CONFIG_DRIVER_SPI3 == 1
+	#define spi SPI3
+	#define dma_ch_tx DMA2_Channel2
+	#define dma_ch_rx DMA2_Channel1
 #endif
 
-#if CONFIG_SPI2_TX_FIFO_SZ > 0
+#if CONFIG_SPI3_TX_FIFO_SZ > 0
 #define ENABLE_TX_DMA 1
-#define TX_FIFO_SZ CONFIG_SPI2_TX_FIFO_SZ
+#define TX_FIFO_SZ CONFIG_SPI3_TX_FIFO_SZ
 #endif
 
-#if CONFIG_SPI2_RX_FIFO_SZ > 0
+#if CONFIG_SPI3_RX_FIFO_SZ > 0
 #define ENABLE_RX_DMA 1
-#define RX_FIFO_SZ CONFIG_SPI2_RX_FIFO_SZ
+#define RX_FIFO_SZ CONFIG_SPI3_RX_FIFO_SZ
 #endif
 
-#ifdef CONFIG_SPI2_CS_SOFT
+#ifdef CONFIG_SPI3_CS_SOFT
 static char flag_csel;
 #endif
 
@@ -31,27 +31,36 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	SPI_InitTypeDef  SPI_InitStructure;
-#ifdef CONFIG_SPI2_CS_SOFT
+#ifdef CONFIG_SPI3_CS_SOFT
 	flag_csel = spi_cfg -> csel;
 #endif
 	
-	/* pin map:	SPI1		SPI2
-		NSS		PA4		PB12
-		SCK		PA5		PB13
-		MISO	PA6		PB14
-		MOSI	PA7		PB15
+	/* pin map:		def		remap
+		NSS		PA15
+		SCK		PB3		PC10
+		MISO	PB4		PC11
+		MOSI	PB5		PC12
 	*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI3, ENABLE);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
-#ifdef CONFIG_SPI2_CS_HARD
-	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_12;
-#endif
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+#ifdef CONFIG_SPI3_REMAP
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+#else
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
+#endif
+
+#ifdef CONFIG_SPI3_CS_HARD
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_15;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+#endif
 
 	/* SPI configuration */
 	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
@@ -59,7 +68,7 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	SPI_InitStructure.SPI_DataSize = (spi_cfg->bits > 8) ? SPI_DataSize_16b : SPI_DataSize_8b;
 	SPI_InitStructure.SPI_CPOL = (spi_cfg->cpol) ? SPI_CPOL_High : SPI_CPOL_Low;
 	SPI_InitStructure.SPI_CPHA = (spi_cfg->cpha) ? SPI_CPHA_2Edge : SPI_CPHA_1Edge;
-#ifdef CONFIG_SPI2_CS_HARD
+#ifdef CONFIG_SPI3_CS_HARD
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Hard;
 #else
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
@@ -93,7 +102,7 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	SPI_I2S_DMACmd(spi, SPI_I2S_DMAReq_Tx, ENABLE);
 #endif
 
-#ifdef CONFIG_SPI2_CS_SOFT
+#ifdef CONFIG_SPI3_CS_SOFT
 	spi_cs_init();
 #endif
 	return 0;
@@ -103,7 +112,7 @@ static int spi_Write(int addr, int val)
 {
 	int ret = 0;
 	
-#ifdef CONFIG_SPI2_CS_SOFT
+#ifdef CONFIG_SPI3_CS_SOFT
 	/*cs low*/
 	if(!flag_csel)
 		spi_cs_set(addr, 0);
@@ -114,7 +123,7 @@ static int spi_Write(int addr, int val)
 	while (SPI_I2S_GetFlagStatus(spi, SPI_I2S_FLAG_RXNE) == RESET);
 	ret = SPI_I2S_ReceiveData(spi);
 	
-#ifdef CONFIG_SPI2_CS_SOFT
+#ifdef CONFIG_SPI3_CS_SOFT
 	/*cs high*/
 	if(!flag_csel)
 		spi_cs_set(addr, 1);
@@ -141,11 +150,11 @@ static int spi_DMA_Write(char *pbuf, int len)
 	return 0;
 }
 
-spi_bus_t spi2 = {
+spi_bus_t spi3 = {
 	.init = spi_Init,
 	.wreg = spi_Write,
 	.rreg = spi_Read,
-#ifndef CONFIG_SPI2_CS_SOFT
+#ifndef CONFIG_SPI3_CS_SOFT
 	.csel = NULL,
 #else
 	.csel = spi_cs_set,
