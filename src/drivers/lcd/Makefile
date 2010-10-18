@@ -5,4 +5,5 @@ ifeq ($(CONFIG_DRIVER_LCD),y)
 	obj-$(CONFIG_LCD_ILI932X) += ili9320.o
 	obj-$(CONFIG_LCD_S6B33) += s6b33.o
 	obj-$(CONFIG_LCD_ILI9161) += ili9161.o
+	obj-$(CONFIG_LCD_SSD1289) += ssd1289.o
 endif
