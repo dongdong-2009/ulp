@@ -279,14 +279,12 @@ static int cmd_can_func(int argc, char *argv[])
 		if(argv[1][0] == 's') {//can send/t
 			msg.dlc = argc - 3;
 			msg.flag = (argv[1][3] == 'd') ? 0 : CAN_FLAG_EXT;
-<<<<<<< HEAD:src/drivers/can/can_cmd.c
-			sscanf(argv[2], "%x", &msg.id); //id
-=======
+
 			if (argc > 3)
 				sscanf(argv[2], "%x", &msg.id); //id
 			else 
 				return 0;
->>>>>>> cef71ab1b79a670e4170b52efa1eb121cf644fa6:src/drivers/can/can_cmd.c
+
 			for(x = 0; x < msg.dlc; x ++) {
 				sscanf(argv[3 + x], "%x", (int *)&msg.data[x]);
 			}
