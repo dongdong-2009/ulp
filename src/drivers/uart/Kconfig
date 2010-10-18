@@ -17,6 +17,6 @@ fi
 #uart2
 bool "enable uart2" CONFIG_DRIVER_UART2
 if [ "$CONFIG_DRIVER_UART2" = "y" ]; then
-	int "tx fifo size" CONFIG_UART1_TF_SZ 64
-	int "rx fifo size" CONFIG_UART1_RF_SZ 32
+	int "tx fifo size" CONFIG_UART2_TF_SZ 64
+	int "rx fifo size" CONFIG_UART2_RF_SZ 32
 fi
