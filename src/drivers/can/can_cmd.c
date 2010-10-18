@@ -71,6 +71,23 @@ int can_queue_add(int ms, can_msg_t *msg)
 	return 0;
 }
 
+int can_queue_del(int id)
+{
+	struct list_head *pos;
+	struct can_queue_s *q = NULL;
+
+	//check current queue, find the id?
+	list_for_each(pos, &can_queue) {
+		q = list_entry(pos, can_queue_s, list);
+		if(q -> msg.id == id) 
+			break;
+	}
+
+	list_del(&q -> list);
+	FREE(q);
+	return 0;
+}
+
 void can_queue_print(void)
 {
 	struct list_head *pos;
@@ -140,6 +157,7 @@ static int cmd_can_func(int argc, char *argv[])
 		"can sene id d0 ...		can send, 29bit id\n"
 		"can recv			can bus monitor\n"
 		"can qedit ms id d0 ...		can queue edit, 11bit id\n"
+		"can qdel id		can queue del\n"
 		"can qrun			run can queue now\n"
 	};
 
@@ -183,7 +201,7 @@ static int cmd_can_func(int argc, char *argv[])
 
 		if(argv[1][0] == 's') {//can send/t
 			msg.dlc = argc - 3;
-			msg.flag = (argv[1][3] == 'e') ? 0 : CAN_FLAG_EXT;
+			msg.flag = (argv[1][3] == 'd') ? 0 : CAN_FLAG_EXT;
 			sscanf(argv[2], "%x", &msg.id); //id
 			for(x = 0; x < msg.dlc; x ++) {
 				sscanf(argv[3 + x], "%x", (int *)&msg.data[x]);
@@ -206,7 +224,20 @@ static int cmd_can_func(int argc, char *argv[])
 				msg.dlc = 8;
 				printf("warnning: msg is too long!!!\n");
 			}
-			msg.flag = 0;
+
+			sscanf(argv[2], "%x", &msg.id); //id
+
+			can_queue_del(msg.id);
+			can_queue_print();
+			return 0;
+		}
+
+		if (!strcmp(argv[1], "qdel")) { //queue edit
+			if(argc < 3) {
+				can_queue_print();
+				return 0;
+			}
+
 			sscanf(argv[2], "%d", &ms); //id
 			sscanf(argv[3], "%x", &msg.id); //id
 			for(x = 0; x < msg.dlc; x ++) {
@@ -217,7 +248,7 @@ static int cmd_can_func(int argc, char *argv[])
 			can_queue_print();
 			return 0;
 		}
-		
+
 		if (!strcmp(argv[1], "qrun")) { //queue run
 			can_flag = 1;
 			timer = time_get(0);
