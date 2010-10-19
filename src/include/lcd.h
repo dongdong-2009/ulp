@@ -55,6 +55,9 @@ static inline void lcd_transform(int *px, int *py, int w, int h)
 {
 	int x, y;
 
+	w --;
+	h --;
+	
 #if CONFIG_LCD_ROT_090 == 1
 	x = (*py);
 	y = h - (*px);

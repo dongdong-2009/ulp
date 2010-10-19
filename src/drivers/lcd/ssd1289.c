@@ -64,25 +64,19 @@ static int ssd_ReadRegister(int index)
 	return ssd_ReadData();
 }
 
-void ssd_SetCursor(int x, int y)
-{
-	lcd_transform(&x, &y, _W, _H);
-	ssd_WriteRegister(0x4e, x); //x: 0~239
-	ssd_WriteRegister(0x4f, y); //y: 0~319
-}
-
 void ssd_SetWindow(int x0, int y0, int x1, int y1)
 {
 	//virtual -> real
 	lcd_transform(&x0, &y0, _W, _H);
 	lcd_transform(&x1, &y1, _W, _H);
-	lcd_sort(&x0, &x1);
-	lcd_sort(&y0, &y1);
-	
+
 	//set cursor
 	ssd_WriteRegister(0x4e, x0); //x: 0~239
 	ssd_WriteRegister(0x4f, y0); //y: 0~319
-	
+
+	lcd_sort(&x0, &x1);
+	lcd_sort(&y0, &y1);
+
 	//set window
 	ssd_WriteRegister(0x44, (x1 << 8) | x0); //HEA|HSA
 	ssd_WriteRegister(0x45, y0); //VSA
@@ -95,9 +89,9 @@ static int ssd_Clear(void)
 	int i;
 
 #if CONFIG_LCD_ROT_090 == 1 || CONFIG_LCD_ROT_270 == 1
-	ssd_SetWindow(0, 0, _H, _W);
+	ssd_SetWindow(0, 0, _H - 1, _W - 1);
 #else
-	ssd_SetWindow(0, 0, _W, _H);
+	ssd_SetWindow(0, 0, _W - 1, _H - 1);
 #endif
 	ssd_WriteIndex(0x22);
 	for(i = 0; i < 320 * 240; i ++) {
