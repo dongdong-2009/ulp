@@ -49,4 +49,39 @@ int lcd_set_color(int fg, int bg);
 int lcd_writereg(int reg, int val);
 int lcd_readreg(int reg);
 
+//private
+/*coordinate transformation, virtual -> real*/
+static inline void lcd_transform(int *px, int *py, int w, int h)
+{
+	int x, y;
+
+#if CONFIG_LCD_ROT_090 == 1
+	x = (*py);
+	y = h - (*px);
+#elif CONFIG_LCD_ROT_180 == 1
+	x = w - (*px);
+	y = h - (*py);
+#elif CONFIG_LCD_ROT_270 == 1
+	x = w - (*py);
+	y = (*px);
+#else //CONFIG_LCD_ROT_000
+	x = *px;
+	y = *py;
+#endif
+
+	//write back
+	*px = x;
+	*py = y;
+}
+
+static inline void lcd_sort(int *p0, int *p1)
+{
+	int v;
+	if(*p0 > *p1) {
+		v = *p0;
+		*p0 = *p1;
+		*p1 = v;
+	}
+}
+
 #endif /*__LCD_H_*/
