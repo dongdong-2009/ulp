@@ -73,18 +73,18 @@ int can_queue_add(int ms, can_msg_t *msg)
 
 int can_queue_del(int id)
 {
-	struct list_head *pos;
+	struct list_head *pos, *n;
 	struct can_queue_s *q = NULL;
 
 	//check current queue, find the id?
-	list_for_each(pos, &can_queue) {
+	list_for_each_safe(pos, n, &can_queue) {
 		q = list_entry(pos, can_queue_s, list);
-		if(q -> msg.id == id) 
-			break;
+		if(q -> msg.id == id) {
+			list_del(&q -> list);
+			FREE(q);
+		}
 	}
 
-	list_del(&q -> list);
-	FREE(q);
 	return 0;
 }
 
@@ -345,7 +345,7 @@ static int cmd_can_func(int argc, char *argv[])
 				return 0;
 			}
 
-			sscanf(argv[3], "%x", &msg.id); //id
+			sscanf(argv[2], "%x", &msg.id); //id
 
 			can_queue_del(msg.id);
 			can_queue_print();
