@@ -230,10 +230,10 @@ static int cmd_can_func(int argc, char *argv[])
 		"can init ch baud		init can hw interface, def to CH1+500K\n"
 		"can send id d0 ...		can send, 11bit id\n"
 		"can sene id d0 ...		can send, 29bit id\n"
-		"can recv id0 id1			can bus monitor, id0.. for filter\n"
+		"can recv id0 id1		can bus monitor, id0.. for filter\n"
 		"can recv cancel			can bus monitor, cancel filter setting\n"
 		"can qedit ms id d0 ...		can queue edit, 11bit id\n"
-		"can qdel id		can queue del\n"
+		"can qdel id			can queue del\n"
 		"can qrun			run can queue now\n"
 		"can bpclr			clear burn panel fault status log\n"
 	};
@@ -319,16 +319,23 @@ static int cmd_can_func(int argc, char *argv[])
 				can_queue_print();
 				return 0;
 			}
+
 			msg.dlc = argc - 4;
-			if(msg.dlc > 8) {
+			if(msg.dlc > 8) { 
 				msg.dlc = 8;
 				printf("warnning: msg is too long!!!\n");
 			}
+			msg.flag = 0;
+			sscanf(argv[2], "%d", &ms); //id
+			sscanf(argv[3], "%x", &msg.id); //id
 
-			sscanf(argv[2], "%x", &msg.id); //id
+			for(x = 0; x < msg.dlc; x ++) {
+				sscanf(argv[4 + x], "%x", (int *)&msg.data[x]);
+			}
 
-			can_queue_del(msg.id);
+			can_queue_add(ms, &msg);
 			can_queue_print();
+
 			return 0;
 		}
 
@@ -338,13 +345,9 @@ static int cmd_can_func(int argc, char *argv[])
 				return 0;
 			}
 
-			sscanf(argv[2], "%d", &ms); //id
 			sscanf(argv[3], "%x", &msg.id); //id
-			for(x = 0; x < msg.dlc; x ++) {
-				sscanf(argv[4 + x], "%x", (int *)&msg.data[x]);
-			}
-			
-			can_queue_add(ms, &msg);
+
+			can_queue_del(msg.id);
 			can_queue_print();
 			return 0;
 		}
