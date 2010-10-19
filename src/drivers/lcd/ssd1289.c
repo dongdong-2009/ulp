@@ -189,7 +189,7 @@ int ssd_Initializtion(void)
 	ssd_WriteRegister(0x0D,0x080C);
 	ssd_WriteRegister(0x0E,0x2B00);
 	ssd_WriteRegister(0x1E,0x00B0);
-	ssd_WriteRegister(0x01,0x2B3F); //driver output ctrl 320*240  0x6B3F
+	ssd_WriteRegister(0x01,0x233F); //driver output ctrl 320*240  0x6B3F
 	ssd_WriteRegister(0x02,0x0600); //LCD Driving Waveform control
 	ssd_WriteRegister(0x10,0x0000);
 
