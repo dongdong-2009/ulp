@@ -11,7 +11,7 @@
 	miaofng@2010 revised for bldc platform
 */
 
-#include "ascii8x16.h"
+#include "ascii16x32.h"
 #include "time.h"
 #include "lcd.h"
 #include "driver.h"
@@ -111,27 +111,19 @@ int ssd_DrawPicture(int x0, int y0, int x1, int y1, short *pic)
 	return 0;
 }
 
-/*8x16 -> 16x32*/
+/*16x32*/
 void ssd_PutChar(short x, short y, char c)
 {
 	int i, j;
 	short v;
-	const char *p = ascii_8x16 + ((c - '!' + 1) << 4);
+	const char *p = ascii_16x32 + ((c - '!' + 1) << 6);
 	ssd_SetWindow(x, y, x + 15, y + 31);
 
 	ssd_WriteIndex(0x22);
-	for (i = 0; i < 16; i ++) {
+	for (i = 0; i < 64; i ++) {
 		c = *(p + i);
 		for(j = 0; j < 8; j ++) {
 			v = (c & 0x80) ? fgcolor : bgcolor;
-			ssd_WriteData(v);
-			ssd_WriteData(v);
-			c <<= 1;
-		}
-		c = *(p + i);
-		for(j = 0; j < 8; j ++) {
-			v = (c & 0x80) ? fgcolor : bgcolor;
-			ssd_WriteData(v);
 			ssd_WriteData(v);
 			c <<= 1;
 		}
