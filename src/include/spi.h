@@ -43,10 +43,9 @@ typedef struct {
 	int (*wreg)(int addr, int val);
 	int (*rreg)(int addr);
 	int (*csel)(int idx, int level);
-	
-	/*reserved*/
-	int (*wbuf)(char *buf, int n);
-	int (*rbuf)(char *buf, int n);
+
+	int (*wbuf)(const char *wbuf, char *rbuf, int n);
+	int (*poll)(void); //0 indicates tranfser finished
 } spi_bus_t;
 
 extern spi_bus_t spi1;
