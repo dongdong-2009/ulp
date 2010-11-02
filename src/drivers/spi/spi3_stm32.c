@@ -53,6 +53,7 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 #endif
 
 	/* SPI configuration */
+	SPI_Cmd(spi, DISABLE);
 	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
 	SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
 	SPI_InitStructure.SPI_DataSize = (spi_cfg->bits > 8) ? SPI_DataSize_16b : SPI_DataSize_8b;
@@ -67,9 +68,9 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	SPI_InitStructure.SPI_FirstBit = (spi_cfg->bseq) ? SPI_FirstBit_MSB : SPI_FirstBit_LSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
 	SPI_Init(spi, &SPI_InitStructure);
-
-	/* Enable the SPI  */
-	SPI_Cmd(spi, ENABLE);
+#ifdef CONFIG_SPI3_CS_HARD
+	SPI_SSOutputCmd(spi, ENABLE);
+#endif
 
 #ifdef CONFIG_SPI3_CS_SOFT
 	spi_cs_init();
@@ -82,6 +83,9 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	DMA_Cmd(dma_ch_tx, DISABLE);
 	DMA_Cmd(dma_ch_rx, DISABLE);
 #endif
+
+	/* Enable the SPI  */
+	SPI_Cmd(spi, ENABLE);
 	return 0;
 }
 
@@ -162,7 +166,7 @@ static int spi_poll(void)
 }
 #endif
 
-spi_bus_t spi3 = {
+const spi_bus_t spi3 = {
 	.init = spi_Init,
 	.wreg = spi_Write,
 	.rreg = spi_Read,
