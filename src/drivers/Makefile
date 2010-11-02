@@ -15,6 +15,7 @@ obj-y += usb/
 obj-$(CONFIG_DRIVER_VVT) += mcao.o
 obj-$(CONFIG_DRIVER_FLASH_STM32) += flash.o
 obj-y += lcd/
+obj-y += pd/
 obj-$(CONFIG_DRIVER_CAPTURE) += capture.o
 obj-y += key/
 obj-y += disk/
