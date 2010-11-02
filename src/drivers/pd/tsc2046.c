@@ -43,7 +43,7 @@ int tsc2046_init(const tsc2046_t *chip)
 	cfg.cpha = 1;
 	cfg.bits = 8;
 	cfg.bseq = 1;
-	cfg.freq = 4000000;
+	cfg.freq = 2000000;
 
 	memcpy(&tsc, chip, sizeof(tsc2046_t));
 	spi = tsc.bus;
