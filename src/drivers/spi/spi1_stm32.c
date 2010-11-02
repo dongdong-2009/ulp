@@ -21,6 +21,9 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	SPI_InitTypeDef  SPI_InitStructure;
+	RCC_ClocksTypeDef RCC_ClocksStatus;
+	int hz, prediv;
+
 #ifdef CONFIG_SPI1_CS_SOFT
 	flag_csel = spi_cfg -> csel;
 #endif
@@ -43,6 +46,19 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
+	/*clock setting*/
+	RCC_GetClocksFreq(&RCC_ClocksStatus);
+	prediv = 1; //default setting: Fapb2(72Mhz)/4
+	if(spi_cfg -> freq != 0) {
+		hz = RCC_ClocksStatus.PCLK2_Frequency >> 1;
+		for( prediv = 0; hz > spi_cfg -> freq; prediv ++ ) {
+			hz >>= 1;
+		}
+
+		if(prediv > 7)
+			prediv = 7;
+	}
+
 	/* SPI configuration */
 	SPI_Cmd(spi, DISABLE);
 	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
@@ -55,7 +71,7 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 #else
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
 #endif
-	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
+	SPI_InitStructure.SPI_BaudRatePrescaler = prediv << 3;
 	SPI_InitStructure.SPI_FirstBit = (spi_cfg->bseq) ? SPI_FirstBit_MSB : SPI_FirstBit_LSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
 	SPI_Init(spi, &SPI_InitStructure);

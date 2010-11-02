@@ -32,10 +32,12 @@ typedef struct {
 	unsigned bits : 5; /*bits of a frame, 0~31*/
 	unsigned bseq : 1; /*bit sequency, 0->lsb*/
 	unsigned csel : 1; /*csel on/off, 1 -> cs signal will be manually controlled by csel() method */
+	unsigned freq;
 } spi_cfg_t;
 
 #define SPI_CFG_DEF { \
 	.csel = 0, \
+	.freq = 0, /*default spi bus freq*/ \
 }
 
 typedef struct {
