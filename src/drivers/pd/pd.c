@@ -12,16 +12,9 @@
 #include "pd.h"
 #include "tsc2046.h"
 
-int pd_dx;
-int pd_dy;
-int pd_zl;
-
 int pd_Init(void)
 {
 	int ret;
-	pd_dx = CONFIG_PD_DX;
-	pd_dy = CONFIG_PD_DY;
-	pd_zl = CONFIG_PD_ZL;
 
 #if CONFIG_PD_BUS_SPI1 == 1
 	const spi_bus_t *spi = &spi1;

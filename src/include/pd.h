@@ -34,6 +34,7 @@ enum {
 	PDE_DRAG,
 };
 
+//for bottom ts chip driver configuration
 extern int pd_dx; //Delta-X limit
 extern int pd_dy; //Delta-Y limit
 extern int pd_zl; //RZ-limit

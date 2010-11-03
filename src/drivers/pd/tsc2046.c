@@ -32,23 +32,34 @@ const static char obuf[N] = {
 	START_BIT | CHD_POSY | ADC_12BIT | PD_OFF, 0x00, 0x00, /*measure pos Y*/
 };
 
+int pd_dx;
+int pd_dy;
+int pd_zl;
+
 static char ibuf[N];
 static tsc2046_t tsc;
 
 int tsc2046_init(const tsc2046_t *chip)
 {
-	const spi_bus_t *spi;
+	const spi_bus_t *spi = chip -> bus;
 	spi_cfg_t cfg = SPI_CFG_DEF;
+	
+	//spi init
 	cfg.cpol = 1;
 	cfg.cpha = 1;
 	cfg.bits = 8;
 	cfg.bseq = 1;
 	cfg.freq = 2000000;
-
-	memcpy(&tsc, chip, sizeof(tsc2046_t));
-	spi = tsc.bus;
 	spi -> init(&cfg);
 	spi -> wbuf(obuf, ibuf, N);
+
+	//save chip config for later usage
+	memcpy(&tsc, chip, sizeof(tsc2046_t));
+	
+	//glvar init
+	pd_dx = CONFIG_PD_DX;
+	pd_dy = CONFIG_PD_DY;
+	pd_zl = CONFIG_PD_ZL;
         return 0;
 }
 
