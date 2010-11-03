@@ -32,10 +32,12 @@ typedef struct {
 	unsigned bits : 5; /*bits of a frame, 0~31*/
 	unsigned bseq : 1; /*bit sequency, 0->lsb*/
 	unsigned csel : 1; /*csel on/off, 1 -> cs signal will be manually controlled by csel() method */
+	unsigned freq;
 } spi_cfg_t;
 
 #define SPI_CFG_DEF { \
 	.csel = 0, \
+	.freq = 0, /*default spi bus freq*/ \
 }
 
 typedef struct {
@@ -43,15 +45,14 @@ typedef struct {
 	int (*wreg)(int addr, int val);
 	int (*rreg)(int addr);
 	int (*csel)(int idx, int level);
-	
-	/*reserved*/
-	int (*wbuf)(char *buf, int n);
-	int (*rbuf)(char *buf, int n);
+
+	int (*wbuf)(const char *wbuf, char *rbuf, int n);
+	int (*poll)(void); //0 indicates tranfser finished
 } spi_bus_t;
 
-extern spi_bus_t spi1;
-extern spi_bus_t spi2;
-extern spi_bus_t spi3;
+extern const spi_bus_t spi1;
+extern const spi_bus_t spi2;
+extern const spi_bus_t spi3;
 
 #endif /*__SPI_H_*/
 

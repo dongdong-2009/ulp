@@ -6,11 +6,20 @@
 bool "general pointing device support?" CONFIG_DRIVER_PD
 
 if [ "$CONFIG_DRIVER_PD" = "y" ]; then
-choice 'touch screen chip select'	" \
-	TSC2046	CONFIG_PD_TSC2046 \
-	RSM1843	CONFIG_PD_RSM1843 \
-" TSC2046
+	choice 'touch screen chip select'	" \
+		TSC2046	CONFIG_PD_TSC2046 \
+		RSM1843	CONFIG_PD_RSM1843 \
+	" TSC2046
+
+	if [ "$CONFIG_PD_TSC2046" = "y" ]; then
+		choice 'pd chip spi bus select'	" \
+			SPI1	CONFIG_PD_BUS_SPI1 \
+			SPI2	CONFIG_PD_BUS_SPI2 \
+			SPI3	CONFIG_PD_BUS_SPI3 \
+		" SPI2
+	fi
 	
-bool "pd debug command" CONFIG_PD_CMD
+	int "touch screen x axis resistor, unit: OHm" CONFIG_PD_RX 600
+	bool "pd debug command" CONFIG_PD_CMD
 fi
 

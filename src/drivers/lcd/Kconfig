@@ -13,6 +13,13 @@ choice 'lcd select'	" \
 	WX1800F	CONFIG_LCD_ILI9161 \
 	TFT8K0940/TC320 CONFIG_LCD_SSD1289 \
 " LCD1602
+
+choice 'lcd rotation degree select'	" \
+	CW000	CONFIG_LCD_ROT_000 \
+	CW090	CONFIG_LCD_ROT_090 \
+	CW180	CONFIG_LCD_ROT_180 \
+	CW270	CONFIG_LCD_ROT_270 \
+" CW000
 	
 bool "shell cmd for lcd debug" CONFIG_LCD_CMD
 fi

@@ -11,12 +11,16 @@
 	miaofng@2010 revised for bldc platform
 */
 
-#include "ascii8x16.h"
+#include "ascii16x32.h"
 #include "time.h"
 #include "lcd.h"
 #include "driver.h"
 #include <string.h>
 #include "lpt.h"
+
+//lcd width&height
+#define _W 240
+#define _H 320
 
 //regs
 #define IDX 0
@@ -60,34 +64,23 @@ static int ssd_ReadRegister(int index)
 	return ssd_ReadData();
 }
 
-void ssd_SetCursor(int x, int y)
-{
-#ifdef CONFIG_LCD_DIR_V
-	ssd_WriteRegister(0x4e, x); //x: 0~239
-	ssd_WriteRegister(0x4f, y); //y: 0~319
-#else //CONFIG_LCD_DIR_H
-	ssd_WriteRegister(0x4e, y); //x: 0~239
-	ssd_WriteRegister(0x4f, x); //y: 0~319
-#endif
-}
-
 void ssd_SetWindow(int x0, int y0, int x1, int y1)
 {
-	int x, y;
+	//virtual -> real
+	lcd_transform(&x0, &y0, _W, _H);
+	lcd_transform(&x1, &y1, _W, _H);
 
-	x = (x1 << 8) | x0;
-	y = (y1 << 8) | y0;
+	//set cursor
+	ssd_WriteRegister(0x4e, x0); //x: 0~239
+	ssd_WriteRegister(0x4f, y0); //y: 0~319
 
-	ssd_SetCursor(x0, y0);
-#ifdef CONFIG_LCD_DIR_V
-	ssd_WriteRegister(0x44, x); //HEA|HSA
+	lcd_sort(&x0, &x1);
+	lcd_sort(&y0, &y1);
+
+	//set window
+	ssd_WriteRegister(0x44, (x1 << 8) | x0); //HEA|HSA
 	ssd_WriteRegister(0x45, y0); //VSA
 	ssd_WriteRegister(0x46, y1); //VEA
-#else //CONFIG_LCD_DIR_H
-	ssd_WriteRegister(0x44, y); //HEA|HSA
-	ssd_WriteRegister(0x45, x0); //VSA
-	ssd_WriteRegister(0x46, x1); //VEA
-#endif
 }
 
 /*clear the screen with the default bkcolor*/
@@ -95,7 +88,11 @@ static int ssd_Clear(void)
 {
 	int i;
 
-	ssd_SetCursor(0, 0);
+#if CONFIG_LCD_ROT_090 == 1 || CONFIG_LCD_ROT_270 == 1
+	ssd_SetWindow(0, 0, _H - 1, _W - 1);
+#else
+	ssd_SetWindow(0, 0, _W - 1, _H - 1);
+#endif
 	ssd_WriteIndex(0x22);
 	for(i = 0; i < 320 * 240; i ++) {
 		ssd_WriteData(bgcolor);
@@ -114,27 +111,19 @@ int ssd_DrawPicture(int x0, int y0, int x1, int y1, short *pic)
 	return 0;
 }
 
-/*8x16 -> 16x32*/
+/*16x32*/
 void ssd_PutChar(short x, short y, char c)
 {
 	int i, j;
 	short v;
-	const char *p = ascii_8x16 + ((c - '!' + 1) << 4);
+	const char *p = ascii_16x32 + ((c - '!' + 1) << 6);
 	ssd_SetWindow(x, y, x + 15, y + 31);
 
 	ssd_WriteIndex(0x22);
-	for (i = 0; i < 16; i ++) {
+	for (i = 0; i < 64; i ++) {
 		c = *(p + i);
 		for(j = 0; j < 8; j ++) {
 			v = (c & 0x80) ? fgcolor : bgcolor;
-			ssd_WriteData(v);
-			ssd_WriteData(v);
-			c <<= 1;
-		}
-		c = *(p + i);
-		for(j = 0; j < 8; j ++) {
-			v = (c & 0x80) ? fgcolor : bgcolor;
-			ssd_WriteData(v);
 			ssd_WriteData(v);
 			c <<= 1;
 		}
@@ -192,10 +181,20 @@ int ssd_Initializtion(void)
 	ssd_WriteRegister(0x0D,0x080C);
 	ssd_WriteRegister(0x0E,0x2B00);
 	ssd_WriteRegister(0x1E,0x00B0);
-	ssd_WriteRegister(0x01,0x2B3F); //driver output ctrl 320*240  0x6B3F
+	ssd_WriteRegister(0x01,0x233F); //driver output ctrl 320*240  0x6B3F
 	ssd_WriteRegister(0x02,0x0600); //LCD Driving Waveform control
 	ssd_WriteRegister(0x10,0x0000);
-	ssd_WriteRegister(0x11,0x6070);	//0x4030 //data format def: 16bit hori 0x6058
+
+#if CONFIG_LCD_ROT_090 == 1
+	ssd_WriteRegister(0x11,0x6018);
+#elif CONFIG_LCD_ROT_180 == 1
+	ssd_WriteRegister(0x11,0x6000);
+#elif CONFIG_LCD_ROT_270 == 1
+	ssd_WriteRegister(0x11,0x6028);
+#else //CONFIG_LCD_ROT_000 == 1
+	ssd_WriteRegister(0x11,0x6030);
+#endif
+
 	ssd_WriteRegister(0x05,0x0000);
 	ssd_WriteRegister(0x06,0x0000);
 	ssd_WriteRegister(0x16,0xEF1C);
@@ -233,8 +232,13 @@ int ssd_Initializtion(void)
 }
 
 static const lcd_t ssd = {
-	.w = 20,
-	.h = 7,
+#if CONFIG_LCD_ROT_090 == 1 || CONFIG_LCD_ROT_270 == 1
+	.w = 20, //320/16
+	.h = 7, //240/32
+#else
+	.w = 15, //240/16
+	.h = 10, //320/32
+#endif
 	.init = ssd_Initializtion,
 	.puts = ssd_WriteString,
 	.clear_all = ssd_Clear,
