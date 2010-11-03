@@ -52,16 +52,25 @@ int tsc2046_init(const tsc2046_t *chip)
         return 0;
 }
 
-int pdd_get(int *px, int *py)
+int pdd_get(struct pd_sample *sp)
 {
 	const spi_bus_t *spi = tsc.bus;
 	int x1, x2, y1, y2, z1, z2;
 	int x, y, z = 0;
+	int ret = -1;
 
 	//spi data queue not finished?
 	if(spi -> poll()) {
-		return -1;
+		return ret;
 	}
+
+#ifdef _DEBUG
+	printf("tsc2046 ibuf dump:");
+	for( int i = 0; i < N; i ++) {
+		printf(" %02x", ibuf[i]);
+	}
+	printf("\n");
+#endif
 
 	//data process
 	x1 = (int)(ibuf[3*0 + 1] << 8) + ibuf[3*0 + 2];
@@ -85,23 +94,14 @@ int pdd_get(int *px, int *py)
 
 		//save result
 		if(z < pd_zl) {
-			*px = x;
-			*py = y;
+			sp -> x = x;
+			sp -> y = y;
+			sp -> z = z;
+			ret = 0;
 		}
 	}
 
-#ifdef _DEBUG
-	printf("tsc2046 ibuf dump:");
-	for( int i = 0; i < N; i ++) {
-		printf(" %02x", ibuf[i]);
-	}
-	if(z > 0 && z < pd_zl) {
-		printf(" Z(Rt/Rx): %d", z);
-	}
-	printf("\n");
-#endif
-
 	//restart queue
 	spi -> wbuf(obuf, ibuf, N);
-	return z;
+	return ret;
 }

@@ -42,10 +42,17 @@ int pd_Init(void);
 int pd_SetMargin(const rect_t *r);
 int pd_GetEvent(dot_t *p);
 
+struct pd_sample {
+	int x;
+	int y;
+	int z; //force resistor, the bigger, the smaller, unit: Ohm
+	//struct timeval tv;
+};
+
 /* get position and pressure info from bottom touch screen chip driver
 * x, y pos info, 15bit
 * return pressure resistor info, unit: Ohm
 */
-int pdd_get(int *px, int *py);
+int pdd_get(struct pd_sample *sp);
 
 #endif /*__PD_H_*/
