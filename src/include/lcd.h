@@ -37,6 +37,11 @@ typedef struct {
 	int (*readreg)(int reg);
 } lcd_t;
 
+typedef struct {
+	int w; //x resolution
+	int h; //y resolution
+} lcd_prop_t;
+
 int lcd_init(void);
 int lcd_add(const lcd_t *dev);
 int lcd_puts(int x, int y, const char *str);
@@ -46,7 +51,7 @@ int lcd_scroll(int xoffset, int yoffset);
 int lcd_is_visible(const rect_t *r);
 int lcd_set_color(int fg, int bg);
 int lcd_bitblt(const void *src, int x, int y, int w, int h);
-
+int lcd_get_prop(lcd_prop_t *prop);
 //debug purpose
 int lcd_writereg(int reg, int val);
 int lcd_readreg(int reg);

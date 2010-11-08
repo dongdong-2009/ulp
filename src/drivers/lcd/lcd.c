@@ -125,13 +125,20 @@ int lcd_set_color(int fg, int bg)
 		return -1;
 }
 
-int lcd_bitblt(const void *src, int x, int y, int w, int h);
+int lcd_bitblt(const void *src, int x, int y, int w, int h)
 {
 	if(lcd && lcd->bitblt) {
 		return lcd->bitblt(src, x, y, w, h);
 	}
 	else
 		return -1;
+}
+
+int lcd_get_prop(lcd_prop_t *prop)
+{
+	prop -> w = lcd -> w;
+	prop -> h = lcd -> h;
+	return 0;
 }
 
 int lcd_writereg(int reg, int val)
