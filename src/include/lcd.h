@@ -31,6 +31,7 @@ typedef struct {
 	int (*clear_rect)(int x, int y, int w, int h); //opt
 	int (*scroll)(int xoffset, int yoffset); //opt
 	int (*set_color)(int fg, int bg);
+	int (*bitblt)(const void *src, int x, int y, int w, int h);
 	
 	int (*writereg)(int reg, int val);
 	int (*readreg)(int reg);
@@ -44,6 +45,7 @@ int lcd_clear_rect(int x, int y, int w, int h);
 int lcd_scroll(int xoffset, int yoffset);
 int lcd_is_visible(const rect_t *r);
 int lcd_set_color(int fg, int bg);
+int lcd_bitblt(const void *src, int x, int y, int w, int h);
 
 //debug purpose
 int lcd_writereg(int reg, int val);

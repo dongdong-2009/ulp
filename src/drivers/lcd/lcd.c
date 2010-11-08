@@ -9,6 +9,7 @@
 #include <string.h>
 #include "FreeRTOS.h"
 #include "common/glib.h"
+#include "pd.h"
 
 static const lcd_t *lcd;
 static rect_t lcd_rect;
@@ -119,6 +120,15 @@ int lcd_set_color(int fg, int bg)
 {
 	if(lcd && lcd->set_color) {
 		return lcd->set_color(fg, bg);
+	}
+	else
+		return -1;
+}
+
+int lcd_bitblt(const void *src, int x, int y, int w, int h);
+{
+	if(lcd && lcd->bitblt) {
+		return lcd->bitblt(src, x, y, w, h);
 	}
 	else
 		return -1;

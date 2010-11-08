@@ -17,6 +17,7 @@
 #include "driver.h"
 #include <string.h>
 #include "lpt.h"
+#include "common/bitops.h"
 
 //lcd width&height
 #define _W 240
@@ -100,12 +101,20 @@ static int ssd_Clear(void)
 	return 0;
 }
 
-int ssd_DrawPicture(int x0, int y0, int x1, int y1, short *pic)
+int ssd_bitblt(const void *src, int x, int y, int w, int h)
 {
-	ssd_SetWindow(x0, y0, x1, y1);
-	ssd_WriteIndex(0x22);
-	for (int i = 0; i < (x1 - x0) * (y1 - y0); i ++) {
-		ssd_WriteData(*pic ++);
+	int i, j, v;
+	ssd_SetWindow( x, y, x + w - 1, y + h - 1 );
+
+	ssd_WriteIndex( 0x22 );
+	for( j = 0; j < h; j ++ ) {
+		for( i = 0; i < w; i ++ ) {
+			v = bit_get( j * w + i, src );
+			if( v )
+				ssd_WriteData( fgcolor );
+			else
+				ssd_WriteData( bgcolor );
+		}
 	}
 
 	return 0;
@@ -114,20 +123,10 @@ int ssd_DrawPicture(int x0, int y0, int x1, int y1, short *pic)
 /*16x32*/
 void ssd_PutChar(short x, short y, char c)
 {
-	int i, j;
-	short v;
-	const char *p = ascii_16x32 + ((c - '!' + 1) << 6);
-	ssd_SetWindow(x, y, x + 15, y + 31);
+	const char *fontlib = ascii_16x32;
 
-	ssd_WriteIndex(0x22);
-	for (i = 0; i < 64; i ++) {
-		c = *(p + i);
-		for(j = 0; j < 8; j ++) {
-			v = (c & 0x80) ? fgcolor : bgcolor;
-			ssd_WriteData(v);
-			c <<= 1;
-		}
-	}
+	fontlib += (c - '!' + 1) << 6;
+	ssd_bitblt(fontlib, x, y, 16, 32);
 }
 
 /************************************************************
@@ -245,6 +244,7 @@ static const lcd_t ssd = {
 	.clear_rect = NULL,
 	.scroll = NULL,
 	.set_color = ssd_set_color,
+	.bitblt = ssd_bitblt,
 	.writereg = ssd_WriteRegister,
 	.readreg = ssd_ReadRegister,
 };
