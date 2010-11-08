@@ -4,3 +4,7 @@
 # Written by miaofng@2010
 #
 
+choice 'fontlib select'	" \
+	TNR08X16	CONFIG_FONT_TNR08X16 \
+	TNR16X32	CONFIG_FONT_TNR16X32 \
+" TNR16X32
