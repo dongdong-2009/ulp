@@ -44,10 +44,10 @@ static inline void rect_get(const rect_t *r, int *x, int *y, int *w, int *h)
 
 static inline int rect_zoom(rect_t *r, int xfactor, int yfactor)
 {
-	r -> x1 << xfactor;
-	r -> x2 << xfactor;
-	r -> y1 << yfactor;
-	r -> y2 << yfactor;
+	r -> x1 <<= xfactor;
+	r -> x2 <<= xfactor;
+	r -> y1 <<= yfactor;
+	r -> y2 <<= yfactor;
 	return 0;
 }
 
