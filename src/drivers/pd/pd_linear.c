@@ -25,8 +25,8 @@ int pdl_process(const pdl_t *pdl, struct pd_sample *sp)
 	x = sp -> x;
 	y = sp -> y;
 	z = sp -> z;
-	sp -> x = ( pdl -> a[0] * x + pdl -> a[1] * y + pdl -> a[2]) / pdl -> a[6];
-	sp -> y = ( pdl -> a[3] * x + pdl -> a[4] * y + pdl -> a[5]) / pdl -> a[6];
+	sp -> x = ( pdl -> a[1] * x + pdl -> a[2] * y + pdl -> a[0]) / pdl -> a[6];
+	sp -> y = ( pdl -> a[4] * x + pdl -> a[5] * y + pdl -> a[3]) / pdl -> a[6];
 
 #ifdef _DEBUG
 	printf("pdl: ( %d %d %d ) -> ( %d %d %d )\n", x, y, z, sp -> x, sp -> y, sp -> z);
