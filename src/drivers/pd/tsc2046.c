@@ -22,14 +22,13 @@
 
 //#define _DEBUG
 
-#define N 18
+#define N 15
 const static char obuf[N] = {
-	START_BIT | CHD_POSX | ADC_12BIT | PD_OFF, 0x00, 0x00, /*measure pos X*/
-	START_BIT | CHD_POSY | ADC_12BIT | PD_OFF, 0x00, 0x00, /*measure pos Y*/
 	START_BIT | CHD_PRZ1 | ADC_12BIT | PD_OFF, 0x00, 0x00, /*measure pos Z1*/
-	START_BIT | CHD_PRZ2 | ADC_12BIT | PD_OFF, 0x00, 0x00, /*measure pos Z2*/
 	START_BIT | CHD_POSX | ADC_12BIT | PD_OFF, 0x00, 0x00, /*measure pos X*/
 	START_BIT | CHD_POSY | ADC_12BIT | PD_OFF, 0x00, 0x00, /*measure pos Y*/
+	START_BIT | CHD_PRZ2 | ADC_12BIT | PD_OFF, 0x00, 0x00, /*measure pos Z2*/
+	START_BIT | CHD_PRZ1 | ADC_12BIT | PD_OFF, 0x00, 0x00, /*measure pos Z1*/
 };
 
 int pd_dx;
@@ -66,7 +65,7 @@ int tsc2046_init(const tsc2046_t *chip)
 int pdd_get(struct pd_sample *sp)
 {
 	const spi_bus_t *spi = tsc.bus;
-	int x1, x2, y1, y2, z1, z2;
+	int x1, y1, z1, z2, z3;
 	int x, y, z = 0;
 	int ret = -1;
 
@@ -84,18 +83,16 @@ int pdd_get(struct pd_sample *sp)
 #endif
 
 	//data process
-	x1 = (int)(ibuf[3*0 + 1] << 8) + ibuf[3*0 + 2];
-	y1 = (int)(ibuf[3*1 + 1] << 8) + ibuf[3*1 + 2];
-	z1 = (int)(ibuf[3*2 + 1] << 8) + ibuf[3*2 + 2] + 1; //avoid z2/z1 = z2/0 situation
+	z1 = (int)(ibuf[3*0 + 1] << 8) + ibuf[3*0 + 2];
+	x1 = (int)(ibuf[3*1 + 1] << 8) + ibuf[3*1 + 2];
+	y1 = (int)(ibuf[3*2 + 1] << 8) + ibuf[3*2 + 2];
 	z2 = (int)(ibuf[3*3 + 1] << 8) + ibuf[3*3 + 2];
-	x2 = (int)(ibuf[3*4 + 1] << 8) + ibuf[3*4 + 2];
-	y2 = (int)(ibuf[3*5 + 1] << 8) + ibuf[3*5 + 2];
+	z3 = (int)(ibuf[3*4 + 1] << 8) + ibuf[3*4 + 2];
 
-	x = (x1 > x2) ? (x1 - x2) : (x2 - x1);
-	y = (y1 > y2) ? (y1 - y2) : (y2 - y1);
-	if( x < pd_dx && y < pd_dy) {
-		x = (x1 + x2) >> 1;
-		y = (y1 + y2) >> 1;
+	if( z1 > 0x200 && z2 > 0x200) {
+		x = x1;
+		y = y1;
+		z1 = (z1 + z3) >> 1;
 
 		z = z2 - z1; //max 2^15
 		z *= x; //max 2^30
