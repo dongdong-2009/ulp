@@ -59,6 +59,7 @@ static int cmd_pd_func(int argc, char *argv[])
 		"pd init\n"
 		"pd get\n"
 		"pd set dx dy zl\n"
+		"pd cal\n"
 	};
 
 	if(!strcmp(argv[1], "init")) {
@@ -66,6 +67,11 @@ static int cmd_pd_func(int argc, char *argv[])
 		return 0;
 	}
 
+	if(!strcmp(argv[1], "cal")) {
+		pd_Calibration();
+		return 0;
+	}
+	
 	if(!cmd_pd_set(argc, argv))
 		return 0;
 	if(cmd_pd_get(argc, argv) > 0)

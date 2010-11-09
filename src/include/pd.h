@@ -42,6 +42,7 @@ extern int pd_zl; //RZ-limit
 int pd_Init(void);
 int pd_SetMargin(const rect_t *r);
 int pd_GetEvent(dot_t *p);
+int pd_Calibration(void);
 
 struct pd_sample {
 	int x;
