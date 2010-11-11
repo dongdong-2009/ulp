@@ -9,9 +9,12 @@
 #include "config.h"
 #include "stm32f10x.h"
 #include "lpt.h"
+#include <string.h>
 
-#define t0	((CONFIG_LPT_T - CONFIG_LPT_TP) / 2)
-#define t1	CONFIG_LPT_TP
+struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
+
+#define t0	((lpt_cfg.t - lpt_cfg.tp) >> 1)
+#define t1	(lpt_cfg.tp)
 
 //active level define
 #define H Bit_SET
@@ -82,8 +85,13 @@
 	for(int i = ((ns) >> 3); i > 0 ; i -- ); \
 } while(0)
 
-static int lpt_init(void)
+static int lpt_init(const struct lpt_cfg_s *cfg)
 {
+	//default config
+	if(cfg != NULL) {
+		memcpy(&lpt_cfg, cfg, sizeof(struct lpt_cfg_s));
+	}
+	
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -139,20 +147,21 @@ static int lpt_init(void)
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 #endif
 
-#ifdef CONFIG_LPT_MODE_1602
-	cs_set(L);
-#else
-	cs_set(H);
-	we_set(H);
-	oe_set(H);
+	if(lpt_cfg.mode == LPT_MODE_M68) {
+		cs_set(L);
+	}
+	else {
+		cs_set(H);
+		we_set(H);
+		oe_set(H);
 
-	//bus reset
-	#ifdef rst_set
-	rst_set(L);
-	ndelay(10000);
-	rst_set(H);
-	#endif
+		//bus reset
+#ifdef rst_set
+		rst_set(L);
+		ndelay(10000);
+		rst_set(H);
 #endif
+	}
 
 	return 0;
 }
@@ -196,27 +205,27 @@ static int lpt_getdata(void)
 
 static int lpt_write(int addr, int data)
 {
-#ifdef CONFIG_LPT_MODE_1602
-	lpt_setaddr(addr);
-	lpt_setdata(data);
-	we_set(L);
-	ndelay(t0);
-	cs_set(H); //enable
-	ndelay(t1);
-	cs_set(L);
-	ndelay(t0);
-#else
-	lpt_setaddr(addr);
-	lpt_setdata(data);
-	cs_set(L);
-	ndelay(t0);
-	we_set(L);
-	ndelay(t1);
-	we_set(H);
-	ndelay(t0);
-	cs_set(H);
-#endif
-
+	if(lpt_cfg.mode == LPT_MODE_M68) {
+		lpt_setaddr(addr);
+		lpt_setdata(data);
+		we_set(L);
+		ndelay(t0);
+		cs_set(H); //enable
+		ndelay(t1);
+		cs_set(L);
+		ndelay(t0);
+	}
+	else {
+		lpt_setaddr(addr);
+		lpt_setdata(data);
+		cs_set(L);
+		ndelay(t0);
+		we_set(L);
+		ndelay(t1);
+		we_set(H);
+		ndelay(t0);
+		cs_set(H);
+	}
 	return 0;
 }
 
@@ -235,26 +244,27 @@ static int lpt_read(int addr)
 	lpt_setdata(0xffff); //open drain bus, to avoid pull down
 #endif
 
-#ifdef CONFIG_LPT_MODE_1602
-	lpt_setaddr(addr);
-	we_set(H);
-	ndelay(t0);
-	cs_set(H); //enable
-	ndelay(t1);
-	data = lpt_getdata();
-	cs_set(L);
-	ndelay(t0);
-#else
-	lpt_setaddr(addr);
-	cs_set(L);
-	ndelay(t0);
-	oe_set(L); //read op
-	ndelay(t1);
-	data = lpt_getdata();
-	oe_set(H);
-	ndelay(t0);
-	cs_set(H);
-#endif
+	if(lpt_cfg.mode == LPT_MODE_M68) {
+		lpt_setaddr(addr);
+		we_set(H);
+		ndelay(t0);
+		cs_set(H); //enable
+		ndelay(t1);
+		data = lpt_getdata();
+		cs_set(L);
+		ndelay(t0);
+	}
+	else {
+		lpt_setaddr(addr);
+		cs_set(L);
+		ndelay(t0);
+		oe_set(L); //read op
+		ndelay(t1);
+		data = lpt_getdata();
+		oe_set(H);
+		ndelay(t0);
+		cs_set(H);
+	}
 
 	//gpio input -> output
 #ifdef CONFIG_LPT_DB_PP
