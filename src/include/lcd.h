@@ -21,13 +21,35 @@
 #define LCD_BGCOLOR_DEF WHITE
 #define LCD_FGCOLOR_DEF BLACK
 
+enum {
+	LCD_ROT_000,
+	LCD_ROT_090,
+	LCD_ROT_180,
+	LCD_ROT_270,
+};
+
+#ifdef CONFIG_LCD_ROT_090
+	#define LCD_ROT_DEF LCD_ROT_090
+#elif CONFIG_LCD_ROT_180
+	#define LCD_ROT_DEF LCD_ROT_180
+#elif CONFIG_LCD_ROT_270
+	#define LCD_ROT_DEF LCD_ROT_270
+#else
+	#define LCD_ROT_DEF LCD_ROT_000
+#endif
+
+struct lcd_cfg_s {
+	int rot;
+	void *bus;
+};
+
 struct lcd_dev_s {
 	//prop
 	int xres; //x resolution
 	int yres; //y resolution
 
 	//init
-	int (*init)(const void *cfg); //cfg is a lcd module specific para, maybe a lpt_bus_t or ...
+	int (*init)(const struct lcd_cfg_s *cfg); //cfg is a lcd module specific para, maybe a lpt_bus_t or ...
 
 	//api for char based lcd module
 	int (*puts)(int x, int y, const char *str);
@@ -52,6 +74,7 @@ struct lcd_s {
 	int bgcolor;
 	int xres;
 	int yres;
+	int rot;
 	struct list_head list;
 };
 

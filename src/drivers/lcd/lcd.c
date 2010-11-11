@@ -29,6 +29,7 @@ int lcd_add(const struct lcd_dev_s *dev, const char *name, int type)
 	lcd -> bgcolor = LCD_BGCOLOR_DEF;
 	lcd -> xres = 0;
 	lcd -> yres = 0;
+	lcd -> rot = LCD_ROT_DEF;
 	list_add(&lcd -> list, &lcd_devs);
 
 #ifdef CONFIG_FONT_TNR08X16
@@ -88,13 +89,14 @@ int lcd_get_res(struct lcd_s *lcd, int *x, int *y)
 		return 0;
 	}
 
-#if CONFIG_LCD_ROT_090 == 1 || CONFIG_LCD_ROT_270 == 1
-	*x = lcd -> dev -> yres;
-	*y = lcd -> dev -> xres;
-#else
-	*x = lcd -> dev -> xres;
-	*y = lcd -> dev -> yres;
-#endif
+	if(lcd -> rot == LCD_ROT_090 || lcd -> rot == LCD_ROT_270) {
+		*x = lcd -> dev -> yres;
+		*y = lcd -> dev -> xres;
+	}
+	else {
+		*x = lcd -> dev -> xres;
+		*y = lcd -> dev -> yres;
+	}
 	return 0;
 }
 
@@ -112,7 +114,10 @@ int lcd_set_bgcolor(struct lcd_s *lcd, int cr)
 
 int lcd_init(struct lcd_s *lcd)
 {
-	int ret = lcd -> dev -> init(&lpt);
+	struct lcd_cfg_s cfg;
+	cfg.rot = lcd -> rot;
+	cfg.bus = &lpt;
+	int ret = lcd -> dev -> init(&cfg);
 	if( !ret ) {
 		ret = lcd_clear_all(lcd);
 	}
@@ -127,19 +132,23 @@ static void lcd_transform(struct lcd_s *lcd, int *px, int *py)
 	w = lcd -> dev -> xres;
 	h = lcd -> dev -> yres;
 
-#if CONFIG_LCD_ROT_090 == 1
-	x = (*py);
-	y = h - (*px);
-#elif CONFIG_LCD_ROT_180 == 1
-	x = w - (*px);
-	y = h - (*py);
-#elif CONFIG_LCD_ROT_270 == 1
-	x = w - (*py);
-	y = (*px);
-#else //CONFIG_LCD_ROT_000
-	x = *px;
-	y = *py;
-#endif
+	switch (lcd -> rot) {
+	case LCD_ROT_090:
+		x = (*py);
+		y = h - (*px);
+		break;
+	case LCD_ROT_180:
+		x = w - (*px);
+		y = h - (*py);
+		break;
+	case LCD_ROT_270:
+		x = w - (*py);
+		y = (*px);
+		break;
+	default:
+		x = *px;
+		y = *py;
+	}
 
 	//write back
 	*px = x;

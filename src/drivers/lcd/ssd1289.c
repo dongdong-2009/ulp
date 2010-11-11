@@ -110,12 +110,12 @@ static int ssd_rgram(void *dest, int n)
 	return 0;
 }
 
-static int ssd_Initializtion(const void *cfg)
+static int ssd_Initializtion(const struct lcd_cfg_s *cfg)
 {
 	int id;
 
 	//lpt port init
-	ssd_bus = (lpt_bus_t *) cfg;
+	ssd_bus = cfg -> bus;
 	ssd_bus -> init();
 
 	//read dev code and verify
@@ -146,15 +146,20 @@ static int ssd_Initializtion(const void *cfg)
 	ssd_WriteRegister(0x02,0x0600); //LCD Driving Waveform control
 	ssd_WriteRegister(0x10,0x0000);
 
-#if CONFIG_LCD_ROT_090 == 1
-	ssd_WriteRegister(0x11,0x6018);
-#elif CONFIG_LCD_ROT_180 == 1
-	ssd_WriteRegister(0x11,0x6000);
-#elif CONFIG_LCD_ROT_270 == 1
-	ssd_WriteRegister(0x11,0x6028);
-#else //CONFIG_LCD_ROT_000 == 1
-	ssd_WriteRegister(0x11,0x6030);
-#endif
+	//lcd display direction setting
+	switch (cfg -> rot) {
+	case LCD_ROT_090:
+		ssd_WriteRegister(0x11,0x6018);
+		break;
+	case LCD_ROT_180:
+		ssd_WriteRegister(0x11,0x6000);
+		break;
+	case LCD_ROT_270:
+		ssd_WriteRegister(0x11,0x6028);
+		break;
+	default:
+		ssd_WriteRegister(0x11,0x6030);
+	}
 
 	ssd_WriteRegister(0x05,0x0000);
 	ssd_WriteRegister(0x06,0x0000);
@@ -185,9 +190,6 @@ static int ssd_Initializtion(const void *cfg)
 	ssd_WriteRegister(0x23,0x0000);
 	ssd_WriteRegister(0x24,0x0000);
 	ssd_WriteRegister(0x25,0x8000);
-	//ssd_WriteRegister(0x4f,0);        //yaddr
-	//ssd_WriteRegister(0x4e,0);        //xaddr
-
 	return 0;
 }
 
