@@ -115,8 +115,12 @@ static int ssd_Initializtion(const struct lcd_cfg_s *cfg)
 	int id;
 
 	//lpt port init
+	struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
+	lpt_cfg.mode = LPT_MODE_I80;
+	lpt_cfg.t = 0;
+	lpt_cfg.tp = 0;
 	ssd_bus = cfg -> bus;
-	ssd_bus -> init();
+	ssd_bus -> init(&lpt_cfg);
 
 	//read dev code and verify
 	id = ssd_ReadRegister(0x00);
