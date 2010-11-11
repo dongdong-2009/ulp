@@ -258,6 +258,11 @@ static int cmd_can_func(int argc, char *argv[])
 			}
 			
 			can_bus = NULL;
+#ifdef CONFIG_DRIVER_CAN0
+			//default to can1
+			if(x == 0)
+				can_bus = &can0;
+#endif
 #ifdef CONFIG_DRIVER_CAN1
 			//default to can1
 			if(x == 1)
@@ -272,7 +277,6 @@ static int cmd_can_func(int argc, char *argv[])
 				can_bus -> init(&cfg);
 			else
 				printf("can interface doesn't exist\n");
-
 			return 0;
 		}
 
