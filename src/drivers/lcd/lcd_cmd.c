@@ -14,6 +14,7 @@
 static int cmd_lcd_func(int argc, char *argv[])
 {
 	int row, col;
+	struct lcd_s *lcd = lcd_get(NULL);
 #ifdef CONFIG_DRIVER_PWM2
 	int duty;
 	pwm_cfg_t cfg = PWM_CFG_DEF;
@@ -33,7 +34,11 @@ static int cmd_lcd_func(int argc, char *argv[])
 
 	if(argc >= 2) {
 		if(argv[1][0] == 'i') { //lcd init
-			lcd_init();
+			lcd_init(lcd);
+			lcd_get_res(lcd, &row, &col);
+			printf("lcd init: xres = %d, yres = %d\n", row, col);
+			lcd_get_font(lcd, &row, &col);
+			printf("lcd init: font width = %d, height = %d\n", row, col);
 			return 0;
 		}
 #ifdef CONFIG_DRIVER_PWM2
@@ -56,21 +61,21 @@ static int cmd_lcd_func(int argc, char *argv[])
 			//write reg
 			sscanf(argv[2], "%x", &row);
 			sscanf(argv[3], "%x", &col);
-			lcd_writereg(row, col);
+			lcd -> dev -> writereg(row, col);
 			printf("reg[0x%x] = 0x%x)\n", row, col);
 			return 0;
 		}
 
 		if(argv[2][0] == 'r') {
 			sscanf(argv[2], "%x", &row);
-			col = lcd_readreg(row);
+			col = lcd -> dev -> readreg(row);
 			printf("reg[0x%x] = 0x%x)\n", row, col);
 			return 0;
 		}
 
 		row = atoi(argv[2]);
 		col = atoi(argv[3]);
-		lcd_puts(row, col, argv[4]);
+		lcd_puts(lcd, row, col, argv[4]);
 		return 0;
 	}
 

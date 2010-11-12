@@ -20,7 +20,12 @@ choice 'lcd rotation degree select'	" \
 	CW180	CONFIG_LCD_ROT_180 \
 	CW270	CONFIG_LCD_ROT_270 \
 " CW000
-	
+
+choice 'lcd fontlib select'	" \
+	TNR08X16	CONFIG_FONT_TNR08X16 \
+	TNR16X32	CONFIG_FONT_TNR16X32 \
+" TNR16X32
+
 bool "shell cmd for lcd debug" CONFIG_LCD_CMD
 fi
 

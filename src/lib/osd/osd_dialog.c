@@ -140,6 +140,11 @@ int osd_dlg_react(osd_dialog_k *kdlg, int event, const dot_t *p)
 	else {
 		//change focus
 		for(kgrp = kdlg->kgrps; kgrp != NULL; kgrp = kgrp->next) {
+#ifdef CONFIG_FONT_TNR08X16
+			rect_zoom(&kgrp->margin, 3, 4);
+#else
+			rect_zoom(&kgrp->margin, 4, 5);
+#endif
 			if(rect_have(&kgrp->margin, p))
 				break;
 		}

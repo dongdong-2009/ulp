@@ -11,16 +11,9 @@
 	miaofng@2010 revised for bldc platform
 */
 
-#include "ascii16x32.h"
-#include "time.h"
-#include "lcd.h"
 #include "driver.h"
-#include <string.h>
+#include "lcd.h"
 #include "lpt.h"
-
-//lcd width&height
-#define _W 240
-#define _H 320
 
 //regs
 #define IDX 0
@@ -28,8 +21,6 @@
 #define DAT 1
 
 static lpt_bus_t *ssd_bus;
-static unsigned short fgcolor;
-static unsigned short bgcolor;
 
 /*write index register*/
 static void ssd_WriteIndex(int idx)
@@ -64,98 +55,72 @@ static int ssd_ReadRegister(int index)
 	return ssd_ReadData();
 }
 
-void ssd_SetWindow(int x0, int y0, int x1, int y1)
+static int ssd_SetWindow(int x0, int y0, int x1, int y1)
 {
-	//virtual -> real
-	lcd_transform(&x0, &y0, _W, _H);
-	lcd_transform(&x1, &y1, _W, _H);
+	int tmp;
 
 	//set cursor
 	ssd_WriteRegister(0x4e, x0); //x: 0~239
 	ssd_WriteRegister(0x4f, y0); //y: 0~319
 
-	lcd_sort(&x0, &x1);
-	lcd_sort(&y0, &y1);
+	//sort
+	if(x1 < x0) {
+		tmp = x1;
+		x1 = x0;
+		x0 = tmp;
+	}
+
+	if(y1 < y0) {
+		tmp = y1;
+		y1 = y0;
+		y0 = tmp;
+	}
 
 	//set window
 	ssd_WriteRegister(0x44, (x1 << 8) | x0); //HEA|HSA
 	ssd_WriteRegister(0x45, y0); //VSA
 	ssd_WriteRegister(0x46, y1); //VEA
-}
 
-/*clear the screen with the default bkcolor*/
-static int ssd_Clear(void)
-{
-	int i;
-
-#if CONFIG_LCD_ROT_090 == 1 || CONFIG_LCD_ROT_270 == 1
-	ssd_SetWindow(0, 0, _H - 1, _W - 1);
-#else
-	ssd_SetWindow(0, 0, _W - 1, _H - 1);
-#endif
-	ssd_WriteIndex(0x22);
-	for(i = 0; i < 320 * 240; i ++) {
-		ssd_WriteData(bgcolor);
-	}
+	//set index
+	ssd_WriteIndex( 0x22 );
 	return 0;
 }
 
-int ssd_DrawPicture(int x0, int y0, int x1, int y1, short *pic)
+static int ssd_wgram(const void *src, int n)
 {
-	ssd_SetWindow(x0, y0, x1, y1);
-	ssd_WriteIndex(0x22);
-	for (int i = 0; i < (x1 - x0) * (y1 - y0); i ++) {
-		ssd_WriteData(*pic ++);
+	const short *p = src;
+	while(n > 0) {
+		ssd_WriteData(*p);
+		p ++;
+		n --;
 	}
 
 	return 0;
 }
 
-/*16x32*/
-void ssd_PutChar(short x, short y, char c)
+static int ssd_rgram(void *dest, int n)
 {
-	int i, j;
-	short v;
-	const char *p = ascii_16x32 + ((c - '!' + 1) << 6);
-	ssd_SetWindow(x, y, x + 15, y + 31);
-
-	ssd_WriteIndex(0x22);
-	for (i = 0; i < 64; i ++) {
-		c = *(p + i);
-		for(j = 0; j < 8; j ++) {
-			v = (c & 0x80) ? fgcolor : bgcolor;
-			ssd_WriteData(v);
-			c <<= 1;
-		}
-	}
-}
-
-/************************************************************
-write a string
-x: 0~29
-y: 0~19
-*************************************************************/
-int ssd_WriteString(int x, int y, const char *s)
-{
-	while (*s) {
-		ssd_PutChar(x << 4 , y << 5, *s);
-		s ++;
-		x ++;
+	short *p = dest;
+	while(n > 0) {
+		*p = ssd_ReadData();
+		p ++;
+		n --;
 	}
 
 	return 0;
 }
 
-int ssd_set_color(int fg, int bg)
-{
-	fgcolor = (unsigned short) fg;
-	bgcolor = (unsigned short) bg;
-	return 0;
-}
-
-int ssd_Initializtion(void)
+static int ssd_Initializtion(const struct lcd_cfg_s *cfg)
 {
 	int id;
+
+	//lpt port init
+	struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
+	lpt_cfg.mode = LPT_MODE_I80;
+	lpt_cfg.t = 0;
+	lpt_cfg.tp = 0;
+	ssd_bus = cfg -> bus;
+	ssd_bus -> init(&lpt_cfg);
 
 	//read dev code and verify
 	id = ssd_ReadRegister(0x00);
@@ -185,15 +150,20 @@ int ssd_Initializtion(void)
 	ssd_WriteRegister(0x02,0x0600); //LCD Driving Waveform control
 	ssd_WriteRegister(0x10,0x0000);
 
-#if CONFIG_LCD_ROT_090 == 1
-	ssd_WriteRegister(0x11,0x6018);
-#elif CONFIG_LCD_ROT_180 == 1
-	ssd_WriteRegister(0x11,0x6000);
-#elif CONFIG_LCD_ROT_270 == 1
-	ssd_WriteRegister(0x11,0x6028);
-#else //CONFIG_LCD_ROT_000 == 1
-	ssd_WriteRegister(0x11,0x6030);
-#endif
+	//lcd display direction setting
+	switch (cfg -> rot) {
+	case LCD_ROT_090:
+		ssd_WriteRegister(0x11,0x6018);
+		break;
+	case LCD_ROT_180:
+		ssd_WriteRegister(0x11,0x6000);
+		break;
+	case LCD_ROT_270:
+		ssd_WriteRegister(0x11,0x6028);
+		break;
+	default:
+		ssd_WriteRegister(0x11,0x6030);
+	}
 
 	ssd_WriteRegister(0x05,0x0000);
 	ssd_WriteRegister(0x06,0x0000);
@@ -224,37 +194,24 @@ int ssd_Initializtion(void)
 	ssd_WriteRegister(0x23,0x0000);
 	ssd_WriteRegister(0x24,0x0000);
 	ssd_WriteRegister(0x25,0x8000);
-	//ssd_WriteRegister(0x4f,0);        //yaddr
-	//ssd_WriteRegister(0x4e,0);        //xaddr
-
-	ssd_Clear();
 	return 0;
 }
 
-static const lcd_t ssd = {
-#if CONFIG_LCD_ROT_090 == 1 || CONFIG_LCD_ROT_270 == 1
-	.w = 20, //320/16
-	.h = 7, //240/32
-#else
-	.w = 15, //240/16
-	.h = 10, //320/32
-#endif
+static const struct lcd_dev_s ssd = {
+	.xres = 240,
+	.yres = 320,
+
 	.init = ssd_Initializtion,
-	.puts = ssd_WriteString,
-	.clear_all = ssd_Clear,
-	.clear_rect = NULL,
-	.scroll = NULL,
-	.set_color = ssd_set_color,
+	.setwindow = ssd_SetWindow,
+	.rgram = ssd_rgram,
+	.wgram = ssd_wgram,
+
 	.writereg = ssd_WriteRegister,
 	.readreg = ssd_ReadRegister,
 };
 
 static void ssd_reg(void)
 {
-	fgcolor = (unsigned short) COLOR_FG_DEF;
-	bgcolor = (unsigned short) COLOR_BG_DEF;
-	ssd_bus = &lpt;
-	ssd_bus -> init();
-	lcd_add(&ssd);
+	lcd_add(&ssd, "ssd1289", LCD_TYPE_PIXEL);
 }
 driver_init(ssd_reg);

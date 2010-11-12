@@ -16,15 +16,12 @@ if [ "$CONFIG_LPT_GPIO" = "y" ]; then
 		OPENDRAIN	CONFIG_LPT_DB_OD \
 		PUSHPULL	CONFIG_LPT_DB_PP \
 	" OPENDRAIN
-	choice 'bus timing mode'	" \
-		I80	CONFIG_LPT_MODE_NORMAL \
-		M68	CONFIG_LPT_MODE_1602 \
-	" I80
 	
 	#bus period
-	int "bus period, unit: ns" CONFIG_LPT_T 400
+	int "default bus period, unit: ns" CONFIG_LPT_T 400
 	#bus access time
-	int "bus access time, unit: ns" CONFIG_LPT_TP 200
+	int "default bus access time, unit: ns" CONFIG_LPT_TP 200
+	bool "enable lpt debug command?" CONFIG_LPT_CMD
 fi
 
 #extern memory bus such as FSMC

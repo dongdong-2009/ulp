@@ -1,90 +1,103 @@
-/*
- * 	miaofng@2010 initial version
+/* lcd class driver header file
+*  feature:
+*	- gram is located inside lcd dev, so read_modify_write op is a common case
+*	- support multidisplay configuration
+*	- two or more identical lcd dev in a system is not allowed
+*	- hardware/software scrolling is not supported yet
+*	- dynamic display rotation is not supported yet
+*	- only little endian is supported
+*
+* history:
+ *	miaofng@2010 initial version
  */
 #ifndef __LCD_H_
 #define __LCD_H_
 
 #include "config.h"
 #include "common/glib.h"
+#include "common/color.h"
+#include "linux/list.h"
 
-#define RGB565(r, g, b)	((r & 0x1f) | ((g & 0x3f) << 5) | ((b & 0x1f) << 11))
-#define RGB RGB565
+#define LCD_BGCOLOR_DEF WHITE
+#define LCD_FGCOLOR_DEF BLACK
 
-#define WHITE RGB(0xff, 0xff, 0xff)
-#define BLACK RGB(0x00, 0x00, 0x00)
-#define RED RGB(0xff, 0x00, 0x00)
-#define GREEN RGB(0x00, 0xff, 0x00)
-#define BLUE RGB(0x00, 0x00, 0xff)
-#define YELLOW RGB(0xff, 0xff, 0x00)
-#define PURPLE RGB(0xff, 0x00, 0xff)
-#define CYAN RGB(0x00, 0xff, 0xff)
+enum {
+	LCD_ROT_000,
+	LCD_ROT_090,
+	LCD_ROT_180,
+	LCD_ROT_270,
+};
 
-#define COLOR_BG_DEF	WHITE
-#define COLOR_FG_DEF	BLACK
-
-typedef struct {
-	int w; //width
-	int h; //height
-	int (*init)(void);
-	int (*puts)(int x, int y, const char *str);
-	int (*clear_all)(void); //opt
-	int (*clear_rect)(int x, int y, int w, int h); //opt
-	int (*scroll)(int xoffset, int yoffset); //opt
-	int (*set_color)(int fg, int bg);
-	
-	int (*writereg)(int reg, int val);
-	int (*readreg)(int reg);
-} lcd_t;
-
-int lcd_init(void);
-int lcd_add(const lcd_t *dev);
-int lcd_puts(int x, int y, const char *str);
-int lcd_clear_all(void);
-int lcd_clear_rect(int x, int y, int w, int h);
-int lcd_scroll(int xoffset, int yoffset);
-int lcd_is_visible(const rect_t *r);
-int lcd_set_color(int fg, int bg);
-
-//debug purpose
-int lcd_writereg(int reg, int val);
-int lcd_readreg(int reg);
-
-//private
-/*coordinate transformation, virtual -> real*/
-static inline void lcd_transform(int *px, int *py, int w, int h)
-{
-	int x, y;
-
-	w --;
-	h --;
-	
-#if CONFIG_LCD_ROT_090 == 1
-	x = (*py);
-	y = h - (*px);
-#elif CONFIG_LCD_ROT_180 == 1
-	x = w - (*px);
-	y = h - (*py);
-#elif CONFIG_LCD_ROT_270 == 1
-	x = w - (*py);
-	y = (*px);
-#else //CONFIG_LCD_ROT_000
-	x = *px;
-	y = *py;
+#ifdef CONFIG_LCD_ROT_090
+	#define LCD_ROT_DEF LCD_ROT_090
+#elif CONFIG_LCD_ROT_180
+	#define LCD_ROT_DEF LCD_ROT_180
+#elif CONFIG_LCD_ROT_270
+	#define LCD_ROT_DEF LCD_ROT_270
+#else
+	#define LCD_ROT_DEF LCD_ROT_000
 #endif
 
-	//write back
-	*px = x;
-	*py = y;
-}
+struct lcd_cfg_s {
+	int rot;
+	void *bus;
+};
 
-static inline void lcd_sort(int *p0, int *p1)
-{
-	int v;
-	if(*p0 > *p1) {
-		v = *p0;
-		*p0 = *p1;
-		*p1 = v;
-	}
-}
+struct lcd_dev_s {
+	//prop
+	int xres; //x resolution
+	int yres; //y resolution
+
+	//init
+	int (*init)(const struct lcd_cfg_s *cfg); //cfg is a lcd module specific para, maybe a lpt_bus_t or ...
+
+	//api for char based lcd module
+	int (*puts)(int x, int y, const char *str);
+
+	//api for pixel based lcd module
+	int (*setwindow)(int x0, int y0, int x1, int y1);
+	int (*rgram)(void *dest, int n); //note: n indicates nr of pixel
+	int (*wgram)(const void *src, int n);
+
+	//for debug purpose
+	int (*writereg)(int reg, int val);
+	int (*readreg)(int reg);
+};
+
+struct lcd_s {
+	const struct lcd_dev_s *dev;
+	const char *name;
+	int type;
+
+	const char *font;
+	int fgcolor;
+	int bgcolor;
+	int xres;
+	int yres;
+	int rot;
+	struct list_head list;
+};
+
+#define LCD_TYPE_PIXEL 0
+#define LCD_TYPE_CHAR 1
+#define LCD_TYPE(lcd) (lcd -> type & LCD_TYPE_CHAR)
+
+//lcd select
+int lcd_add(const struct lcd_dev_s *dev, const char *name, int type);
+struct lcd_s *lcd_get(const char *name); //pass NULL to get default lcd
+
+//lcd para op
+int lcd_get_res(struct lcd_s *lcd, int *x, int *y);
+const char *lcd_get_font(struct lcd_s *lcd, int *w, int *h);
+int lcd_set_fgcolor(struct lcd_s *lcd, int cr);
+int lcd_set_bgcolor(struct lcd_s *lcd, int cr);
+
+//lcd ops, all routines are use pixel based coordinate system
+int lcd_init(struct lcd_s *lcd);
+int lcd_bitblt(struct lcd_s *lcd, const void *bits, int x, int y, int w, int h);
+int lcd_imageblt(struct lcd_s *lcd, const void *image, int x, int y, int w, int h);
+int lcd_clear(struct lcd_s *lcd, int x, int y, int w, int h);
+int lcd_clear_all(struct lcd_s *lcd);
+int lcd_puts(struct lcd_s *lcd, int x, int y, const char *str);
 
 #endif /*__LCD_H_*/

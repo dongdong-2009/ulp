@@ -13,15 +13,18 @@
 
 int cmd_pd_get(int argc, char *argv[])
 {
-	int x, y, z;
+	struct pd_sample sp;
 
 	if(argc != 0) {
 		if(strcmp(argv[1], "get"))
 			return 0;
 	}
 
-	z = pdd_get(&x, &y);
-	printf("pd: %d = pdd_get(%d, %d)\n", z, x, y);
+	if( !pdd_get(&sp) )
+		printf("pd(x, y, z): %d %d %d\n", sp.x, sp.y, sp.z);
+	else
+		printf("pd(x, y, z):\n");
+
 	return 1;
 }
 
@@ -56,6 +59,7 @@ static int cmd_pd_func(int argc, char *argv[])
 		"pd init\n"
 		"pd get\n"
 		"pd set dx dy zl\n"
+		"pd cal\n"
 	};
 
 	if(!strcmp(argv[1], "init")) {
@@ -63,6 +67,11 @@ static int cmd_pd_func(int argc, char *argv[])
 		return 0;
 	}
 
+	if(!strcmp(argv[1], "cal")) {
+		pd_Calibration();
+		return 0;
+	}
+	
 	if(!cmd_pd_set(argc, argv))
 		return 0;
 	if(cmd_pd_get(argc, argv) > 0)
