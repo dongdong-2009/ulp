@@ -135,14 +135,14 @@ static void lcd_transform(struct lcd_s *lcd, int *px, int *py)
 	switch (lcd -> rot) {
 	case LCD_ROT_090:
 		x = (*py);
-		y = h - (*px);
+		y = h - (*px) - 1;
 		break;
 	case LCD_ROT_180:
-		x = w - (*px);
-		y = h - (*py);
+		x = w - (*px) - 1;
+		y = h - (*py) - 1;
 		break;
 	case LCD_ROT_270:
-		x = w - (*py);
+		x = w - (*py) - 1;
 		y = (*px);
 		break;
 	default:
@@ -163,7 +163,7 @@ static int lcd_set_window(struct lcd_s *lcd, int x, int y, int w, int h)
 	y0 = y;
 	x1 = x + w - 1;
 	y1 = y + h - 1;
-	if(x0 < 0 || y0 < 0 || x1 > lcd -> xres || y1 > lcd -> yres) {
+	if(x0 < 0 || y0 < 0 || x1 >= lcd -> xres || y1 >= lcd -> yres) {
 		return -1;
 	}
 
