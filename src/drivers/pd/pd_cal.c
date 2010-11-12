@@ -204,6 +204,7 @@ int pd_Calibration(void)
 
 	lcd_get_res(lcd, &xres, &yres);
 	printf("xres = %d, yres = %d\n", xres, yres);
+	lcd_init(lcd);
 	lcd_clear_all(lcd);
 	get_sample(&cal, 0, 50, 50, "top left");
 	get_sample(&cal, 1, xres - 50, 50, "top right");
