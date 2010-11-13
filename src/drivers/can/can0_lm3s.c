@@ -7,8 +7,8 @@
 #include "lm3s.h"
 #include <string.h>
 
-#define LM3S_TxMsgObjNr 31
-#define LM3S_RxMsgObjNr 1
+#define LM3S_TxMsgObjNr 32	//send msg object
+#define LM3S_RxMsgObjNr 1	//recv msg object
 
 static int can_init(const can_cfg_t *cfg)
 {
@@ -16,16 +16,16 @@ static int can_init(const can_cfg_t *cfg)
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
 	GPIOPinTypeCAN(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-	
 	CANInit(CAN0_BASE);
-	//can module clock is 8M
+
+	//PLLclock is 400M, and can module clock is 8M(400/50)
 	if (CANBitRateSet(CAN0_BASE, 8000000, cfg->baud) == 0)
 		return 1;
 
-	//can receive setting 
-	MsgObjectRx.ulFlags = MSG_OBJ_NO_FLAGS;
-	CANMessageSet(CAN0_BASE, LM3S_RxMsgObjNr, &MsgObjectRx, MSG_OBJ_TYPE_RX); 
-
+	//can receive setting,set MsgIDMask value to zero, receive all!
+	MsgObjectRx.ulFlags = MSG_OBJ_NO_FLAGS | MSG_OBJ_USE_ID_FILTER;
+	MsgObjectRx.ulMsgIDMask = 0;
+	CANMessageSet(CAN0_BASE, LM3S_RxMsgObjNr, &MsgObjectRx, MSG_OBJ_TYPE_RX);
 	CANEnable(CAN0_BASE);
 
 	return 0;
@@ -36,12 +36,11 @@ static int can_init(const can_cfg_t *cfg)
 */
 int can_send(const can_msg_t *msg)
 {
-	int ret = 0;
 	unsigned long status;
 	tCANMsgObject MsgObjectTx;
 
 	status = CANStatusGet(CAN0_BASE, CAN_STS_TXREQUEST);
-	if(status & (1 << (LM3S_TxMsgObjNr - 1)))
+	if(status & (unsigned long)(1 << (LM3S_TxMsgObjNr - 1)))
 		return 1;
 	
 	MsgObjectTx.ulMsgID = msg->id;
@@ -56,10 +55,7 @@ int can_send(const can_msg_t *msg)
 	CANRetrySet(CAN0_BASE, LM3S_TxMsgObjNr);	//set retry send
 	CANMessageSet(CAN0_BASE, LM3S_TxMsgObjNr, &MsgObjectTx, MSG_OBJ_TYPE_TX);
 
-	//status = CANStatusGet(CAN0_BASE, CAN_STS_TXREQUEST);
-	//ret = (status&CAN_STATUS_TXOK)?0:1;
-
-	return ret;
+	return 0;
 }
 
 int can_recv(can_msg_t *msg)
@@ -68,22 +64,19 @@ int can_recv(can_msg_t *msg)
 	int i;
 	unsigned long MsgObjNr,temp;
 	
-	// MsgObjNr = CANStatusGet(CAN0_BASE, CAN_STS_NEWDAT);
-	// if(MsgObjNr == 0)
-		// return 1;
-	
-	MsgObjNr = CANStatusGet(CAN0_BASE, CAN_STS_CONTROL);
-	if((MsgObjNr & CAN_STATUS_RXOK) == 0)
+	MsgObjNr = CANStatusGet(CAN0_BASE, CAN_STS_NEWDAT);
+	if(MsgObjNr == 0)
 		return 1;
 
 	//find which msg object receives the can frame
-	// for (i = 0; i < 31; i++) {
-		// temp = 1 << i;
-		// if (MsgObjNr & temp)
-			// break;
-	// }
+	for (i = 0; i < 31; i++) {
+		temp = 1 << i;
+		if (MsgObjNr & temp)
+			break;
+	}
+
 	MsgObjectRx.pucMsgData = (unsigned char *)msg->data;
-	CANMessageGet(CAN0_BASE, 1, &MsgObjectRx, 1);
+	CANMessageGet(CAN0_BASE, i + 1, &MsgObjectRx, 1);
 	msg->dlc = MsgObjectRx.ulMsgLen;
 	if (MsgObjectRx.ulFlags & MSG_OBJ_EXTENDED_ID) { 
 		msg->flag = 1;
