@@ -11,6 +11,7 @@
 #include "osd/osd_eng.h"
 #include "FreeRTOS.h"
 #include <stdlib.h>
+#include "common/color.h"
 
 /*
 *	success return the new focused group handle
