@@ -7,25 +7,36 @@
 
 #include "config.h"
 
+#define GLIB_DATA_TYPE short
+
 typedef struct {
-	char x;
-	char y;
+	GLIB_DATA_TYPE x;
+	GLIB_DATA_TYPE y;
 } dot_t;
 
 typedef struct { //note: start point must be located on left top
-	char x1;
-	char y1;
-	char x2;
-	char y2;
+	GLIB_DATA_TYPE x1;
+	GLIB_DATA_TYPE y1;
+	GLIB_DATA_TYPE x2;
+	GLIB_DATA_TYPE y2;
 } rect_t;
 
 //rect ops
 static inline rect_t *rect_set(rect_t *dest, int x, int y, int w, int h)
 {
-	dest -> x1 = (char) x;
-	dest -> y1 = (char) y;
-	dest -> x2 = (char)(x + w);
-	dest -> y2 = (char)(y + h);
+	dest -> x1 = (GLIB_DATA_TYPE) x;
+	dest -> y1 = (GLIB_DATA_TYPE) y;
+	dest -> x2 = (GLIB_DATA_TYPE)(x + w);
+	dest -> y2 = (GLIB_DATA_TYPE)(y + h);
+	return dest;
+}
+
+static inline rect_t *rect_copy(rect_t *dest, const rect_t *src)
+{
+	dest -> x1 = src -> x1;
+	dest -> y1 = src -> y1;
+	dest -> x2 = src -> x2;
+	dest -> y2 = src -> y2;
 	return dest;
 }
 
@@ -44,10 +55,10 @@ static inline void rect_get(const rect_t *r, int *x, int *y, int *w, int *h)
 
 static inline int rect_zoom(rect_t *r, int xfactor, int yfactor)
 {
-	r -> x1 <<= xfactor;
-	r -> x2 <<= xfactor;
-	r -> y1 <<= yfactor;
-	r -> y2 <<= yfactor;
+	r -> x1 *= xfactor;
+	r -> x2 *= xfactor;
+	r -> y1 *= yfactor;
+	r -> y2 *= yfactor;
 	return 0;
 }
 
