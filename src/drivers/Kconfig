@@ -69,6 +69,11 @@ mainmenu_option next_comment
 	source src/drivers/Kconfig.misc
 endmenu
 
+mainmenu_option next_comment
+	comment 'flash config'
+	source src/drivers/flash/Kconfig
+endmenu
+
 bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
 if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
 	choice 'console device select'	" \
