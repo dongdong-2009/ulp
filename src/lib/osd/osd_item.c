@@ -8,6 +8,7 @@
 #include "config.h"
 #include "osd/osd_item.h"
 #include "osd/osd_eng.h"
+#include "osd/osd_event.h"
 #include "FreeRTOS.h"
 #include <stdlib.h>
 
@@ -22,11 +23,12 @@ int osd_HideItem(const osd_item_t *item)
 }
 
 #ifdef CONFIG_DRIVER_PD
-int osd_item_react(osd_item_t *item, int event, const dot_t *p)
+int osd_item_react(const osd_item_t *item, int event, const dot_t *p)
 {
-	int event = OSDE_NONE;
 	if(item->draw->react != NULL)
 		event = item->draw->react(item, event, p);
+	else event = OSDE_NONE;
+
 	return event;
 }
 #endif
