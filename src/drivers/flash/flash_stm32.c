@@ -7,20 +7,8 @@
 #include "flash.h"
 #include <string.h>
 
-/* Private define */
-/* Define the STM32F10x FLASH Page Size depending on the used STM32 device */
-#ifdef CONFIG_STM32F10X_LD
-  #define PAGE_BITS    10
-#elif defined CONFIG_STM32F10X_MD
-  #define PAGE_BITS    10
-#elif defined CONFIG_STM32F10X_HD
-  #define PAGE_BITS    11
-#elif defined CONFIG_STM32F10X_CL
-  #define PAGE_BITS    11
-#endif
-
 /*STM32 flash start address*/
-#define PAGE_SIZE (1 << PAGE_BITS)
+#define PAGE_SIZE (FLASH_PAGE_SZ)
 #define PAGE_MASK (PAGE_SIZE - 1)
 
 int flash_Erase(void *dest, size_t n)
