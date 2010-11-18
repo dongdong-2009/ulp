@@ -12,8 +12,9 @@
 #include "pd.h"
 #include "tsc2046.h"
 #include "pd_linear.h"
+#include "nvm.h"
 
-pdl_t pd_pdl = PDL_DEF;
+pdl_t pd_pdl __nvm = PDL_DEF;
 
 //vars to support software scrolling
 static int pd_ofs_x = 0;

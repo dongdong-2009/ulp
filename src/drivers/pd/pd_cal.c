@@ -24,6 +24,7 @@
 #include "pd_linear.h"
 #include "FreeRTOS.h"
 #include "time.h"
+#include "nvm.h"
 
 extern pdl_t pd_pdl;
 
@@ -215,6 +216,8 @@ int pd_Calibration(void)
 
 	//visual verify calibration result
 	ret = verify(xres, yres);
+	if(!ret)
+		nvm_save();
 	lcd_clear_all(lcd);
 	return ret;
 }
