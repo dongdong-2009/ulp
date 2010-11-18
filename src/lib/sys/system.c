@@ -7,6 +7,7 @@
 #include "led.h"
 #include "console.h"
 #include "spi.h"
+#include "nvm.h"
 
 void sys_Init(void)
 {
@@ -16,6 +17,9 @@ void sys_Init(void)
 	led_Init();
 #if (CONFIG_IAR_REDIRECT == 1) || (CONFIG_TASK_SHELL == 1)
 	console_Init();
+#endif
+#if (CONFIG_FLASH_NVM == 1)
+	nvm_init();
 #endif
 }
 
