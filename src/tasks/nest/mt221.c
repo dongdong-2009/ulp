@@ -55,6 +55,7 @@ END DESCRIPTION ***************************************************************/
 #include "obsolete/obsolete.h"
 #include "mt221.h"
 #include "ramdnld/mt18p1_cyc.h"
+#include "ramdnld/mt22p1p1ss_cyc.h"
 
 //mt22.1 xmem data
 const char *xVsepChName[] = {
@@ -199,7 +200,7 @@ const model_t model_mt2211ss = {
 	0X0FFFFFUL, //UINT32 ramtest_end_addr;
 
 	//cycling test
-	0, //long ramdnld;
+	ramdnld_mt22p1p1ss_cyc, //long ramdnld;
 	xPsviChName //long* ch_info;
 };
 
