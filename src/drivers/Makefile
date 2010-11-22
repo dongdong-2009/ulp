@@ -1,6 +1,6 @@
 obj-y += driver.o
 obj-y += time.o
-obj-y += led/
+obj-$(CONFIG_DRIVER_LED) += led/
 obj-y += uart/
 obj-y += spi/
 obj-y += lpt/
