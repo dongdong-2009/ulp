@@ -85,6 +85,10 @@ enum {
 #define message_clear()
 #define message nest_message
 
+/*can bus*/
+#define DW_CAN1 DW_CAN
+#define DW_CAN2 DW_CAN
+
 /*misc*/
 #define xmem2root memcpy
 

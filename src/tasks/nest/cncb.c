@@ -24,11 +24,22 @@ static int cncb_signal_save;
 	LSD	LED_R/FLED_OUT	PC10
 	LSD	LED_Y/RLED_OUT	PC11
 	LSD	LED_G/PLED_OUT	PC12
+
+	MISC	CAN_MD0		PB5
+	MISC	CAN_MD1		PB6
+	MISC	CAN_SEL		PB7
 */
 
 int cncb_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
+
+	//MISC
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
 	//DI
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
@@ -118,6 +129,15 @@ int cncb_signal(int sig, int ops)
 		break;
 	case LED_P:
 		GPIO_WriteBit(GPIOC, GPIO_Pin_12, ba);
+		break;
+	case CAN_MD0:
+		GPIO_WriteBit(GPIOB, GPIO_Pin_5, ba);
+		break;
+	case CAN_MD1:
+		GPIO_WriteBit(GPIOB, GPIO_Pin_6, ba);
+		break;
+	case CAN_SEL:
+		GPIO_WriteBit(GPIOB, GPIO_Pin_7, ba);
 		break;
 	default:;
 	}

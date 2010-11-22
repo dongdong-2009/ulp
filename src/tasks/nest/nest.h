@@ -75,6 +75,14 @@ enum {
 int nest_light(int cmd);
 int nest_light_flash(int code);
 
+//can bus
+enum {
+	DW_CAN,
+	SW_CAN,
+};
+
+int nest_can_sel(int ch);
+
 //nest maintain
 struct nest_info_s {
 	int id_base;

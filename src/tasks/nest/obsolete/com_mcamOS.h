@@ -52,14 +52,9 @@ END DESCRIPTION ***************************************************************/
 #include "priv/mcamos.h"
 /*** EndHeader */
 
-enum {
-	DW_CAN1,
-	DW_CAN2,
-	SW_CAN,
-};
-
 static inline ERROR_CODE mcamOSInit(int nCANChan, UINT16 wMCAMOSkBaud)
 {
+	nest_can_sel(nCANChan);
 	return (ERROR_CODE) mcamos_init(&can1, wMCAMOSkBaud);
 }
 

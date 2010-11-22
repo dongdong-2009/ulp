@@ -21,6 +21,11 @@ enum {
 	LED_F,
 	LED_R,
 	LED_P,
+
+	/*misc ctrl*/
+	CAN_MD0,
+	CAN_MD1,
+	CAN_SEL,
 };
 
 /*signal status*/
