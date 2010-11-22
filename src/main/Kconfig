@@ -1,0 +1,8 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+bool "disable default main()" CONFIG_MAIN_DISABLE
+
