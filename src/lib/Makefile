@@ -8,3 +8,4 @@ obj-$(CONFIG_LIB_FATFS) += fatfs/
 obj-$(CONFIG_LIB_COMMON) += common/
 obj-$(CONFIG_LIB_FREERTOS) += FreeRTOS/
 obj-$(CONFIG_LIB_UDISK) += mass_storage/
+obj-$(CONFIG_LIB_PRIV) += priv/
