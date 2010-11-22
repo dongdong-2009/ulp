@@ -2,6 +2,9 @@
  * 	miaofng@2010 initial version
  */
 
+#ifndef __CNCB_H_
+#define __CNCB_H_
+
 #include "config.h"
 
 /*signal def*/
@@ -46,3 +49,5 @@ enum {
 int cncb_init(void);
 int cncb_detect(int debounce);
 int cncb_signal(int sig, int level);
+
+#endif
