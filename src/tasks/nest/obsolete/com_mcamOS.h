@@ -55,7 +55,7 @@ END DESCRIPTION ***************************************************************/
 static inline ERROR_CODE mcamOSInit(int nCANChan, UINT16 wMCAMOSkBaud)
 {
 	nest_can_sel(nCANChan);
-	return (ERROR_CODE) mcamos_init(&can1, wMCAMOSkBaud);
+	return (ERROR_CODE) mcamos_init(&can1, wMCAMOSkBaud*1000);
 }
 
 static inline ERROR_CODE mcamOSDownload(int nCANChan, UINT32 dwAddr, const UINT8 *pbySrc, UINT16 wByteCnt, UINT16 wTimeout)
