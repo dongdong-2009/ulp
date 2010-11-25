@@ -114,7 +114,6 @@ clean: xconfig_clean
 	@rm -rf $(TOP_DIR)/projects/bldc/Release
 	@rm -rf $(TOP_DIR)/projects/bldc/settings
 	@rm -rf $(TOP_DIR)/projects/bldc/bldc.dep
-	@rm -rf $(TOP_DIR)/projects/bldc/bldc.ewd
 
 distclean: clean iar_clr unconfig
 
