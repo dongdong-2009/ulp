@@ -67,11 +67,11 @@ int cncb_detect(int debounce)
 {
 	int level;
 	time_t deadline = time_get(debounce);
-	while(time_left(deadline) > 0) {
+	do {
 		level = GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_2);
 		if(level != Bit_SET)
 			return 1;
-	}
+	} while(time_left(deadline) > 0);
 	return 0;
 }
 
