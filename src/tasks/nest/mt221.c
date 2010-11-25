@@ -462,33 +462,16 @@ ERROR_CODE Write_Memory(UINT32 addr, UINT8* pdata, int len)
 	return result;
 }
 
-#define RAMDNLD_BUF_SIZE 256
 ERROR_CODE Execute_RAMDnld(UINT32 addr, UINT8 *pfile, int len)
 {
 	ERROR_CODE result;
-	UINT8 *buffer;
-	UINT32 exec_addr;
-	int size;
 
-	exec_addr = addr;
 	//download to ram
-	while(len > 0)
-	{
-		size = len;
-		if(size > RAMDNLD_BUF_SIZE) size =  RAMDNLD_BUF_SIZE;
-
-		buffer = pfile;
-		pfile += size;
-		result = mcamOSDownload(DW_CAN1, addr, buffer, size, CAN_TIMEOUT);
-		addr += size;
-		len -= size;
-
-		if( result != E_OK ) return result;
-	}
+	result = mcamOSDownload(DW_CAN1, addr, pfile, len, 10000); //10s timeout
+	if( result != E_OK ) return result;
 
 	//execute
-	result = mcamOSExecute(DW_CAN1, exec_addr, CAN_TIMEOUT);
-
+	result = mcamOSExecute(DW_CAN1, addr, CAN_TIMEOUT);
 	return result;
 }
 
