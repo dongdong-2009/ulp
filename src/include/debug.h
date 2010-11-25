@@ -12,6 +12,7 @@
 	if(!(x)) { \
 		printf("assert fault at %s, line %d of %s\n", \
 			__FUNCTION__, __LINE__, __FILE__); \
+		while(1); \
 	} \
 } while(0)
 
