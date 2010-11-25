@@ -23,6 +23,7 @@
 #target files
 *.elf
 *.bin
+make.env
 
 #ewarm files
 projects/*
