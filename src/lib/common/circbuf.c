@@ -18,11 +18,11 @@
  *
  */
 
-#include <common.h>
-#include <malloc.h>
-
-#include <circbuf.h>
-
+#include "config.h"
+#include "sys/sys.h"
+#include "common/circbuf.h"
+#include "debug.h"
+#include <string.h>
 
 int buf_init (circbuf_t * buf, unsigned int size)
 {
@@ -30,7 +30,9 @@ int buf_init (circbuf_t * buf, unsigned int size)
 
 	buf->size = 0;
 	buf->totalsize = size;
-	buf->data = (char *) malloc (sizeof (char) * size);
+	if(buf -> data == NULL) {
+		buf->data = (char *) sys_malloc (sizeof (char) * size);
+	}
 	assert (buf->data != NULL);
 
 	buf->top = buf->data;
@@ -45,7 +47,7 @@ int buf_free (circbuf_t * buf)
 	assert (buf != NULL);
 	assert (buf->data != NULL);
 
-	free (buf->data);
+	sys_free (buf->data);
 	memset (buf, 0, sizeof (circbuf_t));
 
 	return 1;
