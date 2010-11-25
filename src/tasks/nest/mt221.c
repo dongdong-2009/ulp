@@ -1402,6 +1402,7 @@ END DESCRIPTION ***************************************************************/
 void main(void)
 {
 	nest_init();
+	NestPowerOff();
 	nest_message("\nPower Conditioning - MT22.1\n");
 	nest_message("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
 
