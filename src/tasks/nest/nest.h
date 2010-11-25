@@ -17,9 +17,6 @@
 int nest_init(void);
 int nest_update(void);
 
-//message handling
-#define nest_message printf
-
 //time handling
 void nest_time_init(void);
 int nest_time_get(void);
@@ -90,4 +87,8 @@ struct nest_info_s {
 };
 
 struct nest_info_s* nest_info_get(void);
+
+//nest message
+int nest_message_init(void);
+int nest_message(const char *fmt, ...);
 #endif

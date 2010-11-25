@@ -5,17 +5,29 @@
 #include "config.h"
 #include "nest.h"
 #include "sys/task.h"
+#include "common/circbuf.h"
+#include "nvm.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <sys/sys.h>
+#include <shell/cmd.h>
+#include "debug.h"
 
 static time_t nest_timer;
 static time_t nest_timer_toggle;
 static struct nest_error_s nest_err;
 static struct nest_info_s nest_info;
+#if CONFIG_NEST_LOG_SIZE > 0
+static char nest_log_buf[CONFIG_NEST_LOG_SIZE] __nvm;
+static circbuf_t nest_log;
+#endif
 
 int nest_init(void)
 {
 	nest_timer_toggle = 0;
 	task_Init();
 	cncb_init();
+	nest_message_init();
 	return 0;
 }
 
@@ -54,6 +66,10 @@ int nest_error_set(int type, const char *info)
 	nest_err.time = nest_time_get();
 	nest_err.info = info;
 	nest_message("%s fail(error=%d,time=%d)!!!\n", info, type, nest_err.time);
+#if CONFIG_NEST_LOG_SIZE > 0
+	//save the log message to flash
+	nvm_save();
+#endif
 	return 0;
 }
 
@@ -154,3 +170,67 @@ struct nest_info_s* nest_info_get(void)
 	return &nest_info;
 }
 
+int nest_message_init(void)
+{
+#if CONFIG_NEST_LOG_SIZE > 0
+	nest_log.data = nest_log_buf;
+	buf_init(&nest_log, CONFIG_NEST_LOG_SIZE);
+#endif
+	return 0;
+}
+
+int nest_message(const char *fmt, ...)
+{
+	va_list ap;
+	char *pstr;
+	int n = 0;
+
+	pstr = (char *) sys_malloc(256);
+	assert(pstr != NULL);
+	va_start(ap, fmt);
+	n += vsnprintf(pstr + n, 256 - n, fmt, ap);
+	va_end(ap);
+
+	//output string to console or log buffer
+	printf("%s", pstr);
+#if CONFIG_NEST_LOG_SIZE > 0
+	buf_push(&nest_log, pstr, n);
+#endif
+	sys_free(pstr);
+	return 0;
+}
+
+//nest shell command
+static int cmd_nest_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"nest help\n"
+#if CONFIG_NEST_LOG_SIZE > 0
+		"nest log	print log message\n"
+#endif
+	};
+
+	if(argc > 1) {
+#if CONFIG_NEST_LOG_SIZE > 0
+		if(!strcmp(argv[1], "log")) {
+			int n;
+			circbuf_t tmpbuf; //for view only purpose
+			memcpy(&tmpbuf, &nest_log, sizeof(circbuf_t));
+			char *pstr = sys_malloc(256);
+			assert(pstr != NULL);
+			do {
+				n = buf_pop(&tmpbuf, pstr, 256);
+				pstr[n] = 0;
+				printf("%s", pstr);
+			} while(n != 0);
+			sys_free(pstr);
+			return 0;
+		}
+#endif
+	}
+	printf("%s", usage);
+	return 0;
+}
+
+const static cmd_t cmd_nest = {"nest", cmd_nest_func, "nest debug command"};
+DECLARE_SHELL_CMD(cmd_nest)

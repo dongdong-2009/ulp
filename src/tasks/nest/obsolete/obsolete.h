@@ -82,7 +82,7 @@ enum {
 #define Flash_Err_Code nest_light_flash
 
 /*debug message*/
-#define message_clear()
+#define message_clear nest_message_init
 #define message nest_message
 
 /*can bus*/
