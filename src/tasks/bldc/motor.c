@@ -11,6 +11,7 @@
 #include "normalize.h"
 #include "led.h"
 #include "dbg.h"
+#include "sys/sys.h"
 
 motor_t *motor;
 pid_t *pid_speed;
@@ -29,7 +30,7 @@ void motor_Init(void)
 	vsm_Init();
 	dbg_Init();
 	
-	motor = MALLOC(sizeof(motor_t));
+	motor = sys_malloc(sizeof(motor_t));
 	
 	/*default smo_motor para, change me!!!*/
 	motor->rs = (short) NOR_RES(65.0f);

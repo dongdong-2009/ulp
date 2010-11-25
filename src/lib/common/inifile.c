@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <string.h>
 #include <ctype.h>
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 
 #include "common\inifile.h"
 #include "ff.h"
@@ -186,7 +186,7 @@ int read_profile_string( const char *section, const char *key,char *value,
 	assert(size > 0);
 	assert(file !=NULL &&strlen(key));
 
-	buf = (char *)MALLOC(MAX_FILE_SIZE);
+	buf = (char *)sys_malloc(MAX_FILE_SIZE);
 	memset(buf,0,MAX_FILE_SIZE);
 
 	if(!load_ini_file(file,buf,&file_size))
@@ -195,7 +195,7 @@ int read_profile_string( const char *section, const char *key,char *value,
 		{
 			strncpy(value,default_value, size);
 		}
-		FREE(buf);
+		sys_free(buf);
 		return 0;
 	}
 
@@ -205,7 +205,7 @@ int read_profile_string( const char *section, const char *key,char *value,
 		{
 			strncpy(value,default_value, size);
 		}
-		FREE(buf);
+		sys_free(buf);
 		return 0; //not find the key
 	}
 	else
@@ -221,7 +221,7 @@ int read_profile_string( const char *section, const char *key,char *value,
 		memcpy(value,buf+value_s, cpcount );
 		value[cpcount] = '\0';
 
-		FREE(buf);
+		sys_free(buf);
 
 		return 1;
 	}
@@ -274,8 +274,8 @@ int write_profile_string(const char *section, const char *key,
 	assert(value != NULL);
 	assert(file !=NULL &&strlen(key));
 
-	buf = (char *)MALLOC(MAX_FILE_SIZE);
-	w_buf = (char *)MALLOC(MAX_FILE_SIZE);
+	buf = (char *)sys_malloc(MAX_FILE_SIZE);
+	w_buf = (char *)sys_malloc(MAX_FILE_SIZE);
 	memset(buf,0,MAX_FILE_SIZE);
 	memset(w_buf,0,MAX_FILE_SIZE);
 
@@ -324,27 +324,27 @@ int write_profile_string(const char *section, const char *key,
 	unsigned int br;
 
 	if (f_open(&file_obj, file, FA_WRITE)) {
-		FREE(buf);
-		FREE(w_buf);
+		sys_free(buf);
+		sys_free(w_buf);
 		return 0;
 	}
 
 	if (f_write(&file_obj, w_buf, new_file_size, &br)) {
-		FREE(buf);
-		FREE(w_buf);
+		sys_free(buf);
+		sys_free(w_buf);
 		return 0;
 	}
 
 	if (f_truncate(&file_obj)) {		/* Truncate unused area */
-		FREE(buf);
-		FREE(w_buf);
+		sys_free(buf);
+		sys_free(w_buf);
 		return 0;
 	}
 
 	f_close(&file_obj);
 
-	FREE(buf);
-	FREE(w_buf);
+	sys_free(buf);
+	sys_free(w_buf);
 	return 1;
 }
 

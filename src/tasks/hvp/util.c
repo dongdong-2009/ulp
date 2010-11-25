@@ -104,7 +104,7 @@ int util_init(const char *util, const char *prog)
 		//read all util instructions
 		btr = util_head.offset - sizeof(util_head_t);
 		util_inst_nr = btr / sizeof(util_inst_t);
-		util_inst = MALLOC(btr);
+		util_inst = sys_malloc(btr);
 		if(!util_inst) {
 			return - UTIL_E_MEM;
 		}
@@ -479,6 +479,6 @@ void util_close(void)
 	f_close(util_ptp.fp);
 	ptp_close(&prog_ptp);
 	f_close(prog_ptp.fp);
-	FREE(util_inst);
+	sys_free(util_inst);
 }
 

@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "ff.h"
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 
 static FATFS fs;
 
@@ -64,14 +64,14 @@ static int cmd_fatfs_func(int argc, char *argv[])
 	}
 
 	if (!strcmp(argv[1], "pwd")) {
-		filename = (char *)MALLOC(30);
+		filename = (char *)sys_malloc(30);
 		memset(filename, 0, 30);
 		res = f_getcwd(filename, 30);
 		if (res != FR_OK)
 			printf("operation failed!\n\r");
 		else
 			printf("%s\n\r", filename);
-		FREE(filename);
+		sys_free(filename);
 	}
 
 	if (!strcmp(argv[1], "ls")) {

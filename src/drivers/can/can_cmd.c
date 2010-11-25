@@ -10,7 +10,7 @@
 #include "can.h"
 #include "time.h"
 #include "linux/list.h"
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 
 #define CONFIG_CAN_CMD_QUEUE
 
@@ -46,7 +46,7 @@ int can_queue_add(int ms, can_msg_t *msg)
 	struct can_queue_s *new, *q = NULL;
 	
 	//prepare new queue unit
-	new = MALLOC(sizeof(struct can_queue_s));
+	new = sys_malloc(sizeof(struct can_queue_s));
 	if(new == NULL) {
 		printf("error: out of memory!\n");
 		return 0;
@@ -62,7 +62,7 @@ int can_queue_add(int ms, can_msg_t *msg)
 		q = list_entry(pos, can_queue_s, list);
 		if(q -> msg.id == msg -> id) { //found one
 			list_replace(pos, &new -> list);
-			FREE(q);
+			sys_free(q);
 			return 0;
 		}
 	}
@@ -91,7 +91,7 @@ void can_queue_clear(void)
 
 	list_for_each(pos, &can_queue) {
 		q = list_entry(pos, can_queue_s, list);
-		FREE(q);
+		sys_free(q);
 	}
 	
 	INIT_LIST_HEAD(&can_queue);

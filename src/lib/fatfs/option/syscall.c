@@ -133,7 +133,7 @@ void* ff_memalloc (	/* Returns pointer to the allocated memory block */
 	UINT size		/* Number of bytes to allocate */
 )
 {
-	return MALLOC(size);
+	return sys_malloc(size);
 }
 
 
@@ -145,7 +145,7 @@ void ff_memfree(
 	void* mblock	/* Pointer to the memory block to free */
 )
 {
-	FREE(mblock);
+	sys_free(mblock);
 }
 
 #endif

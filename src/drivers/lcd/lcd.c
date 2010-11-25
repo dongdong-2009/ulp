@@ -6,7 +6,7 @@
 #include "lcd.h"
 #include <stdlib.h>
 #include <string.h>
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 #include "common/bitops.h"
 #include "lpt.h"
 
@@ -20,7 +20,7 @@ struct list_head lcd_devs = LIST_HEAD_INIT(lcd_devs);
 
 int lcd_add(const struct lcd_dev_s *dev, const char *name, int type)
 {
-	struct lcd_s *lcd = MALLOC(sizeof(struct lcd_s));
+	struct lcd_s *lcd = sys_malloc(sizeof(struct lcd_s));
 	lcd -> dev = dev;
 	lcd -> name = name;
 	lcd -> type = 0;
@@ -223,7 +223,7 @@ static int lcd_clear_char(struct lcd_s *lcd, int x, int y, int w, int h)
 	int i;
 	char *str;
 
-	str = MALLOC(w + 1);
+	str = sys_malloc(w + 1);
 	memset(str, ' ', w);
 	str[w] = 0;
 
@@ -233,7 +233,7 @@ static int lcd_clear_char(struct lcd_s *lcd, int x, int y, int w, int h)
 			break;
 	}
 
-	FREE(str);
+	sys_free(str);
 	return ret;
 }
 

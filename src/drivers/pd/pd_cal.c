@@ -22,7 +22,7 @@
 #include "pd.h"
 #include "lcd.h"
 #include "pd_linear.h"
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 #include "time.h"
 #include "nvm.h"
 
@@ -41,7 +41,7 @@ static int sort_by_y(const void* a, const void *b)
 static void getxy(int *x, int *y)
 {
 #define MAX_SAMPLES 256
-	struct pd_sample *samp = MALLOC(MAX_SAMPLES * sizeof(struct pd_sample));
+	struct pd_sample *samp = sys_malloc(MAX_SAMPLES * sizeof(struct pd_sample));
 	int index, i, v, middle, ret;
 
 	/* Now collect up to MAX_SAMPLES touches into the samp array. */
@@ -105,13 +105,13 @@ static void getxy(int *x, int *y)
 		*y = v;
 #endif
 	}
-	FREE(samp);
+	sys_free(samp);
 }
 
 static void put_cross(struct lcd_s *lcd, int x, int y)
 {
 	int i;
-	char *p = MALLOC(128);
+	char *p = sys_malloc(128);
 
 	memset(p, 0, 128);
 	for( i = 0; i < 32; i ++ ) {
@@ -122,7 +122,7 @@ static void put_cross(struct lcd_s *lcd, int x, int y)
 	}
 
 	lcd_bitblt(lcd, p, x - 15, y - 15, 32, 32);
-	FREE(p);
+	sys_free(p);
 }
 
 static void clr_cross(struct lcd_s *lcd, int x, int y)

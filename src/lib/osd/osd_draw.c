@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 
 int item_DrawTxt(const osd_item_t *item, int status)
 {
@@ -30,7 +30,7 @@ int item_DrawTxt(const osd_item_t *item, int status)
 	//string width limit
 	len = strlen(str);
 	len = (len > item->w) ? item->w : len;
-	buf = MALLOC(len + 1);
+	buf = sys_malloc(len + 1);
 	strncpy(buf, str, len);
 	buf[len] = 0;
 	
@@ -42,7 +42,7 @@ int item_DrawTxt(const osd_item_t *item, int status)
 	//output to lcd
 	osd_eng_puts(x, item->y, buf);
 
-	FREE(buf);
+	sys_free(buf);
 	return 0;
 }
 
@@ -70,7 +70,7 @@ int item_DrawInt(const osd_item_t *item, int status)
 	
 	//convert int to string & width limit
 	len = item->w + 1;
-	buf = MALLOC(len);
+	buf = sys_malloc(len);
 	snprintf(buf, len, "%d", value);
 	len = strlen(buf);
 	
@@ -82,7 +82,7 @@ int item_DrawInt(const osd_item_t *item, int status)
 	//output to lcd
 	osd_eng_puts(x, item->y, buf);
 	
-	FREE(buf);
+	sys_free(buf);
 	return 0;
 }
 

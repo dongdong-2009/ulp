@@ -10,7 +10,7 @@
 #include "osd/osd_dialog.h"
 #include "osd/osd_eng.h"
 #include "osd/osd_event.h"
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 #include <stdlib.h>
 #include "common/color.h"
 
@@ -106,7 +106,7 @@ int osd_ConstructGroup(const osd_group_t *grp)
 {
 	osd_group_k *kgrp;
 
-	kgrp = MALLOC(sizeof(osd_group_k));
+	kgrp = sys_malloc(sizeof(osd_group_k));
 	kgrp->grp = grp;
 	kgrp->next = NULL;
 	kgrp->prev = NULL;
@@ -119,7 +119,7 @@ int osd_ConstructGroup(const osd_group_t *grp)
 
 int osd_DestroyGroup(osd_group_k *kgrp)
 {
-	FREE(kgrp);
+	sys_free(kgrp);
 	return 0;
 }
 

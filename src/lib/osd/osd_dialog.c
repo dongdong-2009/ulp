@@ -8,7 +8,7 @@
 #include "config.h"
 #include "osd/osd_dialog.h"
 #include "osd/osd_event.h"
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 #include <stdlib.h>
 
 static osd_dialog_k *osd_active_kdlg;
@@ -39,7 +39,7 @@ int osd_ConstructDialog(const osd_dialog_t *dlg)
 	int handle;
 	
 	//construct dialog in memory
-	kdlg = MALLOC(sizeof(osd_dialog_k));
+	kdlg = sys_malloc(sizeof(osd_dialog_k));
 	kdlg->dlg = dlg;
 	kdlg->kgrps = NULL;
 	kdlg->active_kgrp = NULL;
@@ -83,7 +83,7 @@ int osd_DestroyDialog(int handle)
 	if(osd_active_kdlg == kdlg)
 		osd_active_kdlg = NULL;
 	
-	FREE(kdlg);
+	sys_free(kdlg);
 	return 0;
 }
 
