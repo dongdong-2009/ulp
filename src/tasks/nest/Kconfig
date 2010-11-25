@@ -8,3 +8,5 @@ choice 'nest project select'	" \
 	MT22.1	CONFIG_NEST_MT22P1 \
 	MT92	CONFIG_NEST_MT92 \
 " MT92
+
+bool 'test mode: auto restart' CONFIG_NEST_AUTORESTART

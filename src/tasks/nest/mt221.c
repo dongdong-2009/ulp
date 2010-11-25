@@ -1358,8 +1358,17 @@ void TestStop(void)
 	message("CONDITIONING COMPLETE\n");
 
 	//toggle Abort light if nest error.
+#ifdef CONFIG_NEST_AUTORESTART
+	time_t timer_restart = time_get(3*60*1000);
+#endif
 	while (!PartNotPresent(0)) { // Wait for part to be removed.
 		Flash_Err_Code(nest_error_get() -> type);
+#ifdef CONFIG_NEST_AUTORESTART
+		if(time_left(timer_restart) < 0) {
+			if(pass())
+				break;
+		}
+#endif
 	}
 
 	// Turn all indicators off.
