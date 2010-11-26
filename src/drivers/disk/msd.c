@@ -30,6 +30,7 @@
 #include "msd.h"
 #include "config.h"
 #include "spi.h"
+#include "debug.h"
 
 static const spi_bus_t *msd_bus;
 static char msd_bus_idx;
@@ -922,6 +923,9 @@ static void SPI_Config(void)
 	msd_bus_idx = (char) SPI_2_NSS;
 #endif
 
+	assert(msd_bus != NULL);
+	assert(msd_bus -> csel != NULL);
+	
 	msd_bus -> init(&cfg);
 }
 
