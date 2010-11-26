@@ -16,16 +16,20 @@ void mcp23017_Init(mcp23017_t *chip)
 {
 	unsigned char temp = 0x28;
 	i2c_cfg_t cfg = {
-		100000,		//100K
+		400000,		//400K
 		NULL,
-	};
-	chip->bus->init(&cfg);
+	};
+
+	chip->bus->init(&cfg);
+
 	//bank=0, chip address enable.
-	chip->bus->wreg(chip->chip_addr, IOCON, 0x01, &temp);
+	chip->bus->wreg(chip->chip_addr, IOCON, 0x01, &temp);
+
 	if (chip->port_type == MCP23017_PORT_IN) {
 		temp = 0xff;
 		chip->bus->wreg(chip->chip_addr, IODIRA, 0x01, &temp);
-		chip->bus->wreg(chip->chip_addr, IODIRB, 0x01, &temp);
+		chip->bus->wreg(chip->chip_addr, IODIRB, 0x01, &temp);
+
 		temp = 0xff;
 		chip->bus->wreg(chip->chip_addr, GPPUA, 0x01, &temp);
 		chip->bus->wreg(chip->chip_addr, GPPUB, 0x01, &temp);
@@ -54,16 +58,18 @@ int mcp23017_ReadByte(mcp23017_t *chip, unsigned addr, int alen, unsigned char *
 
 static mcp23017_t mcp23017 = {
 	.bus = &i2c1,
-	.chipaddr = 0x40,
+	.chip_addr = 0x40,
 	.port_type = MCP23017_PORT_IN
 };
 
 static int cmd_mcp23017_func(int argc, char *argv[])
 {
-	unsigned char temp;
+	unsigned int temp;
+	unsigned int addr;
 
 	const char usage[] = { \
 		" usage:\n" \
+		" mcp23017 init, chip init \n" \
 		" mcp23017 write addr value, write reg \n" \
 		" mcp23017 read addr, read reg\n" \
 	};
@@ -73,15 +79,18 @@ static int cmd_mcp23017_func(int argc, char *argv[])
 		return 0;
 	}
 
-	if(argv[1][0] = 'i')
+	if(argv[1][0] == 'i')
 		mcp23017_Init(&mcp23017);
 
-	if (argv[1][0] == 'w')) {
-		mcp23017_WriteByte(&mcp23017, atoi(argv[2]), 1, (unsigned char *)argv[3]);
+	if (argv[1][0] == 'w') {
+		sscanf(argv[2], "%x", &addr);
+		sscanf(argv[3], "%x", &temp);
+		mcp23017_WriteByte(&mcp23017, addr, 1, (unsigned char *)&temp);
 	}
 
-	if (!strcmp(argv[1], "read")) {
-		mcp23017_ReadByte(&mcp23017, atoi(argv[2]), 1, &temp);
+	if (argv[1][0] == 'r') {
+		sscanf(argv[2], "%x", &addr);
+		mcp23017_ReadByte(&mcp23017, addr, 1, (unsigned char *)&temp);
 		printf("%c = 0x%x\n",temp, temp);
 	}
 
