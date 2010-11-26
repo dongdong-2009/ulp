@@ -35,18 +35,17 @@ time_t time_get(int delay)
 
 int time_left(time_t deadline)
 {
+	unsigned dt, now;
 	int left;
-	if(deadline >= 0 && jiffies < 0) { //jiffies overflow, left < 0
-		left = (unsigned) jiffies - (unsigned) deadline;
-		left = -left;
+
+	now = jiffies;
+	dt = (deadline > now) ? deadline - now : now - deadline;
+	if(dt >= (1U << 31)) {
+		dt = 0 - (int)(dt);
 	}
-	else if(deadline < 0 && jiffies > 0) { //deadline overflow, left > 0
-		left = (unsigned) deadline - (unsigned) jiffies;
-	}
-	else {
-		left = deadline - jiffies;
-	}
-	return (int)(deadline - jiffies);
+
+	left = (deadline > now) ? dt : (0 - dt);
+	return left;
 }
 
 void udelay(int us)
