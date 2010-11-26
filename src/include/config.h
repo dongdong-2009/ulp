@@ -31,12 +31,4 @@
 #define HSE_Value CONFIG_HSE_VALUE
 #endif
 
-#ifdef CONFIG_LIB_FREERTOS
-#define MALLOC pvPortMalloc
-#define FREE vPortFree
-#else
-#define MALLOC malloc
-#define FREE free
-#endif
-
 #endif /*__CONFIG_H_*/

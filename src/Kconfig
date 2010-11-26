@@ -25,3 +25,8 @@ mainmenu_option next_comment
   comment 'tasks'
   source src/tasks/Kconfig
 endmenu
+
+mainmenu_option next_comment
+  comment 'main'
+  source src/main/Kconfig
+endmenu

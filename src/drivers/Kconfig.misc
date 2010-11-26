@@ -3,7 +3,7 @@
 #
 # Written by miaofng@2010
 #
+bool "led driver" CONFIG_DRIVER_LED
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
 bool "capture driver?" CONFIG_DRIVER_CAPTURE
-bool "flash drivers of stm32" CONFIG_DRIVER_FLASH_STM32
 bool "add md204l driver?" CONFIG_DRIVER_MD204L

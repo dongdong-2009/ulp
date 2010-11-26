@@ -35,6 +35,17 @@ time_t time_get(int delay)
 
 int time_left(time_t deadline)
 {
+	int left;
+	if(deadline >= 0 && jiffies < 0) { //jiffies overflow, left < 0
+		left = (unsigned) jiffies - (unsigned) deadline;
+		left = -left;
+	}
+	else if(deadline < 0 && jiffies > 0) { //deadline overflow, left > 0
+		left = (unsigned) deadline - (unsigned) jiffies;
+	}
+	else {
+		left = deadline - jiffies;
+	}
 	return (int)(deadline - jiffies);
 }
 

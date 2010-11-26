@@ -56,7 +56,7 @@ typedef struct osd_item_s {
 int osd_ShowItem(const osd_item_t *item, int status);
 int osd_HideItem(const osd_item_t *item);
 #ifdef CONFIG_DRIVER_PD
-int osd_item_react(osd_item_t *item, int event, const dot_t *p);
+int osd_item_react(const osd_item_t *item, int event, const dot_t *p);
 #endif
 
 #endif /*__OSD_ITEM_H_*/

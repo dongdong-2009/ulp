@@ -1,0 +1,10 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+bool "flash driver?" CONFIG_DRIVER_FLASH
+
+if [ "$CONFIG_DRIVER_FLASH" = "y" ]; then
+	bool "flash nvm emulate" CONFIG_FLASH_NVM
+fi

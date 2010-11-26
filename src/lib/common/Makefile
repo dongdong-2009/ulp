@@ -5,3 +5,4 @@ obj-$(CONFIG_COMMON_PTP) += ptp.c
 
 #linux
 obj-y += sort.o
+obj-y += circbuf.o

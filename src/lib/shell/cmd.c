@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "shell/cmd.h"
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 
 static cmd_list_t *cmd_list;
 static char cmd_update_stop_flag;
@@ -52,7 +52,7 @@ void cmd_Add(cmd_t *cmd)
 	cmd_list_t *new;
 	cmd_list_t *p = cmd_list;
 
-	new = MALLOC(sizeof(cmd_list_t));
+	new = sys_malloc(sizeof(cmd_list_t));
 	new->cmd = cmd;
 	new->flag = 0;
 	new->next = 0;

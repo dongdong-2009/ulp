@@ -57,7 +57,7 @@ static int can_init(const can_cfg_t *cfg)
 	CAN_InitStructure.CAN_AWUM = DISABLE;
 	CAN_InitStructure.CAN_NART = DISABLE;
 	CAN_InitStructure.CAN_RFLM = DISABLE;
-	CAN_InitStructure.CAN_TXFP = DISABLE;
+	CAN_InitStructure.CAN_TXFP = ENABLE;
 	CAN_InitStructure.CAN_Mode = CAN_Mode_Normal;
 	CAN_InitStructure.CAN_SJW = CAN_SJW_1tq;
 	CAN_InitStructure.CAN_BS1 = CAN_BS1_3tq;

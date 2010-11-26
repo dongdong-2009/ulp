@@ -8,8 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 #include "common/print.h"
 #include "common/ptp.h"
 
@@ -137,7 +136,7 @@ static int ptp_parse(ptp_t *ptp, int op)
 
 int ptp_init(ptp_t *ptp)
 {
-	ptp->priv = MALLOC(sizeof(ptp_priv_t));
+	ptp->priv = sys_malloc(sizeof(ptp_priv_t));
 	memset(ptp->priv, 0, sizeof(ptp_priv_t));
 	return 0;
 }
@@ -193,7 +192,7 @@ int ptp_seek(ptp_t *ptp, int ofs)
 
 int ptp_close(ptp_t *ptp)
 {
-	FREE(ptp->priv);
+	sys_free(ptp->priv);
 	return 0;
 }
 

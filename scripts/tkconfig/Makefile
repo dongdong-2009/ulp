@@ -7,5 +7,8 @@ obj-y += tkgen.o
 $(PARSER): $(obj-y)
 	gcc $(obj-y) -o $@
 
+.c.o:
+	gcc -c $< 
+
 clean:
 	@rm -rf $(obj-y) $(PARSER)

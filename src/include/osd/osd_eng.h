@@ -4,15 +4,14 @@
 #ifndef __OSD_ENG_H_
 #define __OSD_ENG_H_
 
-#include "lcd.h"
+#include "common/glib.h"
 
-#define osd_engine_t		lcd_t
-#define osd_eng_init		lcd_init
-#define osd_eng_puts		lcd_puts
-#define osd_eng_clear_all	lcd_clear_all
-#define osd_eng_clear_rect	lcd_clear_rect
-#define osd_eng_scroll		lcd_scroll
-#define osd_eng_set_color	lcd_set_color
-#define osd_eng_is_visible	lcd_is_visible
+int osd_eng_init(void);
+int osd_eng_puts(int x, int y, const char *str);
+int osd_eng_clear_all(void);
+int osd_eng_clear_rect(int x, int y, int w, int h);
+int osd_eng_scroll(int xoffset, int yoffset);
+int osd_eng_set_color(int fg, int bg);
+int osd_eng_is_visible(const rect_t *r);
 
 #endif /*__OSD_ENG_H_*/

@@ -8,7 +8,7 @@
 #include "config.h"
 #include "osd/osd_dialog.h"
 #include "osd/osd_event.h"
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 #include <stdlib.h>
 
 static osd_dialog_k *osd_active_kdlg;
@@ -39,7 +39,7 @@ int osd_ConstructDialog(const osd_dialog_t *dlg)
 	int handle;
 	
 	//construct dialog in memory
-	kdlg = MALLOC(sizeof(osd_dialog_k));
+	kdlg = sys_malloc(sizeof(osd_dialog_k));
 	kdlg->dlg = dlg;
 	kdlg->kgrps = NULL;
 	kdlg->active_kgrp = NULL;
@@ -83,7 +83,7 @@ int osd_DestroyDialog(int handle)
 	if(osd_active_kdlg == kdlg)
 		osd_active_kdlg = NULL;
 	
-	FREE(kdlg);
+	sys_free(kdlg);
 	return 0;
 }
 
@@ -126,32 +126,26 @@ rect_t *osd_dlg_get_rect(const osd_dialog_k *kdlg, rect_t *margin)
 #ifdef CONFIG_DRIVER_PD
 int osd_dlg_react(osd_dialog_k *kdlg, int event, const dot_t *p)
 {
-	int event = OSDE_NONE;
 	osd_group_k *kgrp;
 	
 	//event occurs outside my dialog?
-	if(!rect_have(&kdlg->margin, p))
+	if(!osd_event_try(&kdlg->margin, p))
 		return event;
 	
 	//event occurs outside active group?
-	if(rect_have(&kdlg->active_kgrp->margin, p)) {
+	if(osd_event_try(&kdlg->active_kgrp->margin, p)) {
 		event = osd_grp_react(kdlg->active_kgrp, event, p);
 	}
 	else {
 		//change focus
 		for(kgrp = kdlg->kgrps; kgrp != NULL; kgrp = kgrp->next) {
-#ifdef CONFIG_FONT_TNR08X16
-			rect_zoom(&kgrp->margin, 3, 4);
-#else
-			rect_zoom(&kgrp->margin, 4, 5);
-#endif
-			if(rect_have(&kgrp->margin, p))
+			if(osd_event_try(&kgrp->margin, p))
 				break;
 		}
 		
 		if(kgrp != NULL) {
 			if(!osd_grp_select(kdlg, kgrp))
-				event = OSDE_FOCUS;
+				event = OSDE_GRP_FOCUS;
 		}
 	}
 	

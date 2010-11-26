@@ -7,8 +7,7 @@
 #include "common/kwp.h"
 #include "uart.h"
 #include <stdlib.h>
-
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 #include "queue.h"
 #include "task.h"
 #include "time.h"
@@ -681,7 +680,7 @@ static void cmd_kwp_task(void *pvParameters)
 		}
 		else {
 			kwp_debug(msg.bytes, msg.para);
-			FREE(msg.para);
+			sys_free(msg.para);
 		}
 	}
 }
@@ -710,7 +709,7 @@ static int cmd_kwp_func(int argc, char *argv[])
 			n = argc - 1;
 			msg.cmd = CMD_TRANS;
 			msg.bytes = (char) n;
-			pbuf = MALLOC(msg.bytes);
+			pbuf = sys_malloc(msg.bytes);
 			for(i = 0; i < n; i ++)
 				pbuf[i] = htoc(argv[i + 1]);
 			msg.para = pbuf;

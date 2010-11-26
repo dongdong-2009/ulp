@@ -9,8 +9,10 @@
 #include "osd/osd_group.h"
 #include "osd/osd_dialog.h"
 #include "osd/osd_eng.h"
-#include "FreeRTOS.h"
+#include "osd/osd_event.h"
+#include "sys/sys.h"
 #include <stdlib.h>
+#include "common/color.h"
 
 /*
 *	success return the new focused group handle
@@ -104,7 +106,7 @@ int osd_ConstructGroup(const osd_group_t *grp)
 {
 	osd_group_k *kgrp;
 
-	kgrp = MALLOC(sizeof(osd_group_k));
+	kgrp = sys_malloc(sizeof(osd_group_k));
 	kgrp->grp = grp;
 	kgrp->next = NULL;
 	kgrp->prev = NULL;
@@ -117,7 +119,7 @@ int osd_ConstructGroup(const osd_group_t *grp)
 
 int osd_DestroyGroup(osd_group_k *kgrp)
 {
-	FREE(kgrp);
+	sys_free(kgrp);
 	return 0;
 }
 
@@ -218,23 +220,18 @@ int osd_grp_react(osd_group_k *kgrp, int event, const dot_t *p)
 {
 	const osd_item_t *item;
 	rect_t r;
-	int event;
 	
 	//find the item to be responsible for the event
 	for(item = kgrp->grp->items; (item != NULL) && (item->draw != NULL); item ++) {
 		rect_set(&r, item->x, item->y, item->w, item->h);
-#ifdef CONFIG_FONT_TNR08X16
-		rect_zoom(&r, 3, 4);
-#else
-		rect_zoom(&r, 4, 5);
-#endif
-		if(rect_have(&r, p))
+		if(osd_event_try(&r, p))
 			break;
 	}
 
 	//item event?
 	if(item != NULL)
 		event = osd_item_react(item, event, p);
+	else event = OSDE_NONE;
 	
 	//default to KEY_ENTER event
 	return (event == OSDE_NONE) ? KEY_ENTER : event;

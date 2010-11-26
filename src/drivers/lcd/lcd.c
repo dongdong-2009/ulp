@@ -6,7 +6,7 @@
 #include "lcd.h"
 #include <stdlib.h>
 #include <string.h>
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 #include "common/bitops.h"
 #include "lpt.h"
 
@@ -20,7 +20,7 @@ struct list_head lcd_devs = LIST_HEAD_INIT(lcd_devs);
 
 int lcd_add(const struct lcd_dev_s *dev, const char *name, int type)
 {
-	struct lcd_s *lcd = MALLOC(sizeof(struct lcd_s));
+	struct lcd_s *lcd = sys_malloc(sizeof(struct lcd_s));
 	lcd -> dev = dev;
 	lcd -> name = name;
 	lcd -> type = 0;
@@ -135,14 +135,14 @@ static void lcd_transform(struct lcd_s *lcd, int *px, int *py)
 	switch (lcd -> rot) {
 	case LCD_ROT_090:
 		x = (*py);
-		y = h - (*px);
+		y = h - (*px) - 1;
 		break;
 	case LCD_ROT_180:
-		x = w - (*px);
-		y = h - (*py);
+		x = w - (*px) - 1;
+		y = h - (*py) - 1;
 		break;
 	case LCD_ROT_270:
-		x = w - (*py);
+		x = w - (*py) - 1;
 		y = (*px);
 		break;
 	default:
@@ -163,7 +163,7 @@ static int lcd_set_window(struct lcd_s *lcd, int x, int y, int w, int h)
 	y0 = y;
 	x1 = x + w - 1;
 	y1 = y + h - 1;
-	if(x0 < 0 || y0 < 0 || x1 > lcd -> xres || y1 > lcd -> yres) {
+	if(x0 < 0 || y0 < 0 || x1 >= lcd -> xres || y1 >= lcd -> yres) {
 		return -1;
 	}
 
@@ -223,7 +223,7 @@ static int lcd_clear_char(struct lcd_s *lcd, int x, int y, int w, int h)
 	int i;
 	char *str;
 
-	str = MALLOC(w + 1);
+	str = sys_malloc(w + 1);
 	memset(str, ' ', w);
 	str[w] = 0;
 
@@ -233,7 +233,7 @@ static int lcd_clear_char(struct lcd_s *lcd, int x, int y, int w, int h)
 			break;
 	}
 
-	FREE(str);
+	sys_free(str);
 	return ret;
 }
 

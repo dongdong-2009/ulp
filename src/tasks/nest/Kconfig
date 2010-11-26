@@ -1,0 +1,13 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+choice 'nest project select'	" \
+	MT22.1	CONFIG_NEST_MT22P1 \
+	MT92	CONFIG_NEST_MT92 \
+" MT92
+
+int 'log message buffer size' CONFIG_NEST_LOG_SIZE 2048
+bool 'test mode: auto restart' CONFIG_NEST_AUTORESTART

@@ -22,8 +22,9 @@
 #include "pd.h"
 #include "lcd.h"
 #include "pd_linear.h"
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 #include "time.h"
+#include "nvm.h"
 
 extern pdl_t pd_pdl;
 
@@ -40,7 +41,7 @@ static int sort_by_y(const void* a, const void *b)
 static void getxy(int *x, int *y)
 {
 #define MAX_SAMPLES 256
-	struct pd_sample *samp = MALLOC(MAX_SAMPLES * sizeof(struct pd_sample));
+	struct pd_sample *samp = sys_malloc(MAX_SAMPLES * sizeof(struct pd_sample));
 	int index, i, v, middle, ret;
 
 	/* Now collect up to MAX_SAMPLES touches into the samp array. */
@@ -104,13 +105,13 @@ static void getxy(int *x, int *y)
 		*y = v;
 #endif
 	}
-	FREE(samp);
+	sys_free(samp);
 }
 
-static void put_cross(int x, int y)
+static void put_cross(struct lcd_s *lcd, int x, int y)
 {
 	int i;
-	char *p = MALLOC(128);
+	char *p = sys_malloc(128);
 
 	memset(p, 0, 128);
 	for( i = 0; i < 32; i ++ ) {
@@ -120,23 +121,21 @@ static void put_cross(int x, int y)
 		bit_set((16 << 5) + i, p);
 	}
 
-	lcd_bitblt(p, x - 15, y - 15, 32, 32);
-	FREE(p);
+	lcd_bitblt(lcd, p, x - 15, y - 15, 32, 32);
+	sys_free(p);
 }
 
-static void clr_cross(int x, int y)
+static void clr_cross(struct lcd_s *lcd, int x, int y)
 {
-	char *p = MALLOC(128);
-	memset(p, 0, 128);
-	lcd_bitblt(p, x - 15, y - 15, 32, 32);
-	FREE(p);
+	lcd_clear(lcd, x - 15, y - 15, 32, 32);
 }
 
 static void get_sample (pdl_cal_t *cal, int index, int x, int y, char *name)
 {
-	put_cross (x, y);
+	struct lcd_s *lcd = lcd_get(NULL);
+	put_cross (lcd, x, y);
 	getxy (&cal->x [index], &cal->y [index]);
-	clr_cross(x, y);
+	clr_cross(lcd, x, y);
 	mdelay(1000);
 
 	cal->xfb [index] = x;
@@ -146,6 +145,7 @@ static void get_sample (pdl_cal_t *cal, int index, int x, int y, char *name)
 
 static int verify(int xres, int yres)
 {
+	struct lcd_s *lcd = lcd_get(NULL);
 	int x, y, ret, event = PDE_NONE;
 	dot_t p;
 
@@ -155,11 +155,11 @@ static int verify(int xres, int yres)
 	yres -= 32;
 	
 	//output red&green cross
-	lcd_set_color(RED, COLOR_BG_DEF);
-	put_cross(xres-32, yres);
-	lcd_set_color(GREEN, COLOR_BG_DEF);
-	put_cross(xres+32, yres);
-	lcd_set_color(COLOR_FG_DEF, COLOR_BG_DEF);
+	lcd_set_fgcolor(lcd, RED);
+	put_cross(lcd, xres-32, yres);
+	lcd_set_fgcolor(lcd, GREEN);
+	put_cross(lcd, xres+32, yres);
+	lcd_set_fgcolor(lcd, LCD_FGCOLOR_DEF);
 	
 	x = 0;
 	y = 0;
@@ -169,7 +169,7 @@ static int verify(int xres, int yres)
 			continue;
 		
 		if(x + y != 0) {
-			clr_cross(x, y);
+			clr_cross(lcd, x, y);
 		}
 		
 		x = p.x;
@@ -190,7 +190,7 @@ static int verify(int xres, int yres)
 		}
 		
 		//display cross at the touch point
-		put_cross(x, y);
+		put_cross(lcd, x, y);
 		printf("pd test: %d %d\n", x, y);
 	}
 	
@@ -199,23 +199,14 @@ static int verify(int xres, int yres)
 
 int pd_Calibration(void)
 {
-	int xres, yres, ret, i;
+	int xres, yres, ret;
 	pdl_cal_t cal;
-	lcd_prop_t prop;
+	struct lcd_s *lcd = lcd_get(NULL);
 
-	lcd_get_prop(&prop);
-#ifdef CONFIG_FONT_TNR08X16
-	xres = prop.w << 3;
-	yres = prop.h << 4;
-#elif CONFIG_FONT_TNR16X32
-	xres = prop.w << 4;
-	yres = prop.h << 5;
-#else
-	xres = prop.w;
-	yres = prop.h;
-#endif
+	lcd_get_res(lcd, &xres, &yres);
 	printf("xres = %d, yres = %d\n", xres, yres);
-	lcd_clear_all();
+	lcd_init(lcd);
+	lcd_clear_all(lcd);
 	get_sample(&cal, 0, 50, 50, "top left");
 	get_sample(&cal, 1, xres - 50, 50, "top right");
 	get_sample(&cal, 2, xres - 50, yres - 50, "bot right");
@@ -225,6 +216,8 @@ int pd_Calibration(void)
 
 	//visual verify calibration result
 	ret = verify(xres, yres);
-	lcd_clear_all();
+	if(!ret)
+		nvm_save();
+	lcd_clear_all(lcd);
 	return ret;
 }

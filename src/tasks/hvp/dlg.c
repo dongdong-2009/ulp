@@ -1,7 +1,7 @@
 #include "osd/osd.h"
 #include "key.h"
 #include "ff.h"
-#include "FreeRTOS.h"
+#include "sys/sys.h"
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -102,12 +102,12 @@ static osd_dialog_t *dlg_CreateProgDialog(void)
 	osd_item_t *pitem;
 	
 	//step1, create 2 groups
-	pgrp = MALLOC(sizeof(osd_group_t) * 3);
+	pgrp = sys_malloc(sizeof(osd_group_t) * 3);
 	if(!pgrp)
 		return NULL;
 	
 	//step 2, create dialog
-	pdlg = MALLOC(sizeof(osd_dialog_t));
+	pdlg = sys_malloc(sizeof(osd_dialog_t));
 	if(!pdlg)
 		return NULL;
 
@@ -117,7 +117,7 @@ static osd_dialog_t *dlg_CreateProgDialog(void)
 	pdlg->option = NULL;
 		
 	//step3, create 1st items - "programming"
-	pitem = MALLOC(sizeof(osd_item_t) * 2);
+	pitem = sys_malloc(sizeof(osd_item_t) * 2);
 	if(!pitem)
 		return NULL;
 	
@@ -143,7 +143,7 @@ static osd_dialog_t *dlg_CreateProgDialog(void)
 	memset(pitem, NULL, sizeof(osd_item_t));
 	
 	//step4, create 2nd items - "step&addr"
-	pitem = MALLOC(sizeof(osd_item_t) * 3);
+	pitem = sys_malloc(sizeof(osd_item_t) * 3);
 	if(!pitem)
 		return NULL;
 	
@@ -198,12 +198,12 @@ static osd_dialog_t *dlg_CreateDialog(const osd_command_t *pcmd)
 	DIR fdir;
 	
 	//create groups, maxium 10
-	pgrp = MALLOC(sizeof(osd_group_t) * 21);
+	pgrp = sys_malloc(sizeof(osd_group_t) * 21);
 	if(!pgrp)
 		return NULL;
 	
 	//create dialog
-	pdlg = MALLOC(sizeof(osd_dialog_t));
+	pdlg = sys_malloc(sizeof(osd_dialog_t));
 	if(!pdlg)
 		return NULL;
 
@@ -227,13 +227,13 @@ static osd_dialog_t *dlg_CreateDialog(const osd_command_t *pcmd)
 		if(fileinfo.fname[0] == 0)
 			break;
 		
-		pitem = MALLOC(sizeof(osd_item_t) * 2);
+		pitem = sys_malloc(sizeof(osd_item_t) * 2);
 		if(!pitem)
 			return NULL;
 		
 		//malloc a space to store the folder name
 		n = strlen(fileinfo.fname);
-		fname = MALLOC(n + 1);
+		fname = sys_malloc(n + 1);
 		if(!fname)
 			return NULL;
 		strcpy(fname, fileinfo.fname);

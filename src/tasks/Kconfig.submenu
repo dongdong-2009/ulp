@@ -25,3 +25,10 @@ if [ "$CONFIG_TASK_STEPMOTOR" = "y" ]; then
 	endmenu	
 fi
 
+if [ "$CONFIG_TASK_NEST" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'nest'
+		source src/tasks/nest/Kconfig
+	endmenu	
+fi
+

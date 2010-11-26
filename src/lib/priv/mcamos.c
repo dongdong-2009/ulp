@@ -1,0 +1,136 @@
+/*
+* mcamos communication protocol routine
+*
+* miaofng@2010 initial version
+*/
+
+#include "config.h"
+#include "err.h"
+#include "priv/mcamos.h"
+#include "can.h"
+#include "time.h"
+#include <string.h>
+
+int mcamos_init(const can_bus_t *can, int baud)
+{
+	can_cfg_t cfg = CAN_CFG_DEF;
+	cfg.baud = baud;
+	return can -> init(&cfg);
+}
+
+int mcamos_dnload(const can_bus_t *can, int addr, const char *buf, int n, int timeout)
+{
+	int ret;
+	can_msg_t msg;
+	time_t deadline = time_get(timeout);
+	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *)msg.data;
+
+	//step1, send command
+	cmd -> byAddress[0] = (char) (addr >> 24);
+	cmd -> byAddress[1] = (char) (addr >> 16);
+	cmd -> byAddress[2] = (char) (addr >> 8);
+	cmd -> byAddress[3] = (char) (addr);
+	cmd -> byByteCnt[0] = (char) (n >> 8);
+	cmd -> byByteCnt[1] = (char) (n);
+	cmd -> byDirection = MCAMOS_DOWNLOAD;
+	cmd -> byExecute = MCAMOS_NOEXECUTE;
+
+	msg.id = MCAMOS_MSG_1_STD_ID;
+	msg.flag = 0;
+	msg.dlc = sizeof(struct mcamos_cmd_s);
+
+	do {
+		ret = can -> send(&msg);
+		if(time_left(deadline) < 0)
+			return -ERR_TIMEOUT;
+	} while(ret);
+
+	//step2, send data
+	msg.id = MCAMOS_MSG_2_STD_ID;
+	msg.flag = 0;
+
+	while (n > 0) {
+		msg.dlc = (n > 8) ? 8 : n;
+		memcpy(msg.data, buf, msg.dlc);
+		buf += msg.dlc;
+		n -= msg.dlc;
+		do {
+			ret = can -> send(&msg);
+			if(time_left(deadline) < 0)
+				return -ERR_TIMEOUT;
+		} while(ret);
+	}
+
+	return ret;
+}
+
+int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
+{
+	int ret;
+	can_msg_t msg;
+	time_t deadline = time_get(timeout);
+	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *)msg.data;
+
+	//step1, send command
+	cmd -> byAddress[0] = (char) (addr >> 24);
+	cmd -> byAddress[1] = (char) (addr >> 16);
+	cmd -> byAddress[2] = (char) (addr >> 8);
+	cmd -> byAddress[3] = (char) (addr);
+	cmd -> byByteCnt[0] = (char) (n >> 8);
+	cmd -> byByteCnt[1] = (char) (n);
+	cmd -> byDirection = MCAMOS_UPLOAD;
+	cmd -> byExecute = MCAMOS_NOEXECUTE;
+
+	msg.id = MCAMOS_MSG_1_STD_ID;
+	msg.flag = 0;
+	msg.dlc = sizeof(struct mcamos_cmd_s);
+
+	do {
+		ret = can -> send(&msg);
+		if(time_left(deadline) < 0)
+			return -ERR_TIMEOUT;
+	} while(ret);
+
+	//step2, recv data
+	while (n > 0) {
+		do {
+			ret = can -> recv(&msg);
+			if(time_left(deadline) < 0)
+				return -ERR_TIMEOUT;
+		} while(ret);
+		memcpy(buf, msg.data, msg.dlc);
+		buf += msg.dlc;
+		n -= msg.dlc;
+	}
+
+	return ret;
+}
+
+int mcamos_execute(const can_bus_t *can, int addr, int timeout)
+{
+	int ret;
+	can_msg_t msg;
+	time_t deadline = time_get(timeout);
+	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *) msg.data;
+
+	cmd -> byAddress[0] = (char) (addr >> 24);
+	cmd -> byAddress[1] = (char) (addr >> 16);
+	cmd -> byAddress[2] = (char) (addr >> 8);
+	cmd -> byAddress[3] = (char) (addr);
+	cmd -> byByteCnt[0] = 0;
+	cmd -> byByteCnt[1] = 0;
+	cmd -> byDirection = MCAMOS_DOWNLOAD;
+	cmd -> byExecute = MCAMOS_EXECUTE;
+
+	msg.id = MCAMOS_MSG_1_STD_ID;
+	msg.flag = 0;
+	msg.dlc = sizeof(struct mcamos_cmd_s);
+
+	do {
+		ret = can -> send(&msg);
+		if(time_left(deadline) < 0)
+			return -ERR_TIMEOUT;
+	} while(ret);
+
+	return ret;
+}
