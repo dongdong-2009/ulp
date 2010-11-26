@@ -125,6 +125,7 @@ distclean: clean iar_clr unconfig
 		echo creating new file $(subst _config,.config,$@) from defconfig;\
 		cp defconfig $(subst _config,.config,$@); \
 	fi
-	@echo AUTOCONFIG_PROJ_FILE = $(subst _config,.config,$@) > $(ENV_FILE) 
-	@ln -s -f $(subst _config,.config,$@) .config ; \
+	@echo AUTOCONFIG_PROJ_FILE = $(subst _config,.config,$@) > $(ENV_FILE)
+	@rm -rf .config
+	@cp -f $(subst _config,.config,$@) .config ; \
 	make xconfig
