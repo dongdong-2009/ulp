@@ -4,7 +4,7 @@
 #ifndef __TIME_H_
 #define __TIME_H_
 
-typedef int time_t;
+typedef unsigned int time_t;
 
 void time_Init(void);
 void time_Update(void);
