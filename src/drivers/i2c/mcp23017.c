@@ -50,7 +50,7 @@ int mcp23017_ReadByte(mcp23017_t *chip, unsigned addr, int alen, unsigned char *
 	return chip->bus->rbuf(chip->chip_addr, addr, alen, buffer, 1);
 }
 
-#if 1
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
