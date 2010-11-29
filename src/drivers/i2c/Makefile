@@ -5,3 +5,4 @@ endif
 
 #i2c chips
 obj-$(CONFIG_DRIVER_AT24CXX) += at24cxx.o
+obj-$(CONFIG_DRIVER_MCP23017) += mcp23017.o

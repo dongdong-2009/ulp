@@ -8,5 +8,5 @@ endif
 
 #lm3s
 ifeq ($(CONFIG_CPU_LM3S),y)
-	obj-$(CONFIG_DRIVER_can0) += can0_lm3s.o
+	obj-$(CONFIG_DRIVER_CAN0) += can0_lm3s.o
 endif

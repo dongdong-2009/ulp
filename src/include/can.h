@@ -31,6 +31,7 @@ typedef struct {
 	int (*recv)(can_msg_t *msg); //non block, check -> ?empty ret-> recv
 } can_bus_t;
 
+extern const can_bus_t can0;
 extern const can_bus_t can1;
 
 #endif /* __CAN_H_ */

@@ -6,7 +6,8 @@
 
 #common config options
 bool "enable debug command" CONFIG_CMD_CAN
-
+#can 0
+bool "enable CAN 0" CONFIG_DRIVER_CAN0
 #can 1
 bool "enable CAN 1" CONFIG_DRIVER_CAN1
 if [ "$CONFIG_DRIVER_CAN1" = "y" ]; then

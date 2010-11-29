@@ -12,6 +12,9 @@ void console_Init(void)
 {
 	uart_cfg_t cfg = UART_CFG_DEF;
 
+#ifdef CONFIG_CONSOLE_UART0
+	uart_con = &uart0;
+#endif
 #ifdef CONFIG_CONSOLE_UART1
 	uart_con = &uart1;
 #endif
