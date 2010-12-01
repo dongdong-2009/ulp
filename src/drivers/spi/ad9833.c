@@ -7,6 +7,8 @@
 #include "config.h"
 #include "ad9833.h"
 #include "spi.h"
+#include "sys/sys.h"
+#include <assert.h>
 
 #define PHASE_RESOLUTION 28
 
@@ -28,17 +30,37 @@
 void ad9833_Init(ad9833_t *chip)
 {
 	int opt = chip->option;
-	spi_cfg_t cfg = {
-		.cpol = 1,
-		.cpha = 0,
-		.bits = 16,
-		.bseq = 1,
-	};
-	
+	spi_cfg_t cfg = SPI_CFG_DEF;
+
+	if (chip->option & AD9833_OPT_SPI_DMA) {
+		assert(chip->p_rbuf != NULL);
+		assert(chip->p_wbuf != NULL);
+		cfg.cpol = 1;
+		cfg.cpha = 0;
+		cfg.bits = 8;
+		cfg.bseq = 1;
+		chip->bus->csel(chip->idx, 0);
+	} else {
+		cfg.cpol = 1;
+		cfg.cpha = 0;
+		cfg.bits = 16;
+		cfg.bseq = 1;
+	}
+
 	chip->bus->init(&cfg);
 	opt |= B28;
-	chip->bus->wreg(chip->idx, REG_CTRL(RESET));
-	chip->bus->wreg(chip->idx, REG_CTRL(opt | RESET));
+
+	if (chip->option & AD9833_OPT_SPI_DMA) {
+		chip->p_wbuf[0] = (char)(REG_CTRL(RESET) >> 8);
+		chip->p_wbuf[1] = (char)(REG_CTRL(RESET));
+		chip->p_wbuf[2] = (char)(REG_CTRL(opt | RESET) >> 8);
+		chip->p_wbuf[3] = (char)(REG_CTRL(opt | RESET));
+		//while(chip->bus->poll());
+		chip->bus->wbuf((const char *)chip->p_wbuf, chip->p_rbuf, 4);
+	} else {
+		chip->bus->wreg(chip->idx, REG_CTRL(RESET));
+		chip->bus->wreg(chip->idx, REG_CTRL(opt | RESET));
+	}
 	chip->option = opt;
 }
 
@@ -52,17 +74,40 @@ void ad9833_SetFreq(ad9833_t *chip, unsigned fw)
 	fw >>= 14;
 	msb = (unsigned short)(fw & 0x3fff);
 
-	if(opt & FSELECT) {
-		chip->bus->wreg(chip->idx, REG_FREQ0(lsb));
-		chip->bus->wreg(chip->idx, REG_FREQ0(msb));
-		opt &= ~FSELECT;
-		chip->bus->wreg(chip->idx, REG_CTRL(opt));
-	}
-	else {
-		chip->bus->wreg(chip->idx, REG_FREQ1(lsb));
-		chip->bus->wreg(chip->idx, REG_FREQ1(msb));
-		opt |= FSELECT;
-		chip->bus->wreg(chip->idx, REG_CTRL(opt));
+	if (chip->option & AD9833_OPT_SPI_DMA) {
+		if(opt & FSELECT) {
+			opt &= ~FSELECT;
+			chip->p_wbuf[0] = (char)(REG_FREQ0(lsb) >> 8);
+			chip->p_wbuf[1] = (char)(REG_FREQ0(lsb));
+			chip->p_wbuf[2] = (char)(REG_FREQ0(msb) >> 8);
+			chip->p_wbuf[3] = (char)(REG_FREQ0(msb));
+			chip->p_wbuf[4] = (char)(REG_CTRL(opt) >> 8);
+			chip->p_wbuf[5] = (char)(REG_CTRL(opt));
+			while(chip->bus->poll());
+			chip->bus->wbuf((const char *)chip->p_wbuf, chip->p_rbuf, 6);
+		} else {
+			opt |= FSELECT;
+			chip->p_wbuf[0] = (char)(REG_FREQ1(lsb) >> 8);
+			chip->p_wbuf[1] = (char)(REG_FREQ1(lsb));
+			chip->p_wbuf[2] = (char)(REG_FREQ1(msb) >> 8);
+			chip->p_wbuf[3] = (char)(REG_FREQ1(msb));
+			chip->p_wbuf[4] = (char)(REG_CTRL(opt) >> 8);
+			chip->p_wbuf[5] = (char)(REG_CTRL(opt));
+			while(chip->bus->poll());
+			chip->bus->wbuf((const char *)chip->p_wbuf, chip->p_rbuf, 6);
+		}
+	} else {
+		if(opt & FSELECT) {
+			chip->bus->wreg(chip->idx, REG_FREQ0(lsb));
+			chip->bus->wreg(chip->idx, REG_FREQ0(msb));
+			opt &= ~FSELECT;
+			chip->bus->wreg(chip->idx, REG_CTRL(opt));
+		} else {
+			chip->bus->wreg(chip->idx, REG_FREQ1(lsb));
+			chip->bus->wreg(chip->idx, REG_FREQ1(msb));
+			opt |= FSELECT;
+			chip->bus->wreg(chip->idx, REG_CTRL(opt));
+		}
 	}
 
 	chip->option = opt;
@@ -71,11 +116,27 @@ void ad9833_SetFreq(ad9833_t *chip, unsigned fw)
 void ad9833_Enable(const ad9833_t *chip)
 {
 	int opt = chip->option;
-	chip->bus->wreg(chip->idx, REG_CTRL(opt));
+
+	if (chip->option & AD9833_OPT_SPI_DMA) {
+		chip->p_wbuf[0] = (char)(REG_CTRL(opt) >> 8);
+		chip->p_wbuf[1] = (char)(REG_CTRL(opt));
+		while(chip->bus->poll());
+		chip->bus->wbuf((const char *)chip->p_wbuf, chip->p_rbuf, 2);
+	} else {
+		chip->bus->wreg(chip->idx, REG_CTRL(opt));
+	}
 }
 
 void ad9833_Disable(const ad9833_t *chip)
 {
 	int opt = chip->option;
-	chip->bus->wreg(chip->idx, REG_CTRL(opt | RESET));
+
+	if (chip->option & AD9833_OPT_SPI_DMA) {
+		chip->p_wbuf[0] = (char)(REG_CTRL(opt | RESET) >> 8);
+		chip->p_wbuf[1] = (char)(REG_CTRL(opt | RESET));
+		while(chip->bus->poll());
+		chip->bus->wbuf((const char *)chip->p_wbuf, chip->p_rbuf, 2);
+	} else {
+		chip->bus->wreg(chip->idx, REG_CTRL(opt | RESET));
+	}
 }
