@@ -35,6 +35,7 @@ void ad9833_Init(ad9833_t *chip)
 	if (chip->option & AD9833_OPT_SPI_DMA) {
 		assert(chip->p_rbuf != NULL);
 		assert(chip->p_wbuf != NULL);
+		assert(chip->bus->wbuf != NULL);
 		cfg.cpol = 1;
 		cfg.cpha = 0;
 		cfg.bits = 8;
