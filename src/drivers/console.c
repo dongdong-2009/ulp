@@ -26,12 +26,9 @@ void console_Init(void)
 	uart_con -> init(&cfg);
 }
 
-int console_putchar(char c)
+int console_putch(char c)
 {
 	uart_con -> putchar(c);
-	if(c == '\n') {
-		uart_con -> putchar('\r');
-	}
 	return 0;
 }
 
@@ -41,10 +38,19 @@ int console_getch(void)
 	return ret;
 }
 
+int console_putchar(char c)
+{
+	console_putch(c);
+	if(c == '\n') {
+		console_putch('\r');
+	}
+	return 0;
+}
+
 int console_getchar(void)
 {
 	int ret = console_getch();
-	console_putchar((char) ret);
+	console_putch((char) ret);
 	return ret;
 }
 
