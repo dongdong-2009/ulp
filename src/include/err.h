@@ -9,8 +9,14 @@
 
 enum {
 	ERR_OK,
+	ERR_UNDEF,
 	ERR_TIMEOUT,
 	ERR_BUSY,
+	ERR_ABORT,
+	ERR_RETRY,
+	ERR_PACKET,
+	ERR_QUIT,
+	ERR_OVERFLOW,
 };
 
 #endif /* __ERR_H_ */
