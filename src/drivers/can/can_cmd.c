@@ -81,7 +81,7 @@ int can_queue_del(int id)
 		q = list_entry(pos, can_queue_s, list);
 		if(q -> msg.id == id) {
 			list_del(&q -> list);
-			FREE(q);
+			sys_free(q);
 		}
 	}
 
