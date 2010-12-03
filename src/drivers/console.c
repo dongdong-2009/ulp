@@ -23,6 +23,9 @@ void console_Init(void)
 #endif
 
 	cfg.baud = BAUD_115200;
+#ifdef CONFIG_CONSOLE_BAUD
+	cfg.baud = CONFIG_CONSOLE_BAUD;
+#endif
 	uart_con -> init(&cfg);
 }
 
