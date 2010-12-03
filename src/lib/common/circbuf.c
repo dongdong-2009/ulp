@@ -24,42 +24,43 @@
 #include "debug.h"
 #include <string.h>
 
-int buf_init (circbuf_t * buf, unsigned int size)
+int buf_init (circbuf_t * buf, int size)
 {
 	assert (buf != NULL);
-
 	buf->size = 0;
-	buf->totalsize = size;
-	if(buf -> data == NULL) {
-		buf->data = (char *) sys_malloc (sizeof (char) * size);
+	if(size >= 0) {
+		buf->totalsize = size;
+		buf->data = NULL;
+		if(size > 0) {
+			buf->data = (char *) sys_malloc (sizeof (char) * size);
+			assert(buf -> data != NULL);
+		}
 	}
-	assert (buf->data != NULL);
 
 	buf->top = buf->data;
 	buf->tail = buf->data;
-	buf->end = &(buf->data[size]);
-
-	return 1;
+	buf->end = buf->data + buf->totalsize;
+	return 0;
 }
 
 int buf_free (circbuf_t * buf)
 {
 	assert (buf != NULL);
-	assert (buf->data != NULL);
-
-	sys_free (buf->data);
+	if(buf -> data != NULL) {
+		sys_free (buf->data);
+	}
 	memset (buf, 0, sizeof (circbuf_t));
-
-	return 1;
+	return 0;
 }
 
-int buf_pop (circbuf_t * buf, char *dest, unsigned int len)
+int buf_pop (circbuf_t * buf, char *dest, int len)
 {
 	unsigned int i;
 	char *p = buf->top;
 
 	assert (buf != NULL);
 	assert (dest != NULL);
+	assert (p != NULL);
 
 	/* Cap to number of bytes in buffer */
 	if (len > buf->size)
@@ -80,7 +81,7 @@ int buf_pop (circbuf_t * buf, char *dest, unsigned int len)
 	return len;
 }
 
-int buf_push (circbuf_t * buf, const char *src, unsigned int len)
+int buf_push (circbuf_t * buf, const char *src, int len)
 {
 	/* NOTE:  this function allows push to overwrite old data. */
 	unsigned int i;
@@ -88,6 +89,7 @@ int buf_push (circbuf_t * buf, const char *src, unsigned int len)
 
 	assert (buf != NULL);
 	assert (src != NULL);
+	assert (p != NULL);
 
 	for (i = 0; i < len; i++) {
 		*p++ = src[i];

@@ -32,9 +32,13 @@ typedef struct circbuf {
 	char *end;		/* end of data buffer */
 } circbuf_t;
 
-int buf_init (circbuf_t * buf, unsigned int size);
+int buf_init (circbuf_t * buf, int size);
 int buf_free (circbuf_t * buf);
-int buf_pop (circbuf_t * buf, char *dest, unsigned int len);
-int buf_push (circbuf_t * buf, const char *src, unsigned int len);
+int buf_pop (circbuf_t * buf, char *dest, int len);
+int buf_push (circbuf_t * buf, const char *src, int len);
+
+#define buf_size(buf) ((buf) -> size)
+#define buf_left(buf) ((buf) -> totalsize - (buf) -> size)
+#define buf_flush(buf) do { buf_init(buf, -1); } while(0)
 
 #endif
