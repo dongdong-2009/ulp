@@ -8,7 +8,7 @@
 #include "ad9833.h"
 #include "spi.h"
 #include "sys/sys.h"
-#include <assert.h>
+#include "debug.h"
 
 #define PHASE_RESOLUTION 28
 
