@@ -47,7 +47,7 @@ DECLARE_SHELL_CMD(cmd_pss)
 static int cmd_knock_func(int argc, char *argv[])
 {
 	int result = -1;
-	short hz, ch, mv;
+	short hz;
 	
 	vvt_Stop();
 	if(!strcmp(argv[1], "freq") && (argc == 3)) {
@@ -56,13 +56,6 @@ static int cmd_knock_func(int argc, char *argv[])
 		result = 0;
 	}
 	
-	if(!strcmp(argv[1], "volt") && (argc == 4)) {
-		ch = (short)atoi(argv[2]);
-		mv = (short)atoi(argv[3]);
-		ch = (ch > 3) ? 3 : ch;
-		knock_SetVolt((knock_ch_t)ch, mv);
-		result = 0;
-	}
 	
 	if(result == -1) {
 		printf("uasge:\n");
@@ -133,7 +126,27 @@ static int cmd_vvt_func(int argc, char *argv[])
 		vvt_knock_pattern = a + b + c + d;
 		result = 0;
 	}
-	
+
+	if (argv[1][0] == 'v') {
+		vss_SetFreq((short)(atoi(argv[2])));
+		result = 0;
+	}
+
+	if (argv[1][0] == 'w') {
+		wss_SetFreq((short)(atoi(argv[2])));
+		result = 0;
+	}
+
+	if (!strcmp(argv[1], "adc") || (argc == 0)) {
+		printf(" adc is: %x, %x, %x, %x, %x \n", vvt_adc[0]&0x0fff, \
+										vvt_adc[1]&0x0fff, \
+										vvt_adc[2]&0x0fff, \
+										vvt_adc[3]&0x0fff, \
+										vvt_adc[4]&0x0fff);
+		return 1;
+	}
+
+
 	if(result == -1) {
 		printf("uasge:\n");
 		printf(" vvt speed 100		unit: rpm\n");
@@ -141,6 +154,9 @@ static int cmd_vvt_func(int argc, char *argv[])
 		printf(" vvt misfire s A B C D		strength(0.0~1)\n");
 		printf(" vvt knock p w s f		pos,width,strength(mV),freq(Hz)\n");
 		printf(" vvt kpat A B C D		knock pattern\n");
+		printf(" vvt vss 100		unit: rpm\n");
+		printf(" vvt wss 100		unit: rpm\n");
+		printf(" vvt adc			print adc value\n");
 	}
 	
 	return 0;

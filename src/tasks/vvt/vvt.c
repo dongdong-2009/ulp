@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "sys/task.h"
+#include "debug.h"
 
 //global
 short vvt_gear_advance;
@@ -31,7 +32,7 @@ void vvt_Init(void)
 	misfire_Init();
 	vvt_Stop();
 
-	vvt_counter = 0; //tooth 1.0 1.1 2.0 2.1 ...
+	vvt_counter = 0;
 	vvt_knock_pos = 0;
 	vvt_knock_width = 50;
 	vvt_knock_pattern = 0;
@@ -39,8 +40,10 @@ void vvt_Init(void)
 
 void vvt_Update(void)
 {
-	knock_Update();
+	//knock_Update();
 	vvt_knock_pattern = knock_GetPattern();
+	vvt_pulse_Update();
+	misfire_Update();
 
 }
 
@@ -86,18 +89,18 @@ void vvt_isr(void)
 	if (vvt_counter >= 720)
 		vvt_counter = 0;
 	if (vvt_counter % 3 == 0) {
-		x = vvt_counter/3;	//0 - 239
-		y = (x >> 1) + 1;	//1 - 120
+		x = vvt_counter/3;	// 0 - 239
+		y = (x >> 1) + 1;	// 1 - 120
 		z = x & 0x01;
 
 		//output NE58X, pos [58~59] + [58~59]
 		mv = IS_IN_RANGE(y, 58, 59);
-		mv |= IS_IN_RANGE(y, 58+60, 59+60);
+		mv |= IS_IN_RANGE(y, 118, 119);	//(58+60, 59+60);
 		mv = !mv && z;
 		pss_SetVolt(NE58X, mv);
 
 		//output CAM1X, pos [56~14]
-		mv = IS_IN_RANGE(y, 56, 14+60);
+		mv = IS_IN_RANGE(y, 56, 74);	//14+60;
 		pss_SetVolt(CAM1X, !mv);
 	}
 
@@ -132,7 +135,7 @@ void vvt_isr(void)
 	}
 
 	//misfire
-	tmp = misfire_GetSpeed(vvt_counter);
-	pss_SetSpeed(tmp * 3);
+	tmp = misfire_GetSpeed(x);	//x(0,239)
+	pss_SetSpeed(tmp);
 }
 

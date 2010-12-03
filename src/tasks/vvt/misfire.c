@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "mcao.h"
+#include "vvt/vvt_pulse.h"
+
+//define
+#define NE58X_MAX_RPM	5000
 
 //global
 
@@ -15,6 +19,7 @@ static short misfire_speed; //unit: Hz, 1~32867hz(rpm)
 static short misfire_strength; //0~100%
 static short *misfire_curve; //0~+/-100%, 100% = 32867
 static short misfire_offset;
+static unsigned short ne58x_adc_value;
 
 //misfire - 1 cylinder, y = [-1*sin(t(1:60)*4*pi),1/3*sin(t(1:180)*4*pi/3)];
 static const short curve_a[240] = {	\
@@ -121,16 +126,30 @@ static const short curve_c[240] = {	\
 void misfire_Init(void)
 {
 #if CONFIG_VVT_MISFIRE_DEBUG == 1
-	mcao_Init();
+	//mcao_Init();
 #endif
 
 	misfire_strength = 0;
 	misfire_curve = 0;
 }
 
+void misfire_Update(void)
+{
+	unsigned temp;
+	//wss adc input changed
+	if ((ne58x_adc_value>>2) != (vvt_adc[0]>>2)) {
+		ne58x_adc_value = vvt_adc[0];
+		temp = ne58x_adc_value * NE58X_MAX_RPM;
+		temp >>= 12;
+		temp = temp?temp:1;
+		misfire_SetSpeed(temp);
+	}
+}
+
 void misfire_SetSpeed(short hz)
 {
-	misfire_speed = hz << 1;
+	misfire_speed = hz * 6;
+	//pss_SetSpeed(misfire_speed);
 }
 
 short misfire_GetSpeed(short gear)
@@ -158,14 +177,14 @@ short misfire_GetSpeed(short gear)
 		mv = 2000;
 		mv *= gear;
 		mv /= 240;
-		mcao_SetVolt(0, mv);
+		//mcao_SetVolt(0, mv);
 		
 		//ch1, misfire speed
 		mv = 2000 >> 1;
 		mv *= coef;
 		mv /= speed;
 		mv += 2500 >> 1;
-		mcao_SetVolt(1, mv);
+		//mcao_SetVolt(1, mv);
 	}
 #endif
 
