@@ -174,7 +174,8 @@ int nest_message_init(void)
 {
 #if CONFIG_NEST_LOG_SIZE > 0
 	nest_log.data = nest_log_buf;
-	buf_init(&nest_log, CONFIG_NEST_LOG_SIZE);
+	nest_log.totalsize = CONFIG_NEST_LOG_SIZE;
+	buf_flush(&nest_log);
 #endif
 	return 0;
 }
