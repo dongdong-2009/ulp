@@ -9,6 +9,20 @@
 #include "vvt/vvt_pulse.h"
 #include <string.h>
 
+#define KNOCK_EN	GPIO_Pin_11
+#define KNOCK_EN_PORT	GPIOB
+
+#define WSS_MAX_RPM	20000
+#define VSS_MAX_RPM	10000
+#define KNOCK_MAX_FRQ	20000	//20k
+static unsigned short wss_adc_value;
+static unsigned short vss_adc_value;
+static unsigned short knock_adc_value;
+
+//global varibles
+static unsigned short vvt_adc_buf[5];
+unsigned short vvt_adc[5];
+
 //pravite varibles define
 static ad9833_t knock_dds = {
 	.bus = &spi1,
@@ -38,12 +52,6 @@ static void vvt_adc_Init(void);
 static void vvt_pulse_dds_Init(void);
 static void vvt_pulse_gpio_Init(void);
 
-static unsigned short adc_knock_frq;
-static unsigned short adc_knock_frq_save;
-
-//global varibles
-static unsigned short vvt_adc_buf[5];
-unsigned short vvt_adc[5];
 
 void pss_Enable(int on)
 {
@@ -63,23 +71,41 @@ void vvt_pulse_Init(void)
 	vvt_pulse_gpio_Init();
 }
 
-void knock_Update(void)
+void vvt_pulse_Update(void)
 {
-	int temp;
-
-	adc_knock_frq = vvt_adc[3];
-	adc_knock_frq &= 0x0fff;
-	if ((adc_knock_frq>>2) != (adc_knock_frq_save>>2)) {
-		//status convert
-		adc_knock_frq_save = adc_knock_frq;
-
-		//calculate the frequency,fre:1K-20k = (1K + (0K-19K)),pot:0-10k
-		temp = (19000 * adc_knock_frq_save)>>12;
-		temp += 1000;
-
-		//knock_SetFreq((short)temp);	
+	vvt_adc_Update();
+	unsigned temp;
+	//wss adc input changed
+	if ((wss_adc_value>>3) != (vvt_adc[4]>>3)) {
+		wss_adc_value = vvt_adc[4];
+		temp = wss_adc_value * WSS_MAX_RPM;
+		temp >>= 12;
+		wss_SetFreq((short)temp);
 	}
 
+	//vss adc input changed
+	if ((vss_adc_value>>3) != (vvt_adc[3]>>3)) {
+		vss_adc_value = vvt_adc[3];
+		temp = vss_adc_value * VSS_MAX_RPM;
+		temp >>= 12;
+		vss_SetFreq((short)temp);
+	}
+
+	//knock update, frq adc input
+	knock_Update();
+}
+
+void knock_Update(void)
+{
+	unsigned  temp;
+
+	//vss adc input changed
+	if ((knock_adc_value>>3) != (vvt_adc[1]>>3)) {
+		knock_adc_value = vvt_adc[1];
+		temp = knock_adc_value * KNOCK_MAX_FRQ;
+		temp >>= 12;
+		knock_SetFreq((short)temp);
+	}
 }
 
 void knock_SetFreq(short hz)
@@ -91,32 +117,18 @@ void knock_SetFreq(short hz)
 	ad9833_SetFreq(&knock_dds, fw);
 }
 
-void knock_SetVolt(knock_ch_t ch, short mv)
-{
-#if 0
-	short pos;
-	pos = (mv * 255) / CONFIG_DRIVER_KNOCK_MVPP_MAX;
-	pos = (pos > 255) ? 255 : pos;
-	mcp41x_SetPos(&knock_pot[ch], pos);
-#endif
-}
-
 int knock_GetPattern(void)
 {
-	short temp;
-	temp = GPIO_ReadInputData(GPIOF);
-	temp &= GPIO_KNOCK_PATTERN;
-
-	return (int)temp;
+	return 0x01;
 }
 
 /*control the 74lvc1g66,analog switch*/
 void knock_Enable(int en)
 {
 	if(en)
-		GPIO_SetBits(GPIOG, GPIO_Pin_7);
+		GPIO_SetBits(KNOCK_EN_PORT, KNOCK_EN);
 	else
-		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+		GPIO_ResetBits(KNOCK_EN_PORT, KNOCK_EN);
 }
 
 void pss_SetSpeed(short hz)
@@ -163,10 +175,10 @@ void wss_SetFreq(short hz)
 }
 
 //for adc update
-void vvt_adc_update(void)
+void vvt_adc_Update(void)
 {
 	for (int i = 0; i < 5; i++)
-		vvt_adc[i] = vvt_adc_buf[i];
+		vvt_adc[i] = vvt_adc_buf[i]&0x0fff;
 }
 
 //for adc init
@@ -195,7 +207,7 @@ static void vvt_adc_Init(void)
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
 	DMA_InitStructure.DMA_BufferSize = 5;
 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	DMA_InitStructure.DMA_MemoryInc = DMA_PeripheralInc_Enable;
+	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
 	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
 	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
 	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
@@ -217,10 +229,10 @@ static void vvt_adc_Init(void)
 	ADC_Init(ADC1, &ADC_InitStructure);
 
 	ADC_RegularChannelConfig(ADC1, CH_NE58X, 1, ADC_SampleTime_55Cycles5);
-	ADC_RegularChannelConfig(ADC1, CH_KNOCK_FRQ, 1, ADC_SampleTime_55Cycles5);
-	ADC_RegularChannelConfig(ADC1, CH_MISFIRE_STREN, 1, ADC_SampleTime_55Cycles5);
-	ADC_RegularChannelConfig(ADC1, CH_VSS, 1, ADC_SampleTime_55Cycles5);
-	ADC_RegularChannelConfig(ADC1, CH_WSS, 1, ADC_SampleTime_55Cycles5);
+	ADC_RegularChannelConfig(ADC1, CH_KNOCK_FRQ, 2, ADC_SampleTime_55Cycles5);
+	ADC_RegularChannelConfig(ADC1, CH_MISFIRE_STREN, 3, ADC_SampleTime_55Cycles5);
+	ADC_RegularChannelConfig(ADC1, CH_VSS, 4, ADC_SampleTime_55Cycles5);
+	ADC_RegularChannelConfig(ADC1, CH_WSS, 5, ADC_SampleTime_55Cycles5);
 	
 	/* Enable ADC1 DMA */
 	ADC_DMACmd(ADC1, ENABLE);
@@ -248,7 +260,7 @@ static void vvt_pulse_dds_Init(void)
 	rpm_dds.p_rbuf = rpmdds_rbuf;
 	rpm_dds.p_wbuf = rpmdds_wbuf;
 
-	//ad9833_Init(&knock_dds);
+	ad9833_Init(&knock_dds);
 	ad9833_Init(&vss_dds);
 	ad9833_Init(&wss_dds);
 	ad9833_Init(&rpm_dds);
@@ -259,26 +271,12 @@ static void vvt_pulse_gpio_Init(void)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	EXTI_InitTypeDef EXTI_InitStruct;
 
-
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_KNOCK_PATTERN;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
-	GPIO_Init(GPIOE, &GPIO_InitStructure);
-
-	/*knock input switch*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOF, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_KNOCK_PATTERN;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
-	GPIO_Init(GPIOF, &GPIO_InitStructure);
-
 	/*knock enable*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = KNOCK_EN;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOG, &GPIO_InitStructure);
+	GPIO_Init(KNOCK_EN_PORT,  &GPIO_InitStructure);
 
 	/*pulse output gpio pins*/
 	//58X->PIN7, CAM1X->PIN8, CAM4X-IN->PIN9, CAM4X-EXT->PIN8

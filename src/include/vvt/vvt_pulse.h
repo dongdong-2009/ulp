@@ -10,7 +10,6 @@
 #define CH_VSS				ADC_Channel_13
 #define CH_WSS				ADC_Channel_14
 
-#define GPIO_KNOCK_PATTERN		(GPIO_Pin_All & 0x003f)
 #define GPIO_MISFIRE_PATTERN	(GPIO_Pin_All & 0x003f)
 
 extern unsigned short vvt_adc[5];
@@ -32,6 +31,7 @@ PSS_CH_NR
 } pss_ch_t;
 
 void vvt_pulse_Init(void);
+void vvt_pulse_Update(void);
 
 void pss_Update(void);
 void pss_Enable(int on);
@@ -42,14 +42,13 @@ void pss_SetVssVolt(short mv);
 
 void knock_Update(void);
 void knock_SetFreq(short hz);
-void knock_SetVolt(knock_ch_t ch, short mv);
 int knock_GetPattern(void);
 void knock_Enable(int en);
 
 void vss_SetFreq(short hz);
 void wss_SetFreq(short hz);
 
-void vvt_adc_update(void);
+void vvt_adc_Update(void);
 
 #endif /*__VVT_PULSE_H_*/
 
