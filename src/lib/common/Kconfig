@@ -9,3 +9,4 @@ fi
 bool "ini file parser" CONFIG_COMMON_INIFILE
 bool "keyword protocol" CONFIG_COMMON_KWP
 bool "s-record parser" CONFIG_COMMON_PTP
+bool "kermit communication protocol" CONFIG_COMMON_KERMIT
