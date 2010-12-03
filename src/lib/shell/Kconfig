@@ -41,3 +41,6 @@ if [ "$CONFIG_LIB_FATFS" = "y"]; then
 else
 	define_bool CONFIG_SHELL_FATFS n
 fi
+
+bool "load command?" CONFIG_SHELL_LOAD
+
