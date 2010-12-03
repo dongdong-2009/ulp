@@ -10,8 +10,15 @@
 
 //baudrate
 enum {
+	BAUD_300 = 300,
+	BAUD_1200 = 1200,
+	BAUD_2400 = 2400,
+	BAUD_4800 = 4800,
 	BAUD_9600 = 9600,
 	BAUD_115200 = 115200,
+	BAUD_230400 = 230400,
+	BAUD_460800 = 460800,
+	BAUD_921600 = 921600,
 };
 
 //wake ops, special support for keyword fast init protocol
