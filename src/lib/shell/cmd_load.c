@@ -75,11 +75,6 @@ static int load_kermit(int addr)
 		}
 
 		ret = kermit_recv(k, &echo);
-		while(buf_size(&echo) > 0) {
-			//handle echo back
-			buf_pop(&echo, &c, 1);
-			console_putch(c);
-		}
 
 		sz = buf_size(&obuf);
 		if(sz == obsz || ret == ERR_QUIT) {
@@ -87,6 +82,7 @@ static int load_kermit(int addr)
 			length += sz;
 			if(target == 0) { //write to dummy
 				buf_flush(&obuf);
+				//mdelay(100);
 			}
 			else if(target == ROM) { //write to flash
 				flash_Erase((void *)addr, 1);
@@ -96,6 +92,12 @@ static int load_kermit(int addr)
 			}
 		}
 
+		while(buf_size(&echo) > 0) {
+			//handle echo back
+			buf_pop(&echo, &c, 1);
+			console_putch(c);
+		}
+		
 		if(ret == ERR_QUIT) {
 			printf("recv file %s(len = %d) success\n", kermit_fname(k), length);
 			break;
