@@ -8,3 +8,5 @@ endif
 ifeq ($(CONFIG_CPU_LM3S),y)
 	obj-$(CONFIG_DRIVER_UART0) += uart0_lm3s.o
 endif
+
+obj-$(CONFIG_DEVICE_MD204L) += md204l.o
