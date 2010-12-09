@@ -99,8 +99,9 @@ static int cmd_vvt_func(int argc, char *argv[])
 		b = (b > 0) ? 2 : 0;
 		c = (c > 0) ? 4 : 0;
 		d = (d > 0) ? 8 : 0;
-		
-		misfire_Config(s, a+b+c+d);
+
+		misfire_ConfigStrength(s);
+		misfire_ConfigPattern(a+b+c+d);
 		result = 0;
 	}
 	
