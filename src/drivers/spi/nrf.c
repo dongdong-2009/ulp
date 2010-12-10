@@ -14,11 +14,13 @@
 #include "nrf.h"
 #include "debug.h"
 #include "time.h"
+#include "nvm.h"
 
 static const spi_bus_t *nrf_spi;
 static char nrf_idx_cs;
 static char nrf_idx_ce;
 static char nrf_prx_mode;
+static char nrf_ch __nvm = 0;
 
 #define cs_set(level) nrf_spi -> csel(nrf_idx_cs, level)
 #define ce_set(level) nrf_spi -> csel(nrf_idx_ce, level)
@@ -97,7 +99,7 @@ int nrf_init(void)
 	nrf_write_reg(EN_RXADDR, 0x00); //disable all rx pipe
 	nrf_write_reg(SETUP_AW, 0x02); //addr width = 4bytes
 	nrf_write_reg(SETUP_RETR, 0x0f); //auto retx delay = 250usx(n + 1), count = 3
-	nrf_write_reg(RF_CH, 0x60); //rf channel = 0
+	nrf_write_reg(RF_CH, nrf_ch); //rf channel = 0
 	nrf_write_reg(RF_SETUP, 0x0f); //2Mbps + 0dBm + LNA enable
 
 	char para = 0x73;
@@ -307,9 +309,18 @@ static int cmd_nrf_func(int argc, char *argv[])
 		"usage:\n"
 		"nrf chat	start nrf chat\n"
 		"nrf scan	scanf all RF channel\n"
+		"nrf ch 0-127	set RF channel(2400MHz + ch * 1Mhz)\n"
 	};
 
 	if(argc > 1) {
+		if(!strcmp(argv[1], "ch")) {
+			int ch = (argc > 2) ? atoi(argv[2]) : 0;
+			nrf_ch = ((ch >= 0) && (ch <= 127)) ? ch : 0;
+			printf("nrf: setting RF ch = %d(%dMHz)\n", nrf_ch, nrf_ch + 2400);
+			nrf_init();
+			nvm_save();
+			return 0;
+		}
 		if(!strcmp(argv[1], "chat")) {
 			return cmd_nrf_chat();
 		}
