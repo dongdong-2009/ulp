@@ -6,6 +6,7 @@
 
 #use gpio as chip select
 bool "PA4/SPI1_NSS as CS" CONFIG_SPI_CS_PA4
+bool "PA12 as CS" CONFIG_SPI_CS_PA12
 bool "PB1 as CS" CONFIG_SPI_CS_PB1
 bool "PB10 as CS" CONFIG_SPI_CS_PB10
 bool "PB12/SPI2_NSS as CS" CONFIG_SPI_CS_PB12
