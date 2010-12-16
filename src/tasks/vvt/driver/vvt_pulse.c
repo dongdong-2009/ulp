@@ -5,9 +5,12 @@
 
 #include "stm32f10x.h"
 #include "ad9833.h"
-#include "spi.h"
+#include "md204l.h"
+#include "mcp23017.h"
 #include "vvt/vvt_pulse.h"
 #include <string.h>
+#include "vvt/misfire.h"
+#include <stdio.h>
 
 #define KNOCK_EN	GPIO_Pin_11
 #define KNOCK_EN_PORT	GPIOB
@@ -15,13 +18,22 @@
 #define WSS_MAX_RPM	20000
 #define VSS_MAX_RPM	10000
 #define KNOCK_MAX_FRQ	20000	//20k
-static unsigned short wss_adc_value;
-static unsigned short vss_adc_value;
-static unsigned short knock_adc_value;
+#define NE58X_MAX_RPM	5000
+#define MISFIRE_MAX_STRENGTH	0x8000;
 
-//global varibles
-static unsigned short vvt_adc_buf[5];
-unsigned short vvt_adc[5];
+static short wss_adc_value;
+static short vss_adc_value;
+static short knock_adc_value;
+static short ne58x_adc_value;
+static short misfire_adc_value;
+static char misfire_pattern;
+
+//global adc varibles
+static short vvt_adc_buf[5];
+short vvt_adc[5];
+
+short md204l_read_buf[MD204L_READ_LEN];
+short md204l_write_buf[MD204L_WRITE_LEN];
 
 //pravite varibles define
 static ad9833_t knock_dds = {
@@ -48,6 +60,23 @@ static ad9833_t rpm_dds = {
 	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV | AD9833_OPT_SPI_DMA,
 };
 
+//md204l display related define
+#define MD204L_UPDATE_PERIOD 500
+static md204l_t hid_md204l = {
+	.bus = &uart2,
+	.station = 0x01,
+};
+static time_t md204l_update_timer;
+
+//mcp23017 input related define
+#define KNOCK_CONFIG_ADDR		0x13
+#define MISFIRE_CONFIG_ADDR	0x12
+static mcp23017_t vvt_mcp23017 = {
+	.bus = &i2c1,
+	.chip_addr = 0x40,
+	.port_type = MCP23017_PORT_IN
+};
+
 static void vvt_adc_Init(void);
 static void vvt_pulse_dds_Init(void);
 static void vvt_pulse_gpio_Init(void);
@@ -66,6 +95,10 @@ void pss_Enable(int on)
 
 void vvt_pulse_Init(void)
 {
+	
+	md204l_Init(&hid_md204l);
+	md204l_update_timer  = time_get(MD204L_UPDATE_PERIOD);
+	mcp23017_Init(&vvt_mcp23017);
 	vvt_adc_Init();
 	vvt_pulse_dds_Init();
 	vvt_pulse_gpio_Init();
@@ -75,8 +108,11 @@ void vvt_pulse_Update(void)
 {
 	vvt_adc_Update();
 	unsigned temp;
+	short sub;
+
 	//wss adc input changed
-	if ((wss_adc_value>>3) != (vvt_adc[4]>>3)) {
+	sub = wss_adc_value - vvt_adc[4];
+	if (sub > 0x20 || sub < -0x20) {
 		wss_adc_value = vvt_adc[4];
 		temp = wss_adc_value * WSS_MAX_RPM;
 		temp >>= 12;
@@ -84,27 +120,60 @@ void vvt_pulse_Update(void)
 	}
 
 	//vss adc input changed
-	if ((vss_adc_value>>3) != (vvt_adc[3]>>3)) {
+	sub = vss_adc_value - vvt_adc[3];
+	if (sub > 0x20 || sub < -0x20) {
 		vss_adc_value = vvt_adc[3];
 		temp = vss_adc_value * VSS_MAX_RPM;
 		temp >>= 12;
 		vss_SetFreq((short)temp);
 	}
 
-	//knock update, frq adc input
-	knock_Update();
-}
+	//misfire strength adc input changed
+	sub = misfire_adc_value - vvt_adc[2];
+	if (sub > 0x20 || sub < -0x20) {
+		misfire_adc_value = vvt_adc[2];
+		temp = misfire_adc_value;
+		temp <<= 15; //(32768 -> 100%)
+		temp >>= 12;
+		misfire_ConfigStrength((short)temp);
+	}
 
-void knock_Update(void)
-{
-	unsigned  temp;
+	//misfire pattern update
+	temp = misfire_GetPattern();
+	if (misfire_pattern != temp) {
+		misfire_pattern = temp;
+		misfire_ConfigPattern((short)temp);
+	}
 
-	//vss adc input changed
-	if ((knock_adc_value>>3) != (vvt_adc[1]>>3)) {
+	//knock freq adc input changed
+	sub = knock_adc_value - vvt_adc[1];
+	if (sub > 0x20 || sub < -0x20) {
 		knock_adc_value = vvt_adc[1];
 		temp = knock_adc_value * KNOCK_MAX_FRQ;
 		temp >>= 12;
 		knock_SetFreq((short)temp);
+	}
+
+	//ne58x adc input changed
+	sub = ne58x_adc_value - vvt_adc[0];
+	if (sub > 0x30 || sub < -0x30) {
+		ne58x_adc_value = vvt_adc[0];
+		temp = ne58x_adc_value * NE58X_MAX_RPM;
+		temp >>= 12;
+		md204l_write_buf[0] = temp;
+		temp = temp?temp:1;
+		misfire_SetSpeed(temp);
+		// short tmp;
+		// tmp = misfire_GetSpeed(0);
+		// pss_SetSpeed(tmp);
+	}
+
+	//communitcate with md204l
+	if(time_left(md204l_update_timer) < 0) {
+		md204l_update_timer  = time_get(MD204L_UPDATE_PERIOD);
+		md204l_Read(&hid_md204l, MD204L_READ_ADDR, md204l_read_buf, MD204L_READ_LEN);
+		md204l_Write(&hid_md204l, MD204L_WRITE_ADDR, md204l_write_buf, MD204L_WRITE_LEN);
+		//printf("%d, %d, %d, %d, %d \n", md204l_write_buf[0], md204l_read_buf[0], md204l_read_buf[1], md204l_read_buf[2], md204l_read_buf[3]);
 	}
 }
 
@@ -117,11 +186,6 @@ void knock_SetFreq(short hz)
 	ad9833_SetFreq(&knock_dds, fw);
 }
 
-int knock_GetPattern(void)
-{
-	return 0x01;
-}
-
 /*control the 74lvc1g66,analog switch*/
 void knock_Enable(int en)
 {
@@ -129,6 +193,26 @@ void knock_Enable(int en)
 		GPIO_SetBits(KNOCK_EN_PORT, KNOCK_EN);
 	else
 		GPIO_ResetBits(KNOCK_EN_PORT, KNOCK_EN);
+}
+
+int knock_GetPattern(void)
+{
+#if 0
+	unsigned char temp;
+	mcp23017_ReadByte(&vvt_mcp23017, KNOCK_CONFIG_ADDR, 1, &temp);
+	return temp & 0x3ff;
+#endif
+	return 0x01;
+}
+
+int misfire_GetPattern(void)
+{
+#if 0
+	unsigned char temp;
+	mcp23017_ReadByte(&vvt_mcp23017, MISFIRE_CONFIG_ADDR, 1, &temp);
+	return temp & 0x3ff;
+#endif
+	return 0x01;
 }
 
 void pss_SetSpeed(short hz)
@@ -228,11 +312,11 @@ static void vvt_adc_Init(void)
 	ADC_InitStructure.ADC_NbrOfChannel = 5;
 	ADC_Init(ADC1, &ADC_InitStructure);
 
-	ADC_RegularChannelConfig(ADC1, CH_NE58X, 1, ADC_SampleTime_55Cycles5);
-	ADC_RegularChannelConfig(ADC1, CH_KNOCK_FRQ, 2, ADC_SampleTime_55Cycles5);
-	ADC_RegularChannelConfig(ADC1, CH_MISFIRE_STREN, 3, ADC_SampleTime_55Cycles5);
-	ADC_RegularChannelConfig(ADC1, CH_VSS, 4, ADC_SampleTime_55Cycles5);
-	ADC_RegularChannelConfig(ADC1, CH_WSS, 5, ADC_SampleTime_55Cycles5);
+	ADC_RegularChannelConfig(ADC1, CH_NE58X, 1, ADC_SampleTime_239Cycles5);
+	ADC_RegularChannelConfig(ADC1, CH_KNOCK_FRQ, 2, ADC_SampleTime_239Cycles5);
+	ADC_RegularChannelConfig(ADC1, CH_MISFIRE_STREN, 3, ADC_SampleTime_239Cycles5);
+	ADC_RegularChannelConfig(ADC1, CH_VSS, 4, ADC_SampleTime_239Cycles5);
+	ADC_RegularChannelConfig(ADC1, CH_WSS, 5, ADC_SampleTime_239Cycles5);
 	
 	/* Enable ADC1 DMA */
 	ADC_DMACmd(ADC1, ENABLE);
@@ -260,6 +344,7 @@ static void vvt_pulse_dds_Init(void)
 	rpm_dds.p_rbuf = rpmdds_rbuf;
 	rpm_dds.p_wbuf = rpmdds_wbuf;
 
+	mdelay(1000);
 	ad9833_Init(&knock_dds);
 	ad9833_Init(&vss_dds);
 	ad9833_Init(&wss_dds);
@@ -309,3 +394,4 @@ static void vvt_pulse_gpio_Init(void)
 
 	pss_Enable(0);/*misfire input switch*/
 }
+

@@ -12,7 +12,15 @@
 
 #define GPIO_MISFIRE_PATTERN	(GPIO_Pin_All & 0x003f)
 
-extern unsigned short vvt_adc[5];
+//md204l related define
+#define MD204L_READ_ADDR		0x20
+#define MD204L_READ_LEN		0x04
+#define MD204L_WRITE_ADDR		0x00
+#define MD204L_WRITE_LEN		0x01
+
+extern short vvt_adc[5];
+extern short md204l_read_buf[MD204L_READ_LEN];
+extern short md204l_write_buf[MD204L_WRITE_LEN];
 
 typedef enum {
 KS1 = 0,
@@ -40,10 +48,12 @@ void pss_SetVolt(pss_ch_t ch, short mv); /*on/off?*/
 void pss_SetVssSpeed(short hz);
 void pss_SetVssVolt(short mv);
 
-void knock_Update(void);
 void knock_SetFreq(short hz);
 int knock_GetPattern(void);
 void knock_Enable(int en);
+
+int misfire_GetPattern(void);
+int misfire_GetStrength(void);
 
 void vss_SetFreq(short hz);
 void wss_SetFreq(short hz);

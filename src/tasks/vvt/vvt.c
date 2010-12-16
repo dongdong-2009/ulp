@@ -10,17 +10,15 @@
 #include <stdlib.h>
 #include "sys/task.h"
 #include "debug.h"
+#include "time.h"
 
-//global
+//private
 short vvt_gear_advance;
 int vvt_knock_pos;
 short vvt_knock_width;
 short vvt_knock_strength; //unit: mV
 int vvt_knock_pattern; //...D C B A
-
-//private
-/*vvt_counter corresponds with degree,1->1 degree*/
-static short vvt_counter; //0-719
+short vvt_counter; //0-719
 
 //val ? [min, max]
 #define IS_IN_RANGE(val, min, max) \
@@ -30,9 +28,10 @@ void vvt_Init(void)
 {
 	vvt_pulse_Init();
 	misfire_Init();
-	vvt_Stop();
-
+	misfire_SetSpeed(500);
+	vvt_Start();
 	vvt_counter = 0;
+	vvt_gear_advance = 0;
 	vvt_knock_pos = 0;
 	vvt_knock_width = 50;
 	vvt_knock_pattern = 0;
@@ -40,44 +39,16 @@ void vvt_Init(void)
 
 void vvt_Update(void)
 {
-	//knock_Update();
-	vvt_knock_pattern = knock_GetPattern();
 	vvt_pulse_Update();
-	misfire_Update();
 
+	//gear related varible calculation
+	vvt_gear_advance = md204l_read_buf[0] ;
+	vvt_knock_pos = md204l_read_buf[1] ;
+	vvt_knock_width = md204l_read_buf[2] ;
+	vvt_knock_pattern = knock_GetPattern();
 }
 
 DECLARE_TASK(vvt_Init, vvt_Update)
-
-int vvt_GetKnockPhase(void)
-{
-	return (vvt_knock_pos);
-}
-
-int vvt_GetKnockWindow(void)
-{
-	return (vvt_knock_width);
-}
-
-void vvt_SetKnockPhase(int phase)
-{
-	if(phase > MAX_KNOCK_PHASE)
-		vvt_knock_pos = MAX_KNOCK_PHASE;
-	else if(phase < MIN_KNOCK_PHASE)
-		vvt_knock_pos = MIN_KNOCK_PHASE;
-	else
-		vvt_knock_pos = phase;
-}
-
-void vvt_SetKnockWindow(int window)
-{
-	if(window > MAX_KNOCK_WIDTH)
-		vvt_knock_pos = MAX_KNOCK_WIDTH;
-	else if(window < MIN_KNOCK_WIDTH)
-		vvt_knock_pos = MIN_KNOCK_WIDTH;
-	else
-		vvt_knock_pos = window;
-}
 
 void vvt_isr(void)
 {
@@ -104,7 +75,7 @@ void vvt_isr(void)
 		pss_SetVolt(CAM1X, !mv);
 	}
 
-	//output CAM4X_IN, pos [22~44] + [52~14] + [22~28] + [52~58]
+ 	//output CAM4X_IN, pos [22~44] + [52~14] + [22~28] + [52~58]
 	tmp = vvt_counter + vvt_gear_advance;
 	mv = IS_IN_RANGE(tmp, 132, 264);
 	mv |= IS_IN_RANGE(tmp, 312, 444);
