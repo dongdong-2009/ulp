@@ -29,4 +29,7 @@
 void shell_Init(void);
 void shell_Update(void);
 
+/*read a line from console, return 0 if not finish*/
+int shell_ReadLine(const char *prompt, char *str);
+
 #endif /*__SHELL_H_*/

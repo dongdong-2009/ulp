@@ -11,7 +11,6 @@
 #include "shell/cmd.h"
 #include "console.h"
 
-static int shell_ReadLine(void);
 static void shell_Parse(void);
 static void cmd_GetHistory(char *cmd, int dir);
 static void cmd_SetHistory(const char *cmd);
@@ -42,7 +41,7 @@ void shell_Update(void)
 	int ok;
 	
 	cmd_Update();
-	ok = shell_ReadLine();
+	ok = shell_ReadLine(CONFIG_SHELL_PROMPT, NULL);
 	if(!ok) return;
 
 	shell_Parse();
@@ -52,14 +51,16 @@ void shell_Update(void)
 DECLARE_LIB(shell_Init, shell_Update)
 
 /*read a line of string from console*/
-static int shell_ReadLine(void)
+int shell_ReadLine(const char *prompt, char *str)
 {
 	int ch, len, sz, offset, tmp, idx, carry_flag;
 	char buf[CONFIG_SHELL_LEN_CMD_MAX];
 	int ready = 0;
 	
-	if(cmd_idx < 0) { 
-		printf("%s", CONFIG_SHELL_PROMPT);
+	if(cmd_idx < 0) {
+		if(prompt != NULL) {
+			printf("%s", prompt);
+		}
 		memset(cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
 		cmd_idx ++;
 		cmd_hrpos = cmd_hrail - 1;
@@ -254,6 +255,10 @@ static int shell_ReadLine(void)
 	}
 
 	if(ready) {
+		if(str != NULL) {
+			strcpy(str, cmd_buffer); 
+		}
+		
 		if(strlen(cmd_buffer))
 			cmd_SetHistory(cmd_buffer);
 	}
