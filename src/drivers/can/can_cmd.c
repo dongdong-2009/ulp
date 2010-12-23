@@ -227,7 +227,7 @@ static int cmd_can_func(int argc, char *argv[])
 	static int filter_count = 0;
 	const char *usage = {
 		"usage:\n"
-		"can init ch baud		init can hw interface, def to CH1+500K\n"
+		"can init ch baud silent		init can hw interface, def to CH1+500K\n"
 		"can send id d0 ...		can send, 11bit id\n"
 		"can sene id d0 ...		can send, 29bit id\n"
 		"can recv id0 id1		can bus monitor, id0.. for filter\n"
@@ -255,6 +255,10 @@ static int cmd_can_func(int argc, char *argv[])
 			}
 			else { //default to baud 500K
 				cfg.baud = 500000;
+			}
+
+			if(argc >= 5) {
+				cfg.silent = 1;
 			}
 			
 			can_bus = NULL;

@@ -9,10 +9,12 @@
 
 typedef struct {
 	unsigned baud;
+	char silent;
 } can_cfg_t;
 
 #define CAN_CFG_DEF { \
 	.baud = 500000, \
+	.silent = 0, \
 }
 
 #define CAN_FLAG_EXT (1 << 0) /*ENABLE 29bit CAN ID*/
