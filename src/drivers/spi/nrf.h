@@ -68,9 +68,4 @@ enum {
 	FEATURE = 0x1d,
 };
 
-int nrf_init(void);
-int nrf_setup(int prx_mode, int addr);
-int nrf_send(const char *buf, int count);
-int nrf_recv(char *buf, int size);
-
 #endif /*__NRF_H_*/

@@ -14,18 +14,25 @@
 #include "nrf.h"
 #include "debug.h"
 #include "time.h"
-#include "nvm.h"
+#include "wl.h"
 
 static const spi_bus_t *nrf_spi;
 static char nrf_idx_cs;
 static char nrf_idx_ce;
 static char nrf_prx_mode;
-static char nrf_ch __nvm = 0;
 
 #define cs_set(level) nrf_spi -> csel(nrf_idx_cs, level)
 #define ce_set(level) nrf_spi -> csel(nrf_idx_ce, level)
 #define spi_write(val) nrf_spi -> wreg(0, val)
 #define spi_read() nrf_spi -> rreg(0)
+
+static int nrf_write_buf(int cmd, const char *buf, int count);
+static int nrf_read_buf(int cmd, char *buf, int count);
+static void nrf_write_reg(char reg, char value);
+static char nrf_read_reg(char reg);
+static int nrf_set_addr(int addr);
+static int nrf_set_mode_tx(void);
+static int nrf_set_mode_rx(void);
 
 static int nrf_write_buf(int cmd, const char *buf, int count)
 {
@@ -51,7 +58,6 @@ static int nrf_read_buf(int cmd, char *buf, int count)
 	}
 	cs_set(1);
 
-
         return status;
 }
 
@@ -67,15 +73,16 @@ static char nrf_read_reg(char reg)
 	return value & 0xff;
 }
 
-int nrf_init(void)
+static int nrf_init(const wl_cfg_t *cfg)
 {
-	spi_cfg_t cfg = SPI_CFG_DEF;
-	cfg.cpol = 0,
-	cfg.cpha = 0,
-	cfg.bits = 8,
-	cfg.bseq = 1,
-	cfg.freq = 8000000;
-	cfg.csel = 1;
+	int ch = cfg -> mhz - 24000;
+	spi_cfg_t spi_cfg = SPI_CFG_DEF;
+	spi_cfg.cpol = 0,
+	spi_cfg.cpha = 0,
+	spi_cfg.bits = 8,
+	spi_cfg.bseq = 1,
+	spi_cfg.freq = 8000000;
+	spi_cfg.csel = 1;
 
 #if CONFIG_TASK_NEST == 1
 	nrf_spi = &spi1;
@@ -86,7 +93,7 @@ int nrf_init(void)
 #endif
 
 	assert(nrf_spi != NULL);
-	nrf_spi -> init(&cfg);
+	nrf_spi -> init(&spi_cfg);
 	cs_set(1);
 	ce_set(0);
 
@@ -99,8 +106,13 @@ int nrf_init(void)
 	nrf_write_reg(EN_RXADDR, 0x00); //disable all rx pipe
 	nrf_write_reg(SETUP_AW, 0x02); //addr width = 4bytes
 	nrf_write_reg(SETUP_RETR, 0x0f); //auto retx delay = 250usx(n + 1), count = 3
-	nrf_write_reg(RF_CH, nrf_ch); //rf channel = 0
-	nrf_write_reg(RF_SETUP, 0x0f); //2Mbps + 0dBm + LNA enable
+	nrf_write_reg(RF_CH, ch); //rf channel = 0
+	if(cfg -> bps > 1000000) {
+		nrf_write_reg(RF_SETUP, 0x0f); //2Mbps + 0dBm + LNA enable
+	}
+	else {
+		nrf_write_reg(RF_SETUP, 0x07); //1Mbps + 0dBm + LNA enable
+	}
 
 	char para = 0x73;
 	nrf_write_buf(ACTIVATE, &para, 1); //activate ext function
@@ -110,228 +122,151 @@ int nrf_init(void)
 	nrf_write_buf(FLUSH_TX, 0, 0);
 	nrf_write_buf(FLUSH_RX, 0, 0);
 
-	//default enter into prx mode
-	nrf_setup(0, 0);
-	mdelay(2);
+	nrf_prx_mode = 99; //any val except 1 & 0
+	nrf_set_addr(0);
+	mdelay(2); //power on delay
 	return 0;
 }
 
-int nrf_setup(int prx_mode, int addr)
+static int nrf_set_mode_tx(void)
+{
+	if(nrf_prx_mode == 0)
+		return 0;
+
+	ce_set(0);
+	nrf_prx_mode = 0;
+	nrf_write_reg(CONFIG, 0x0e); //enable 2 bytes CRC | PWR_UP | mode
+	nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
+	nrf_write_reg(STATUS, TX_DS | MAX_RT); //clear tx_ds & max_rt irq flag
+	return 0;
+}
+
+static int nrf_set_mode_rx(void)
+{
+	if(nrf_prx_mode == 1)
+		return 0;
+
+	ce_set(0);
+	nrf_prx_mode = 1;
+	nrf_write_reg(CONFIG, 0x0f); //enable 2 bytes CRC | PWR_UP | mode
+	nrf_write_buf(FLUSH_RX, 0, 0); //flush rx fifo
+	nrf_write_reg(STATUS, RX_DR); //clear rx_dr irq flag
+	ce_set(1); //prx automatic enter into recv mode
+	return 0;
+}
+
+static int nrf_set_addr(int addr)
 {
 	ce_set(0);
-	nrf_prx_mode = prx_mode;
 	nrf_write_buf(W_REGISTER(TX_ADDR), (char *)(&addr), 4);
 	nrf_write_buf(W_REGISTER(RX_ADDR_P0), (char *)(&addr), 4);
 	nrf_write_reg(EN_RXADDR, 1);
-	nrf_write_reg(CONFIG, 0x0e | prx_mode); //enable 2 bytes CRC | PWR_UP | mode
-	ce_set(prx_mode == 1); //prx automatic enter into recv mode
-	if(prx_mode == 1) {
-		ce_set(1);
-	}
-	else {
-		nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
-		//nrf_write_buf(FLUSH_RX, 0, 0);
-		nrf_write_reg(STATUS, TX_DS | MAX_RT);
-	}
-	return 0;
+	return nrf_set_mode_rx(); //automatically enter into prx mode
 }
 
-int nrf_send(const char *buf, int count)
+/*
+	"send - wait - return" method is used, so tx fifo is useless, advantage: simple,  shortcoming: wait loop,
+	in system level 'master poll' topology, this won't take longer than 1 ms in normal situation
+	buf	data to be sent
+	count	n bytes to send()
+	ms	timeout, 3ms is recommended
+*/
+static int nrf_send(const char *buf, int count, int ms)
 {
-	int status;
+	int status, n, i;
+	time_t deadline = time_get(ms);
 
-	if(nrf_prx_mode) {
-		//always flush tx fifo, if ptx do not get what he want, he should resend the request
-		nrf_write_buf(FLUSH_TX, 0, 0);
-		nrf_write_buf(W_ACK_PAYLOAD(0), buf, count);
-	}
-	else {//ptx: send - wait - return
-		nrf_write_buf(W_TX_PAYLOAD, buf, count);
-		ce_set(1);
-		while(1) {
-			status = nrf_read_reg(STATUS);
-			if(status & TX_DS) {
-				nrf_write_reg(STATUS, TX_DS);
-				break;
-			}
+#if 0 /*ack with payload won't be supported*/
+	//always flush tx fifo, if ptx do not get what he want, he should resend the request
+	nrf_write_buf(FLUSH_TX, 0, 0);
+	nrf_write_buf(W_ACK_PAYLOAD(0), buf, count);
+#endif
 
-			if(status & MAX_RT) {
-				nrf_write_reg(STATUS, MAX_RT);
-				//flush tx fifo
-				nrf_write_buf(FLUSH_TX, 0, 0);
-				count = 0;
-				break;
-			}
-		}
-		ce_set(0);
-	}
+	nrf_set_mode_tx();
+	for(i = 0, n = 0; i < count;) {
+		if(n == 0) {
+			//write to tx fifo, max 32 bytes
+			n = (count - i > 32) ? 32 : (count - i);
+			nrf_write_buf(W_TX_PAYLOAD, buf + i, n);
 
-	return count;
-}
-
-int nrf_recv(char *buf, int size)
-{
-	int status;
-	char count;
-
-	status = nrf_read_reg(FIFO_STATUS);
-	if(status & RX_EMPTY) { //rx empty
-		return 0;
-	}
-	//nrf_write_reg(STATUS, RX_DR);
-
-	nrf_read_buf(R_RX_PL_WID, &count, 1);
-	if(count > 0) {
-		nrf_read_buf(R_RX_PAYLOAD, buf, count);
-	}
-	return count;
-}
-
-#include "shell/cmd.h"
-#include "console.h"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
-
-static int cmd_nrf_chat(void)
-{
-	char c, buf[40],ibuf[40], j, i_save = 0, i = 0;
-	int count;
-	char arc;
-
-	nrf_init();
-	nrf_setup(1, 0x12345678);
-	while(1) {
-		//read  a line from console & send
-		while(console_IsNotEmpty()) {
-			c = console_getch();
-			if((i < 31) && isprint(c)) {
-				console_putchar(c);
-				buf[i] = c;
-				i ++;
-			}
-
-			if(c == 3) { //exit
-				return 0;
-			}
-
-			if(c != '\r') {
-				continue;
-			}
-
-			//send
-			nrf_setup(0, 0x12345678);
-			if(i != 0) {
-				buf[i] = 0;
-				i ++;
-			}
-			else {
-				i = i_save;
-			}
-			count = nrf_send(buf, i);
-			arc = nrf_read_reg(OBSERVE_TX);
-			printf(" send %d bytes...try %d times...", i, arc & 0x0f);
-			if(count != i) {
-				printf("fail!!!\n");
-			}
-			else {
-				count = nrf_recv(ibuf, 32);
-				ibuf[count] = 0;
-				printf("echo %d bytes: %s\n", count, ibuf);
-			}
-			nrf_setup(1, 0x12345678);
-
-			//recv next line
-			i_save = i;
-			i = 0;
+			//start transmit ..
+			deadline = time_get(ms);
+			ce_set(1);
 		}
 
-
-		//recv a line from nrf
-		count = nrf_recv(ibuf, 32);
-		if(count != 0) {
-			j = count - 1;
-			if(j < 30) {
-				ibuf[j ++] = ':';
-				ibuf[j ++] = ')';
-				count += 2;
-			}
-			ibuf[j] = 0;
-
-			//echo back to nrf
-			nrf_send(ibuf, count);
-			printf("rx %d bytes: %s\n", count - 2, ibuf);
-		}
-	}
-}
-
-static int cmd_nrf_scan(void)
-{
-	int ch, v;
-	char cd;
-
-	printf("\n");
-	nrf_init();
-	while(1) {
-		if(console_IsNotEmpty()) {
-			console_getch();
+		if(time_left(deadline) <= 0) { //timeout
+			ce_set(0);
+			//flush tx fifo
+			nrf_write_buf(FLUSH_TX, 0, 0);
 			break;
 		}
-
-		v = 0;
-		printf("\r CD[0..127] =");
-		for(ch = 0; ch < 128; ch ++) {
-			nrf_write_reg(RF_CH, ch);
-			ce_set(1);
-			mdelay(1);
-			cd = nrf_read_reg(CD);
+		
+		status = nrf_read_reg(STATUS);
+		if(status & TX_DS) {
 			ce_set(0);
+			nrf_write_reg(STATUS, TX_DS);
+			i += n;
+			n = 0; //indicates: new packet can be sent in next loop
+			continue;
+		}
+		else if(status & MAX_RT) {
+			ce_set(0);
+			nrf_write_reg(STATUS, MAX_RT);
 
-			if(cd & 0x01) {
-				v |= (1U << (ch & 0x1f));
-			}
-
-			if((ch & 0x1f) == 0x1f) {
-				printf(" %08x", v);
-				v = 0;
-			}
+			//resend
+			ce_set(1);
+			continue;
 		}
 	}
 
-	printf("\n");
-	return 0;
+	return i;
 }
 
-static int cmd_nrf_func(int argc, char *argv[])
+static int nrf_poll(void)
 {
-	const char *usage = {
-		"usage:\n"
-		"nrf chat	start nrf chat\n"
-		"nrf scan	scanf all RF channel\n"
-		"nrf ch 0-127	set RF channel(2400MHz + ch * 1Mhz)\n"
-	};
-
-	if(argc > 1) {
-		if(!strcmp(argv[1], "ch")) {
-			int ch = (argc > 2) ? atoi(argv[2]) : 0;
-			nrf_ch = ((ch >= 0) && (ch <= 127)) ? ch : 0;
-			printf("nrf: setting RF ch = %d(%dMHz)\n", nrf_ch, nrf_ch + 2400);
-			nrf_init();
-			nvm_save();
-			return 0;
-		}
-		if(!strcmp(argv[1], "chat")) {
-			return cmd_nrf_chat();
-		}
-		if(!strcmp(argv[1], "scan")) {
-			return cmd_nrf_scan();
-		}
-	}
-
-	printf("%s", usage);
-	return 0;
+	int status;
+	nrf_set_mode_rx();
+	status = nrf_read_reg(FIFO_STATUS);
+	return (status & RX_EMPTY) ? 0 : 1;
 }
 
-const cmd_t cmd_nrf = {"nrf", cmd_nrf_func, "nrf debug command"};
-DECLARE_SHELL_CMD(cmd_nrf)
+/*
+	recv from nrf chip fifo
+*/
+static int nrf_recv(char *buf, int count, int ms)
+{
+	char n;
+	int i;
+	time_t deadline = time_get(ms);
+
+	i = 0;
+	n = 0;
+	nrf_set_mode_rx();
+	do {
+		if(!nrf_poll()) {
+			continue;
+		}
+
+		deadline = time_get(ms);
+		nrf_read_buf(R_RX_PL_WID, &n, 1);
+		if(n > 0) {
+			if(i + n > count)
+				break;
+			//recv
+			nrf_read_buf(R_RX_PAYLOAD, buf + i, n);
+			i += n;
+		}
+	} while(time_left(deadline) > 0);
+
+	//clear rx_dr isr flag
+	nrf_write_reg(STATUS, RX_DR);
+	return i;
+}
+
+const wl_bus_t wl0 = {
+	.init = nrf_init,
+	.send = nrf_send,
+	.recv = nrf_recv,
+	.poll = nrf_poll,
+	.select = nrf_set_addr,
+};
