@@ -7,12 +7,11 @@
 #define __MD204L_H
 
 #include "stm32f10x.h"
+#include "time.h"
+#include "uart.h"
 
 #define CMD_MD204L_READ		0x52
 #define CMD_MD204L_WRITE	0x57
-
-#define MD204L_READ_ADDR	0x01
-#define MD204L_READ_LEN		0x05
 
 enum {
 MD204L_OK = 0,
@@ -40,11 +39,14 @@ unsigned char len;
 unsigned char cksum;
 }md204l_ack_t;
 
-extern short md204l_read[MD204L_READ_LEN];
+typedef struct {
+	uart_bus_t *bus;
+	int station;
+	time_t deadtime;
+} md204l_t;
 
-void md204l_Init(void);
-int md204l_Write(int addr, short *pbuf, int count);
-int md204l_Read(int addr, short *pbuf, int count);
-void md204l_Update(void);
+void md204l_Init(md204l_t *chip);
+int md204l_Write(md204l_t *chip, int addr, short *pbuf, int count);
+int md204l_Read(md204l_t *chip, int addr, short *pbuf, int count);
 
 #endif /* __MD204L_H */

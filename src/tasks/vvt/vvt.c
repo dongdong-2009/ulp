@@ -9,17 +9,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "sys/task.h"
+#include "debug.h"
+#include "time.h"
 
-//global
+//private
 short vvt_gear_advance;
 int vvt_knock_pos;
 short vvt_knock_width;
 short vvt_knock_strength; //unit: mV
 int vvt_knock_pattern; //...D C B A
-
-//private
-/*vvt_counter corresponds with degree,1->1 degree*/
-static short vvt_counter; //0-719
+short vvt_counter; //0-719
 
 //val ? [min, max]
 #define IS_IN_RANGE(val, min, max) \
@@ -29,9 +28,10 @@ void vvt_Init(void)
 {
 	vvt_pulse_Init();
 	misfire_Init();
-	vvt_Stop();
-
-	vvt_counter = 0; //tooth 1.0 1.1 2.0 2.1 ...
+	misfire_SetSpeed(500);
+	vvt_Start();
+	vvt_counter = 0;
+	vvt_gear_advance = 0;
 	vvt_knock_pos = 0;
 	vvt_knock_width = 50;
 	vvt_knock_pattern = 0;
@@ -39,42 +39,16 @@ void vvt_Init(void)
 
 void vvt_Update(void)
 {
-	knock_Update();
-	vvt_knock_pattern = knock_GetPattern();
+	vvt_pulse_Update();
 
+	//gear related varible calculation
+	vvt_gear_advance = md204l_read_buf[0] ;
+	vvt_knock_pos = md204l_read_buf[1] ;
+	vvt_knock_width = md204l_read_buf[2] ;
+	vvt_knock_pattern = knock_GetPattern();
 }
 
 DECLARE_TASK(vvt_Init, vvt_Update)
-
-int vvt_GetKnockPhase(void)
-{
-	return (vvt_knock_pos);
-}
-
-int vvt_GetKnockWindow(void)
-{
-	return (vvt_knock_width);
-}
-
-void vvt_SetKnockPhase(int phase)
-{
-	if(phase > MAX_KNOCK_PHASE)
-		vvt_knock_pos = MAX_KNOCK_PHASE;
-	else if(phase < MIN_KNOCK_PHASE)
-		vvt_knock_pos = MIN_KNOCK_PHASE;
-	else
-		vvt_knock_pos = phase;
-}
-
-void vvt_SetKnockWindow(int window)
-{
-	if(window > MAX_KNOCK_WIDTH)
-		vvt_knock_pos = MAX_KNOCK_WIDTH;
-	else if(window < MIN_KNOCK_WIDTH)
-		vvt_knock_pos = MIN_KNOCK_WIDTH;
-	else
-		vvt_knock_pos = window;
-}
 
 void vvt_isr(void)
 {
@@ -86,22 +60,22 @@ void vvt_isr(void)
 	if (vvt_counter >= 720)
 		vvt_counter = 0;
 	if (vvt_counter % 3 == 0) {
-		x = vvt_counter/3;	//0 - 239
-		y = (x >> 1) + 1;	//1 - 120
+		x = vvt_counter/3;	// 0 - 239
+		y = (x >> 1) + 1;	// 1 - 120
 		z = x & 0x01;
 
 		//output NE58X, pos [58~59] + [58~59]
 		mv = IS_IN_RANGE(y, 58, 59);
-		mv |= IS_IN_RANGE(y, 58+60, 59+60);
+		mv |= IS_IN_RANGE(y, 118, 119);	//(58+60, 59+60);
 		mv = !mv && z;
 		pss_SetVolt(NE58X, mv);
 
 		//output CAM1X, pos [56~14]
-		mv = IS_IN_RANGE(y, 56, 14+60);
+		mv = IS_IN_RANGE(y, 56, 74);	//14+60;
 		pss_SetVolt(CAM1X, !mv);
 	}
 
-	//output CAM4X_IN, pos [22~44] + [52~14] + [22~28] + [52~58]
+ 	//output CAM4X_IN, pos [22~44] + [52~14] + [22~28] + [52~58]
 	tmp = vvt_counter + vvt_gear_advance;
 	mv = IS_IN_RANGE(tmp, 132, 264);
 	mv |= IS_IN_RANGE(tmp, 312, 444);
@@ -132,7 +106,7 @@ void vvt_isr(void)
 	}
 
 	//misfire
-	tmp = misfire_GetSpeed(vvt_counter);
-	pss_SetSpeed(tmp * 3);
+	tmp = misfire_GetSpeed(x);	//x(0,239)
+	pss_SetSpeed(tmp);
 }
 

@@ -18,3 +18,6 @@ bool "PC8 as CS" CONFIG_SPI_CS_PC8
 
 bool "PF11 as CS" CONFIG_SPI_CS_PF11
 
+#for vvt board dds
+bool "PB0 as CS" CONFIG_SPI_CS_PB0
+

@@ -7,13 +7,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "mcao.h"
+#include "vvt/vvt_pulse.h"
+
 
 //global
 
 //private
-static short misfire_speed; //unit: Hz, 1~32867hz(rpm)
-static short misfire_strength; //0~100%
-static short *misfire_curve; //0~+/-100%, 100% = 32867
+static short misfire_speed; //unit: Hz, 1~32768hz(rpm)
+static short misfire_strength; //0~100%,100% = 32768
+static short *misfire_curve; //0~+/-100%, 
 static short misfire_offset;
 
 //misfire - 1 cylinder, y = [-1*sin(t(1:60)*4*pi),1/3*sin(t(1:180)*4*pi/3)];
@@ -120,17 +122,14 @@ static const short curve_c[240] = {	\
 
 void misfire_Init(void)
 {
-#if CONFIG_VVT_MISFIRE_DEBUG == 1
-	mcao_Init();
-#endif
-
 	misfire_strength = 0;
 	misfire_curve = 0;
 }
 
 void misfire_SetSpeed(short hz)
 {
-	misfire_speed = hz << 1;
+	misfire_speed = hz * 6;
+	//pss_SetSpeed(misfire_speed);
 }
 
 short misfire_GetSpeed(short gear)
@@ -151,34 +150,20 @@ short misfire_GetSpeed(short gear)
 		coef >>= 15;
 	}
 
-#if CONFIG_VVT_MISFIRE_DEBUG == 1
-	{
-		int mv;
-		//ch0, current gear nr
-		mv = 2000;
-		mv *= gear;
-		mv /= 240;
-		mcao_SetVolt(0, mv);
-		
-		//ch1, misfire speed
-		mv = 2000 >> 1;
-		mv *= coef;
-		mv /= speed;
-		mv += 2500 >> 1;
-		mcao_SetVolt(1, mv);
-	}
-#endif
-
 	speed += coef;
 	return speed;
 }
 
-void misfire_Config(short strength, short pattern)
+void misfire_ConfigStrength(short strength)
+{
+	misfire_strength = strength;
+}
+
+void misfire_ConfigPattern(short pattern)
 {
 	int ch, x, y;
 	x = y = -1;
-	
-	misfire_strength = strength;
+
 	for(ch = 0; ch < 4; ch ++)
 	{
 		if(pattern & 0x01) {

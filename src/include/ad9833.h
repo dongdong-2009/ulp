@@ -10,11 +10,14 @@
 #define AD9833_OPT_OUT_TRI ((1 << 1) | (0 << 5)) /*triangle waveform out enable*/
 #define AD9833_OPT_OUT_SQU ((0 << 1) | (1 << 5)) /*square waveform out enable, f/2*/
 #define AD9833_OPT_DIV (1 << 3) /*Fout = f/2*/
+#define AD9833_OPT_SPI_DMA (1 << 31)
 
 typedef struct {
-	spi_bus_t *bus;
+	const spi_bus_t *bus;
 	int idx; //index of chip in the specified bus
 	int option;
+	char * p_wbuf;
+	char * p_rbuf;
 } ad9833_t;
 
 void ad9833_Init(ad9833_t *chip);

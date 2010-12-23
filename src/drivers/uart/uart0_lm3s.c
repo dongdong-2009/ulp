@@ -6,7 +6,7 @@
 #include "uart.h"
 #include "lm3s.h"
 
-int uart_Init(const uart_cfg_t *cfg)
+static int uart_Init(const uart_cfg_t *cfg)
 {
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
@@ -16,21 +16,21 @@ int uart_Init(const uart_cfg_t *cfg)
 	return 0;
 }
 
-int uart_putchar(int data)
+static int uart_putchar(int data)
 {
 	char c = (char) data;
 	UARTCharPut(UART0_BASE, c);
 	return 0;
 }
 
-int uart_getch(void)
+static int uart_getch(void)
 {
 	int ret;
 	ret = UARTCharGet(UART0_BASE);
 	return ret;
 }
 
-int uart_IsNotEmpty()
+static int uart_IsNotEmpty()
 {
 	return (int) UARTCharsAvail(UART0_BASE);
 }

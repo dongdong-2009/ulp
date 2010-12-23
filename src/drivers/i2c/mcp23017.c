@@ -16,7 +16,7 @@ void mcp23017_Init(mcp23017_t *chip)
 {
 	unsigned char temp = 0x28;
 	i2c_cfg_t cfg = {
-		400000,		//400K
+		100000,		//100K
 		NULL,
 	};
 
@@ -50,7 +50,7 @@ int mcp23017_ReadByte(mcp23017_t *chip, unsigned addr, int alen, unsigned char *
 	return chip->bus->rbuf(chip->chip_addr, addr, alen, buffer, 1);
 }
 
-#if 1
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,34 +64,44 @@ static mcp23017_t mcp23017 = {
 
 static int cmd_mcp23017_func(int argc, char *argv[])
 {
-	unsigned int temp;
+	unsigned int temp = 0;
 	unsigned int addr;
 
-	const char usage[] = { \
+	const char * usage = { \
 		" usage:\n" \
 		" mcp23017 init, chip init \n" \
 		" mcp23017 write addr value, write reg \n" \
 		" mcp23017 read addr, read reg\n" \
+		" mcp23017 read repeat addr, repeat read reg\n" \
 	};
+
+	if (argc > 1) {
+		if(argv[1][0] == 'i')
+			mcp23017_Init(&mcp23017);
+
+		if (argv[1][0] == 'w') {
+			sscanf(argv[2], "%x", &addr);
+			sscanf(argv[3], "%x", &temp);
+			mcp23017_WriteByte(&mcp23017, addr, 1, (unsigned char *)&temp);
+		}
+
+		if (argv[1][0] == 'r' && argc == 3) {
+			sscanf(argv[2], "%x", &addr);
+			mcp23017_ReadByte(&mcp23017, addr, 1, (unsigned char *)&temp);
+			printf("%c = 0x%x\n",(unsigned char)temp, (unsigned char)temp);
+		}
+	}
+
+	if (argc == 0 || argv[2][0] == 'r') {
+		//sscanf(argv[3], "%x", &addr);
+		mcp23017_ReadByte(&mcp23017, 0x12, 1, (unsigned char *)&temp);
+		printf("0x%x\n", (unsigned char)temp);
+		return 1;
+	}
 
 	if(argc < 2) {
 		printf(usage);
 		return 0;
-	}
-
-	if(argv[1][0] == 'i')
-		mcp23017_Init(&mcp23017);
-
-	if (argv[1][0] == 'w') {
-		sscanf(argv[2], "%x", &addr);
-		sscanf(argv[3], "%x", &temp);
-		mcp23017_WriteByte(&mcp23017, addr, 1, (unsigned char *)&temp);
-	}
-
-	if (argv[1][0] == 'r') {
-		sscanf(argv[2], "%x", &addr);
-		mcp23017_ReadByte(&mcp23017, addr, 1, (unsigned char *)&temp);
-		printf("%c = 0x%x\n",temp, temp);
 	}
 
 	return 0;

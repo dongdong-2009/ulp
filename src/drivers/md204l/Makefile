@@ -1,1 +1,0 @@
-obj-$(CONFIG_DRIVER_MD204L) += md204l.o
