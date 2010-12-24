@@ -51,7 +51,7 @@ MT221.c
 * 19Nov10	fzwf47 > modify for arm platform
 END DESCRIPTION ***************************************************************/
 
-#include "nest.h"
+#include "lib/nest.h"
 #include "obsolete/obsolete.h"
 #include "mt221.h"
 #include "ramdnld/mt18p1_cyc.h"
