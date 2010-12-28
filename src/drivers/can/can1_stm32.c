@@ -74,7 +74,7 @@ static int can_init(const can_cfg_t *cfg)
 	CAN_FilterInitStructure.CAN_FilterMaskIdHigh=0x0000;
 	CAN_FilterInitStructure.CAN_FilterMaskIdLow=0x0000;
 	CAN_FilterInitStructure.CAN_FilterFIFOAssignment=0;
-	CAN_FilterInitStructure.CAN_FilterActivation=DISABLE;
+	CAN_FilterInitStructure.CAN_FilterActivation=ENABLE;
 	CAN_FilterInit(&CAN_FilterInitStructure);
 	return 0;
 }
