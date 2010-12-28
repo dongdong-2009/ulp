@@ -28,9 +28,15 @@ static char can_flag = 0;
 void can_msg_print(const can_msg_t *msg, char *str)
 {
 	int i;
-	printf("ID = %04X: ", msg -> id);
+	char h, l;
+	printf("ID = %08X ", msg -> id);
 	for( i = 0; i < msg -> dlc; i ++) {
-		printf("%02x ", msg -> data[i]);
+		h = (msg -> data[i] & 0xf0) >> 4;;
+		l = msg -> data[i] & 0x0f;
+		
+		h = (h <= 9) ? ('0' + h) : ('a' + h - 10);
+		l = (l <= 9) ? ('0' + l) : ('a' + l - 10);
+		printf("%c%c ", h, l);
 	}
 	
 	if(str)
@@ -403,16 +409,9 @@ static int cmd_can_func(int argc, char *argv[])
 				}
 			}
 
-			printf("%06dms ", (int)((time_get(0) - timer)*1000/CONFIG_TICK_HZ));
+			printf("%06d ms ", (int)((time_get(0) - timer)*1000/CONFIG_TICK_HZ));
 			//printf can frame
-			if(msg.flag & CAN_FLAG_EXT)
-				printf("R%08x ", msg.id);
-			else
-				printf("R%03x ", msg.id);
-			for(x = 0; x < msg.dlc; x ++) {
-				printf("%02x ", msg.data[x]);
-			}
-			printf("\n");
+			can_msg_print(&msg, "\n");
 		}
 		return 1;
 	}
