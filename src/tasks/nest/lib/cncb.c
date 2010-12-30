@@ -143,3 +143,41 @@ int cncb_signal(int sig, int ops)
 	}
 	return 0;
 }
+
+#if 1
+#include "shell/cmd.h"
+
+//nest shell command
+static int cmd_cncb_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"cncb debug	flash all cncb signal output\n"
+	};
+
+	if(argc > 1) {
+		//flash all outputs
+		while(1) {
+			cncb_signal(SIG1, TOGGLE);
+			cncb_signal(SIG2, TOGGLE);
+			cncb_signal(SIG3, TOGGLE);
+			cncb_signal(SIG4, TOGGLE);
+			cncb_signal(SIG5, TOGGLE);
+			cncb_signal(SIG6, TOGGLE);
+			cncb_signal(BAT, TOGGLE);
+			cncb_signal(IGN, TOGGLE);
+			cncb_signal(LSD, TOGGLE);
+			cncb_signal(LED_F, TOGGLE);
+			cncb_signal(LED_R, TOGGLE);
+			cncb_signal(LED_P, TOGGLE);
+			
+			mdelay(1000);
+		}
+	}
+	
+	printf("%s", usage);
+	return 0;
+}
+
+const static cmd_t cmd_cncb = {"cncb", cmd_cncb_func, "cncb debug command"};
+DECLARE_SHELL_CMD(cmd_cncb)
+#endif
