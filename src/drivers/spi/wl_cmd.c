@@ -15,10 +15,10 @@ static int cmd_nrf_chat(void)
 {
 	int ready, n;
 	char *rxstr, *txstr;
-	
+
 	rxstr = sys_malloc(128);
 	txstr = sys_malloc(128);
-	
+
 	wl0.init(&nrf_cfg);
 	wl0.select(0x12345678);
 	while(1) {
@@ -28,24 +28,24 @@ static int cmd_nrf_chat(void)
 			if(!strncmp(txstr, "kill", 4)) {
 				break;
 			}
-			
+
 			n = wl0.send(txstr, strlen(txstr) + 1, 5);
 			if(n != strlen(txstr) + 1) {
 				printf("...fail\n");
 			}
 		}
-		
+
 		//rx
 		ready = wl0.poll();
 		if(ready) {
 			n = wl0.recv(rxstr, 128, 5);
 			if(n > 0) {
 				rxstr[n] = 0;
-				printf("\rnrf rx: %s\nnrf tx: ", rxstr); 
+				printf("\rnrf rx: %s\nnrf tx: ", rxstr);
 			}
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -56,14 +56,22 @@ static int cmd_nrf_func(int argc, char *argv[])
 		"nrf chat	start nrf chat\n"
 		"nrf ch 0-127	set RF channel(2400MHz + ch * 1Mhz)\n"
 	};
-	
+
 	if(argc > 1) {
 		if(!strcmp(argv[1], "ch")) {
-			int ch = (argc > 2) ? atoi(argv[2]) : 0;
-			ch = ((ch >= 0) && (ch <= 127)) ? ch : 0;
-			nrf_cfg.mhz = 24000 + ch;
-			printf("nrf: setting RF ch = %d(%dMHz)\n", ch, nrf_cfg.mhz);
-			nvm_save();
+			int ch;
+			if(argc > 2) {
+				ch = atoi(argv[2]);
+				ch = ((ch >= 0) && (ch <= 127)) ? ch : 0;
+				nrf_cfg.mhz = 24000 + ch;
+				printf("nrf: setting RF ch = %d(%dMHz)\n", ch, nrf_cfg.mhz);
+				nvm_save();
+			}
+			else {
+				ch = nrf_cfg.mhz - 24000;
+				printf("nrf: RF ch = %d(%dMHz)\n", ch, nrf_cfg.mhz);
+			}
+
 			return 0;
 		}
 		if(!strcmp(argv[1], "chat")) {
