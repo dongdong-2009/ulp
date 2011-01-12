@@ -23,7 +23,7 @@ int nvm_init(void)
 	dst = __section_begin(".nvm.ram");
 	sz_ram = (int)__section_end(".nvm.ram") - (int)__section_begin(".nvm.ram");
 	sz_rom = (int)__section_end(".nvm.rom") - (int)__section_begin(".nvm.rom");
-	
+
 	sz_rom >>= 1;
 	sz_ram = (sz_ram + 3) & ( ~ 0x03); //align to 4 bytes boundary
 	assert(sz_ram <= sz_rom);
@@ -34,24 +34,24 @@ int nvm_init(void)
 	flash_Read(&sz_nvm, src + 4, 4);
 	flash_Read(dst, src + 8, sz_ram);
 	flash_Erase(src, (sz_rom + FLASH_PAGE_SZ - 1) / FLASH_PAGE_SZ);
-	if(magic == NVM_MAGIC && sz_nvm == sz_ram) {		
+	if(magic == NVM_MAGIC && sz_nvm == sz_ram) {
 		//rom1 -> rom 2
 		flash_Erase(bak, (sz_rom + FLASH_PAGE_SZ - 1) / FLASH_PAGE_SZ);
 		flash_Write(bak + 8, dst, sz_ram);
-		flash_Write(bak + 4, &sz_nvm, 4); 
-		flash_Write(bak + 0, &magic, 4);  
+		flash_Write(bak + 4, &sz_nvm, 4);
+		flash_Write(bak + 0, &magic, 4);
 		return 0;
 	}
-	
+
 	//rom 2 -> ram
 	src = bak;
 	flash_Read(&magic, src, 4);
 	flash_Read(&sz_nvm, src + 4, 4);
 	if(magic == NVM_MAGIC && sz_nvm == sz_ram) {
-		flash_Read(dst, src + 8, sz_ram); 
+		flash_Read(dst, src + 8, sz_ram);
 		return 0;
 	}
-	
+
 	//fail ...
 	return -1;
 }
@@ -61,13 +61,19 @@ int nvm_save(void)
 {
 	char *src, *dest;
 	int magic = NVM_MAGIC;
-	int sz_ram;
+	int sz_ram, sz_rom;
 
 	dest = __section_begin(".nvm.rom");
 	src = __section_begin(".nvm.ram");
 	sz_ram = (int)__section_end(".nvm.ram") - (int)__section_begin(".nvm.ram");
+	sz_rom = (int)__section_end(".nvm.rom") - (int)__section_begin(".nvm.rom");
+
 	sz_ram = (sz_ram + 3) & ( ~ 0x03); //align to 4 bytes boundary
-	
+	sz_rom >>= 1;
+
+	//ram -> rom 2
+	dest += sz_rom;
+	flash_Erase(dest, (sz_rom + FLASH_PAGE_SZ - 1) / FLASH_PAGE_SZ);
 	flash_Write(dest + 8, src, sz_ram);
 	flash_Write(dest + 4, &sz_ram, 4);
 	flash_Write(dest + 0, &magic, 4);
@@ -77,5 +83,17 @@ int nvm_save(void)
 //for power-down auto save function
 void nvm_isr(void)
 {
-	nvm_save();
+	char *src, *dest;
+	int magic = NVM_MAGIC;
+	int sz_ram;
+
+	dest = __section_begin(".nvm.rom");
+	src = __section_begin(".nvm.ram");
+	sz_ram = (int)__section_end(".nvm.ram") - (int)__section_begin(".nvm.ram");
+	sz_ram = (sz_ram + 3) & ( ~ 0x03); //align to 4 bytes boundary
+
+	//ram -> rom 1, rom1 always blank for urgently store
+	flash_Write(dest + 8, src, sz_ram);
+	flash_Write(dest + 4, &sz_ram, 4);
+	flash_Write(dest + 0, &magic, 4);
 }
