@@ -161,6 +161,7 @@ static int nrf_set_addr(int addr)
 	nrf_write_buf(W_REGISTER(TX_ADDR), (char *)(&addr), 4);
 	nrf_write_buf(W_REGISTER(RX_ADDR_P0), (char *)(&addr), 4);
 	nrf_write_reg(EN_RXADDR, 1);
+	nrf_set_mode_tx();
 	return nrf_set_mode_rx(); //automatically enter into prx mode
 }
 
