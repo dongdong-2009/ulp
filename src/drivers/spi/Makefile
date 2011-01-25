@@ -12,5 +12,3 @@ endif
 obj-$(CONFIG_DRIVER_AD9833) += ad9833.o
 obj-$(CONFIG_DRIVER_MCP41X) += mcp41x.o
 obj-$(CONFIG_DRIVER_DAC1X8S) += dac1x8s.o
-obj-$(CONFIG_DRIVER_NRF) += nrf.o
-obj-$(CONFIG_DRIVER_NRF) += wl_cmd.o
