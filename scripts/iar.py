@@ -133,7 +133,7 @@ def iar_include():
 #iar add test.ewp src/lib/ iar/ motor/ shell/ sys/ ...
 def iar_add():
 	#print 'iar_add()'
-	if(nr_para < 5):
+	if(nr_para < 4):
 		usage();
 		quit();
 	#get paras
@@ -168,6 +168,12 @@ def iar_add():
 		#print etree.tostring(econ)
 	else:
 		egrp = egrps[0];
+	#handle empty group situation
+	if(nr_para < 5):
+		#print 'Group', econ.xpath("name")[0].text, '\\', egrp.xpath("name")[0].text, 'is removed!'
+		econ.remove(egrp);
+		iar.write(fname);
+		quit();
 	#create sub-group/sub-files
 	for sname in argv[4:nr_para]:
 		if(path.dirname(sname) != ""):
