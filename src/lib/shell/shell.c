@@ -22,14 +22,23 @@ static struct shell_s *shell; /*current shell*/
 
 void shell_Init(void)
 {
+	uart_cfg_t cfg = UART_CFG_DEF;
+	cfg.baud = BAUD_115200;
+#ifdef CONFIG_CONSOLE_BAUD
+	cfg.baud = CONFIG_CONSOLE_BAUD;
+#endif
+
 	cmd_Init();
 #ifdef CONFIG_SHELL_UART0
+	uart0.init(&cfg);
 	shell_register((const struct console_s *) &uart0);
 #endif
 #ifdef CONFIG_SHELL_UART1
+	uart1.init(&cfg);
 	shell_register((const struct console_s *) &uart1);
 #endif
 #ifdef CONFIG_SHELL_UART2
+	uart2.init(&cfg);
 	shell_register((const struct console_s *) &uart2);
 #endif
 }
