@@ -1,0 +1,20 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2011
+#
+
+#common config options
+bool "wireless support" CONFIG_DRIVER_WL
+
+#RF chip select
+if [ "$CONFIG_DRIVER_WL" = "y" ]; then
+
+choice 'wireless chip select'	" \
+	NRF24L01	CONFIG_WL_NRF \
+	NONE		CONFIG_WL_NONE \
+" NRF24L01
+
+bool "wireless debug command" CONFIG_WL_CMD
+
+fi
