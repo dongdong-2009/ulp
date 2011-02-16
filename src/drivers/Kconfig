@@ -79,12 +79,22 @@ mainmenu_option next_comment
 	source src/drivers/wl/Kconfig
 endmenu
 
-bool "enable console drivers?" CONFIG_DRIVER_CONSOLE
-if [ "$CONFIG_DRIVER_CONSOLE" = "y" ]; then
-	choice 'console device select'	" \
-		UART0	CONFIG_CONSOLE_UART0 \
-		UART1	CONFIG_CONSOLE_UART1 \
-		UART2	CONFIG_CONSOLE_UART2 \
-	" UART2
-	int 'console baudrate' CONFIG_CONSOLE_BAUD 115200
+int 'console baudrate' CONFIG_CONSOLE_BAUD 115200
+bool "enable uart0 as console" CONFIG_SHELL_UART0
+bool "enable uart1 as console" CONFIG_SHELL_UART1
+bool "enable uart2 as console" CONFIG_SHELL_UART2
+choice 'default console select'	" \
+	UART0	CONFIG_CONSOLE_UART0 \
+	UART1	CONFIG_CONSOLE_UART1 \
+	UART2	CONFIG_CONSOLE_UART2 \
+" UART2
+if [ "$CONFIG_CONSOLE_UART0" = "y"]; then
+	define_bool CONFIG_SHELL_UART0 y
 fi
+if [ "$CONFIG_CONSOLE_UART1" = "y"]; then
+	define_bool CONFIG_SHELL_UART1 y
+fi
+if [ "$CONFIG_CONSOLE_UART2" = "y"]; then
+	define_bool CONFIG_SHELL_UART2 y
+fi
+

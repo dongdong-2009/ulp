@@ -23,13 +23,13 @@ static struct shell_s *shell; /*current shell*/
 void shell_Init(void)
 {
 	cmd_Init();
-#ifdef CONFIG_CONSOLE_UART0
+#ifdef CONFIG_SHELL_UART0
 	shell_register((const struct console_s *) &uart0);
 #endif
-#ifdef CONFIG_CONSOLE_UART1
+#ifdef CONFIG_SHELL_UART1
 	shell_register((const struct console_s *) &uart1);
 #endif
-#ifdef CONFIG_CONSOLE_UART2
+#ifdef CONFIG_SHELL_UART2
 	shell_register((const struct console_s *) &uart2);
 #endif
 }
