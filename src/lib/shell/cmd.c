@@ -8,97 +8,147 @@
 #include <string.h>
 #include "shell/cmd.h"
 #include "sys/sys.h"
+#include "debug.h"
 
-static cmd_list_t *cmd_list;
-static char cmd_update_stop_flag;
+/*private*/
+static struct cmd_queue_s *cmd_queue;
 
 void cmd_Init(void)
 {
-	cmd_t **entry, **end;
-	
-	cmd_list = 0;
-	cmd_update_stop_flag = 0;
-
-	entry = __section_begin(".shell.cmd");
-	end = __section_end(".shell.cmd");
-	while(entry < end) {
-		cmd_Add(*entry);
-		entry ++;
-	}
+	cmd_queue = NULL;
 }
 
 void cmd_Update(void)
 {
-	int ret;
-	cmd_list_t *p = cmd_list;
-
-	if(cmd_update_stop_flag)
-		return;
-
-	while(p) {
-		if(p->flag & CMD_FLAG_REPEAT) {
-			ret = p->cmd->func(0, 0);
-			if(ret != 0)
-				p->flag |= CMD_FLAG_REPEAT;
-			else
-				p->flag &= (~CMD_FLAG_REPEAT);
-		}
-		p = p->next;
-	}
 }
 
-void cmd_Add(cmd_t *cmd)
+static cmd_t *__name2cmd(const char *name)
 {
-	cmd_list_t *new;
-	cmd_list_t *p = cmd_list;
+	cmd_t **entry, **end;
+	if(name != NULL) {
+		entry = __section_begin(".shell.cmd");
+		end = __section_end(".shell.cmd");
+		while(entry < end) {
+			if(!strcmp(name, (*entry)->name))
+				return *entry;
+			entry ++;
+		}
+	}
 
-	new = sys_malloc(sizeof(cmd_list_t));
-	new->cmd = cmd;
-	new->flag = 0;
-	new->next = 0;
-
-	while(p && p->next) p = p->next;
-	if(!p) p = cmd_list = new;
-	else p->next = new;
+	return NULL;
 }
 
-void cmd_Exec(int argc, char *argv[])
+static int __cmd_parse(char *cmdline, int len, char **argv, int n)
 {
-	int len = strlen(argv[0]);
-	int ret = -1;
-	cmd_list_t *p = cmd_list;
+	int i, argc, flag;
 
-	/*find command from cmd_list*/
-	while(p) {
-		if( !strcmp(p->cmd->name, argv[0])) {
-			/*found it*/
-			break;
+	//parse the Command Line
+	argc = 0;
+	for(flag = i = 0; i < len; i ++) {
+		if(cmdline[i] == ' ') {
+			cmdline[i] = 0;
+			flag = 0;
 		}
-		p = p->next;
+		else if(flag == 0) { //new argv
+			if(argc < n && argv != NULL) {
+				argv[argc] = cmdline + i;
+				argc ++;
+				flag = 1;
+			}
+			else break;
+		}
 	}
 
-	if(!p) {
-		if(len > 0)
-			printf("Invalid Command\n");
-		return;
+	/*parser debug*/
+#if 0
+	for(i = 0; i < argc; i ++)
+		printf("argv[%d] = %s\n", i, argv[i]);
+#endif
+
+	return argc;
+}
+
+static int __cmd_exec(struct cmd_list_s *clst)
+{
+	int argc, ret;
+	char *argv[16];
+	cmd_t *cmd;
+
+	ret = 0;
+	argc = __cmd_parse(clst -> cmdline, clst -> len, argv, 16);
+	if(argc > 0) {
+		cmd = __name2cmd(argv[0]);
+		if(cmd != NULL) {
+			ret = cmd -> func(argc, argv);
+		}
 	}
 
-	ret = p->cmd->func(argc, argv);
-	if(ret != 0)
-		p->flag |= CMD_FLAG_REPEAT;
+	return ret;
+}
+
+int cmd_queue_init(struct cmd_queue_s *cq)
+{
+	cq -> flag = 0;
+	INIT_LIST_HEAD(&cq -> cmd_list);
+	return 0;
+}
+
+int cmd_queue_update(struct cmd_queue_s *cq)
+{
+	struct cmd_list_s *clst;
+	struct list_head *pos, *bkup;
+
+	if(cq -> flag) { //background tasks update stop
+		return 0;
+	}
+
+	list_for_each_safe(pos, bkup, &cq -> cmd_list) {
+		clst = list_entry(pos, cmd_list_s, list);
+		if( __cmd_exec(clst) <= 0) {
+			//remove from queue
+			list_del(&clst -> list);
+			sys_free(clst);
+		}
+	}
+	return 0;
+}
+
+/*note: this is the common entry of all cmd_xxx_func*/
+int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
+{
+	int n;
+	struct cmd_list_s *clst;
+
+	//create a new clst object
+	n = strlen(cl);
+	clst = sys_malloc(sizeof(struct cmd_list_s) + n + 1);
+	assert(cq != NULL);
+	clst -> cmdline = (char *)clst + sizeof(struct cmd_list_s);
+	strcpy(clst -> cmdline, cl);
+	clst -> len = n;
+
+	//exec clst
+	cmd_queue = cq;
+	if(__cmd_exec(clst) != 0) {
+		//repeat, add to cmd queue
+		list_add(&cq -> cmd_list, &clst -> list);
+	}
 	else
-		p->flag &= (~CMD_FLAG_REPEAT);
+		sys_free(clst);
+	return 0;
 }
 
 int cmd_help_func(int argc, char *argv[])
 {
-	cmd_list_t *p = cmd_list;
+	cmd_t **entry, **end, *cmd;
 
-	while(p) {
-		printf("%s\t%s\n", p->cmd->name, p->cmd->help);
-		p = p->next;
+	entry = __section_begin(".shell.cmd");
+	end = __section_end(".shell.cmd");
+	while(entry < end) {
+		cmd = *entry;
+		printf("%s\t%s\n", cmd->name, cmd->help);
+		entry ++;
 	}
-
 	return 0;
 }
 
@@ -107,18 +157,18 @@ DECLARE_SHELL_CMD(cmd_help)
 
 static int cmd_ListBgTasks(void)
 {
-	cmd_list_t *p = cmd_list;
+	struct list_head *pos;
+	struct cmd_list_s *clst;
 	int i = 0;
 
+	assert(cmd_queue != NULL);
+
 	/*print bg task list*/
-	while(p) {
-		if(p->flag & CMD_FLAG_REPEAT) {
-			if(!i)
-				printf("bg tasks:\n");
-			printf("%d, %s\n", i, p->cmd->name);
-			i++;
-		}
-		p = p->next;
+	printf("bg tasks:\n");
+	list_for_each(pos, &cmd_queue -> cmd_list) {
+		clst = list_entry(pos, cmd_list_s, list);
+		printf("%d, %s\n", i, clst -> cmdline);
+		i++;
 	}
 
 	return i;
@@ -127,6 +177,8 @@ static int cmd_ListBgTasks(void)
 static int cmd_pause_func(int argc, char *argv[])
 {
 	int on = 0; /*-1-> off, 1->on, 0 undef*/
+
+	assert(cmd_queue != NULL);
 
 	if(argc > 1){
 		if(!strcmp(argv[1], "off"))
@@ -140,14 +192,14 @@ static int cmd_pause_func(int argc, char *argv[])
 	}
 
 	if(!on) {
-		if(cmd_update_stop_flag)
+		if(cmd_queue -> flag)
 			on = -1;
 		else
 			on = 1;
 	}
 
 	if (on == -1) { /*pause off*/
-		cmd_update_stop_flag = 0;
+		cmd_queue -> flag = 0;
 		printf("bg task continues ...\n");
 		return 0;
 	}
@@ -156,7 +208,7 @@ static int cmd_pause_func(int argc, char *argv[])
 	cmd_ListBgTasks();
 
 	/*pause bg tasks*/
-	cmd_update_stop_flag = 1;
+	cmd_queue -> flag = 1;
 	printf("note: bg task is paused!!!\n");
 
 	return 0;
@@ -168,13 +220,16 @@ DECLARE_SHELL_CMD(cmd_pause)
 static int cmd_kill_func(int argc, char *argv[])
 {
 	int i, notfound;
-	cmd_list_t *p = cmd_list;
-
-	char *usage =  { \
+	struct list_head *pos, *bkup;
+	struct cmd_list_s *clst;
+	char *cmd_name;
+	const char *usage =  { \
 		"usage:\n" \
 		" kill cmd_name cmd_name ...\n" \
 		" kill all\n" \
 	};
+
+	assert(cmd_queue != NULL);
 
 	if(argc < 2) {
 		printf("%s",usage);
@@ -184,31 +239,28 @@ static int cmd_kill_func(int argc, char *argv[])
 
 	for(i = 1; i < argc; i++) {
 		notfound = 1;
-
-		/*find from bg task list*/
-		while(p) {
-			if(p->flag & CMD_FLAG_REPEAT) {
-				/*match the task name*/
-				notfound = strcmp(argv[i], p->cmd->name);
-				if(notfound)
-					notfound = strcmp(argv[i], "all");
-
-				if(!notfound) { /*found*/
-					p->flag &= ~CMD_FLAG_REPEAT;
-					break;
-				}
+		list_for_each_safe(pos, bkup, &cmd_queue -> cmd_list) {
+			clst = list_entry(pos, cmd_list_s, list);
+			if(__cmd_parse(clst -> cmdline, clst -> len, &cmd_name, 1) > 0) {
+				notfound = strcmp(argv[i], cmd_name); /*match the task name*/
 			}
-			p = p->next;
+
+			if(notfound)
+				notfound = strcmp(argv[i], "all");
+
+			if(!notfound) { /*found*/
+				list_del(&clst -> list);
+				sys_free(clst);
+				break;
+			}
 		}
 
-		/*invalid task name para*/
-		if(notfound) {
+		if(notfound) { /*invalid task name para*/
 			printf("%s",usage);
 			cmd_ListBgTasks();
 			break;
 		}
 	}
-
 	return 0;
 }
 

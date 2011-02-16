@@ -4,6 +4,15 @@
 #ifndef __CONSOLE_H_
 #define __CONSOLE_H_
 
+struct console_s {
+	int (*init)(void *cfg);
+	int (*putchar)(int data);
+	int (*getchar)(void);
+	int (*poll)(void); //return how many chars left in the rx buffer
+};
+
+int console_select(const struct console_s *);
+
 void console_Init(void);
 int console_putchar(char c);
 int console_getchar(void);

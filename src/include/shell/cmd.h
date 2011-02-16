@@ -4,17 +4,25 @@
 #ifndef __CMD_H_
 #define __CMD_H_
 
+#include <stdio.h>
+#include <linux/list.h>
+
 typedef struct {
 	char *name;
 	int (*func)(int argc, char *argv[]);
 	char *help;
 } cmd_t;
 
-typedef struct {
-	cmd_t *cmd;
+struct cmd_list_s {
+	char *cmdline;
+	int len;
+	struct list_head list;
+};
+
+struct cmd_queue_s {
 	int flag;
-	void *next;
-} cmd_list_t;
+	struct list_head cmd_list;
+};
 
 #define CMD_FLAG_REPEAT 1
 
@@ -22,9 +30,13 @@ typedef struct {
 #define DECLARE_SHELL_CMD(cmd) \
 	const cmd_t *##cmd##_entry@".shell.cmd" = &##cmd;
 
+/*cmd module i/f*/
 void cmd_Init(void);
 void cmd_Update(void);
-void cmd_Add(cmd_t *cmd);
-void cmd_Exec(int argc, char *argv[]);
 
-#endif /*__SHELL_H_*/
+/*cmd queue ops*/
+int cmd_queue_init(struct cmd_queue_s *);
+int cmd_queue_update(struct cmd_queue_s *);
+int cmd_queue_exec(struct cmd_queue_s *, const char *);
+
+#endif /*__CMD_H_*/

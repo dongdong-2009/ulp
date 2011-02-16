@@ -8,81 +8,129 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sys/task.h"
+#include "sys/sys.h"
 #include "shell/cmd.h"
 #include "console.h"
+#include "debug.h"
+#include "uart.h"
 
-static void shell_Parse(void);
 static void cmd_GetHistory(char *cmd, int dir);
 static void cmd_SetHistory(const char *cmd);
 
-static char cmd_history[CONFIG_SHELL_LEN_HIS_MAX];
-static int cmd_hrail;
-static int cmd_hrpos;
-static char cmd_buffer[CONFIG_SHELL_LEN_CMD_MAX]; /*max length of a cmd and paras*/
-static int cmd_idx;
-static char *argv[CONFIG_SHELL_NR_PARA_MAX]; /*max number of para, include command itself*/
-static int argc;
+static LIST_HEAD(shell_queue);
+static struct shell_s *shell; /*current shell*/
 
 void shell_Init(void)
 {
-	cmd_buffer[0] = 0;
-	cmd_SetHistory("help");
-	cmd_idx = -1;
-	
-	putchar(0x1b); /*clear screen*/
-	putchar('c');
-	
 	cmd_Init();
-	printf("%s\n", CONFIG_BLDC_BANNER);
+#ifdef CONFIG_CONSOLE_UART0
+	shell_register((const struct console_s *) &uart0);
+#endif
+#ifdef CONFIG_CONSOLE_UART1
+	shell_register((const struct console_s *) &uart1);
+#endif
+#ifdef CONFIG_CONSOLE_UART2
+	shell_register((const struct console_s *) &uart2);
+#endif
 }
 
 void shell_Update(void)
 {
 	int ok;
-	
-	cmd_Update();
-	ok = shell_ReadLine(CONFIG_SHELL_PROMPT, NULL);
-	if(!ok) return;
+	struct list_head *pos;
+	list_for_each(pos, &shell_queue) {
+		shell = list_entry(pos, shell_s, list);
+		console_select(shell -> console);
+		cmd_queue_update(&shell -> cmd_queue);
 
-	shell_Parse();
-	cmd_Exec(argc, argv);
+		ok = shell_ReadLine(CONFIG_SHELL_PROMPT, NULL);
+		if(!ok) continue;
+		cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
+	}
 }
 
 DECLARE_LIB(shell_Init, shell_Update)
 
-/*read a line of string from console*/
+int shell_register(const struct console_s *console)
+{
+	shell = sys_malloc(sizeof(struct shell_s));
+	assert(shell != NULL);
+
+	//sponsor new shell
+	list_add(&shell -> list, &shell_queue);
+	shell -> console = console;
+	shell -> cmd_buffer[0] = 0;
+	shell -> cmd_idx = -1;
+
+	shell -> cmd_hsz = CONFIG_SHELL_LEN_HIS_MAX;
+	shell -> cmd_history = NULL;
+	shell -> cmd_hrail = 0;
+	shell -> cmd_hrpos = 0;
+	if(shell -> cmd_hsz > 0) {
+		shell -> cmd_history = sys_malloc(shell -> cmd_hsz);
+		assert(shell -> cmd_history != NULL);
+		memset(shell -> cmd_history, 0, shell -> cmd_hsz);
+		cmd_SetHistory("help");
+	}
+
+	//new shell init
+	console_select(shell -> console);
+	cmd_queue_init(&shell -> cmd_queue);
+	putchar(0x1b); /*clear screen*/
+	putchar('c');
+	printf("%s\n", CONFIG_BLDC_BANNER);
+	return 0;
+}
+
+int shell_exec_cmd(const struct console_s *cnsl, const char *cmdline)
+{
+	struct list_head *pos;
+	list_for_each(pos, &shell_queue) {
+		shell = list_entry(pos, shell_s, list);
+		if(shell -> console == cnsl) {
+			console_select(cnsl);
+			cmd_queue_exec(&shell -> cmd_queue, cmdline);
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+/*read a line of string from current console*/
 int shell_ReadLine(const char *prompt, char *str)
 {
 	int ch, len, sz, offset, tmp, idx, carry_flag;
 	char buf[CONFIG_SHELL_LEN_CMD_MAX];
 	int ready = 0;
-	
-	if(cmd_idx < 0) {
+
+	assert(shell != NULL);
+	if(shell -> cmd_idx < 0) {
 		if(prompt != NULL) {
 			printf("%s", prompt);
 		}
-		memset(cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
-		cmd_idx ++;
-		cmd_hrpos = cmd_hrail - 1;
-		if(cmd_hrpos < 0)
-			cmd_hrpos = CONFIG_SHELL_LEN_HIS_MAX;
+		memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
+		shell -> cmd_idx ++;
+		shell -> cmd_hrpos = shell -> cmd_hrail - 1;
+		if(shell -> cmd_hrpos < 0)
+			shell -> cmd_hrpos = shell -> cmd_hsz;
 	}
 
-	if(cmd_idx <= -1) { /*+/- key for quick debug purpose*/
-		cmd_idx --;
-		cmd_GetHistory(cmd_buffer, -1);
-		cmd_idx = -2 - cmd_idx;
-				
+	if(shell -> cmd_idx <= -1) { /*+/- key for quick debug purpose*/
+		shell -> cmd_idx --;
+		cmd_GetHistory(shell -> cmd_buffer, -1);
+		shell -> cmd_idx = -2 - shell -> cmd_idx;
+
 		/*terminal display*/
-		printf(cmd_buffer);
-		offset = strlen(cmd_buffer) - cmd_idx;
+		printf(shell -> cmd_buffer);
+		offset = strlen(shell -> cmd_buffer) - shell -> cmd_idx;
 		if(offset > 0)
 			printf("\033[%dD", offset); /*restore cursor position*/
 	}
 
-	len = strlen(cmd_buffer);
+	len = strlen(shell -> cmd_buffer);
 	memset(buf, 0, CONFIG_SHELL_LEN_CMD_MAX);
-	
+
 	while(console_IsNotEmpty())
 	{
 		ch = console_getch();
@@ -93,24 +141,24 @@ int shell_ReadLine(const char *prompt, char *str)
 		case 24: /*ctrl-x*/
 		case 3: /*ctrl-c*/
 			if(ch == 3)
-				strcpy(cmd_buffer, "pause");
+				strcpy(shell -> cmd_buffer, "pause");
 			else
-				strcpy(cmd_buffer, "kill all");
+				strcpy(shell -> cmd_buffer, "kill all");
 		case '\r':		// Return
-			cmd_idx = -1;
+			shell -> cmd_idx = -1;
 			ready = 1;
 			putchar('\n');
 			break;
 		case '+':
 		case '-':
-			idx = cmd_idx;
+			idx = shell -> cmd_idx;
 			do {
 				carry_flag = 0;
-				tmp = cmd_buffer[idx];
+				tmp = shell -> cmd_buffer[idx];
 				if( tmp < '0' || tmp > '9') {
 					if(tmp != '.')
 						break;
-					else if(idx != cmd_idx) {
+					else if(idx != shell -> cmd_idx) {
 						//float support
 						idx --;
 						printf("\033[D"); /*left shift 1 char*/
@@ -118,7 +166,7 @@ int shell_ReadLine(const char *prompt, char *str)
 						continue;
 					}
 				}
-				
+
 				if(ch == '+') {
 					tmp ++;
 					if(tmp > '9') {
@@ -135,7 +183,7 @@ int shell_ReadLine(const char *prompt, char *str)
 				}
 
 				/*replace*/
-				cmd_buffer[idx] = tmp;
+				shell -> cmd_buffer[idx] = tmp;
 				idx --;
 
 				/*terminal display*/
@@ -144,29 +192,29 @@ int shell_ReadLine(const char *prompt, char *str)
 				putchar(tmp);
 				printf("\033[D"); /*left shift 1 char*/
 			} while(carry_flag);
-			
-			if(idx == cmd_idx)
+
+			if(idx == shell -> cmd_idx)
 				continue;
-			
-			cmd_idx = -2 - cmd_idx;
+
+			shell -> cmd_idx = -2 - shell -> cmd_idx;
 			ready = 1;
 			putchar('\n');
 			break;
 		case 127:			// Backspace
-			if(cmd_idx > 0)
+			if(shell -> cmd_idx > 0)
 			{
-				sz = len - cmd_idx;
+				sz = len - shell -> cmd_idx;
 				if(sz > 0) {
 					/*copy cursor->rail to buf*/
-					offset = cmd_idx;
-					memcpy(buf, cmd_buffer + offset, sz);
+					offset = shell -> cmd_idx;
+					memcpy(buf, shell -> cmd_buffer + offset, sz);
 					/*copy back*/
-					offset = cmd_idx - 1;
-					memcpy(cmd_buffer + offset, buf, sz);
+					offset = shell -> cmd_idx - 1;
+					memcpy(shell -> cmd_buffer + offset, buf, sz);
 				}
 
-				cmd_buffer[len - 1] = 0;
-				cmd_idx --;
+				shell -> cmd_buffer[len - 1] = 0;
+				shell -> cmd_idx --;
 
 				/*terminal display*/
 				putchar(127);
@@ -183,38 +231,38 @@ int shell_ReadLine(const char *prompt, char *str)
 			ch = console_getch();
 			switch (ch) {
 				case 'A': /*UP key*/
-					offset = cmd_idx;
-					memset(cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
-					cmd_GetHistory(cmd_buffer, -1);
-					cmd_idx = strlen(cmd_buffer);
-					
+					offset = shell -> cmd_idx;
+					memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
+					cmd_GetHistory(shell -> cmd_buffer, -1);
+					shell -> cmd_idx = strlen(shell -> cmd_buffer);
+
 					/*terminal display*/
 					if(offset > 0)
 						printf("\033[%dD", offset); /*mov cursor to left*/
 					printf("\033[K"); /*clear contents after cursor*/
-					printf(cmd_buffer);
+					printf(shell -> cmd_buffer);
 					break;
 				case 'B': /*DOWN key*/
-					offset = cmd_idx;
-					memset(cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
-					cmd_GetHistory(cmd_buffer, 1);
-					cmd_idx = strlen(cmd_buffer);
-					
+					offset = shell -> cmd_idx;
+					memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
+					cmd_GetHistory(shell -> cmd_buffer, 1);
+					shell -> cmd_idx = strlen(shell -> cmd_buffer);
+
 					/*terminal display*/
 					if(offset > 0)
 						printf("\033[%dD", offset); /*mov cursor to left*/
 					printf("\033[K"); /*clear contents after cursor*/
-					printf(cmd_buffer);
+					printf(shell -> cmd_buffer);
 					break;
 				case 'C': /*RIGHT key*/
-					if(cmd_idx < len) {
-						cmd_idx ++;
+					if(shell -> cmd_idx < len) {
+						shell -> cmd_idx ++;
 						printf("\033[C"); /*mov cursor right*/
 					}
 					break;
 				case 'D': /*LEFT key*/
-					if(cmd_idx > 0) {
-						cmd_idx --;
+					if(shell -> cmd_idx > 0) {
+						shell -> cmd_idx --;
 						printf("\033[D"); /*mov cursor left*/
 					}
 					break;
@@ -229,20 +277,20 @@ int shell_ReadLine(const char *prompt, char *str)
 				continue;
 			if(len < CONFIG_SHELL_LEN_CMD_MAX - 1)
 			{
-				sz = len - cmd_idx;
+				sz = len - shell -> cmd_idx;
 				if(sz > 0) {
 					/*copy cursor->rail to buf*/
-					offset = cmd_idx;
-					memcpy(buf, cmd_buffer + offset, sz);
-					
+					offset = shell -> cmd_idx;
+					memcpy(buf, shell -> cmd_buffer + offset, sz);
+
 					/*copy back*/
 					offset ++;
-					memcpy(cmd_buffer + offset, buf, sz);
+					memcpy(shell -> cmd_buffer + offset, buf, sz);
 				}
 
-				cmd_buffer[cmd_idx] = ch;
-				cmd_idx ++;
-				
+				shell -> cmd_buffer[shell -> cmd_idx] = ch;
+				shell -> cmd_idx ++;
+
 				/*terminal display*/
 				putchar(ch);
 				printf("\033[s"); /*save cursor pos*/
@@ -256,53 +304,13 @@ int shell_ReadLine(const char *prompt, char *str)
 
 	if(ready) {
 		if(str != NULL) {
-			strcpy(str, cmd_buffer); 
+			strcpy(str, shell -> cmd_buffer);
 		}
-		
-		if(strlen(cmd_buffer))
-			cmd_SetHistory(cmd_buffer);
+
+		if(strlen(shell -> cmd_buffer))
+			cmd_SetHistory(shell -> cmd_buffer);
 	}
 	return ready;
-}
-
-static void shell_Parse(void)
-{
-	int len, i = 0;
-	char ch;
-	int flag = 0;
-	
-	argc = 0;
-	len = strlen(cmd_buffer);
-	ch = cmd_buffer[i];
-	while(ch) {
-		if(ch != ' ') {
-			if(argc > CONFIG_SHELL_NR_PARA_MAX)
-				break;
-			
-			if(flag == 0) {
-				argv[argc] = cmd_buffer + i;
-				argc ++;
-				flag = 1;
-			}
-		}
-		else {
-			cmd_buffer[i] = 0;
-			flag = 0;
-		}
-			
-		i++;
-		
-		if(i < len)
-			ch = cmd_buffer[i];
-		else
-			break;
-	}
-	
-	/*debug*/
-#if 0
-	for(i = 0; i < argc; i++)
-		printf("argv[%d] = %s\n", i, argv[i]);
-#endif
 }
 
 /*cmd history format: d0cmd0cmd0000000cm*/
@@ -313,12 +321,12 @@ static void cmd_GetHistory(char *cmd, int dir)
 
 	bytes = 0;
 	dir = (dir > 0) ? 1 : -1;
-	
+
 	/*search next cmd related to current offset*/
-	ofs = cmd_hrpos;
-	
-	for(cnt = 0; cnt < CONFIG_SHELL_LEN_HIS_MAX; cnt ++) {
-		ch = cmd_history[ofs];
+	ofs = shell -> cmd_hrpos;
+
+	for(cnt = 0; cnt < shell -> cmd_hsz; cnt ++) {
+		ch = shell -> cmd_history[ofs];
 		if(ch != 0) {
 			cmd[bytes] = ch;
 			bytes ++;
@@ -329,17 +337,17 @@ static void cmd_GetHistory(char *cmd, int dir)
 				break;
 			}
 		}
-		
+
 		ofs += dir;
-		if( ofs >= CONFIG_SHELL_LEN_HIS_MAX)
-			ofs -= CONFIG_SHELL_LEN_HIS_MAX;
+		if( ofs >= shell -> cmd_hsz)
+			ofs -= shell -> cmd_hsz;
 		else if(ofs < 0)
-			ofs = CONFIG_SHELL_LEN_HIS_MAX - 1;
+			ofs = shell -> cmd_hsz - 1;
 	}
 
 	if(bytes == 0)
 		return;
-	
+
 	/*swap*/
 	if(dir < 0) {
 		len = bytes;
@@ -350,37 +358,37 @@ static void cmd_GetHistory(char *cmd, int dir)
 			cmd[len - cnt -1] = ch;
 		}
 	}
-	
-	cmd_hrpos = ofs;
+
+	shell -> cmd_hrpos = ofs;
 }
 
 static void cmd_SetHistory(const char *cmd)
 {
 	int ofs, len, cnt;
-	
+
 	/*insert the cmd to rail*/
-	ofs = cmd_hrail;
+	ofs = shell -> cmd_hrail;
 	len = strlen(cmd);
 	if( !len)
 		return;
-	
-	for(cnt = 0; cnt < CONFIG_SHELL_LEN_HIS_MAX; cnt ++) {
+
+	for(cnt = 0; cnt < shell -> cmd_hsz; cnt ++) {
 		if(cnt < len) {
-			cmd_history[ofs] = cmd[cnt];
-			cmd_hrail = ofs + 2;
+			shell -> cmd_history[ofs] = cmd[cnt];
+			shell -> cmd_hrail = ofs + 2;
 		}
 		else {
-			if(cmd_history[ofs] == 0)
+			if(shell -> cmd_history[ofs] == 0)
 				break;
-			cmd_history[ofs] = 0;
+			shell -> cmd_history[ofs] = 0;
 		}
-		
+
 		ofs ++;
-		if( ofs >= CONFIG_SHELL_LEN_HIS_MAX)
-			ofs -= CONFIG_SHELL_LEN_HIS_MAX;
+		if( ofs >= shell -> cmd_hsz)
+			ofs -= shell -> cmd_hsz;
 	}
 
-	if( cmd_hrail >= CONFIG_SHELL_LEN_HIS_MAX)
-		cmd_hrail -= CONFIG_SHELL_LEN_HIS_MAX;
+	if( shell -> cmd_hrail >= shell -> cmd_hsz)
+		shell -> cmd_hrail -= shell -> cmd_hsz;
 }
 

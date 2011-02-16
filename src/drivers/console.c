@@ -5,40 +5,51 @@
 #include "config.h"
 #include "console.h"
 #include "uart.h"
+#include <stddef.h>
+#include "sys/sys.h"
+#include "debug.h"
 
-uart_bus_t *uart_con;
+static const struct console_s *cnsl; /*current console*/
 
 void console_Init(void)
 {
 	uart_cfg_t cfg = UART_CFG_DEF;
-
-#ifdef CONFIG_CONSOLE_UART0
-	uart_con = &uart0;
-#endif
-#ifdef CONFIG_CONSOLE_UART1
-	uart_con = &uart1;
-#endif
-#ifdef CONFIG_CONSOLE_UART2
-	uart_con = &uart2;
-#endif
-
 	cfg.baud = BAUD_115200;
 #ifdef CONFIG_CONSOLE_BAUD
 	cfg.baud = CONFIG_CONSOLE_BAUD;
 #endif
-	uart_con -> init(&cfg);
+
+#ifdef CONFIG_CONSOLE_UART0
+	uart0.init(&cfg);
+	cnsl = (const struct console_s *) &uart0;
+#endif
+#ifdef CONFIG_CONSOLE_UART1
+	uart1.init(&cfg);
+	cnsl = (const struct console_s *) &uart1;
+#endif
+#ifdef CONFIG_CONSOLE_UART2
+	uart2.init(&cfg);
+	cnsl = (const struct console_s *) &uart2;
+#endif
+}
+
+int console_select(const struct console_s *new)
+{
+	cnsl = new;
+	return 0;
 }
 
 int console_putch(char c)
 {
-	uart_con -> putchar(c);
+	assert(cnsl != NULL);
+	cnsl -> putchar(c);
 	return 0;
 }
 
 int console_getch(void)
 {
-	int ret = uart_con -> getchar();
-	return ret;
+	assert(cnsl != NULL);
+	return cnsl -> getchar();
 }
 
 int console_putchar(char c)
@@ -59,5 +70,6 @@ int console_getchar(void)
 
 int console_IsNotEmpty(void)
 {
-	return uart_con -> poll();
+	assert(cnsl != NULL);
+	return cnsl -> poll();
 }
