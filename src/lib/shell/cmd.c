@@ -79,7 +79,10 @@ static int __cmd_exec(struct cmd_list_s *clst)
 	if(argc > 0) {
 		cmd = __name2cmd(argv[0]);
 		if(cmd != NULL) {
-			ret = cmd -> func(argc, argv);
+			if(list_empty(&clst -> list))
+				ret = cmd -> func(argc, argv);
+			else //to keep compatibility with the old call style
+				ret = cmd -> func(0, argv);
 		}
 	}
 
@@ -126,6 +129,7 @@ int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 	clst -> cmdline = (char *)clst + sizeof(struct cmd_list_s);
 	strcpy(clst -> cmdline, cl);
 	clst -> len = n;
+	INIT_LIST_HEAD(&clst -> list);
 
 	//exec clst
 	cmd_queue = cq;

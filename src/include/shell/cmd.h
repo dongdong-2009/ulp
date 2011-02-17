@@ -9,6 +9,10 @@
 
 typedef struct {
 	char *name;
+/*cmd_xxx_func(int argc, char *argv) note:
+	1, return code: 0 -> finished success, <0 finished with err, >0 repeat exec needed
+	2, in repeat exec mode, argc = 0;
+*/
 	int (*func)(int argc, char *argv[]);
 	char *help;
 } cmd_t;
