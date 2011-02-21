@@ -38,6 +38,27 @@ static cmd_t *__name2cmd(const char *name)
 	return NULL;
 }
 
+/*to call cmd like: help& or help&100*/
+void __cmd_preprocess(struct cmd_list_s *clst)
+{
+	char *p;
+	int i;
+
+	clst -> ms = -1;
+	for( i = clst -> len; i > 0; i --) {
+		p = clst -> cmdline + i;
+		if(*p == '&') {
+			clst -> len = i; //new clst cmdline length
+			*p ++ = 0;
+			clst -> ms = 0;
+			if(*p != 0) {
+				clst -> ms = atoi(p);
+			}
+			break;
+		}
+	}
+}
+
 static int __cmd_parse(char *cmdline, int len, char **argv, int n)
 {
 	int i, argc, flag;
@@ -79,10 +100,16 @@ static int __cmd_exec(struct cmd_list_s *clst)
 	if(argc > 0) {
 		cmd = __name2cmd(argv[0]);
 		if(cmd != NULL) {
-			if(list_empty(&clst -> list))
+			if(clst -> ms >= 0) {
+				clst -> deadline = time_get(clst -> ms);
 				ret = cmd -> func(argc, argv);
-			else //to keep compatibility with the old call style
-				ret = cmd -> func(0, argv);
+			}
+			else {
+				if(list_empty(&clst -> list))
+					ret = cmd -> func(argc, argv);
+				else //to keep compatibility with the old call style
+					ret = cmd -> func(0, argv);
+			}
 		}
 	}
 
@@ -107,10 +134,19 @@ int cmd_queue_update(struct cmd_queue_s *cq)
 
 	list_for_each_safe(pos, bkup, &cq -> cmd_list) {
 		clst = list_entry(pos, cmd_list_s, list);
+
+		//timeout check
+		if(clst -> ms > 0) {
+			if(time_left(clst -> deadline) > 0)
+				continue;
+		}
+
 		if( __cmd_exec(clst) <= 0) {
 			//remove from queue
-			list_del(&clst -> list);
-			sys_free(clst);
+			if(clst -> ms < 0) {
+				list_del(&clst -> list);
+				sys_free(clst);
+			}
 		}
 	}
 	return 0;
@@ -130,12 +166,13 @@ int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 	strcpy(clst -> cmdline, cl);
 	clst -> len = n;
 	INIT_LIST_HEAD(&clst -> list);
+	__cmd_preprocess(clst);
 
 	//exec clst
 	cmd_queue = cq;
-	if(__cmd_exec(clst) != 0) {
+	if(__cmd_exec(clst) > 0 || clst -> ms >= 0) {
 		//repeat, add to cmd queue
-		list_add(&cq -> cmd_list, &clst -> list);
+		list_add(&clst -> list, &cq -> cmd_list);
 	}
 	else
 		sys_free(clst);
@@ -171,7 +208,12 @@ static int cmd_ListBgTasks(void)
 	printf("bg tasks:\n");
 	list_for_each(pos, &cmd_queue -> cmd_list) {
 		clst = list_entry(pos, cmd_list_s, list);
-		printf("%d, %s\n", i, clst -> cmdline);
+		if(clst -> ms < 0)
+			printf("%d, %s\n", i, clst -> cmdline);
+		else if(clst -> ms > 0)
+			printf("%d, %s&%d\n", i, clst -> cmdline, clst -> ms);
+		else
+			printf("%d, %s&\n", i, clst -> cmdline);
 		i++;
 	}
 

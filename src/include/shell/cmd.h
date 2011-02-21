@@ -4,6 +4,7 @@
 #ifndef __CMD_H_
 #define __CMD_H_
 
+#include "time.h"
 #include <stdio.h>
 #include <linux/list.h>
 
@@ -19,7 +20,9 @@ typedef struct {
 
 struct cmd_list_s {
 	char *cmdline;
-	int len;
+	short len;
+	short ms; //repeat period
+	time_t deadline;
 	struct list_head list;
 };
 
