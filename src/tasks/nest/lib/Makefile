@@ -1,2 +1,8 @@
 obj-y += cncb.o
-obj-y += nest.o
+obj-y += nest_core.o
+obj-y += nest_time.o
+obj-y += nest_can.o
+obj-y += nest_light.o
+obj-y += nest_message.o
+obj-y += nest_power.o
+obj-y += nest_error.o

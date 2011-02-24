@@ -72,14 +72,6 @@
 	Delay10ms(5); /*wait 50ms for relay settle */ \
 } while(0)
 
-//LOCK on(1)/off(0)
-#define RELAY_LOCK_SET(ON)	do \
-{ \
-	if(ON) SigControl(SIG4, SIG4_HI); \
-	else SigControl(SIG4, SIG4_LO);  \
-	Delay10ms(5); /*wait 50ms for relay settle */ \
-} while(0)
-
 //MT60.1 mode on(1)/off(0)
 #define RELAY_MT601_SET(ON)	do \
 { \
@@ -94,24 +86,6 @@
 	if(ON) SigControl(SIG6, SIG6_HI);/*MT22.1*/ \
 	else SigControl(SIG6, SIG6_LO); /*MT18.1&MT60.1*/\
 	Delay10ms(5); /*wait 50ms for relay settle */ \
-} while(0)
-
-#define RELAY_BAT_SET(ON) do \
-{ \
-	if(ON) WrBAT_ON(0);  /*inverted on circuit*/ \
-	else WrBAT_ON(1); \
-} while(0)
-
-#define RELAY_IGN_SET(ON)  do \
-{ \
-	if(ON) WrIGN_ON(0); /*inverted on circuit*/ \
-	else WrIGN_ON(1); \
-} while(0)
-
-#define RELAY_ETCBAT_SET(ON) do\
-{ \
-	if(ON) WrLSD1_PG1(0); /*inverted on circuit*/ \
-	else WrLSD1_PG1(1); \
 } while(0)
 
 //data type definition

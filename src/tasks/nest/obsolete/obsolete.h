@@ -11,29 +11,9 @@
 #define NOW() nest_time_get()
 #define SEC(time) (time/1000)
 #define MIN(time) ((time)/60000)
-static inline void Delay100us(int n)
-{
-	time_t deadline;
-	n = (n + 9) / 10;
-	deadline = time_get(n);
-	while(time_left(deadline) > 0);
-}
-
-static inline void Delay10ms(int n)
-{
-	time_t deadline;
-	n *= 10;
-	deadline = time_get(n);
-	while(time_left(deadline) > 0);
-}
-
-static inline void DelayS(int n)
-{
-	time_t deadline;
-	n *= 1000;
-	deadline = time_get(n);
-	while(time_left(deadline) > 0);
-}
+#define Delay100us(n) nest_mdelay((n + 9) / 10)
+#define Delay10ms(n) nest_mdelay(n * 10)
+#define DelayS(n) nest_mdelay(n * 1000)
 
 /*cncb i/f*/
 enum {

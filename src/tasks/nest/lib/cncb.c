@@ -169,11 +169,11 @@ static int cmd_cncb_func(int argc, char *argv[])
 			cncb_signal(LED_F, TOGGLE);
 			cncb_signal(LED_R, TOGGLE);
 			cncb_signal(LED_P, TOGGLE);
-			
+
 			mdelay(1000);
 		}
 	}
-	
+
 	printf("%s", usage);
 	return 0;
 }
