@@ -7,6 +7,9 @@
 #include "stm32f10x.h"
 #include "time.h"
 #include "cncb.h"
+#include "nest_message.h"
+#include "nest_core.h"
+#include <string.h>
 
 static int cncb_signal_save;
 
@@ -139,7 +142,8 @@ int cncb_signal(int sig, int ops)
 	case CAN_SEL:
 		GPIO_WriteBit(GPIOB, GPIO_Pin_7, ba);
 		break;
-	default:;
+	default:
+		return -1;
 	}
 	return 0;
 }
@@ -151,12 +155,22 @@ int cncb_signal(int sig, int ops)
 static int cmd_cncb_func(int argc, char *argv[])
 {
 	const char *usage = {
-		"cncb debug	flash all cncb signal output\n"
+		"cncb flash	flash all cncb signal output\n"
+		"cncb sig1 0	sig1..6/7(BAT)/8(IGN)/9(LSD) = 0(low)/1(high)\n"
 	};
 
 	if(argc > 1) {
-		//flash all outputs
-		while(1) {
+		if(!strncmp(argv[1], "sig", 3)) {
+			int sig, ops;
+			sig = argv[1][3] - '1' + SIG1;
+			ops = argv[2][0] - '0';
+			ops = (ops & 0x01) ? SIG_HI : SIG_LO;
+			if(!cncb_signal(sig, ops))
+				return 0;
+		}
+		
+		if(!strcmp(argv[1], "flash")) {
+			//flash all outputs
 			cncb_signal(SIG1, TOGGLE);
 			cncb_signal(SIG2, TOGGLE);
 			cncb_signal(SIG3, TOGGLE);
@@ -169,12 +183,11 @@ static int cmd_cncb_func(int argc, char *argv[])
 			cncb_signal(LED_F, TOGGLE);
 			cncb_signal(LED_R, TOGGLE);
 			cncb_signal(LED_P, TOGGLE);
-
-			mdelay(1000);
+			return 0;
 		}
 	}
 
-	printf("%s", usage);
+	nest_message("%s", usage);
 	return 0;
 }
 
