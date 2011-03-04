@@ -66,7 +66,7 @@ static int __cmd_parse(char *cmdline, int len, char **argv, int n)
 	//parse the Command Line
 	argc = 0;
 	for(flag = i = 0; i < len; i ++) {
-		if(cmdline[i] == ' ') {
+		if(cmdline[i] == ' ' || cmdline[i] == 0) {
 			cmdline[i] = 0;
 			flag = 0;
 		}
