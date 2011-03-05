@@ -45,7 +45,6 @@ int ccp_Init(const can_bus_t *can, int baud)
 static int ccp_dispatch(can_msg_t *msg, char waitflag, int timeout)
 {
 	int ret;
-	ccp_dto_t *dto = (ccp_dto_t *) msg -> data;
 	time_t deadline = time_get(timeout);
 	assert(ccp_can != NULL);
 
@@ -66,9 +65,9 @@ static int ccp_dispatch(can_msg_t *msg, char waitflag, int timeout)
 				return -ERR_TIMEOUT;
 		} while(ret);
 
-		ret |= (dto -> byPID != (char) CCP_CMD_RTN_MSG);
-		ret |= (dto -> byERR != CCP_NO_ERR);
-		ret |= (dto -> byCTR != ccp_ctr);
+		ret |= (msg -> data[0] != (char) CCP_CMD_RTN_MSG);
+		ret |= (msg -> data[1] != CCP_NO_ERR);
+		ret |= (msg -> data[2] != ccp_ctr);
 	}
 
 	ccp_ctr ++;
@@ -80,13 +79,12 @@ int ccp_Connect(const ccp_cro_t *cro)
 {
 	int status;
 	can_msg_t msg;
-	ccp_cro_t *crolib = (ccp_cro_t *) msg.data;
 
-	crolib -> byCMD = CCP_CONNECT;
-	crolib -> byCTR = ccp_ctr;
-	crolib -> Params.pbyData[0] = (char) (cro -> Params.Connect.wStnAddr >> 8);
-	crolib -> Params.pbyData[1] = (char) (cro -> Params.Connect.wStnAddr);
-	msg.dlc = sizeof(crolib -> Params.Connect) + 2;
+	msg.data[0] = CCP_CONNECT;
+	msg.data[1] = ccp_ctr;
+	msg.data[2] = (char) (cro -> Params.Connect.wStnAddr >> 8);
+	msg.data[3] = (char) (cro -> Params.Connect.wStnAddr);
+	msg.dlc = 4;
 
 	// Send the command and receive the response.
 	status = ccp_dispatch(&msg, 1, CCP_TIMEOUT_25MS);
@@ -97,17 +95,16 @@ int ccp_SetMTA(const ccp_cro_t *cro)
 {
 	int status;
 	can_msg_t msg;
-	ccp_cro_t *crolib = (ccp_cro_t *) msg.data;
 
-	crolib -> byCMD = CCP_SET_MTA;
-	crolib -> byCTR = ccp_ctr;
-	crolib -> Params.pbyData[0] = cro -> Params.SetMTA.byMTA;
-	crolib -> Params.pbyData[1] = cro -> Params.SetMTA.byAddrExt;
-	crolib -> Params.pbyData[2] = (char) (cro -> Params.SetMTA.dwAddr >> 24);
-	crolib -> Params.pbyData[3] = (char) (cro -> Params.SetMTA.dwAddr >> 16);
-	crolib -> Params.pbyData[4] = (char) (cro -> Params.SetMTA.dwAddr >> 8);
-	crolib -> Params.pbyData[5] = (char) (cro -> Params.SetMTA.dwAddr);
-	msg.dlc = sizeof(crolib -> Params.SetMTA) + 2;
+	msg.data[0] = CCP_SET_MTA;
+	msg.data[1] = ccp_ctr;
+	msg.data[2] = cro -> Params.SetMTA.byMTA;
+	msg.data[3] = cro -> Params.SetMTA.byAddrExt;
+	msg.data[4] = (char) (cro -> Params.SetMTA.dwAddr >> 24);
+	msg.data[5] = (char) (cro -> Params.SetMTA.dwAddr >> 16);
+	msg.data[6] = (char) (cro -> Params.SetMTA.dwAddr >> 8);
+	msg.data[7] = (char) (cro -> Params.SetMTA.dwAddr);
+	msg.dlc = 8;
 
 	// Send the command and receive the response.
 	status = ccp_dispatch(&msg, 1, CCP_TIMEOUT_25MS);
@@ -118,23 +115,23 @@ int ccp_Dnload(const ccp_cro_t *cro, ccp_dto_t *dto)
 {
 	int status;
 	can_msg_t msg;
-	ccp_cro_t *crolib = (ccp_cro_t *) msg.data;
-	ccp_dto_t *dtolib = (ccp_dto_t *) msg.data;
 	assert(cro -> Params.Dnload.byByteCnt <= CCP_DNLOAD_MAX_BYTES);
 
-	crolib -> byCMD = CCP_DNLOAD;
-	crolib -> byCTR = ccp_ctr;
-	crolib -> Params.pbyData[0] = cro -> Params.Dnload.byByteCnt;
-	memcpy(&crolib -> Params.pbyData[1], cro -> Params.Dnload.pbyData, cro -> Params.Dnload.byByteCnt);
+	msg.data[0] = CCP_DNLOAD;
+	msg.data[1] = ccp_ctr;
+	msg.data[2] = cro -> Params.Dnload.byByteCnt;
+	memcpy(&msg.data[3], cro -> Params.Dnload.pbyData, cro -> Params.Dnload.byByteCnt);
 	msg.dlc = cro -> Params.Dnload.byByteCnt + 3;
 
 	// Send the command and receive the response.
 	status = ccp_dispatch(&msg, 1, CCP_TIMEOUT_25MS);
-	dto -> Params.Dnload.byAddrExt = dtolib -> Params.pbyData[0];
-	dto -> Params.Dnload.dwAddr = ((int) dtolib -> Params.pbyData[1] << 24);
-	dto -> Params.Dnload.dwAddr += ((int) dtolib -> Params.pbyData[2] << 16);
-	dto -> Params.Dnload.dwAddr += ((int) dtolib -> Params.pbyData[3] << 8);
-	dto -> Params.Dnload.dwAddr += ((int) dtolib -> Params.pbyData[4]);
+	if(dto != NULL) {
+		dto -> Params.Dnload.byAddrExt = msg.data[3];
+		dto -> Params.Dnload.dwAddr = ((int) msg.data[4] << 24);
+		dto -> Params.Dnload.dwAddr += ((int) msg.data[5] << 16);
+		dto -> Params.Dnload.dwAddr += ((int) msg.data[6] << 8);
+		dto -> Params.Dnload.dwAddr += ((int) msg.data[7]);
+	}
 	return status;
 }
 
@@ -142,21 +139,21 @@ int ccp_Dnload6(const ccp_cro_t *cro, ccp_dto_t *dto)
 {
 	int status;
 	can_msg_t msg;
-	ccp_cro_t *crolib = (ccp_cro_t *) msg.data;
-	ccp_dto_t *dtolib = (ccp_dto_t *) msg.data;
 
-	crolib -> byCMD = CCP_DNLOAD_6;
-	crolib -> byCTR = ccp_ctr;
-	memcpy(&crolib -> Params.pbyData[0], cro -> Params.Dnload6.pbyData, sizeof(crolib -> Params.pbyData));
-	msg.dlc = sizeof(crolib -> Params.pbyData) + 2;
+	msg.data[0] = CCP_DNLOAD_6;
+	msg.data[1] = ccp_ctr;
+	memcpy(&msg.data[2], cro -> Params.Dnload6.pbyData, 6);
+	msg.dlc = 8;
 
 	// Send the command and receive the response.
 	status = ccp_dispatch(&msg, 1, CCP_TIMEOUT_25MS);
-	dto -> Params.Dnload6.byAddrExt = dtolib -> Params.pbyData[0];
-	dto -> Params.Dnload6.dwAddr = ((int) dtolib -> Params.pbyData[1] << 24);
-	dto -> Params.Dnload6.dwAddr += ((int) dtolib -> Params.pbyData[2] << 16);
-	dto -> Params.Dnload6.dwAddr += ((int) dtolib -> Params.pbyData[3] << 8);
-	dto -> Params.Dnload6.dwAddr += ((int) dtolib -> Params.pbyData[4]);
+	if(dto != NULL) {
+		dto -> Params.Dnload6.byAddrExt = msg.data[3];
+		dto -> Params.Dnload6.dwAddr = ((int) msg.data[4] << 24);
+		dto -> Params.Dnload6.dwAddr += ((int) msg.data[5] << 16);
+		dto -> Params.Dnload6.dwAddr += ((int) msg.data[6] << 8);
+		dto -> Params.Dnload6.dwAddr += ((int) msg.data[7]);
+	}
 	return status;
 }
 
@@ -164,18 +161,19 @@ int ccp_Upload(const ccp_cro_t *cro, ccp_dto_t *dto)
 {
 	int status;
 	can_msg_t msg;
-	ccp_cro_t *crolib = (ccp_cro_t *) msg.data;
-	ccp_dto_t *dtolib = (ccp_dto_t *) msg.data;
 	assert(cro -> Params.Upload.byByteCnt <= CCP_UPLOAD_MAX_BYTES);
 
-	crolib -> byCMD = CCP_UPLOAD;
-	crolib -> byCTR = ccp_ctr;
-	crolib -> Params.pbyData[0] = cro -> Params.Upload.byByteCnt;
-	msg.dlc = sizeof(crolib -> Params.Upload) + 2;
+	msg.data[0] = CCP_UPLOAD;
+	msg.data[1] = ccp_ctr;
+	msg.data[2] = cro -> Params.Upload.byByteCnt;
+	msg.dlc = 3;
 
 	// Send the command and receive the response.
 	status = ccp_dispatch(&msg, 1, CCP_TIMEOUT_25MS);
-	memcpy(dto -> Params.Upload.pbyData, &dtolib -> Params.pbyData[0], cro -> Params.Upload.byByteCnt);
+	if(dto != NULL) {
+		memcpy(dto -> Params.Upload.pbyData, &msg.data[3], \
+			cro -> Params.Upload.byByteCnt);
+	}
 	return status;
 }
 
@@ -184,23 +182,24 @@ int ccp_ShortUp(const ccp_cro_t *cro, ccp_dto_t *dto)
 {
 	int status;
 	can_msg_t msg;
-	ccp_cro_t *crolib = (ccp_cro_t *) msg.data;
-	ccp_dto_t *dtolib = (ccp_dto_t *) msg.data;
 	assert(cro -> Params.ShortUp.byByteCnt <= CCP_UPLOAD_MAX_BYTES);
 
-	crolib -> byCMD = CCP_SHORT_UP;
-	crolib -> byCTR = ccp_ctr;
-	crolib -> Params.pbyData[0] = cro -> Params.ShortUp.byByteCnt;
-	crolib -> Params.pbyData[1] = cro -> Params.ShortUp.byAddrExt;
-	crolib -> Params.pbyData[2] = (char) (cro -> Params.ShortUp.dwAddr >> 24);
-	crolib -> Params.pbyData[3] = (char) (cro -> Params.ShortUp.dwAddr >> 16);
-	crolib -> Params.pbyData[4] = (char) (cro -> Params.ShortUp.dwAddr >> 8);
-	crolib -> Params.pbyData[5] = (char) (cro -> Params.ShortUp.dwAddr);
-	msg.dlc = sizeof(crolib -> Params.ShortUp) + 2;
+	msg.data[0] = CCP_SHORT_UP;
+	msg.data[1] = ccp_ctr;
+	msg.data[2] = cro -> Params.ShortUp.byByteCnt;
+	msg.data[3] = cro -> Params.ShortUp.byAddrExt;
+	msg.data[4] = (char) (cro -> Params.ShortUp.dwAddr >> 24);
+	msg.data[5] = (char) (cro -> Params.ShortUp.dwAddr >> 16);
+	msg.data[6] = (char) (cro -> Params.ShortUp.dwAddr >> 8);
+	msg.data[7] = (char) (cro -> Params.ShortUp.dwAddr);
+	msg.dlc = 8;
 
 	// Send the command and receive the response.
 	status = ccp_dispatch(&msg, 1, CCP_TIMEOUT_25MS);
-	memcpy(dto -> Params.ShortUp.pbyData, &dtolib -> Params.pbyData[0], cro -> Params.ShortUp.byByteCnt);
+	if(dto != NULL) {
+		memcpy(dto -> Params.ShortUp.pbyData, &msg.data[3], \
+			cro -> Params.ShortUp.byByteCnt);
+	}
 	return status;
 }
 
@@ -208,21 +207,19 @@ int ccp_ActionService(const ccp_cro_t *cro, int npara, char waitflag, ccp_dto_t 
 {
 	int status;
 	can_msg_t msg;
-	ccp_cro_t *crolib = (ccp_cro_t *) msg.data;
-	ccp_dto_t *dtolib = (ccp_dto_t *) msg.data;
 	assert(npara <= CCP_SVC_MAX_PARAMS);
 
-	crolib -> byCMD = CCP_ACTION_SERVICE;
-	crolib -> byCTR = ccp_ctr;
-	crolib -> Params.ActionService.bySvc = cro -> Params.ActionService.bySvc;
-	memcpy(crolib -> Params.ActionService.pbyParams, cro -> Params.ActionService.pbyParams, npara);
+	msg.data[0] = CCP_ACTION_SERVICE;
+	msg.data[1] = ccp_ctr;
+	msg.data[2] = cro -> Params.ActionService.bySvc;
+	memcpy(&msg.data[3], cro -> Params.ActionService.pbyParams, npara);
 	msg.dlc = npara + 3;
 
 	// Send the command and receive the response.
 	status = ccp_dispatch(&msg, 1, CCP_TIMEOUT_5000MS);
-	if(waitflag) {
-		dto -> Params.ActionService.byParamCnt = dtolib -> Params.pbyData[0];
-		dto -> Params.ActionService.byType = dtolib -> Params.pbyData[1];
+	if(waitflag && dto != NULL) {
+		dto -> Params.ActionService.byParamCnt = msg.data[3];
+		dto -> Params.ActionService.byType = msg.data[4];
 	}
 	return status;
 }
