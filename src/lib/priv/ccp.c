@@ -34,12 +34,16 @@ static char ccp_ctr = 0; //command counter
 
 int ccp_Init(const can_bus_t *can, int baud)
 {
+	ccp_cro_t cro;
 	ccp_can = can;
 	assert(ccp_can != NULL);
 
 	can_cfg_t cfg = CAN_CFG_DEF;
 	cfg.baud = baud;
-	return ccp_can -> init(&cfg);
+	ccp_can -> init(&cfg);
+	
+	cro.Params.Connect.wStnAddr = 0;
+	return ccp_Connect(&cro);
 }
 
 static int ccp_dispatch(can_msg_t *msg, char waitflag, int timeout)
