@@ -9,6 +9,9 @@ int nest_init(void);
 int nest_update(void);
 int nest_mdelay(int ms);
 
+int nest_wait_plug_in(void);
+int nest_wait_pull_out(void);
+
 //nest maintain
 struct nest_info_s {
 	int id_base;
@@ -16,5 +19,13 @@ struct nest_info_s {
 };
 
 struct nest_info_s* nest_info_get(void);
+
+//handle data structure of mapping
+struct nest_map_s {
+	const char *str;
+	int id;
+};
+#define END_OF_MAP {NULL, -1}
+int nest_map(const struct nest_map_s *, const char *str);
 
 #endif
