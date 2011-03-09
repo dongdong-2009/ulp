@@ -7,15 +7,18 @@
 
 enum {
 	NO_FAIL = 0,
-	PULSE_FAIL = 1,
-	RAM_FAIL	= 2,
+	CAN_FAIL = 5, //communication fail
+	PSV_FAIL = 6, //process not ready
+	MTYPE_FAIL = 7, //model type cannot identified
+	FIS_FAIL = 4, //fis access fail
+
+	RAM_FAIL = 2, //ram test
 	FB_FAIL = 3,
-	FIS_FAIL = 4,
-	CAN_FAIL = 5,
-	PSV_FAIL = 6,
+	PULSE_FAIL = 1,
+
+	//obsoleted, pls do not use them any more
 	MISC_FAIL = 7,
 	NEC_FAIL = 7, //SET "NEST ERROR CODE" FAIL
-	MTYPE_FAIL = 7,
 	SN_FAIL = 7,
 	DUMMY
 };
@@ -24,6 +27,8 @@ struct nest_error_s {
 	int type;
 	int time; //unit ms
 	const char *info; //error info
+
+	char nec;
 };
 
 #define nest_pass() (nest_error_get() -> type == NO_FAIL)

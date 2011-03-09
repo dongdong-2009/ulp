@@ -8,7 +8,7 @@
 #include "time.h"
 
 /*time*/
-#define NOW() nest_time_get()
+#define NOW() nest_time_get(0)
 #define SEC(time) (time/1000)
 #define MIN(time) ((time)/60000)
 #define Delay100us(n) nest_mdelay((n + 9) / 10)

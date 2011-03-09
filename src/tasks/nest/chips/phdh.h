@@ -6,7 +6,7 @@
 #define __PHDH_H_
 
 nest_reg_t phdh_regs[] = {
-	{.ofs = 0x00, .len = 0x08, .msk = 0xff, .val = 0x00, .name = "DOUT", .bind = NULL, .desc = NULL},
+	{.ofs = 0x05, .len = 0x03, .msk = 0xff, .val = 0x00, .name = "DOUT", .bind = NULL, .desc = NULL},
 };
 
 nest_chip_t phdh = {

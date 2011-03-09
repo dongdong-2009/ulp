@@ -53,6 +53,7 @@ nest_chip_t vsep = {
 
 #define vsep_init() nest_chip_init(&vsep)
 #define vsep_bind(reg, pin) nest_chip_bind(&vsep, reg, pin)
+#define vsep_mask(reg) nest_chip_trap(&vsep, reg, 0x00, 0x00)
 #define vsep_trap(reg, msk, val) nest_chip_trap(&vsep, reg, msk, val)
 #define vsep_verify(data) nest_chip_verify(&vsep, data)
 

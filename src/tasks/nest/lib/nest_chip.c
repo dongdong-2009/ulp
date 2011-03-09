@@ -13,7 +13,7 @@ int nest_chip_init(nest_chip_t *chip)
 	nest_reg_t *reg;
 	for(int i = 0; i < chip -> nr_of_regs; i ++) {
 		reg = chip -> regs + i;
-		reg -> msk = ((1 << reg -> len) - 1);
+		reg -> msk = 0xff;
 	}
 	return 0;
 }
