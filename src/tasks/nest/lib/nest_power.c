@@ -26,7 +26,7 @@ int nest_power_on(void)
 	RELAY_ETCBAT_SET(1);
 	nest_mdelay(100);
 	RELAY_IGN_SET(1);
-	nest_mdelay(500);
+	nest_mdelay(5000);
 	return 0;
 }
 
@@ -64,6 +64,6 @@ int nest_power_reboot(void)
 	RELAY_ETCBAT_SET(1);
 	nest_mdelay(100);
 	RELAY_IGN_SET(1);
-	nest_mdelay(500);
+	nest_mdelay(5000);
 	return 0;
 }

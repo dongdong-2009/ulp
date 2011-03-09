@@ -19,8 +19,8 @@
 	else cncb_signal(LSD, LSD_ON); \
 } while(0)
 #define RELAY_LOCK_SET(ON)	do { \
-	if(ON) cncb_signal(SIG3, SIG_HI); \
-	else cncb_signal(SIG3, SIG_LO);  \
+	if(ON) cncb_signal(SIG4, SIG_HI); \
+	else cncb_signal(SIG4, SIG_LO);  \
 } while(0)
 
 #else /*CONFIG_NEST_MT60_OLD*/
@@ -37,8 +37,8 @@
 	else cncb_signal(LSD, LSD_OFF); \
 } while(0)
 #define RELAY_LOCK_SET(ON)	do { \
-	if(ON) cncb_signal(SIG4, SIG_HI); \
-	else cncb_signal(SIG4, SIG_LO);  \
+	if(ON) cncb_signal(SIG3, SIG_HI); \
+	else cncb_signal(SIG3, SIG_LO);  \
 } while(0)
 
 #endif /*CONFIG_NEST_MT60_OLD*/
