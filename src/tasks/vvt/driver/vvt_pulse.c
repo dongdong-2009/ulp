@@ -98,6 +98,7 @@ void vvt_pulse_Init(void)
 	
 	md204l_Init(&hid_md204l);
 	md204l_update_timer  = time_get(MD204L_UPDATE_PERIOD);
+	mdelay(100);	//delay 100ms for mcp23017 reset
 	mcp23017_Init(&vvt_mcp23017);
 	vvt_adc_Init();
 	vvt_pulse_dds_Init();
@@ -163,9 +164,6 @@ void vvt_pulse_Update(void)
 		md204l_write_buf[0] = temp;
 		temp = temp?temp:1;
 		misfire_SetSpeed(temp);
-		// short tmp;
-		// tmp = misfire_GetSpeed(0);
-		// pss_SetSpeed(tmp);
 	}
 
 	//communitcate with md204l
@@ -200,7 +198,7 @@ int knock_GetPattern(void)
 #if 0
 	unsigned char temp;
 	mcp23017_ReadByte(&vvt_mcp23017, KNOCK_CONFIG_ADDR, 1, &temp);
-	return temp & 0x3ff;
+	return temp & 0x3f;
 #endif
 	return 0x01;
 }
@@ -210,7 +208,7 @@ int misfire_GetPattern(void)
 #if 0
 	unsigned char temp;
 	mcp23017_ReadByte(&vvt_mcp23017, MISFIRE_CONFIG_ADDR, 1, &temp);
-	return temp & 0x3ff;
+	return temp & 0x3f;
 #endif
 	return 0x01;
 }
