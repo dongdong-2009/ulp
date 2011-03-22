@@ -10,7 +10,7 @@
 /*
  *@initialize timer1 ch-1 ch-2 to capture clock
  */
-int encoder_Init(void)
+int encoder_hwInit(void)
 {
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
 	/* GPIOA clock enable */
@@ -38,7 +38,7 @@ int encoder_Init(void)
 	return 0;
 }
 
-int encoder_GetValue(void)
+int encoder_hwGetValue(void)
 {
 	return TIM_GetCounter(TIM1);
 }
