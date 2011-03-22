@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <linux/list.h>
 
-typedef struct {
+typedef const struct {
 	char *name;
 /*cmd_xxx_func(int argc, char *argv) note:
 	1, return code: 0 -> finished success, <0 finished with err, >0 repeat exec needed
@@ -36,7 +36,7 @@ struct cmd_queue_s {
 #pragma section=".shell.cmd" 4
 #define DECLARE_SHELL_CMD(cmd) \
 	const cmd_t *##cmd##_entry@".shell.cmd" = &##cmd;
-
+	
 /*cmd module i/f*/
 void cmd_Init(void);
 void cmd_Update(void);
