@@ -12,6 +12,7 @@
 
 //global var
 short encoder_speed;
+short encoder_v_save;
 
 static int cmd_encoder_func(int argc, char *argv[])
 {
@@ -27,6 +28,7 @@ static int cmd_encoder_func(int argc, char *argv[])
 			return 0;
 		}
 
+		encoder_v_save = 0;
 		encoder_Init();
 		if(argc >= 3) {
 			encoder_SetRange(atoi(argv[1]), atoi(argv[2]));
@@ -36,7 +38,10 @@ static int cmd_encoder_func(int argc, char *argv[])
 
 	val = encoder_GetValue();
 	speed = encoder_speed;
-	printf("value: %05d speed: %03d Pulse/S\n", val, speed);
+	if((int) encoder_v_save != val) {
+		printf("value: %05d speed: %03d Pulse/S\n", val, speed);
+		encoder_v_save = (short) val;
+	}
 	return 1;
 }
 
