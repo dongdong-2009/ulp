@@ -16,7 +16,7 @@ void mcp23017_Init(mcp23017_t *chip)
 {
 	unsigned char temp = 0x28;
 	i2c_cfg_t cfg = {
-		100000,		//100K
+		40000,		//40K
 		NULL,
 	};
 
