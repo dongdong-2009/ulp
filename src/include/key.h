@@ -64,6 +64,7 @@ typedef union {
 enum {
 	KEYBOARD_TYPE_LOCAL,
 	KEYBOARD_TYPE_REMOTE,
+	KEYBOARD_TYPE_ENCODER,
 };
 
 typedef struct {

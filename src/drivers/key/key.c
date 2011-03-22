@@ -14,6 +14,7 @@
 
 static const keyboard_t *key_local;
 static const keyboard_t *key_remote;
+static const keyboard_t *key_encoder;
 
 static const int *key_map; //for local keyboard usage
 static int key_map_len; //nr of keys, exclude KEY_NONE
@@ -44,6 +45,8 @@ int key_Init(void)
 	if(key_local != NULL)
 		key_local->init();
 	if(key_remote != NULL)
+		key_remote->init();
+	if(key_encoder != NULL)
 		key_remote->init();
 	return 0;
 }
@@ -85,6 +88,12 @@ int key_GetKey(void)
 			key = key_remote->getkey();
 	}
 
+	//fetch a new key from an encoder
+	if(key_encoder != NULL) {
+		if(key.flag_nokey)
+			key = key_encoder -> getkey();
+	}
+	
 	//key scenario handling
 	if(key.value == key_previous.value) { //held or repeated key
 		key_flag.firstkey = 0;
@@ -149,10 +158,19 @@ int key_SetEntryAndGetDigit(void)
 
 int keyboard_Add(const keyboard_t *kb, int kt)
 {
-	if(kt == KEYBOARD_TYPE_LOCAL)
+	switch (kt) {
+	case KEYBOARD_TYPE_LOCAL:
 		key_local = kb;
-	else
+		break;
+	case KEYBOARD_TYPE_REMOTE:
 		key_remote = kb;
+		break;
+	case KEYBOARD_TYPE_ENCODER:
+		key_encoder = kb;
+		break;
+	default:
+		return -1;
+	}
 	
 	kb->init();
 	return 0;
