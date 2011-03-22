@@ -9,19 +9,28 @@ bool "KWP2000 wakeup support" CONFIG_UART_KWP_SUPPORT
 
 #uart0
 bool "enable uart0" CONFIG_DRIVER_UART0
+if [ "$CONFIG_DRIVER_UART0" = "y" ]; then
+	bool "enable uart0 console" CONFIG_SHELL_UART0
+fi
 
 #uart1
 bool "enable uart1" CONFIG_DRIVER_UART1
 if [ "$CONFIG_DRIVER_UART1" = "y" ]; then
-	int "tx fifo size" CONFIG_UART1_TF_SZ 64
-	int "rx fifo size" CONFIG_UART1_RF_SZ 32
+	bool "enable uart1 console" CONFIG_SHELL_UART1
+	if [ "$CONFIG_CPU_STM32" = "y" ]; then
+		int "tx fifo size" CONFIG_UART1_TF_SZ 64
+		int "rx fifo size" CONFIG_UART1_RF_SZ 32
+	fi
 fi
 
 #uart2
 bool "enable uart2" CONFIG_DRIVER_UART2
 if [ "$CONFIG_DRIVER_UART2" = "y" ]; then
-	int "tx fifo size" CONFIG_UART2_TF_SZ 64
-	int "rx fifo size" CONFIG_UART2_RF_SZ 32
+	bool "enable uart2 console" CONFIG_SHELL_UART2
+	if [ "$CONFIG_CPU_STM32" = "y" ]; then
+		int "tx fifo size" CONFIG_UART2_TF_SZ 64
+		int "rx fifo size" CONFIG_UART2_RF_SZ 32
+	fi
 fi
 
 bool "add md204l module" CONFIG_DEVICE_MD204L
