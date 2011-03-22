@@ -1,0 +1,9 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+choice 'encoder type select'	" \
+	STM32	CONFIG_ENCODER_STM32 \
+" STM32
+bool "encoder cmd support" CONFIG_ENCODER_CMD
