@@ -11,7 +11,6 @@
 #include "encoder.h"
 
 //global var
-short encoder_speed;
 short encoder_v_save;
 
 static int cmd_encoder_func(int argc, char *argv[])
@@ -37,7 +36,7 @@ static int cmd_encoder_func(int argc, char *argv[])
 	}
 
 	val = encoder_GetValue();
-	speed = encoder_speed;
+	speed = encoder_GetSpeed();
 	if((int) encoder_v_save != val) {
 		printf("value: %05d speed: %03d Pulse/S\n", val, speed);
 		encoder_v_save = (short) val;
