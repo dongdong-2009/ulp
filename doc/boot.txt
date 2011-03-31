@@ -1,0 +1,20 @@
+1) boot order
+step 0: vector table(SECTION .intvec)
+step 1: reset -> __iar_program_start
+step 2: main()
+step 3: task_Init() ... sys/task.c
+step 4: -> sys_Init() ... sys/system.c!!!
+step 5: -> drv_Init() ... macro: driver_init(init)
+step 6: -> lib_init() ... macro: DECLARE_LIB
+step 7: -> task_init() ... macro: DECLARE_TASK
+
+2) sys_Init() ... sys/System.c
+step 0: SystemInit ... cpu/xxx/cmsis/system_xxx.c
+step 1: time_Init ... drivers/time.c
+-> SysTick_Config(SystemFrequency / CONFIG_TICK_HZ); ... cpu/cmsis/core_cm3.h
+step 2: led_Init
+step 3: console_Init
+step 4: nvm_init
+
+3) lib_init()
+step 0: shell_Init ... lib/shell/shell.c
