@@ -10,6 +10,7 @@
 #include "can.h"
 #include "time.h"
 #include <string.h>
+#include "debug.h"
 
 int mcamos_init(const can_bus_t *can, int baud)
 {
@@ -98,10 +99,15 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 			if(time_left(deadline) < 0)
 				return -ERR_TIMEOUT;
 		} while(ret);
-		bytes = (msg.dlc < n) ? msg.dlc : n;
-		memcpy(buf, msg.data, bytes);
-		buf += bytes;
-		n -= bytes;
+		if(msg.id == MCAMOS_MSG_2_STD_ID) {
+			bytes = (msg.dlc < n) ? msg.dlc : n;
+			memcpy(buf, msg.data, bytes);
+			buf += bytes;
+			n -= bytes;
+		}
+		else {
+			assert(1 == 0); //dut in factory mode already???
+		}
 	}
 
 	return ret;
