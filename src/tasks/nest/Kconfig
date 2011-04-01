@@ -9,6 +9,7 @@ choice 'nest project select'	" \
 	MT92		CONFIG_NEST_MT92 \
 	MT60		CONFIG_NEST_MT60 \
 	MT60_0LD	CONFIG_NEST_MT60_OLD \
+	MT22.1_OLD	CONFIG_NEST_MT22P1_OLD \
 " MT92
 
 int 'log message buffer size' CONFIG_NEST_LOG_SIZE 2048
