@@ -1,0 +1,11 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+choice 'sam3u cpu type select'	" \
+	SAM3U1		CONFIG_CPU_SAM3U1 \
+	SAM3U2		CONFIG_CPU_SAM3U2 \
+	SAM3U4		CONFIG_CPU_SAM3U4 \
+" SAM3U4

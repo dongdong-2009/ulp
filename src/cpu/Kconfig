@@ -7,10 +7,12 @@
 choice 'cpu family select'	" \
 	stm32	CONFIG_CPU_STM32 \
 	lm3s	CONFIG_CPU_LM3S \
+	sam3u	CONFIG_CPU_SAM3U \
 " stm32
 
 int "high speed external clk freq?" CONFIG_HSE_VALUE 12000000
 int "low speed external clk freq?" CONFIG_LSE_VALUE 32768
+int "cpu core clk(mck) freq?" CONFIG_MCK_VALUE 48000000
 
 if [ "$CONFIG_CPU_STM32" = "y"]; then
 	source src/cpu/stm32/Kconfig
@@ -18,4 +20,8 @@ fi
 
 if [ "$CONFIG_CPU_LM3S" = "y"]; then
 	source src/cpu/lm3s/Kconfig
+fi
+
+if [ "$CONFIG_CPU_SAM3U" = "y"]; then
+	source src/cpu/sam3u/Kconfig
 fi

@@ -31,3 +31,7 @@ void sys_Update(void)
 	led_Update();
 #endif
 }
+
+__weak void SystemInit (void)
+{
+}
