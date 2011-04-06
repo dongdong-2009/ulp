@@ -1,6 +1,6 @@
 /*###ICF### Section handled by ICF editor, don't touch! ****/
 /*-Editor annotation file-*/
-/* IcfEditorFile="$TOOLKIT_DIR$\config\ide\IcfEditor\cortex_v1_0.xml" */
+/* IcfEditorFile="$PROJ_DIR$\cortex_v1_0.xml" */
 /*-Specials-*/
 define symbol __ICFEDIT_intvec_start__ = 0x00000000;
 /*-Memory Regions-*/
@@ -11,6 +11,7 @@ define symbol __ICFEDIT_region_RAM_end__   = 0x2000FFFF;
 /*-Sizes-*/
 define symbol __ICFEDIT_size_cstack__ = 0x400;
 define symbol __ICFEDIT_size_heap__   = 0x800;
+define symbol __ICFEDIT_size_nvm__    = 0x1000;
 /**** End of ICF editor section. ###ICF###*/
 
 
@@ -29,6 +30,7 @@ place at address mem:__ICFEDIT_intvec_start__ { readonly section .intvec };
 place in ROM_region   { readonly };
 place in RAM_region   { readwrite,
                         block CSTACK, block HEAP };
+
 place in RAM_region   { section .shell.cmd };
 keep { section .shell.cmd };
 place in RAM_region   { section .sys.task };
@@ -41,6 +43,6 @@ keep { section .driver };
 /*nvm support*/
 place in RAM_region   { section .nvm.ram };
 keep { section .nvm.ram };
-define block .nvm.rom      with alignment = 0x800, size = 0x1000     { };
+define block .nvm.rom      with alignment = 0x800, size = __ICFEDIT_size_nvm__ * 2     { };
 keep { block .nvm.rom };
 place in ROM_region   { block .nvm.rom };
