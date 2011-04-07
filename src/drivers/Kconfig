@@ -4,6 +4,14 @@
 # Written by miaofng@2010
 #
 
+choice 'default console select'	" \
+	UARTg	CONFIG_CONSOLE_UARTg \
+	UART0	CONFIG_CONSOLE_UART0 \
+	UART1	CONFIG_CONSOLE_UART1 \
+	UART2	CONFIG_CONSOLE_UART2 \
+" UART2
+int 'console baudrate' CONFIG_CONSOLE_BAUD 115200
+
 mainmenu_option next_comment
 	comment 'uart config'
 	source src/drivers/uart/Kconfig
@@ -78,12 +86,4 @@ mainmenu_option next_comment
 	comment 'wireless config'
 	source src/drivers/wl/Kconfig
 endmenu
-
-int 'console baudrate' CONFIG_CONSOLE_BAUD 115200
-choice 'default console select'	" \
-	UARTg	CONFIG_CONSOLE_UARTg \
-	UART0	CONFIG_CONSOLE_UART0 \
-	UART1	CONFIG_CONSOLE_UART1 \
-	UART2	CONFIG_CONSOLE_UART2 \
-" UART2
 
