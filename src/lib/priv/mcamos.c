@@ -14,9 +14,18 @@
 
 int mcamos_init(const can_bus_t *can, int baud)
 {
+	int ret;
 	can_cfg_t cfg = CAN_CFG_DEF;
+	can_filter_t filter = {
+		.id = MCAMOS_MSG_2_STD_ID,
+		.mask = 0xffff,
+		.flag = 0,
+	};
+
 	cfg.baud = baud;
-	return can -> init(&cfg);
+	ret = can -> init(&cfg);
+	ret += can -> filt(&filter, 1);
+	return ret;
 }
 
 int mcamos_dnload(const can_bus_t *can, int addr, const char *buf, int n, int timeout)
@@ -106,7 +115,8 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 			n -= bytes;
 		}
 		else {
-			assert(1 == 0); //dut in factory mode already???
+			//assert(1 == 0); //dut in factory mode already???
+			can_msg_print(&msg, "...strange can frame\n");
 		}
 	}
 
