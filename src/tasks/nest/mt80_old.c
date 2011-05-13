@@ -38,7 +38,7 @@ static char mailbox[32];
 //base model types declaration
 enum {
 	BM_28077390,
-	BM_DK245105, /*now change to 28220231*/
+	BM_DK245105,
 	BM_28119979,
 	BM_28180087,
 	BM_28159907,
@@ -363,7 +363,17 @@ void TestStart(void)
 	nest_wait_plug_in();
 
 	nest_power_on();
-    //get dut info through can bus
+#if 1
+	//cyc ign, necessary???
+	for(int cnt = 0; cnt < 75; cnt ++) {
+		RELAY_IGN_SET(0);
+		nest_mdelay(100);
+		RELAY_IGN_SET(1);
+		nest_mdelay(100);
+	}
+#endif
+
+	//get dut info through can bus
 	nest_can_sel(DW_CAN);
 	ccp_Init(&can1, 500000);
 	fail = Read_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
@@ -405,23 +415,10 @@ void TestStart(void)
 	memset(mfg_data.fb, 0x00, sizeof(mfg_data.fb));
 
 	//check psv of amb
-	if((mfg_data.psv & 0x01) != 0x01) {
+	if((mfg_data.psv & 0x02) == 0) {
 		nest_error_set(PSV_FAIL, "PSV");
 		return;
 	}
-        
-/*#if 1
-	//cyc ign, necessary???
-	for(int cnt = 0; cnt < 75; cnt ++) {
-		RELAY_IGN_SET(0);
-		nest_mdelay(100);
-		RELAY_IGN_SET(1);
-		nest_mdelay(100);
-	}
-#endif
-        */
-        
-        
 }
 
 void TestStop(void)

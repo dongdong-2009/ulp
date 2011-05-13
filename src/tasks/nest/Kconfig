@@ -13,5 +13,8 @@ choice 'nest project select'	" \
 	MT80_OLD    CONFIG_NEST_MT80_OLD \
 " MT92
 
+#nest type description:
+#MT80_OLD 	a nest from ball system
+
 int 'log message buffer size' CONFIG_NEST_LOG_SIZE 2048
 bool 'test mode: auto restart' CONFIG_NEST_AUTORESTART
