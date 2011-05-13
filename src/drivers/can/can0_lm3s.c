@@ -42,7 +42,7 @@ int can_send(const can_msg_t *msg)
 	status = CANStatusGet(CAN0_BASE, CAN_STS_TXREQUEST);
 	if(status & (unsigned long)(1 << (LM3S_TxMsgObjNr - 1)))
 		return 1;
-	
+
 	MsgObjectTx.ulMsgID = msg->id;
 	MsgObjectTx.ulMsgLen = msg->dlc;
 	MsgObjectTx.pucMsgData = (unsigned char *)msg->data;
@@ -63,7 +63,7 @@ int can_recv(can_msg_t *msg)
 	tCANMsgObject MsgObjectRx;
 	int i;
 	unsigned long MsgObjNr,temp;
-	
+
 	MsgObjNr = CANStatusGet(CAN0_BASE, CAN_STS_NEWDAT);
 	if(MsgObjNr == 0)
 		return 1;
@@ -78,13 +78,20 @@ int can_recv(can_msg_t *msg)
 	MsgObjectRx.pucMsgData = (unsigned char *)msg->data;
 	CANMessageGet(CAN0_BASE, i + 1, &MsgObjectRx, 1);
 	msg->dlc = MsgObjectRx.ulMsgLen;
-	if (MsgObjectRx.ulFlags & MSG_OBJ_EXTENDED_ID) { 
+	if (MsgObjectRx.ulFlags & MSG_OBJ_EXTENDED_ID) {
 		msg->flag = 1;
 		msg->id = (MsgObjectRx.ulMsgID & 0x1FFFFFFF);
 	} else {
 		msg->flag = 0;
 		msg->id = (MsgObjectRx.ulMsgID & 0x000007FF);
-	}
+	}
+
+	return 0;
+}
+
+int can_filt(can_filter_t *filter, int n)
+{
+	assert(1 == 0); //not supported yet!!!
 	return 0;
 }
 
@@ -92,4 +99,5 @@ const can_bus_t can0 = {
 	.init = can_init,
 	.send = can_send,
 	.recv = can_recv,
+	.filt = can_filt,
 };

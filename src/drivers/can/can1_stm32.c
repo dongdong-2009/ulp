@@ -73,7 +73,7 @@ static int can_init(const can_cfg_t *cfg)
 	CAN_FilterInitStructure.CAN_FilterIdLow=0x0000;
 	CAN_FilterInitStructure.CAN_FilterMaskIdHigh=0x0000;
 	CAN_FilterInitStructure.CAN_FilterMaskIdLow=0x0000;
-	CAN_FilterInitStructure.CAN_FilterFIFOAssignment=0;
+	CAN_FilterInitStructure.CAN_FilterFIFOAssignment=0 ;
 	CAN_FilterInitStructure.CAN_FilterActivation=ENABLE;
 	CAN_FilterInit(&CAN_FilterInitStructure);
 	return 0;
@@ -86,7 +86,7 @@ int can_send(const can_msg_t *msg)
 {
 	int ret = 0;
 	CanTxMsg msg_st;
-	
+
 	msg_st.StdId = msg->id;
 	msg_st.ExtId = msg->id;
 	msg_st.IDE = (msg->flag & CAN_FLAG_EXT) ? CAN_ID_EXT : CAN_ID_STD;
@@ -101,7 +101,7 @@ int can_send(const can_msg_t *msg)
 int can_recv(can_msg_t *msg)
 {
 	CanRxMsg msg_st;
-	
+
 	if(CAN_MessagePending(CAN1, CAN_FIFO0) > 0)
 		CAN_Receive(CAN1, CAN_FIFO0, &msg_st);
 	else if(CAN_MessagePending(CAN1, CAN_FIFO1) > 0)
@@ -116,8 +116,39 @@ int can_recv(can_msg_t *msg)
 	return 0;
 }
 
+int can_filt(can_filter_t *filter, int n)
+{
+	int i, j, ret = 0;
+	short id0, id1, msk0, msk1;
+	CAN_FilterInitTypeDef  CAN_FilterInitStructure;
+
+	for(i = 0, j = 0; i < n; j ++) {
+		id0 = filter[i].id << 5;
+		msk0 = filter[i].mask << 5;
+		i ++;
+
+		id1 = (i < n) ? filter[i].id << 5 : 0x0000;
+		msk1 = (i < n) ? filter[i].mask << 5 : 0xffff;
+		i ++;
+
+		/* CAN filter init */
+		CAN_FilterInitStructure.CAN_FilterNumber = j;
+		CAN_FilterInitStructure.CAN_FilterMode = CAN_FilterMode_IdMask; //default id mask mode
+		CAN_FilterInitStructure.CAN_FilterScale = CAN_FilterScale_16bit; //default id 16bit
+		CAN_FilterInitStructure.CAN_FilterIdHigh = id0;
+		CAN_FilterInitStructure.CAN_FilterIdLow = id1;
+		CAN_FilterInitStructure.CAN_FilterMaskIdHigh = msk0;
+		CAN_FilterInitStructure.CAN_FilterMaskIdLow = msk1;
+		CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0 ; //default fifo use 0
+		CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
+		CAN_FilterInit(&CAN_FilterInitStructure);
+	}
+	return ret;
+}
+
 const can_bus_t can1 = {
 	.init = can_init,
 	.send = can_send,
 	.recv = can_recv,
+	.filt = can_filt,
 };
