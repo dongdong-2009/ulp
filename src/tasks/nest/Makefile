@@ -4,5 +4,5 @@ obj-$(CONFIG_NEST_MT22P1) += mt221.o
 obj-$(CONFIG_NEST_MT22P1_OLD) += mt221.o
 obj-$(CONFIG_NEST_MT60) += mt60.o
 obj-$(CONFIG_NEST_MT60_OLD) += mt60.o
-obj-$(CONFIG_NEST_MT80_OLD) += mt80_old.o
+obj-$(CONFIG_NEST_MT80_OLD) += mt80.o
 
