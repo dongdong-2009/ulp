@@ -9,6 +9,8 @@
 int encoder_Init(void);
 int encoder_SetRange(int min, int max);
 int encoder_GetValue(void);
+int encoder_SetValue(int);
+int encoder_GetSpeed(void);
 
 //hardware driver
 int encoder_hwInit(void);

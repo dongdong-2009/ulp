@@ -10,5 +10,10 @@ ifeq ($(CONFIG_CPU_LM3S),y)
 	obj-$(CONFIG_DRIVER_UART1) += uart1_lm3s.o
 endif
 
+#sam3u
+ifeq ($(CONFIG_CPU_SAM3U),y)
+	obj-$(CONFIG_DRIVER_UARTg) += uartg_sam3u.o
+endif
+
 obj-$(CONFIG_DEVICE_MD204L) += md204l.o
 obj-$(CONFIG_DEVICE_CUSTOM_DISPLAY) += cd.o

@@ -26,6 +26,9 @@ endif
 ifeq ($(CONFIG_CPU_LM3S),y)
 	$(IAR_TOOL) cfg $(IAR_FILE) 'LM3Sx9xx	Luminary LM3Sx9xx' 'lm3s.icf'
 endif
+ifeq ($(CONFIG_CPU_SAM3U),y)
+	$(IAR_TOOL) cfg $(IAR_FILE) 'AT91SAM3U4	Atmel AT91SAM3U4' 'sam3u.icf'
+endif
 iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) ./
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/
@@ -42,6 +45,10 @@ endif
 ifeq ($(CONFIG_CPU_LM3S),y)
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/lm3s/cmsis/
 	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/lm3s/
+endif
+ifeq ($(CONFIG_CPU_SAM3U),y)
+	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/sam3u/cmsis/
+	$(IAR_TOOL) inc $(IAR_FILE) src/cpu/sam3u/
 endif
 ifeq ($(CONFIG_LIB_LWIP), y)
 	$(IAR_TOOL) inc $(IAR_FILE) src/lib/lwip/src/include/

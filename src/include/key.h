@@ -11,6 +11,7 @@ enum {
 	KEY_NONE,
 	KEY_RESET,
 	KEY_ENTER,
+	KEY_MINUS,
 	KEY_UP = 0x10, /*10*/
 	KEY_DOWN = 0x11,
 	KEY_MENU = 0x12,

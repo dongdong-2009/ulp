@@ -23,6 +23,7 @@ static key_t key_previous;
 static time_t key_timer; //delay or repeat key timer
 static int key_time_repeat;
 static int key_digit;
+static char key_digit_minus;
 static time_t key_digit_timer;
 
 static struct {
@@ -39,6 +40,7 @@ int key_Init(void)
 	key_timer = 0;
 	key_time_repeat = 0;
 	key_digit = 0;
+	key_digit_minus = 0;
 	key_digit_timer = 0;
 
 	//hardware keyboard driver init
@@ -118,9 +120,10 @@ int key_GetKey(void)
 	//check digit key entry timeout
 	if(key_digit_timer != 0) {
 		if(time_left(key_digit_timer) < 0 || \
-			((!key.flag_nokey) && (key.code < KEY_0 || key.code > KEY_9)) ) {
+			((!key.flag_nokey) && (key.code < KEY_0 || key.code > KEY_9) && (key.code != KEY_MINUS)) ) {
 			key_digit_timer = 0;
 			key_digit = 0;
+			key_digit_minus = 0;
 		}
 	}
 	
@@ -148,11 +151,16 @@ int key_SetKeyScenario(int delay, int repeat)
 int key_SetEntryAndGetDigit(void)
 {
 	int key = key_previous.code;
-	
+	if(key == KEY_MINUS) {
+		key_digit_minus = 1;
+		return - key_digit;
+	}
+
 	key -= KEY_0;
 	key_digit *= 10;
 	key_digit += key;
 	key_digit_timer = time_get(DIGIT_ENTRY_TIMEOUT);
+	key_digit = (key_digit_minus) ? - key_digit : key_digit;
 	return key_digit;
 }
 

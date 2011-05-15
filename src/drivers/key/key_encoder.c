@@ -42,7 +42,12 @@ static void key_update(void)
 	n -= key_n_left;
 
 	key.value = 0;
-	key.code = digits[n] - '0' + KEY_0;
+	if(digits[n] == '-') {
+		key.code = KEY_MINUS;
+	}
+	else {
+		key.code = digits[n] - '0' + KEY_0;
+	}
 	key.flag_nokey = (key_n_left == 0) ? 1 : 0;
 	key_n_left -- ;
 }

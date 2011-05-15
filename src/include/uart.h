@@ -48,6 +48,7 @@ typedef struct {
 #endif
 } uart_bus_t;
 
+extern uart_bus_t uartg;
 extern uart_bus_t uart0;
 extern uart_bus_t uart1;
 extern uart_bus_t uart2;
