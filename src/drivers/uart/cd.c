@@ -9,7 +9,7 @@
 
 void cd_Init(cd_t *dev)
 {
-	uart_cfg_t cfg = { //UART_CFG_DEF;
+	uart_cfg_t cfg = {
 		.baud = 2400,
 	};
 
@@ -22,6 +22,7 @@ void cd_Init(cd_t *dev)
 
 int cd_Clr(cd_t *dev)
 {
+	dev->bus->putchar(0x0D);
 	dev->bus->putchar(0x0C);
 	return 0;
 }
@@ -30,6 +31,7 @@ int cd_Send(cd_t *dev, unsigned char *data, int length)
 {
 	int i;
 
+	dev->bus->putchar(0x0D);
 	dev->bus->putchar(0x1B);
 	dev->bus->putchar(0x51);
 	dev->bus->putchar(0x41);
@@ -81,6 +83,7 @@ int cd_SetBaud(cd_t *dev, int baud)
 	dev->bus->putchar(n);
 
 	dev->bus->init(&cfg);
+	return 0;
 }
 
 #if 1
@@ -121,14 +124,13 @@ static int cmd_cd_func(int argc, char *argv[])
 		cd_Clr(&dbg_cd);
 	}
 
-	if (argv[1][0] == 'i') {
+	if (argv[1][0] == 'l') {
 		cd_SetIndicationLight(&dbg_cd, argv[2][0]);
-
 	}
 
 	if (argv[1][0] == 's') {
 		for (i = 0; i < argc -2; i++)
-			temp[i] = argv[i+2];
+			temp[i] = argv[i+2][0];
 		cd_Send(&dbg_cd, temp, argc -2);
 	}
 

@@ -20,7 +20,7 @@ enum {
 
 typedef struct {
 	uart_bus_t *bus;
-	int default;
+	int reserve;
 } cd_t;
 
 void cd_Init(cd_t *dev);
