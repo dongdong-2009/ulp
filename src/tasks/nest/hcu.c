@@ -406,7 +406,7 @@ void main(void)
 {
 	nest_init();
 	nest_power_off();
-	nest_message("\nPower Conditioning - MT80\n");
+	nest_message("\nPower Conditioning - GAC HCU\n");
 	nest_message("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
 
 	while(1){
