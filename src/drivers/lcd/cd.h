@@ -6,7 +6,6 @@
 #ifndef __CD_H
 #define __CD_H
 
-void cd_Init();
 int cd_Clr();
 int cd_WriteString(int column, int row, const char *s);
 int cd_SetBaud(int baud);

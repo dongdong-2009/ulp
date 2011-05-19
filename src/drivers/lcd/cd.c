@@ -24,12 +24,14 @@ static unsigned char cd_ram[9];
 static cd_Send(unsigned char *data, int length);
 static int cd_SetIndicationLight(int mode);
 
-void cd_Init(cd_t *dev)
+int cd_Init(const struct lcd_cfg_s *cfg)
 {
+	cfg = cfg;
 	memset(cd_ram, 0, sizeof(cd_ram));
 	//init custom display
 	cd_bus->putchar(0x1B);
 	cd_bus->putchar(0x40);
+	return 0;
 }
 
 static int cd_Send(unsigned char *data, int length)
@@ -42,11 +44,6 @@ static int cd_Send(unsigned char *data, int length)
 	cd_bus->putchar(0x41);
 
 	for (i = 0; i < length; i++) {
-		if ((data[i] > '9') || (data[i] < '0')) {
-			cd_bus->putchar(0x0D);
-			cd_Clr(dev);
-			return 1;
-		}
 		cd_bus->putchar(data[i]);
 	}
 
@@ -59,7 +56,8 @@ static int cd_SetIndicationLight(int mode)
 	cd_bus->putchar(0x1B);
 	cd_bus->putchar(0x73);
 
-	cd_bus->putchar(mode);
+	cd_bus->putchar(mode);
+
 	return 0;
 }
 
@@ -85,30 +83,31 @@ int cd_WriteString(int column, int row, const char *s)
 
 	if (column == 0) {
 		switch (cd_ram[0]) {
-			case 0:
+			case '0':
 				cd_SetIndicationLight(MODE_IL0);
 				break;
-			case 1:
+			case '1':
 				cd_SetIndicationLight(MODE_IL1);
 				break;
-			case 2:
+			case '2':
 				cd_SetIndicationLight(MODE_IL2);
 				break;
-			case 3:
+			case '3':
 				cd_SetIndicationLight(MODE_IL3);
 				break;
-			case 4:
+			case '4':
 				cd_SetIndicationLight(MODE_IL4);
 				break;
-			default
+			default:
 				break;
 		}
 	}
 
 	cd_Send(&cd_ram[1], 8);
+	return 0;
 }
 
-int cd_SetBaud(cd_t *dev, int baud)
+int cd_SetBaud(int baud)
 {
 	uart_cfg_t cfg;
 	int n;
@@ -136,14 +135,18 @@ int cd_SetBaud(cd_t *dev, int baud)
 	return 0;
 }
 
-static const lcd_t custom_display = {
-	.w = 9,
-	.h = 1,
+static const struct lcd_dev_s custom_display = {
+	.xres = 1,
+	.yres = 9,
 	.init = cd_Init,
 	.puts = cd_WriteString,
-	.clear_all = cd_Clr,
-	.clear_rect = NULL,
-	.scroll = NULL,
+
+	.setwindow = NULL,
+	.rgram = NULL,
+	.wgram = NULL,
+
+	.writereg = NULL,
+	.readreg = NULL,
 };
 
 static void custom_display_reg(void)
@@ -155,7 +158,7 @@ static void custom_display_reg(void)
 	cd_bus = &uart2;
 	cd_bus->init(&cfg);
 
-	lcd_add(&custom_display);
+	lcd_add(&custom_display, "custom display", LCD_TYPE_CHAR);
 }
 driver_init(custom_display_reg);
 

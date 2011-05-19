@@ -116,7 +116,9 @@ int lcd_init(struct lcd_s *lcd)
 {
 	struct lcd_cfg_s cfg;
 	cfg.rot = lcd -> rot;
+#if CONFIG_CUSTOM_DISPLAY != 1
 	cfg.bus = &lpt;
+#endif
 	int ret = lcd -> dev -> init(&cfg);
 	if( !ret ) {
 		ret = lcd_clear_all(lcd);
