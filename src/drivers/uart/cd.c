@@ -95,10 +95,13 @@ static cd_t dbg_cd = {
 	.bus = &uart2
 };
 
+unsigned char vh_value[8];
+int vh_length;
+int vh_flash_state = 0;
+time_t flash_time;
 
 static int cmd_cd_func(int argc, char *argv[])
 {
-	unsigned char temp[8];
 	int i;
 
 	const char *usage = { \
@@ -108,36 +111,71 @@ static int cmd_cd_func(int argc, char *argv[])
 		" cd il n,         set the indication light, n:'0'-'4' \n" \
 		" cd send d1 d2.., set the data, dn:30h-39h \n" \
 		" cd baud n,       set baud, baud:9600,4800,2400\n" \
+		" cd flash,        flash display the number\n" \
 	};
 
-	if(argc < 2) {
-		printf(usage);
-		return 0;
+	if (argc > 1) {
+		if (argv[1][0] == 'i') {
+			cd_Init(&dbg_cd);
+			printf("init ok \n");
+			return 0;
+		}
+
+		if (argv[1][0] == 'c') {
+			cd_Clr(&dbg_cd);
+			return 0;
+		}
+
+		if (argv[1][0] == 'l') {
+			cd_SetIndicationLight(&dbg_cd, argv[2][0]);
+			return 0;
+		}
+
+		if (argv[1][0] == 's') {
+			vh_length = argc -2;
+			for (i = 0; i < vh_length; i++)
+				vh_value[i] = argv[i+2][0];
+			cd_Send(&dbg_cd, vh_value, vh_length);
+			return 0;
+		}
+
+		if (argv[1][0] == 'b') {
+			cd_SetBaud(&dbg_cd, (unsigned int)atoi(argv[2]));
+			return 0;
+		}
+
 	}
 
-	if (argv[1][0] == 'i') {
-		cd_Init(&dbg_cd);
-		printf("init ok \n");
+	if (argc == 0 || argv[1][0] == 'f') {
+		if (argc != 0) {
+			flash_time = time_get(250);
+			cd_Send(&dbg_cd, vh_value, vh_length);
+			vh_flash_state = 1;
+			return 1;
+		}
+
+		if (vh_flash_state) {
+			if (time_left(flash_time) > 0) {
+				return 1;
+			} else {
+				cd_Clr(&dbg_cd);
+				vh_flash_state = 0;
+				flash_time = time_get(250);
+				return 1;
+			}
+		} else {
+			if (time_left(flash_time) > 0) {
+				return 1;
+			} else {
+				cd_Send(&dbg_cd, vh_value, vh_length);
+				vh_flash_state = 1;
+				flash_time = time_get(250);
+				return 1;
+			}
+		}
 	}
 
-	if (argv[1][0] == 'c') {
-		cd_Clr(&dbg_cd);
-	}
-
-	if (argv[1][0] == 'l') {
-		cd_SetIndicationLight(&dbg_cd, argv[2][0]);
-	}
-
-	if (argv[1][0] == 's') {
-		for (i = 0; i < argc -2; i++)
-			temp[i] = argv[i+2][0];
-		cd_Send(&dbg_cd, temp, argc -2);
-	}
-
-	if (argv[1][0] == 'b') {
-		cd_SetBaud(&dbg_cd, atoi(argv[2]));
-	}
-
+	printf(usage);
 	return 0;
 }
 const cmd_t cmd_cd = {"cd", cmd_cd_func, "custom display cmd"};
