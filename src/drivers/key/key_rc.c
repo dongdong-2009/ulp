@@ -206,12 +206,11 @@ enum {
 	SM_READY,
 };
 
-#define KEY_PAUSE		KEY_ENTER
 
 const static unsigned char FEILE_CODE_TABLE[] = {
-	KEY_PAUSE, KEY_DOWN,       KEY_UP,       KEY_NONE,
-	KEY_NONE,  KEY_LEFT,       KEY_RIGHT,    KEY_NONE,
-	KEY_0,     KEY_NONE,       KEY_NONE,     KEY_NONE,
+	KEY_PLAY,  KEY_DOWN,       KEY_UP,       KEY_NONE,
+	KEY_ENTER, KEY_LEFT,       KEY_RIGHT,    KEY_NONE,
+	KEY_0,     KEY_BACKWARD,   KEY_FORWARD,  KEY_NONE,
 	KEY_1,     KEY_2,          KEY_3,        KEY_NONE,
 	KEY_4,     KEY_5,          KEY_6,        KEY_NONE,
 	KEY_7,     KEY_8,          KEY_9,        KEY_NONE
