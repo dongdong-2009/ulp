@@ -58,4 +58,3 @@ if [ "$CONFIG_DRIVER_UART2" = "y" ]; then
 fi
 
 bool "add md204l module" CONFIG_DEVICE_MD204L
-bool "add custom display module" CONFIG_DEVICE_CUSTOM_DISPLAY
