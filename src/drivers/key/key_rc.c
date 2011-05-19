@@ -207,13 +207,11 @@ enum {
 };
 
 #define KEY_PAUSE		KEY_ENTER
-#define KEY_PREVIOUS	KEY_UP
-#define KEY_NEXT		KEY_DOWN
 
 const static unsigned char FEILE_CODE_TABLE[] = {
-	KEY_PAUSE, KEY_CH_MINUS,   KEY_CH_PLUS,  KEY_NONE,
-	KEY_NONE,  KEY_VOL_MINUS,  KEY_VOL_PLUS, KEY_NONE,
-	KEY_0,     KEY_PREVIOUS,   KEY_NEXT,     KEY_NONE,
+	KEY_PAUSE, KEY_DOWN,       KEY_UP,       KEY_NONE,
+	KEY_NONE,  KEY_LEFT,       KEY_RIGHT,    KEY_NONE,
+	KEY_0,     KEY_NONE,       KEY_NONE,     KEY_NONE,
 	KEY_1,     KEY_2,          KEY_3,        KEY_NONE,
 	KEY_4,     KEY_5,          KEY_6,        KEY_NONE,
 	KEY_7,     KEY_8,          KEY_9,        KEY_NONE
