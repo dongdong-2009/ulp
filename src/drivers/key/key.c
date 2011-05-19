@@ -10,7 +10,7 @@
 #include "time.h"
 #include <stddef.h>
 
-#define DIGIT_ENTRY_TIMEOUT	500 /*unit: mS*/
+#define DIGIT_ENTRY_TIMEOUT	1000 /*unit: mS*/
 
 static const keyboard_t *key_local;
 static const keyboard_t *key_remote;
