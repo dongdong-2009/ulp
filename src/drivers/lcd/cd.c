@@ -6,56 +6,106 @@
 #include "stm32f10x.h"
 #include "string.h"
 #include "cd.h"
+#include "driver.h"
+#include "lcd.h"
+#include "uart.h"
+#include "time.h"
+
+enum {
+	MODE_IL0 = 0x30,
+	MODE_IL1,
+	MODE_IL2,
+	MODE_IL3,
+	MODE_IL4
+};
+
+static uart_bus_t *cd_bus;
+static unsigned char cd_ram[9];
+static cd_Send(unsigned char *data, int length);
+static int cd_SetIndicationLight(int mode);
 
 void cd_Init(cd_t *dev)
 {
-	uart_cfg_t cfg = {
-		.baud = 2400,
-	};
-
-	dev->bus->init(&cfg);
-
+	memset(cd_ram, 0, sizeof(cd_ram));
 	//init custom display
-	dev->bus->putchar(0x1B);
-	dev->bus->putchar(0x40);
+	cd_bus->putchar(0x1B);
+	cd_bus->putchar(0x40);
 }
 
-int cd_Clr(cd_t *dev)
-{
-	dev->bus->putchar(0x0D);
-	dev->bus->putchar(0x0C);
-	return 0;
-}
-
-int cd_Send(cd_t *dev, unsigned char *data, int length)
+static int cd_Send(unsigned char *data, int length)
 {
 	int i;
 
-	dev->bus->putchar(0x0D);
-	dev->bus->putchar(0x1B);
-	dev->bus->putchar(0x51);
-	dev->bus->putchar(0x41);
+	cd_bus->putchar(0x0D);
+	cd_bus->putchar(0x1B);
+	cd_bus->putchar(0x51);
+	cd_bus->putchar(0x41);
 
 	for (i = 0; i < length; i++) {
 		if ((data[i] > '9') || (data[i] < '0')) {
-			dev->bus->putchar(0x0D);
+			cd_bus->putchar(0x0D);
 			cd_Clr(dev);
 			return 1;
 		}
-		dev->bus->putchar(data[i]);
+		cd_bus->putchar(data[i]);
 	}
 
-	dev->bus->putchar(0x0D);
+	cd_bus->putchar(0x0D);
 	return 0;
 }
 
-int cd_SetIndicationLight(cd_t *dev, int mode)
+static int cd_SetIndicationLight(int mode)
 {
-	dev->bus->putchar(0x1B);
-	dev->bus->putchar(0x73);
+	cd_bus->putchar(0x1B);
+	cd_bus->putchar(0x73);
 
-	dev->bus->putchar(mode);
+	cd_bus->putchar(mode);
 	return 0;
+}
+
+int cd_Clr()
+{
+	cd_bus->putchar(0x0D);
+	cd_bus->putchar(0x0C);
+	return 0;
+}
+
+//cd_ram[0]:indicator
+//cd_ram[1] - cd_ram[8]:seven seg
+int cd_WriteString(int column, int row, const char *s)
+{
+	int i,size;
+	size = strlen(s);
+
+	if(row > 0)
+		return 0;
+
+	for(i = 0; i < size; i++)
+		cd_ram[i + column] = (unsigned char)s[i];
+
+	if (column == 0) {
+		switch (cd_ram[0]) {
+			case 0:
+				cd_SetIndicationLight(MODE_IL0);
+				break;
+			case 1:
+				cd_SetIndicationLight(MODE_IL1);
+				break;
+			case 2:
+				cd_SetIndicationLight(MODE_IL2);
+				break;
+			case 3:
+				cd_SetIndicationLight(MODE_IL3);
+				break;
+			case 4:
+				cd_SetIndicationLight(MODE_IL4);
+				break;
+			default
+				break;
+		}
+	}
+
+	cd_Send(&cd_ram[1], 8);
 }
 
 int cd_SetBaud(cd_t *dev, int baud)
@@ -78,15 +128,38 @@ int cd_SetBaud(cd_t *dev, int baud)
 	}
 	cfg.baud = baud;
 
-	dev->bus->putchar(0x02);
-	dev->bus->putchar(0x42);
-	dev->bus->putchar(n);
+	cd_bus->putchar(0x02);
+	cd_bus->putchar(0x42);
+	cd_bus->putchar(n);
 
-	dev->bus->init(&cfg);
+	cd_bus->init(&cfg);
 	return 0;
 }
 
-#if 1
+static const lcd_t custom_display = {
+	.w = 9,
+	.h = 1,
+	.init = cd_Init,
+	.puts = cd_WriteString,
+	.clear_all = cd_Clr,
+	.clear_rect = NULL,
+	.scroll = NULL,
+};
+
+static void custom_display_reg(void)
+{
+	uart_cfg_t cfg = {
+		.baud = 2400,
+	};
+
+	cd_bus = &uart2;
+	cd_bus->init(&cfg);
+
+	lcd_add(&custom_display);
+}
+driver_init(custom_display_reg);
+
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
