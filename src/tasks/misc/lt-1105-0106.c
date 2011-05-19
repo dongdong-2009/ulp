@@ -6,9 +6,38 @@
 #include "osd/osd.h"
 #include "sys/task.h"
 #include "sys/sys.h"
+#include "led.h"
+
+enum {
+	STATUS_OFF = 0,
+	STATUS_ON
+};
 
 #define DELAY_MS 1000
 #define REPEAT_MS 10
+
+//for valve head demo
+#define VH_OVERFLOW_STAGE_ONE	1500*60	//1.5min
+#define VH_OVERFLOW_STAGE_TWO	2000*60	//1.5min
+
+#define VH_ALARM_BUZZER		GPIO_Pin_9
+#define VH_PRODUCT_CTRL		GPIO_Pin_4
+#define VH_PRODUCT_FB		GPIO_Pin_5
+
+#define PUT_ALARM_BUZZER(ba)		GPIO_WriteBit(GPIOC, VH_ALARM_BUZZER, ba)
+#define PUT_PRODUCT_CTRL(ba)		GPIO_WriteBit(GPIOC, VH_PRODUCT_CTRL, ba)
+#define GET_PRODUCT_FB()			GPIO_ReadInputDataBit(GPIOC, VH_PRODUCT_FB)
+
+enum {
+	VHD_IDLE,
+	VHD_START,
+	VHD_MIDDLE,
+	VHD_CHECK,
+	VHD_ALARM,
+};
+static int vhd_sm;
+static int start_flag;
+time_t vhd_overflow_timer;
 
 static int loops_up_limit __nvm;
 static int loops_dn_limit __nvm;
@@ -193,13 +222,59 @@ static int set_dn_limit(const osd_command_t *cmd)
 
 void vhd_Init(void)
 {
-	int hdlg = osd_ConstructDialog(&dlg);
+	int hdlg;
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	//for dlg of osd
+	hdlg = osd_ConstructDialog(&dlg);
 	osd_SetActiveDialog(hdlg);
+	
+	//for gpio init
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = VH_ALARM_BUZZER | VH_PRODUCT_CTRL;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+  
+	GPIO_InitStructure.GPIO_Pin = VH_PRODUCT_FB;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	//for init state
+	PUT_ALARM_BUZZER(STATUS_OFF);
+	PUT_PRODUCT_CTRL(STATUS_OFF);
+	led_on(LED_GREEN);
+	led_off(LED_RED);
+	led_off(LED_YELLOW);
+
+	//for related data init
+	vhd_sm = VHD_IDLE;
+	start_flag = STATUS_OFF;
 }
 
 void vhd_Update(void)
 {
-
+	switch (vhd_sm) {
+		case VHD_IDLE:
+			if (start_flag) {
+				vhd_sm = VHD_START;
+				PUT_PRODUCT_CTRL(STATUS_ON);
+				vhd_overflow_timer = time_get();
+			}
+			else
+				return;
+			break;
+		case VHD_START:
+			PUT_PRODUCT_CTRL(STATUS_ON);
+			
+	
+	
+	}
+	
+	
+	
 }
 
 void main(void)
