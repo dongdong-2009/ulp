@@ -184,7 +184,7 @@ int keyboard_Add(const keyboard_t *kb, int kt)
 	return 0;
 }
 
-#if 0
+#if 1
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>

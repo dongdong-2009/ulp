@@ -16,6 +16,7 @@ if [ "$CONFIG_DRIVER_KEYBOARD" = "y" ]; then
 	if [ "$CONFIG_DRIVER_RCKEY" = "y" ]; then
 		choice 'remote control protocol'	" \
 			rc5	CONFIG_RCKEY_PROTOCOL_RC5 \
+			ppm	CONFIG_RCKEY_PROTOCOL_PPM \
 		" rc5
 	fi
 	bool "general encoder driver" CONFIG_DRIVER_ENCODER
