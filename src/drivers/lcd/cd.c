@@ -21,7 +21,7 @@ enum {
 
 static uart_bus_t *cd_bus;
 static unsigned char cd_ram[9];
-static cd_Send(unsigned char *data, int length);
+static int cd_Send(unsigned char *data, int length);
 static int cd_SetIndicationLight(int mode);
 
 int cd_Init(const struct lcd_cfg_s *cfg)
@@ -136,8 +136,8 @@ int cd_SetBaud(int baud)
 }
 
 static const struct lcd_dev_s custom_display = {
-	.xres = 1,
-	.yres = 9,
+	.xres = 9,
+	.yres = 1,
 	.init = cd_Init,
 	.puts = cd_WriteString,
 
