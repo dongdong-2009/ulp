@@ -158,7 +158,7 @@ static void custom_display_reg(void)
 	cd_bus = &uart2;
 	cd_bus->init(&cfg);
 
-	lcd_add(&custom_display, "custom display", LCD_TYPE_CHAR);
+	lcd_add(&custom_display, "custom display", LCD_TYPE_CHAR | LCD_TYPE_AUTOCLEAR);
 }
 driver_init(custom_display_reg);
 

@@ -242,6 +242,9 @@ static int lcd_clear_char(struct lcd_s *lcd, int x, int y, int w, int h)
 int lcd_clear(struct lcd_s *lcd, int x, int y, int w, int h)
 {
 	int ret, fw, fh;
+	if(lcd ->type & LCD_TYPE_AUTOCLEAR)
+		return 0;
+
 	lcd_get_font(lcd, &fw, &fh);
 	if(LCD_TYPE(lcd) == LCD_TYPE_CHAR) {
 		x /= fw;

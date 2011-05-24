@@ -80,6 +80,7 @@ struct lcd_s {
 
 #define LCD_TYPE_PIXEL 0
 #define LCD_TYPE_CHAR 1
+#define LCD_TYPE_AUTOCLEAR 2 //hardware automatically clear when display new contents
 #define LCD_TYPE(lcd) (lcd -> type & LCD_TYPE_CHAR)
 
 //lcd select
