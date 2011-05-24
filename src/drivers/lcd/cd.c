@@ -155,7 +155,7 @@ static void custom_display_reg(void)
 		.baud = 2400,
 	};
 
-	cd_bus = &uart2;
+	cd_bus = &uart1;
 	cd_bus->init(&cfg);
 
 	lcd_add(&custom_display, "custom display", LCD_TYPE_CHAR);
