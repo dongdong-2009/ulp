@@ -69,7 +69,7 @@ int cd_Clr()
 int cd_WriteString(int column, int row, const char *s)
 {
 	cd_SetIndicationLight(s[0]);
-	cd_Send(&s[1], 8);
+	cd_Send((unsigned char *)&s[1], 8);
 	return 0;
 }
 

@@ -24,7 +24,7 @@ int lcd_add(const struct lcd_dev_s *dev, const char *name, int type)
 	lcd -> dev = dev;
 	lcd -> name = name;
 	lcd -> type = 0;
-	lcd -> gram == NULL;
+	lcd -> gram = NULL;
 	lcd -> font = ascii_16x32;
 	lcd -> fgcolor = LCD_FGCOLOR_DEF;
 	lcd -> bgcolor = LCD_BGCOLOR_DEF;
@@ -40,6 +40,7 @@ int lcd_add(const struct lcd_dev_s *dev, const char *name, int type)
 	if(type & LCD_TYPE_CHAR)
 		lcd -> type |= LCD_TYPE_CHAR;
 	if(type & LCD_TYPE_AUTOCLEAR) {
+		lcd -> type |= LCD_TYPE_AUTOCLEAR;
 		lcd ->gram = sys_malloc(dev ->xres + 1);
 		memset(lcd ->gram, 0, dev ->xres + 1);
 	}
