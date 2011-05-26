@@ -1,0 +1,8 @@
+		8bit/16bit cpu		32bit cpu
+char		8bit			8bit
+short		16bit			16bit
+int		16bit			32bit
+long		32bit			32bit
+
+so for a fixed length of data, char/short/long is recommended,
+and for processor speed reason, int is recommended!
