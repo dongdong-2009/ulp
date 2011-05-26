@@ -20,15 +20,16 @@ enum {
 
 //for valve head demo
 #define VH_OVERFLOW_STAGE_ONE			1500*60 //1.5min
-#define VH_OVERFLOW_STAGE_TWO			2000*60 //2min
-#define VH_OVERFLOW_STAGE_FIRSTROUND	4000*60 //1.5min
+#define VH_OVERFLOW_STAGE_TWO			3000*60 //3min
+#define VH_OVERFLOW_STAGE_FIRSTROUND	5000*60 //1.5min
+#define VH_LOOPS_OVERFLOW				12000   //12s
 
 #define VH_ALARM_BUZZER_PIN		GPIO_Pin_9
 #define VH_PRODUCT_CTRL_PIN		GPIO_Pin_4
 #define VH_PRODUCT_FB_PIN		GPIO_Pin_5
 
 #define PUT_ALARM_BUZZER(ba)	GPIO_WriteBit(GPIOC,VH_ALARM_BUZZER_PIN,ba)
-#define PUT_PRODUCT_CTRL(ba)	GPIO_WriteBit(GPIOC,VH_PRODUCT_CTRL_PIN,ba)
+#define PUT_PRODUCT_CTRL(ba)	GPIO_WriteBit(GPIOC,VH_PRODUCT_CTRL_PIN,ba?0:1)
 #define GET_PRODUCT_FB()		GPIO_ReadInputDataBit(GPIOC,VH_PRODUCT_FB_PIN)
 
 enum {
@@ -45,10 +46,11 @@ time_t vhd_overflow_timer;
 //for osd state
 static int loops_up_limit __nvm;
 static int loops_dn_limit __nvm;
-static int loops_counter = 0;
+static int loops_counter __nvm;;
 
 static int vhd_status_flash;
 static time_t vhd_status_timer;
+static time_t vhd_loops_timer;
 
 const char str_up_limit[] = "1";
 const char str_dn_limit[] = "3";
@@ -157,6 +159,8 @@ static int sel_group(const osd_command_t *cmd)
 	else
 		result = osd_SelectNextGroup();
 
+	vhd_loops_timer = time_get(VH_LOOPS_OVERFLOW);
+
 	return result;
 }
 
@@ -214,6 +218,8 @@ static int set_up_limit(const osd_command_t *cmd)
 		break;
 	}
 
+	vhd_loops_timer = time_get(VH_LOOPS_OVERFLOW);
+
 	return 0;
 }
 
@@ -235,6 +241,7 @@ static int set_dn_limit(const osd_command_t *cmd)
 	case KEY_RESET:
 		break;
 	case KEY_ENTER:
+		loops_counter = loops_dn_limit;
 		nvm_save();
 		break;
 	default:
@@ -243,6 +250,8 @@ static int set_dn_limit(const osd_command_t *cmd)
 		break;
 	}
 
+	vhd_loops_timer = time_get(VH_LOOPS_OVERFLOW);
+
 	return 0;
 }
 
@@ -250,9 +259,7 @@ static int vhd_play(const osd_command_t *cmd)
 {
 	if (vhd_status == VHD_STATUS_IDLE) {
 		start_flag = STATUS_ON;
-	}
-
-	if ((vhd_status == VHD_STATUS_ALARM) || (vhd_status == VHD_STATUS_TOPLIMIT)) {
+	} else {
 		start_flag = STATUS_OFF;
 	}
 
@@ -261,9 +268,8 @@ static int vhd_play(const osd_command_t *cmd)
 
 static int vhd_goto_dnlimit(const osd_command_t *cmd)
 {
-	if (vhd_status == VHD_STATUS_IDLE) {
-		loops_counter = loops_dn_limit;
-	}
+	loops_counter = loops_dn_limit;
+	nvm_save();
 
 	return 0;
 }
@@ -300,7 +306,9 @@ void vhd_Init(void)
 	//for related data init
 	vhd_status = VHD_STATUS_IDLE;
 	start_flag = STATUS_OFF;
-	loops_counter = loops_dn_limit;
+	vhd_loops_timer = time_get(VH_LOOPS_OVERFLOW);
+	sdelay(8);
+	osd_SelectGroup(&grps[1]);
 }
 
 void vhd_Update(void)
@@ -317,6 +325,7 @@ void vhd_Update(void)
 		case VHD_STATUS_FIRSTROUND:
 			if (GET_PRODUCT_FB() == 0) {
 				loops_counter ++;
+				nvm_save();
 				PUT_PRODUCT_CTRL(STATUS_OFF);
 				sdelay(1);
 				if (loops_counter >= loops_up_limit) {
@@ -337,6 +346,11 @@ void vhd_Update(void)
 				led_off(LED_GREEN);
 				vhd_status = VHD_STATUS_ALARM;
 			}
+			if (start_flag == STATUS_OFF) {
+				led_off(LED_GREEN);
+				PUT_PRODUCT_CTRL(STATUS_OFF);
+				vhd_status = VHD_STATUS_IDLE;
+			}
 			break;
 		case VHD_STATUS_START:
 			if(time_left(vhd_overflow_timer) < 0) {
@@ -346,10 +360,16 @@ void vhd_Update(void)
 				PUT_PRODUCT_CTRL(STATUS_ON);
 				vhd_status = VHD_STATUS_CHECK;
 			}
+			if (start_flag == STATUS_OFF) {
+				led_off(LED_GREEN);
+				PUT_PRODUCT_CTRL(STATUS_OFF);
+				vhd_status = VHD_STATUS_IDLE;
+			}
 			break;
 		case VHD_STATUS_CHECK:
 			if (GET_PRODUCT_FB() == 0) {
 				loops_counter ++;
+				nvm_save();
 				PUT_PRODUCT_CTRL(STATUS_OFF);
 				sdelay(1);
 				if (loops_counter >= loops_up_limit) {
@@ -370,24 +390,31 @@ void vhd_Update(void)
 				led_off(LED_GREEN);
 				vhd_status = VHD_STATUS_ALARM;
 			}
+			if (start_flag == STATUS_OFF) {
+				led_off(LED_GREEN);
+				PUT_PRODUCT_CTRL(STATUS_OFF);
+				vhd_status = VHD_STATUS_IDLE;
+			}
 			break;
 		case VHD_STATUS_ALARM:
 			if (start_flag == STATUS_OFF) {
 				PUT_ALARM_BUZZER(STATUS_OFF);
 				led_off(LED_RED);
-				//loops_counter = loops_dn_limit;
 				vhd_status = VHD_STATUS_IDLE;
 			}
 			break;
 		case VHD_STATUS_TOPLIMIT:
 			if (start_flag == STATUS_OFF) {
 				led_off(LED_YELLOW);
-				//loops_counter = loops_dn_limit;
 				vhd_status = VHD_STATUS_IDLE;
 			}
 			break;
 		default:
 			break;
+	}
+	if (time_left(vhd_loops_timer) < 0) {
+		vhd_loops_timer = time_get(VH_LOOPS_OVERFLOW);
+		osd_SelectGroup(&grps[1]);
 	}
 }
 

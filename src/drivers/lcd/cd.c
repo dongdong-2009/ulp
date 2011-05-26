@@ -25,12 +25,11 @@ static int cd_SetIndicationLight(int mode);
 
 int cd_Init(const struct lcd_cfg_s *cfg)
 {
-	cfg = cfg;
-	//for custom display init delay
-	sdelay(8);	
+	cfg = cfg;	
 	//init custom display
-	cd_bus->putchar(0x1B);
-	cd_bus->putchar(0x40);
+	//cd_bus->putchar(0x1B);
+	//cd_bus->putchar(0x40);
+	//cd_bus->putchar(0x0D);
 	return 0;
 }
 
