@@ -7,12 +7,13 @@
 #include "sys/task.h"
 #include "sys/sys.h"
 #include "led.h"
-#include "stm32f10x.h"
+#include "stm32f10x_gpio.h"
 
-enum {
-	STATUS_OFF = 0,
-	STATUS_ON
-};
+#define STATUS_OFF		Bit_RESET
+#define STATUS_ON		Bit_SET
+
+#define PRODUCT_OFF		Bit_SET
+#define PRODUCT_ON		Bit_RESET
 
 #define DELAY_MS 1000
 #define REPEAT_MS 10
@@ -21,7 +22,9 @@ enum {
 //for valve head demo
 #define VH_OVERFLOW_STAGE_ONE			1500*60 //1.5min
 #define VH_OVERFLOW_STAGE_TWO			3000*60 //3min
-#define VH_OVERFLOW_STAGE_FIRSTROUND	5000*60 //1.5min
+#define VH_OVERFLOW_FR_STAGEONE			1500*60 //1.5min
+#define VH_OVERFLOW_FR_STAGETWO			3000*60 //1.5min
+#define VH_PRODUCT_RESET_TIME			3000    //3s
 #define VH_LOOPS_OVERFLOW				12000   //12s
 
 #define VH_ALARM_BUZZER_PIN		GPIO_Pin_9
@@ -29,7 +32,7 @@ enum {
 #define VH_PRODUCT_FB_PIN		GPIO_Pin_5
 
 #define PUT_ALARM_BUZZER(ba)	GPIO_WriteBit(GPIOC,VH_ALARM_BUZZER_PIN,ba)
-#define PUT_PRODUCT_CTRL(ba)	GPIO_WriteBit(GPIOC,VH_PRODUCT_CTRL_PIN,ba?0:1)
+#define PUT_PRODUCT_CTRL(ba)	GPIO_WriteBit(GPIOC,VH_PRODUCT_CTRL_PIN,ba)
 #define GET_PRODUCT_FB()		GPIO_ReadInputDataBit(GPIOC,VH_PRODUCT_FB_PIN)
 
 enum {
@@ -40,6 +43,11 @@ enum {
 	VHD_STATUS_ALARM,
 	VHD_STATUS_TOPLIMIT
 } vhd_status;
+
+enum {
+	VHD_FR_ONE,
+	VHD_FR_TWO
+} vhd_fr_status;
 static int start_flag;
 time_t vhd_overflow_timer;
 
@@ -305,6 +313,7 @@ void vhd_Init(void)
 
 	//for related data init
 	vhd_status = VHD_STATUS_IDLE;
+	vhd_fr_status = VHD_FR_ONE;
 	start_flag = STATUS_OFF;
 	vhd_loops_timer = time_get(VH_LOOPS_OVERFLOW);
 	sdelay(8);
@@ -317,17 +326,37 @@ void vhd_Update(void)
 		case VHD_STATUS_IDLE:
 			if (start_flag) {
 				PUT_PRODUCT_CTRL(STATUS_ON);
-				vhd_overflow_timer = time_get(VH_OVERFLOW_STAGE_FIRSTROUND);
+				vhd_overflow_timer = time_get(VH_OVERFLOW_FR_STAGEONE);
 				led_flash(LED_GREEN);
 				vhd_status = VHD_STATUS_FIRSTROUND;
 			}
 			break;
 		case VHD_STATUS_FIRSTROUND:
+			if (vhd_fr_status == VHD_FR_ONE) {
+				if(time_left(vhd_overflow_timer) < 0) {
+					//for delay
+					PUT_PRODUCT_CTRL(STATUS_OFF);
+					sdelay(VH_PRODUCT_RESET_TIME);
+					PUT_PRODUCT_CTRL(STATUS_ON);
+					vhd_fr_status = VHD_FR_TWO;
+					vhd_overflow_timer = time_get(VH_OVERFLOW_FR_STAGETWO);
+				}
+			} else {
+				if(time_left(vhd_overflow_timer) < 0) {
+					//for alarm
+					PUT_PRODUCT_CTRL(STATUS_OFF);
+					PUT_ALARM_BUZZER(STATUS_ON);
+					led_on(LED_RED);
+					led_off(LED_GREEN);
+					vhd_status = VHD_STATUS_ALARM;
+					break;
+				}
+			}
 			if (GET_PRODUCT_FB() == 0) {
 				loops_counter ++;
 				nvm_save();
 				PUT_PRODUCT_CTRL(STATUS_OFF);
-				sdelay(1);
+				sdelay(VH_PRODUCT_RESET_TIME);
 				if (loops_counter >= loops_up_limit) {
 					led_flash(LED_YELLOW);
 					led_off(LED_GREEN);
@@ -338,14 +367,6 @@ void vhd_Update(void)
 					vhd_status = VHD_STATUS_START;
 				}
 			}
-			if(time_left(vhd_overflow_timer) < 0) {
-				//for alarm
-				PUT_PRODUCT_CTRL(STATUS_OFF);
-				PUT_ALARM_BUZZER(STATUS_ON);
-				led_on(LED_RED);
-				led_off(LED_GREEN);
-				vhd_status = VHD_STATUS_ALARM;
-			}
 			if (start_flag == STATUS_OFF) {
 				led_off(LED_GREEN);
 				PUT_PRODUCT_CTRL(STATUS_OFF);
@@ -355,7 +376,7 @@ void vhd_Update(void)
 		case VHD_STATUS_START:
 			if(time_left(vhd_overflow_timer) < 0) {
 				PUT_PRODUCT_CTRL(STATUS_OFF);
-				sdelay(1);
+				sdelay(VH_PRODUCT_RESET_TIME);
 				vhd_overflow_timer = time_get(VH_OVERFLOW_STAGE_TWO);
 				PUT_PRODUCT_CTRL(STATUS_ON);
 				vhd_status = VHD_STATUS_CHECK;
@@ -371,7 +392,7 @@ void vhd_Update(void)
 				loops_counter ++;
 				nvm_save();
 				PUT_PRODUCT_CTRL(STATUS_OFF);
-				sdelay(1);
+				sdelay(VH_PRODUCT_RESET_TIME);
 				if (loops_counter >= loops_up_limit) {
 					led_flash(LED_YELLOW);
 					led_off(LED_GREEN);
