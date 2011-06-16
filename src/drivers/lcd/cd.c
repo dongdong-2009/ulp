@@ -12,7 +12,7 @@
 #include "time.h"
 
 enum {
-	MODE_IL0 = 0x30,
+	MODE_IL0 = '0',
 	MODE_IL1,
 	MODE_IL2,
 	MODE_IL3,
@@ -20,14 +20,12 @@ enum {
 };
 
 static uart_bus_t *cd_bus;
-static unsigned char cd_ram[9];
 static int cd_Send(unsigned char *data, int length);
 static int cd_SetIndicationLight(int mode);
 
 int cd_Init(const struct lcd_cfg_s *cfg)
 {
 	cfg = cfg;
-	memset(cd_ram, 0, sizeof(cd_ram));
 	//init custom display
 	cd_bus->putchar(0x1B);
 	cd_bus->putchar(0x40);
@@ -68,42 +66,10 @@ int cd_Clr()
 	return 0;
 }
 
-//cd_ram[0]:indicator
-//cd_ram[1] - cd_ram[8]:seven seg
 int cd_WriteString(int column, int row, const char *s)
 {
-	int i,size;
-	size = strlen(s);
-
-	if(row > 0)
-		return 0;
-
-	for(i = 0; i < size; i++)
-		cd_ram[i + column] = (unsigned char)s[i];
-
-	if (column == 0) {
-		switch (cd_ram[0]) {
-			case '0':
-				cd_SetIndicationLight(MODE_IL0);
-				break;
-			case '1':
-				cd_SetIndicationLight(MODE_IL1);
-				break;
-			case '2':
-				cd_SetIndicationLight(MODE_IL2);
-				break;
-			case '3':
-				cd_SetIndicationLight(MODE_IL3);
-				break;
-			case '4':
-				cd_SetIndicationLight(MODE_IL4);
-				break;
-			default:
-				break;
-		}
-	}
-
-	cd_Send(&cd_ram[1], 8);
+	cd_SetIndicationLight(s[0]);
+	cd_Send((unsigned char *)&s[1], 8);
 	return 0;
 }
 
@@ -155,10 +121,10 @@ static void custom_display_reg(void)
 		.baud = 2400,
 	};
 
-	cd_bus = &uart2;
+	cd_bus = &uart1;
 	cd_bus->init(&cfg);
 
-	lcd_add(&custom_display, "custom display", LCD_TYPE_CHAR);
+	lcd_add(&custom_display, "custom display", LCD_TYPE_CHAR | LCD_TYPE_AUTOCLEAR);
 }
 driver_init(custom_display_reg);
 
