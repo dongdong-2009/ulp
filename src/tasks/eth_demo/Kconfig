@@ -4,3 +4,8 @@
 # Written by miaofng@2010
 #
 
+choice 'tcp server type select'	" \
+	DEFAULT		CONFIG_TCP_SERVER_DEF \
+	MATRIX		CONFIG_TCP_SERVER_MATRIX \
+" DEFAULT
+
