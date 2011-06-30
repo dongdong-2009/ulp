@@ -28,8 +28,8 @@ there are 4 hardware modules in total:
 #define IPM_FIFO_N	256
 static unsigned short vpm_data[VPM_FIFO_N];
 static unsigned short ipm_data[IPM_FIFO_N];
-//static short vpm_data_n;
-static short ipm_data_n;
+static short vpm_data_n = 0;
+static short ipm_data_n = 0;
 
 static unsigned short mos_delay_clks __nvm;
 static unsigned short mos_close_clks __nvm;
@@ -132,7 +132,6 @@ void mos_Init(void)
 
 void vpm_Init(void)
 {
-#if CONFIG_USE_AD9203 == 1
 /* VP, optional ad9203 40msps 10bit parallel pipeline ADC
 	D0 ~ D9	<=>	PC6~15
 	CLK	<=>	TIM3 CH1(PA6), TIM3 CH2(PA7) is external trigger input of spark signal
@@ -210,7 +209,7 @@ void vpm_Init(void)
 	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
 	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
 	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
 	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel6, &DMA_InitStructure);
@@ -218,12 +217,66 @@ void vpm_Init(void)
 
 	TIM_DMACmd(TIM3, TIM_DMA_CC1, ENABLE);
         TIM_Cmd(TIM3, ENABLE);
+}
 
-#else /*CONFIG_USE_AD9203 == 1*/
+/*v1.1 circuit bug, d0 ~ d9 exchange connection*/
+unsigned short vpm_correct(unsigned short x)
+{
+	unsigned short y = 0;
+	y |= (x & 0x8000) >> 9; //ad9203 bit 0
+	y |= (x & 0x4000) >> 7; //ad9203 bit 1
+	y |= (x & 0x2000) >> 5; //ad9203 bit 2
+	y |= (x & 0x1000) >> 3; //ad9203 bit 3
+	y |= (x & 0x0800) >> 1; //ad9203 bit 4
+	y |= (x & 0x0400) << 1; //ad9203 bit 5
+	y |= (x & 0x0200) << 3; //ad9203 bit 6
+	y |= (x & 0x0100) << 5; //ad9203 bit 7
+	y |= (x & 0x0080) << 7; //ad9203 bit 8
+	y |= (x & 0x0040) << 9; //ad9203 bit 9
+	return y;
+}
+
+void vpm_Update(int ops)
+{
+	int n;
+
+	switch(ops) {
+	case START:
+		//vpm_data_n = VPM_FIFO_N - DMA_GetCurrDataCounter(DMA1_Channel6);
+		break;
+	case UPDATE:
+		break;
+	case STOP:
+		n = VPM_FIFO_N - DMA_GetCurrDataCounter(DMA1_Channel6);
+		if(0) {
+			int i = (n > vpm_data_n) ? (n - vpm_data_n) : (VPM_FIFO_N - vpm_data_n + n);
+			printf("vpm_data[%d] = \n", i);
+			if(n > vpm_data_n) { //normal
+				for(i = vpm_data_n; i < n; i ++)
+				printf("%d ", vpm_data[i]);
+			}
+			else {
+				for(i = vpm_data_n; i < VPM_FIFO_N; i ++)
+					printf("%d ", vpm_correct(vpm_data[i]));
+				for(i = 0; i < n; i ++)
+					printf("%d ", vpm_correct(vpm_data[i]));
+			}
+			printf("\n");
+		}
+		vpm_data_n = n;
+		break;
+
+	default:
+		break;
+	}
+}
+
 /*
-	VP, ADC1 regular channel 4(PA4), DMA mode capture, hard triggered by EXTI11(PA11),
-		continuously sample, until dma buf overflow, poll dma result
+	IP, ADC1 regular channel 5(PA5), DMA mode capture, soft trig
+		continuously sample, until hardware trig signal reach
 */
+void ipm_Init(void)
+{
 	GPIO_InitTypeDef GPIO_InitStructure;
 	ADC_InitTypeDef ADC_InitStructure;
 	DMA_InitTypeDef  DMA_InitStructure;
@@ -231,7 +284,7 @@ void vpm_Init(void)
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
-	RCC_ADCCLKConfig(RCC_PCLK2_Div6); /*72Mhz/6 = 12Mhz*/
+	RCC_ADCCLKConfig(RCC_PCLK2_Div8); /*72Mhz/8 = 9Mhz*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
 
 	//PA11 TRIG IN(high effective)
@@ -258,12 +311,12 @@ void vpm_Init(void)
 	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
 	ADC_InitStructure.ADC_ScanConvMode = DISABLE;
 	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
-	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_Ext_IT11_TIM8_TRGO;
+	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;//ADC_ExternalTrigConv_Ext_IT11_TIM8_TRGO;
 	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Left;
 	ADC_Init(ADC1, &ADC_InitStructure);
 
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_5, 1, ADC_SampleTime_1Cycles5);
-	ADC_ExternalTrigConvCmd(ADC1, ENABLE);
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_5, 1, ADC_SampleTime_239Cycles5); //9Mhz/(239.5 + 12.5) = 35.7Khz
+	//ADC_ExternalTrigConvCmd(ADC1, ENABLE);
 	ADC_Cmd(ADC1, ENABLE);
 
 	/* Enable ADC1 reset calibaration register */
@@ -271,6 +324,7 @@ void vpm_Init(void)
 	while(ADC_GetResetCalibrationStatus(ADC1));
 	ADC_StartCalibration(ADC1);
 	while (ADC_GetCalibrationStatus(ADC1));
+	ADC_Cmd(ADC1, DISABLE);
 
 	//setup dma
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
@@ -278,116 +332,55 @@ void vpm_Init(void)
 	DMA_DeInit(DMA1_Channel1);
 	DMA_Cmd(DMA1_Channel1, DISABLE);
 	DMA_InitStructure.DMA_PeripheralBaseAddr = (unsigned)&ADC1 -> DR;
-	DMA_InitStructure.DMA_MemoryBaseAddr = (unsigned) vpm_data;
+	DMA_InitStructure.DMA_MemoryBaseAddr = (unsigned) ipm_data;
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
 	DMA_InitStructure.DMA_BufferSize = VPM_FIFO_N;
 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
 	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
 	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
 	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
-	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
+	DMA_InitStructure.DMA_Priority = DMA_Priority_Low;
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel1, &DMA_InitStructure);
 	DMA_Cmd(DMA1_Channel1, ENABLE);
 
 	ADC_DMACmd(ADC1, ENABLE);
-#endif
-
-	//vpm_data_n = -1;
-}
-
-void vpm_Update(int ops)
-{
-	int n;
-	do {
-		n = DMA_GetCurrDataCounter(DMA1_Channel6);
-	} while(n != 0);
-
-#if CONFIG_USE_AD9203 == 1
-	unsigned short x, y;
-	for(n = 0; n < VPM_FIFO_N; n ++) {
-		//correct hardware connection err ...
-		x = vpm_data[n];
-		y = 0;
-		y |= (x & 0x8000) >> 9; //ad9203 bit 0
-		y |= (x & 0x4000) >> 7; //ad9203 bit 1
-		y |= (x & 0x2000) >> 5; //ad9203 bit 2
-		y |= (x & 0x1000) >> 3; //ad9203 bit 3
-		y |= (x & 0x0800) >> 1; //ad9203 bit 4
-		y |= (x & 0x0400) << 1; //ad9203 bit 5
-		y |= (x & 0x0200) << 3; //ad9203 bit 6
-		y |= (x & 0x0100) << 5; //ad9203 bit 7
-		y |= (x & 0x0080) << 7; //ad9203 bit 8
-		y |= (x & 0x0040) << 9; //ad9203 bit 9
-		vpm_data[n] = y;
-
-		if(0)
-			printf("%d ", y);
-	}
-#endif
-}
-
-/*
-	IP, ADC2 regular channel 5(PA5), PIO mode capture(soft triggered by TIM4 CH1,
-	then software convert and covert ... get a maximum current value)
-*/
-void ipm_Init(void)
-{
-	GPIO_InitTypeDef GPIO_InitStructure;
-	ADC_InitTypeDef ADC_InitStructure;
-
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
-	RCC_ADCCLKConfig(RCC_PCLK2_Div6); /*72Mhz/6 = 12Mhz*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC2, ENABLE);
-
-	//PA5 IP
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-	ADC_DeInit(ADC2);
-	ADC_StructInit(&ADC_InitStructure);
-	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
-	ADC_InitStructure.ADC_ScanConvMode = DISABLE;
-	ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
-	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
-	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Left;
-	ADC_Init(ADC2, &ADC_InitStructure);
-
-	ADC_RegularChannelConfig(ADC2, ADC_Channel_5, 1, ADC_SampleTime_1Cycles5);
-	ADC_Cmd(ADC2, ENABLE);
-
-	ADC_ResetCalibration(ADC2);
-	while(ADC_GetResetCalibrationStatus(ADC2));
-	ADC_StartCalibration(ADC2);
-	while (ADC_GetCalibrationStatus(ADC2));
-
-	ipm_data_n = -1;
 }
 
 void ipm_Update(int ops)
 {
-	int i;
-	unsigned short v;
+	int n;
 
-	if(ipm_data_n < 0) {
-		ipm_data_n ++;
-		//start first convert ...
-		ADC_ClearFlag(ADC2, ADC_FLAG_EOC);
-		ADC_SoftwareStartConvCmd(ADC2, ENABLE);
-	}
-
-	if(ADC_GetFlagStatus(ADC2, ADC_FLAG_EOC)) {
-		v = ADC_GetConversionValue(ADC2);
-		ipm_data_n ++;
-		i = (ipm_data_n % IPM_FIFO_N) - 1;
-		ipm_data[i] = v;
-
-		//start next convert
-		ADC_ClearFlag(ADC2, ADC_FLAG_EOC);
-		ADC_SoftwareStartConvCmd(ADC2, ENABLE);
+	switch(ops) {
+	case START:
+		ADC_Cmd(ADC1, ENABLE);
+		ADC_SoftwareStartConvCmd(ADC1, ENABLE);
+		break;
+	case UPDATE:
+		break;
+	case STOP:
+		ADC_Cmd(ADC1, DISABLE);
+		n = IPM_FIFO_N - DMA_GetCurrDataCounter(DMA1_Channel1);
+		if(1) {
+			int i = (n > ipm_data_n) ? (n - ipm_data_n) : (IPM_FIFO_N - ipm_data_n + n);
+			printf("ipm_data[%d] = \n", i);
+			if(n > ipm_data_n) { //normal
+				for(i = ipm_data_n; i < n; i ++)
+				printf("%d ", ipm_data[i]);
+			}
+			else {
+				for(i = ipm_data_n; i < IPM_FIFO_N; i ++)
+					printf("%d ", ipm_data[i]);
+				for(i = 0; i < n; i ++)
+					printf("%d ", ipm_data[i]);
+			}
+			printf("\n");
+		}
+		ipm_data_n = n;
+		break;
+	default:
+		break;
 	}
 }
 
@@ -543,61 +536,64 @@ void burn_Init()
 
 void burn_Update()
 {
-	int flag;
+	int flag, loop;
 
-	com_Update();
-	switch(burn_state) {
-	case BURN_INIT:
-		flag = pmm_Update(START, 1);
-		if(flag) {
-			burn_state = BURN_IDLE;
-			burn_timer = time_get(burn_ms - ipm_ms);
-		}
-		break;
-
-	case BURN_IDLE:
-		pmm_Update(UPDATE, 1); //ignore err trig
-		if(time_left(burn_timer) < 0) {
-			burn_state = BURN_MEAI;
-			burn_timer = time_get(ipm_ms * 2);
-			ipm_Update(START);
-		}
-		break;
-
-	case BURN_MEAI:
-		ipm_Update(UPDATE);
-		flag = pmm_Update(UPDATE, 0);
-		if(flag) {
-			burn_state = BURN_MEAV;
-			burn_timer = time_get(vpm_ms);
-			ipm_Update(STOP);
-			vpm_Update(START);
-			printf("%d	trig!!!\n", -time_left(burn_tick));
+	do {
+		loop = 0;
+		switch(burn_state) {
+		case BURN_INIT:
+			flag = pmm_Update(START, 1);
+			if(flag) {
+				burn_state = BURN_IDLE;
+				burn_timer = time_get(burn_ms - ipm_ms);
+			}
 			break;
-		}
-		if(time_left(burn_timer) < 0) { //lost trig signal at this cycle??  resync
+
+		case BURN_IDLE:
+			pmm_Update(UPDATE, 1); //ignore err trig
+			if(time_left(burn_timer) < 0) {
+				burn_state = BURN_MEAI;
+				burn_timer = time_get(ipm_ms * 2);
+				ipm_Update(START);
+				vpm_Update(START); //start vpm asap
+			}
+			break;
+
+		case BURN_MEAI:
+			ipm_Update(UPDATE);
+			flag = pmm_Update(UPDATE, 0);
+			if(flag) {
+				burn_state = BURN_MEAV;
+				burn_timer = time_get(vpm_ms);
+				ipm_Update(STOP);
+				printf("%d	trig!!!\n", -time_left(burn_tick));
+				break;
+			}
+			if(time_left(burn_timer) < 0) { //lost trig signal at this cycle??  resync
+				burn_state = BURN_INIT;
+				burn_timer = 0;
+				printf("%d	reset:(\n", -time_left(burn_tick));
+				break;
+			}
+			loop = 1;
+			break;
+
+		case BURN_MEAV:
+			pmm_Update(UPDATE, 1);
+			vpm_Update(UPDATE);
+			if(time_left(burn_timer) < 0) {
+				burn_state = BURN_IDLE;
+				burn_timer = time_get(burn_ms - vpm_ms - ipm_ms);
+				vpm_Update(STOP);
+			}
+			break;
+
+		default:
 			burn_state = BURN_INIT;
 			burn_timer = 0;
-			printf("%d	reset:(\n", -time_left(burn_tick));
 			break;
 		}
-		break;
-
-	case BURN_MEAV:
-		pmm_Update(UPDATE, 1);
-		vpm_Update(UPDATE);
-		if(time_left(burn_timer) < 0) {
-			burn_state = BURN_IDLE;
-			burn_timer = time_get(burn_ms - vpm_ms - ipm_ms);
-			vpm_Update(STOP);
-		}
-		break;
-
-	default:
-		burn_state = BURN_INIT;
-		burn_timer = 0;
-		break;
-	}
+	} while(loop);
 }
 
 void main(void)
