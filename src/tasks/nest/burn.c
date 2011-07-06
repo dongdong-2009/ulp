@@ -3,8 +3,8 @@ according to these two value, dut igbt performance cauld be identified.
 there are 4 hardware modules in total:
 1, pmm - period measure module & timing unit --- HW TIMER - TIM4
 2, mos - spark discharge control module, core of spark waveform control --- HW TIMER - TIM2
-3, ipm - spark current measure module --- poll
-4, vpm - spark voltage measure module --- DMA
+3, ipm - spark current measure module --- ADC1 DMA
+4, vpm - spark voltage measure module --- TIM3 DMA
 */
 #include "config.h"
 #include "debug.h"
@@ -164,7 +164,7 @@ void vpm_Init(void)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	/* Time base configuration */
-	TIM_TimeBaseStructure.TIM_Period =  3; //Fclk = 72Mhz / 4 = 18Mhz
+	TIM_TimeBaseStructure.TIM_Period =  1; //Fclk = 72Mhz / 2 = 36Mhz
 	TIM_TimeBaseStructure.TIM_Prescaler = 0;
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -174,8 +174,8 @@ void vpm_Init(void)
 	TIM_OCStructInit(&TIM_OCInitStructure);
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = 2; //duty factor = 50%
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
+	TIM_OCInitStructure.TIM_Pulse = 1; //duty factor = 50%
+	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low; //down going edge sampling(up going edge 9203 DO changes)
 	TIM_OC1Init(TIM3, &TIM_OCInitStructure);
 
 	/* TIM2 configuration in Input Capture Mode */
@@ -253,7 +253,7 @@ void vpm_Update(int ops)
 			printf("vpm_data[%d] = \n", i);
 			if(n > vpm_data_n) { //normal
 				for(i = vpm_data_n; i < n; i ++)
-				printf("%d ", vpm_data[i]);
+				printf("%d ", vpm_correct(vpm_data[i]));
 			}
 			else {
 				for(i = vpm_data_n; i < VPM_FIFO_N; i ++)
@@ -362,7 +362,7 @@ void ipm_Update(int ops)
 	case STOP:
 		ADC_Cmd(ADC1, DISABLE);
 		n = IPM_FIFO_N - DMA_GetCurrDataCounter(DMA1_Channel1);
-		if(1) {
+		if(0) {
 			int i = (n > ipm_data_n) ? (n - ipm_data_n) : (IPM_FIFO_N - ipm_data_n + n);
 			printf("ipm_data[%d] = \n", i);
 			if(n > ipm_data_n) { //normal
