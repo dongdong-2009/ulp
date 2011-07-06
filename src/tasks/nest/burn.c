@@ -164,7 +164,7 @@ void vpm_Init(void)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	/* Time base configuration */
-	TIM_TimeBaseStructure.TIM_Period =  1; //Fclk = 72Mhz / 2 = 36Mhz
+	TIM_TimeBaseStructure.TIM_Period =  11; //Fclk = 72Mhz / 12 = 6Mhz
 	TIM_TimeBaseStructure.TIM_Prescaler = 0;
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -174,7 +174,7 @@ void vpm_Init(void)
 	TIM_OCStructInit(&TIM_OCInitStructure);
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = 1; //duty factor = 50%
+	TIM_OCInitStructure.TIM_Pulse = 6; //duty factor = 50%
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low; //down going edge sampling(up going edge 9203 DO changes)
 	TIM_OC1Init(TIM3, &TIM_OCInitStructure);
 
