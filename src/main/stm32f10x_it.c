@@ -360,7 +360,7 @@ void DMA1_Channel7_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void ADC1_2_IRQHandler(void)
+__weak void ADC1_2_IRQHandler(void)
 {	
 #if CONFIG_TASK_MOTOR == 1
 	//ADC_ClearITPendingBit(ADC1, ADC_IT_JEOC);

@@ -345,7 +345,30 @@ void ipm_Init(void)
 	DMA_Init(DMA1_Channel1, &DMA_InitStructure);
 	DMA_Cmd(DMA1_Channel1, ENABLE);
 
-	ADC_DMACmd(ADC1, ENABLE);
+	//ADC_DMACmd(ADC1, ENABLE);
+
+	//awd & irq config
+	ADC_AnalogWatchdogThresholdsConfig(ADC1, 0x1F0,0x000);  //trig 2A
+	ADC_AnalogWatchdogSingleChannelConfig(ADC1, ADC_Channel_5);
+	ADC_AnalogWatchdogCmd(ADC1, ADC_AnalogWatchdog_SingleRegEnable);
+	ADC_ITConfig(ADC1, ADC_IT_AWD, DISABLE);
+
+	NVIC_InitTypeDef NVIC_InitStructure;
+	NVIC_InitStructure.NVIC_IRQChannel = ADC1_2_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+
+	ADC_SoftwareStartConvCmd(ADC1, ENABLE);
+}
+
+/*analog watchdog isr*/
+void ADC1_2_IRQHandler(void)
+{
+	ADC_DMACmd(ADC1, ENABLE); //enable DMA transfer
+	ADC_ITConfig(ADC1, ADC_IT_AWD, DISABLE);
+	ADC_ClearITPendingBit(ADC1, ADC_IT_AWD);
 }
 
 void ipm_Update(int ops)
@@ -356,10 +379,13 @@ void ipm_Update(int ops)
 	case START:
 		ADC_Cmd(ADC1, ENABLE);
 		ADC_SoftwareStartConvCmd(ADC1, ENABLE);
+		ADC_ITConfig(ADC1, ADC_IT_AWD, ENABLE);
+		ADC_ClearITPendingBit(ADC1, ADC_IT_AWD);
 		break;
 	case UPDATE:
 		break;
 	case STOP:
+		ADC_DMACmd(ADC1, DISABLE);
 		ADC_Cmd(ADC1, DISABLE);
 		n = IPM_FIFO_N - DMA_GetCurrDataCounter(DMA1_Channel1);
 		if(0) {
@@ -583,7 +609,7 @@ void burn_Update()
 			vpm_Update(UPDATE);
 			if(time_left(burn_timer) < 0) {
 				burn_state = BURN_IDLE;
-				burn_timer = time_get(burn_ms - vpm_ms - ipm_ms);
+				burn_timer = time_get(burn_ms + time_left(burn_timer) - ipm_ms);
 				vpm_Update(STOP);
 			}
 			break;
