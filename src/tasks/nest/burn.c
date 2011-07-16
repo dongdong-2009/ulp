@@ -14,8 +14,13 @@ there are 4 hardware modules in total:
 #include "sys/sys.h"
 #include "stm32f10x.h"
 #include <string.h>
+#include "priv/mcamos.h"
+#include "lib/nest_burn.h"
+#include "shell/cmd.h"
+#include <stdlib.h>
 
-#define CONFIG_USE_AD9203	1
+//#define __DEBUG_WAVEFORM /*switch to turn on/off waveform display*/
+#define HARDWARE_VERSION	0x0102 //v1.2
 
 #define T			20 //spark period, unit: ms
 #define ipm_ms			4 //norminal ipm measurement time
@@ -45,29 +50,55 @@ static enum {
 	BURN_MEAV, //voltage measurement duration, normal < 1mS
 } burn_state;
 
+/*burn ops*/
 enum {
 	START,
 	UPDATE,
 	STOP,
 };
 
-/*burn statistics data*/
-static struct {
-	/*spark period, unit: uS, range: 0 ~ 40,000 uS*/
-	int tp_avg;
-	int tp_min;
-	int tp_max;
+static struct burn_data_s burn_data;
 
-	/*unit: V, range: 0 ~ 500V*/
-	int vp_avg;
-	int vp_min;
-	int vp_max;
+struct filter_s {
+	int b0, b1, bn; //num
+	int a0, a1, an; //den
+	int xn_1, yn_1;
+} burn_filter_vp, burn_filter_ip;
 
-	/*unit: mA, range: 0 ~ 10,000mA*/
-	int ip_avg;
-	int ip_min;
-	int ip_max;
-} burn_data;
+#define BURN_FILTER_FP_HZ	0.5 /*filter pass band freq, unit: Hz(note: fs = 50Hz)*/
+#define BURN_FILTER_DELAY	((int)(5000 / BURN_FILTER_FP_HZ)) /*settling time, unit: mS*/
+
+void filter_init(struct filter_s *f)
+{
+	f->bn = 19/*24*/;
+	f->an = 14;
+
+	f->b0 = (0.030468747091253801/*0.0006279240770159511*/ * (1 << f->bn));
+	f->b1 = (0.030468747091253801/*0.0006279240770159511*/ * (1 << f->bn));
+	f->a0 = (1.0000000000000000000 * (1 << f->an));
+	f->a1 = (-0.9390625058174924/*-0.9987441518459681*/ * (1 << f->an));
+
+	f->xn_1 = 0;
+	f->yn_1 = 0;
+}
+
+int filt(struct filter_s *f, int xn)
+{
+	int vb, va;
+	vb = f->b0 * xn;
+	vb += f->b1 * f->xn_1;
+	vb >>= f->bn;
+
+	va = f->a1 * f->yn_1;
+	va = 0 - va;
+	va >>= f->an;
+
+	vb += va;
+
+	f->xn_1 = xn;
+	f->yn_1 = vb;
+	return vb;
+}
 
 /*mos control
 	TIM2 CH1,  worked in slave mode,  drive external high voltage mos switch on and off
@@ -83,6 +114,8 @@ void mos_Init(void)
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+
+	TIM_Cmd(TIM2, DISABLE);
 
 	//PA1 TRIG IN(high effective)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
@@ -129,6 +162,44 @@ void mos_Init(void)
 	TIM_SelectSlaveMode(TIM2, TIM_SlaveMode_Trigger);
 	TIM_Cmd(TIM2, ENABLE);
 }
+
+int cmd_mos_func(int argc, char *argv[])
+{
+	if(argc == 3) {
+		int ns = atoi(argv[2]);
+		if(ns < 30) {
+			ns = 30;
+			printf("warnning: too small!!!, fixed to 30nS\n");
+		}
+		if(ns > 50000) {
+			ns = 50000;
+			printf("warnning: too big!!!, fixed to 50uS\n");
+		}
+		int delay_clks = ns *36 / 1000;
+		int total = delay_clks + mos_close_clks;
+		int close_clks = (total > 0xfff0) ? (0xfff0 - delay_clks) : mos_close_clks;
+
+		mos_delay_clks = (short) delay_clks;
+		mos_close_clks = (short) close_clks;
+
+		mos_Init();
+		return 0;
+	}
+
+	if(argc == 2) {
+		nvm_save();
+		return 0;
+	}
+
+	printf(
+		"mos set ns	set pulse width, 28ns resolution\n"
+		"mos save	save the config value\n"
+	);
+	return 0;
+}
+
+const cmd_t cmd_mos = {"mos", cmd_mos_func, "mos width_ns settings"};
+DECLARE_SHELL_CMD(cmd_mos)
 
 void vpm_Init(void)
 {
@@ -220,6 +291,7 @@ void vpm_Init(void)
 }
 
 /*v1.1 circuit bug, d0 ~ d9 exchange connection*/
+#if HARDWARE_VERSION == 0x0101
 unsigned short vpm_correct(unsigned short x)
 {
 	unsigned short y = 0;
@@ -235,10 +307,20 @@ unsigned short vpm_correct(unsigned short x)
 	y |= (x & 0x0040) << 9; //ad9203 bit 9
 	return y;
 }
+#else
+#define vpm_correct(x) (x)
+#endif
+
+int idx(int n, int sz)
+{
+	n += (n > 0) ? 0 : sz;
+	for(; n >= sz; n -= sz);
+	return n;
+}
 
 void vpm_Update(int ops)
 {
-	int n;
+	int n, i, vp, vp_max = 0;
 
 	switch(ops) {
 	case START:
@@ -249,7 +331,7 @@ void vpm_Update(int ops)
 	case STOP:
 		n = VPM_FIFO_N - DMA_GetCurrDataCounter(DMA1_Channel6);
 		if(0) {
-			int i = (n > vpm_data_n) ? (n - vpm_data_n) : (VPM_FIFO_N - vpm_data_n + n);
+			i = (n > vpm_data_n) ? (n - vpm_data_n) : (VPM_FIFO_N - vpm_data_n + n);
 			printf("vpm_data[%d] = \n", i);
 			if(n > vpm_data_n) { //normal
 				for(i = vpm_data_n; i < n; i ++)
@@ -263,7 +345,22 @@ void vpm_Update(int ops)
 			}
 			printf("\n");
 		}
+
+		//calculate peak voltage(6MSPS)
+		i = (n > vpm_data_n) ? (n - vpm_data_n) : (VPM_FIFO_N - vpm_data_n + n);
 		vpm_data_n = n;
+		for(; i > 0; i --) {
+			n = idx(vpm_data_n - i, VPM_FIFO_N);
+			vp = vpm_correct(vpm_data[n]);
+			vp_max = (vp > vp_max) ? vp : vp_max;
+		}
+
+		burn_data.vp = vp_max;
+		burn_data.vp_avg = filt(&burn_filter_vp, vp_max);
+		if(- time_left(burn_tick ) > BURN_FILTER_DELAY) {
+			burn_data.vp_max = (burn_data.vp_avg > burn_data.vp_max) ? burn_data.vp_avg : burn_data.vp_max;
+			burn_data.vp_min = (burn_data.vp_avg < burn_data.vp_min) ? burn_data.vp_avg : burn_data.vp_min;
+		}
 		break;
 
 	default:
@@ -373,7 +470,7 @@ void ADC1_2_IRQHandler(void)
 
 void ipm_Update(int ops)
 {
-	int n;
+	int n, i, ip, ip_max;
 
 	switch(ops) {
 	case START:
@@ -403,7 +500,22 @@ void ipm_Update(int ops)
 			}
 			printf("\n");
 		}
+
+		//calculate peak voltage(6MSPS)
+		i = (n > ipm_data_n) ? (n - ipm_data_n) : (IPM_FIFO_N - ipm_data_n + n);
 		ipm_data_n = n;
+		for(; i > 0; i --) {
+			n = idx(ipm_data_n - i, IPM_FIFO_N);
+			ip = ipm_data[n];
+			ip_max = (ip > ip_max) ? ip : ip_max;
+		}
+
+		burn_data.ip = ip_max;
+		burn_data.ip_avg = filt(&burn_filter_ip, ip_max);
+		if(- time_left(burn_tick ) > BURN_FILTER_DELAY) {
+			burn_data.ip_max = (burn_data.ip_avg > burn_data.ip_max) ? burn_data.ip_avg : burn_data.ip_max;
+			burn_data.ip_min = (burn_data.ip_avg < burn_data.ip_min) ? burn_data.ip_avg : burn_data.ip_min;
+		}
 		break;
 	default:
 		break;
@@ -431,11 +543,17 @@ void pmm_Init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
+#if HARDWARE_VERSION == 0x0101
 	//TRIG Output
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
+#else
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+#endif
 
 	/* Time base configuration */
 	TIM_TimeBaseStructure.TIM_Period = pmm_T - 1;
@@ -516,9 +634,9 @@ int pmm_Update(int ops, int ignore)
 			pmm_t2 = t2;
 
 			//det process
-			burn_data.tp_max = (burn_data.tp_max > det) ? burn_data.tp_max : det;
-			burn_data.tp_min = (burn_data.tp_max < det) ? burn_data.tp_min : det;
-			burn_data.tp_avg = (burn_data.tp_avg + det) >> 1;
+			//burn_data.tp_max = (burn_data.tp_max > det) ? burn_data.tp_max : det;
+			//burn_data.tp_min = (burn_data.tp_max < det) ? burn_data.tp_min : det;
+			//burn_data.tp_avg = (burn_data.tp_avg + det) >> 1;
 
 			//debug
 			if((det > 21000) || (det < 19000)) {
@@ -532,21 +650,53 @@ int pmm_Update(int ops, int ignore)
 	return 0;
 }
 
+static mcamos_srv_t burn_server;
+
 /*communication with host*/
 void com_Init(void)
 {
+	burn_server.can = &can1;
+	burn_server.baud = 500000;
+	burn_server.timeout = 8;
+	burn_server.inbox_addr = BURN_INBOX_ADDR;
+	burn_server.outbox_addr = BURN_OUTBOX_ADDR;
+	mcamos_srv_init(&burn_server);
 }
 
 void com_Update(void)
 {
+	char ret = 0;
+	char *inbox = burn_server.inbox;
+	char *outbox = burn_server.outbox + 2;
+
+	mcamos_srv_update(&burn_server);
+	switch(inbox[0]) {
+	case BURN_CMD_CONFIG:
+		break;
+
+	case BURN_CMD_READ:
+		memcpy(outbox, &burn_data, sizeof(burn_data));
+		break;
+
+	case 0:
+		break;
+	}
+
+	burn_server.outbox[0] = inbox[0];
+	burn_server.outbox[1] = ret;
+	inbox[0] = 0; //clear inbox testid indicate cmd ops finished!
 }
 
 void burn_Init()
 {
+	filter_init(&burn_filter_vp);
+	filter_init(&burn_filter_ip);
 	burn_state = BURN_INIT;
 	memset(&burn_data, 0, sizeof(burn_data));
+	burn_data.ip_min = 0xffff;
+	burn_data.vp_min = 0xffff;
 
-	if(1){//burn_ms == 0xffff) { //set default value
+	if(burn_ms == 0xffff) { //set default value
 		mos_delay_clks  = (unsigned short) (mos_delay_us_def * 36); //unit: 1/36 us
 		mos_close_clks  = (unsigned short) (mos_close_us_def * 36); //unit: 1/36 us
 		burn_ms = T;
@@ -558,6 +708,31 @@ void burn_Init()
 	com_Init();
 	ipm_Init();
         vpm_Init();
+}
+
+void Analysis(void)
+{
+#ifdef __DEBUG_WAVEFORM
+	int avg, min, max;
+#if HARDWARE_VERSION == 0x0101
+	//R18 = 22K, R17 = 47Ohm, Vref = 2V, 16bit unsigned ADC => ratio = 1/69.85513 = 256/17883
+	avg = (burn_data.vp_avg << 8)/17883;
+	min = (burn_data.vp_min << 8)/17883;
+	max = (burn_data.vp_max << 8)/17883;
+#else
+	//R18 = 22K, R17 = 100Ohm, Vref = 2V, 16bit unsigned ADC => ratio = 1/148.2715= 256/37957
+	avg = (burn_data.vp_avg << 8)/37957;
+	min = (burn_data.vp_min << 8)/37957;
+	max = (burn_data.vp_max << 8)/37957;
+#endif
+	printf("%d %d %d	", avg, min, max);
+
+	//R = 0.01Ohm, G = 20V/V, Vref = 2V5, 16bit unsigned ADC => ratio = 1/5242.88= 256/1342177
+	avg = (burn_data.ip_avg << 8) / 1342;
+	min = (burn_data.ip_min << 8) / 1342;
+	max = (burn_data.ip_max << 8) / 1342;
+	printf("%d %d %d\n", avg, min, max);
+#endif
 }
 
 void burn_Update()
@@ -592,12 +767,13 @@ void burn_Update()
 				burn_state = BURN_MEAV;
 				burn_timer = time_get(vpm_ms);
 				ipm_Update(STOP);
-				printf("%d	trig!!!\n", -time_left(burn_tick));
+				//printf("%d	trig!!!\n", -time_left(burn_tick));
 				break;
 			}
 			if(time_left(burn_timer) < 0) { //lost trig signal at this cycle??  resync
 				burn_state = BURN_INIT;
 				burn_timer = 0;
+				burn_data.lost ++;
 				printf("%d	reset:(\n", -time_left(burn_tick));
 				break;
 			}
@@ -611,6 +787,7 @@ void burn_Update()
 				burn_state = BURN_IDLE;
 				burn_timer = time_get(burn_ms + time_left(burn_timer) - ipm_ms);
 				vpm_Update(STOP);
+				Analysis();
 			}
 			break;
 
@@ -633,8 +810,8 @@ void main(void)
 }
 
 /* igbt burn circuit v1.1 issues:
-1)  mos gate over-protection needed
-2) high/low voltage isolation needed
-3) trig pin protection
-4) current trig option? better for current sampling ....
+1)  mos gate over-protection needed -- external smps power issue
+2) high/low voltage isolation needed -- solved, discharge path changed
+3) trig pin protection -- clamp diode added
+4) current trig option? better for current sampling .... not used
 */
