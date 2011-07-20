@@ -42,6 +42,8 @@ static unsigned short burn_ms __nvm;
 static time_t burn_timer;
 static time_t burn_tick; //for debug purpose
 
+static int burn_id __nvm; /*mcamos can cmd id*/
+
 /*burn system state machine*/
 static enum {
 	BURN_INIT,
@@ -163,9 +165,14 @@ void mos_Init(void)
 	TIM_Cmd(TIM2, ENABLE);
 }
 
-int cmd_mos_func(int argc, char *argv[])
+int cmd_burn_func(int argc, char *argv[])
 {
 	if(argc == 3) {
+		if(argv[1][0] == 'i') {
+			sscanf(argv[2], "0x%x", &burn_id);
+			return 0;
+		}
+
 		int ns = atoi(argv[2]);
 		if(ns < 30) {
 			ns = 30;
@@ -192,14 +199,21 @@ int cmd_mos_func(int argc, char *argv[])
 	}
 
 	printf(
-		"mos set ns	set pulse width, 28ns resolution\n"
-		"mos save	save the config value\n"
+		"burn mos ns	set vpeak pulse width, 28ns resolution\n"
+		"burn id		set mcamos server can id, such as 0x5e0, 0x5e2, 0x5e4, 0x5e6\n"
+		"burn save	save the config value\n"
 	);
+
+	printf("\ncurrent nvm settings:\n");
+	printf("mos_delay_clks = %d\n", mos_delay_clks);
+	printf("mos_close_clks = %d\n", mos_close_clks);
+	printf("burn_ms = %d\n", burn_ms);
+	printf("burn_id = 0x%x\n", burn_id);
 	return 0;
 }
 
-const cmd_t cmd_mos = {"mos", cmd_mos_func, "mos width_ns settings"};
-DECLARE_SHELL_CMD(cmd_mos)
+const cmd_t cmd_burn = {"burn", cmd_burn_func, "burn board cmds"};
+DECLARE_SHELL_CMD(cmd_burn)
 
 void vpm_Init(void)
 {
@@ -543,17 +557,10 @@ void pmm_Init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-#if HARDWARE_VERSION == 0x0101
-	//TRIG Output
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-#else
+	//TRIG IN(low effective)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
-#endif
 
 	/* Time base configuration */
 	TIM_TimeBaseStructure.TIM_Period = pmm_T - 1;
@@ -572,8 +579,16 @@ void pmm_Init(void)
 	TIM_OC1Init(TIM4, &TIM_OCInitStructure);
 	TIM_OC1PreloadConfig(TIM4, TIM_OCPreload_Disable);
 #endif
+	/* TIM4 CH1 = Input Capture Mode, low effective */
+	TIM_ICStructInit(&TIM_ICInitStructure);
+	TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;
+	TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Falling;
+	TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
+	TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
+	TIM_ICInitStructure.TIM_ICFilter = 0x15;
+	TIM_ICInit(TIM4, &TIM_ICInitStructure);
 
-	/* TIM4 CH2 = Input Capture Mode */
+	/* TIM4 CH2 = Input Capture Mode , high effective*/
 	TIM_ICStructInit(&TIM_ICInitStructure);
 	TIM_ICInitStructure.TIM_Channel = TIM_Channel_2;
 	TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
@@ -586,7 +601,7 @@ void pmm_Init(void)
 	TIM_UpdateRequestConfig(TIM4, TIM_UpdateSource_Global); //Setting UG won't lead to an UEV
 
 	//poll mode check
-	TIM_ClearFlag(TIM4, TIM_FLAG_CC2 | TIM_FLAG_Update);
+	TIM_ClearFlag(TIM4, TIM_FLAG_CC1 | TIM_FLAG_CC2 | TIM_FLAG_Update);
 }
 
 static int pmm_t1;
@@ -604,6 +619,14 @@ int pmm_Update(int ops, int ignore)
 	t2 = 0; //count to next period
 	if(f & TIM_FLAG_CC2)
 		v = TIM4->CCR2;
+
+	if(f & TIM_FLAG_CC1) {
+		//measure vpeak pulse width
+		int us = TIM4 -> CCR1;
+		us -= TIM4 -> CCR2;
+		us += (us > 0) ? 0 : 0x10000;
+		burn_data.wp = us * 36;
+	}
 
 	if(f & TIM_FLAG_Update) { //time over 65.535 mS
 		t2 = pmm_T; //update after capture
@@ -656,6 +679,8 @@ static mcamos_srv_t burn_server;
 void com_Init(void)
 {
 	burn_server.can = &can1;
+	burn_server.id_cmd = burn_id;
+	burn_server.id_dat = burn_id + 1;
 	burn_server.baud = 500000;
 	burn_server.timeout = 8;
 	burn_server.inbox_addr = BURN_INBOX_ADDR;
@@ -731,7 +756,12 @@ void Analysis(void)
 	avg = (burn_data.ip_avg << 8) / 1342;
 	min = (burn_data.ip_min << 8) / 1342;
 	max = (burn_data.ip_max << 8) / 1342;
-	printf("%d %d %d\n", avg, min, max);
+	printf("%d %d %d	", avg, min, max);
+
+	int wp = burn_data.wp;
+	int fire = burn_data.fire;
+	int lost = burn_data.lost;
+	printf("%d %d %d\n", wp, fire, lost);
 #endif
 }
 
@@ -767,7 +797,7 @@ void burn_Update()
 				burn_state = BURN_MEAV;
 				burn_timer = time_get(vpm_ms);
 				ipm_Update(STOP);
-				//printf("%d	trig!!!\n", -time_left(burn_tick));
+				burn_data.fire ++;
 				break;
 			}
 			if(time_left(burn_timer) < 0) { //lost trig signal at this cycle??  resync
