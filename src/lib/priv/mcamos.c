@@ -189,13 +189,13 @@ int mcamos_srv_init(mcamos_srv_t *psrv)
 	can_cfg_t cfg = CAN_CFG_DEF;
 	can_filter_t filter[] = {
 		{
-			.id = MCAMOS_MSG_1_STD_ID,
+			.id = psrv->id_cmd,
 			.mask = 0xffff,
 			.flag = 0,
 		},
 
 		{
-			.id = MCAMOS_MSG_2_STD_ID,
+			.id = psrv->id_dat,
 			.mask = 0xffff,
 			.flag = 0,
 		},
@@ -223,7 +223,7 @@ int mcamos_srv_update(mcamos_srv_t * psrv)
 		return 0;
 
 	//can frame received
-	if(msg.id != MCAMOS_MSG_1_STD_ID) {
+	if(msg.id != psrv->id_cmd) {
 		//strange can frame, ignore
 		return -1;
 	}
@@ -257,7 +257,7 @@ int mcamos_srv_update(mcamos_srv_t * psrv)
 			} while(ret);
 
 			//store data
-			if(msg.id != MCAMOS_MSG_1_STD_ID) {
+			if(msg.id != psrv->id_dat) {
 				return -1;
 			}
 
@@ -284,4 +284,101 @@ int mcamos_srv_update(mcamos_srv_t * psrv)
 
 	return 0;
 }
+
+#include "shell/cmd.h"
+int cmd_mcamos_func(int argc, char *argv[])
+{
+	struct mcamos_s m;
+	int addr, n, i, v, j;
+	char s[8];
+
+	switch(argv[1][0]) {
+	case 'i':
+		m.can = &can1;
+		m.baud = 500000;
+		m.id_cmd = 0x7ee;
+		if(argc == 3) {
+			sscanf(argv[2], "0x%x", &(m.id_cmd));
+		}
+		m.id_dat = m.id_cmd + 1;
+		mcamos_init_ex(&m);
+		return 0;
+
+	case 'd':
+		if(argc >= 3) {
+			sscanf(argv[2], "0x%x", &addr);
+			if(argc >= 4) {
+				n = strlen(argv[3]);
+				for(i = 0, j = 0; n - i >= 2; i += 2, j++) {
+					s[0] = argv[3][i];
+					s[1] = argv[3][i + 1];
+					s[3] = 0;
+					sscanf(s, "%x", &v);
+					argv[3][j] = (char) v;
+
+					if(j % 8 == 0) { //line head
+						printf("0x%08x:	", addr + j);
+					}
+
+					if(j % 8 == 7 || j == (n / 2 - 1)) {
+						printf("%02x\n", v);
+					}
+					else if(j % 8 == 3) {
+						printf("%02x..", v);
+					}
+					else {
+						printf("%02x  ", v);
+					}
+				}
+				v = mcamos_dnload(mcamos.can, addr, argv[3], j, 10);
+				if(v)
+					printf("  ...fail\n");
+				return 0;
+			}
+		}
+		break;
+	case 'u':
+		if(argc >= 3) {
+			sscanf(argv[2], "0x%x", &addr);
+			n = 8;
+			if(argc >= 4) {
+				sscanf(argv[3], "%d", &n);
+			}
+
+			for(i = 0; i < n; i += 8) {
+				v = mcamos_upload(mcamos.can, addr + i, s, 8, 10);
+				printf("0x%08x:	", addr + i);
+				if(!v) {
+					for(j = 0; j < 7; j ++) {
+						v = (unsigned char) s[j];
+						printf("%02x ", v);
+						if(j != 3)
+							printf("  ");
+						else
+							printf("..");
+					}
+					printf("\n");
+				}
+				else {
+					printf("...fail\n");
+					break;
+				}
+			}
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+
+	printf(
+		"mcamos init id_cmd(0x7ee?)	mcamos init\n"
+		"mcamos dnload 0x1234 HHHHHHHHHHH\n"
+		"mcamos upload 0x1234 N	read N bytes\n"
+	);
+	return 0;
+}
+
+const cmd_t cmd_mcamos = {"mcamos", cmd_mcamos_func, "mcamos cmds"};
+DECLARE_SHELL_CMD(cmd_mcamos)
 

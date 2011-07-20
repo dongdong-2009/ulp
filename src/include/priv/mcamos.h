@@ -34,8 +34,8 @@ struct mcamos_cmd_s {
 struct mcamos_s {
 	const can_bus_t *can;
 	int baud;
-	short id_cmd;
-	short id_dat;
+	int id_cmd;
+	int id_dat;
 };
 
 /*target = NULL will restore the default mcamos bus configuration*/
@@ -47,6 +47,9 @@ int mcamos_execute(const can_bus_t *can, int addr, int timeout);
 
 typedef struct {
 	const can_bus_t *can;
+	int id_cmd;
+	int id_dat;
+
 	unsigned baud;
 	unsigned inbox_addr;
 	unsigned outbox_addr;
