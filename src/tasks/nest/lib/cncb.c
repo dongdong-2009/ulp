@@ -150,6 +150,7 @@ int cncb_signal(int sig, int ops)
 
 #if 1
 #include "shell/cmd.h"
+#include "nest_can.h"
 
 //nest shell command
 static int cmd_cncb_func(int argc, char *argv[])
@@ -157,6 +158,7 @@ static int cmd_cncb_func(int argc, char *argv[])
 	const char *usage = {
 		"cncb flash	flash all cncb signal output\n"
 		"cncb sig1 0	sig1..6/7(BAT)/8(IGN)/9(LSD) = 0(low)/1(high)\n"
+		"cncb can dw/sw	slect dual wire/single wire can type\n"
 	};
 
 	if(argc > 1) {
@@ -181,6 +183,15 @@ static int cmd_cncb_func(int argc, char *argv[])
 
 				j = ( j > LED_P) ? LED_F : (j + 1);
 			}
+			return 0;
+		}
+
+		if(!strcmp(argv[1], "can")) {
+			int ch = DW_CAN;
+			if(!strcmp(argv[2], "sw")) {
+				ch = SW_CAN;
+			}
+			nest_can_sel(ch);
 			return 0;
 		}
 	}
