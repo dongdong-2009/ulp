@@ -236,8 +236,8 @@ int mcamos_srv_update(mcamos_srv_t * psrv)
 	addr |= cmd->byAddress[2];
 	addr <<= 8;
 	addr |= cmd->byAddress[3];
-	addr = (addr & 0xffffff00 == psrv->inbox_addr) ? ((unsigned) (psrv->inbox) | (addr & 0xff)) : addr;
-	addr = (addr & 0xffffff00 == psrv->outbox_addr) ? ((unsigned) (psrv ->outbox) | (addr & 0xff)) : addr;
+	addr = ((addr & 0xffffff00) == psrv->inbox_addr) ? ((unsigned) (psrv->inbox) | (addr & 0xff)) : addr;
+	addr = ((addr & 0xffffff00) == psrv->outbox_addr) ? ((unsigned) (psrv ->outbox) | (addr & 0xff)) : addr;
 
 	bytes = cmd ->byByteCnt[0];
 	bytes <<= 8;
@@ -271,6 +271,8 @@ int mcamos_srv_update(mcamos_srv_t * psrv)
 			n = bytes - i;
 			n = (n > 8) ? 8 : n;
 			memcpy(msg.data, (void *)addr, n);
+			msg.id = psrv->id_dat;
+			msg.dlc = n;
 			do {
 				ret = psrv ->can ->send(&msg);
 				if(time_left(deadline) < 0)
@@ -349,7 +351,7 @@ int cmd_mcamos_func(int argc, char *argv[])
 				v = mcamos_upload(mcamos.can, addr + i, s, 8, 10);
 				printf("0x%08x:	", addr + i);
 				if(!v) {
-					for(j = 0; j < 7; j ++) {
+					for(j = 0; j < 8; j ++) {
 						v = (unsigned char) s[j];
 						printf("%02x ", v);
 						if(j != 3)

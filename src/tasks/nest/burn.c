@@ -768,7 +768,7 @@ void Analysis(void)
 void burn_Update()
 {
 	int flag, loop;
-
+	com_Update();
 	do {
 		loop = 0;
 		switch(burn_state) {
