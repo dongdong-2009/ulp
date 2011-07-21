@@ -6,6 +6,7 @@
 #include "can.h"
 #include "stm32f10x.h"
 #include <string.h>
+#include "time.h"
 
 static int can_init(const can_cfg_t *cfg)
 {
@@ -148,6 +149,17 @@ int can_filt(can_filter_t *filter, int n)
 
 void can_flush(void)
 {
+	int busy;
+	time_t deadline = time_get(10); //max wait 10 ms
+	do {
+		busy = 0;
+		busy += (CAN_TransmitStatus(CAN1, 0) == CANTXPENDING);
+		busy += (CAN_TransmitStatus(CAN1, 1) == CANTXPENDING);
+		busy += (CAN_TransmitStatus(CAN1, 2) == CANTXPENDING);
+		if(!busy)
+			break;
+	} while(time_left(deadline) > 0);
+
 	CAN_CancelTransmit(CAN1, 0);
 	CAN_CancelTransmit(CAN1, 1);
 	CAN_CancelTransmit(CAN1, 2);

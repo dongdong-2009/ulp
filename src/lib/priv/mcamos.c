@@ -24,7 +24,7 @@ int mcamos_init_ex(const struct mcamos_s *mcamos_new)
 	struct mcamos_s mcamos_old;
 
 	mcamos_new = (mcamos_new == NULL) ? &mcamos_def : mcamos_new;
-	if(!memcmp(&mcamos_new, &mcamos, sizeof(struct mcamos_s))) {
+	if((mcamos_new->can == NULL) || !memcmp(&mcamos_new, &mcamos, sizeof(struct mcamos_s))) {
 		//the same as current configuration, nothing needs to do
 		return 0;
 	}
