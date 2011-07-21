@@ -12,7 +12,9 @@ choice 'cpu family select'	" \
 
 int "high speed external clk freq?" CONFIG_HSE_VALUE 12000000
 int "low speed external clk freq?" CONFIG_LSE_VALUE 32768
-int "cpu core clk(mck) freq?" CONFIG_MCK_VALUE 48000000
+if [ "$CONFIG_CPU_SAM3U" = "y"]; then
+	int "cpu core clk(mck) freq?" CONFIG_MCK_VALUE 48000000
+fi
 
 if [ "$CONFIG_CPU_STM32" = "y"]; then
 	source src/cpu/stm32/Kconfig
