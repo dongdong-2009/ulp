@@ -80,6 +80,7 @@ int mcamos_dnload(const can_bus_t *can, int addr, const char *buf, int n, int ti
 	msg.flag = 0;
 	msg.dlc = sizeof(struct mcamos_cmd_s);
 
+	can ->flush();
 	do {
 		ret = can -> send(&msg);
 		if(time_left(deadline) < 0)
@@ -126,6 +127,7 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 	msg.flag = 0;
 	msg.dlc = sizeof(struct mcamos_cmd_s);
 
+	can ->flush();
 	do {
 		ret = can -> send(&msg);
 		if(time_left(deadline) < 0)
@@ -174,6 +176,7 @@ int mcamos_execute(const can_bus_t *can, int addr, int timeout)
 	msg.flag = 0;
 	msg.dlc = sizeof(struct mcamos_cmd_s);
 
+	can -> flush();
 	do {
 		ret = can -> send(&msg);
 		if(time_left(deadline) < 0)
@@ -304,6 +307,10 @@ int cmd_mcamos_func(int argc, char *argv[])
 		}
 		m.id_dat = m.id_cmd + 1;
 		mcamos_init_ex(&m);
+		printf("mcamos.can = can1\n");
+		printf("mcamos.baud = %d\n", m.baud);
+		printf("mcamos.id_cmd = 0x%x\n", m.id_cmd);
+		printf("mcamos.id_dat = 0x%x\n", m.id_dat);
 		return 0;
 
 	case 'd':
@@ -353,7 +360,7 @@ int cmd_mcamos_func(int argc, char *argv[])
 				if(!v) {
 					for(j = 0; j < 8; j ++) {
 						v = (unsigned char) s[j];
-						printf("%02x ", v);
+						printf("%02x", v);
 						if(j != 3)
 							printf("  ");
 						else
@@ -374,9 +381,9 @@ int cmd_mcamos_func(int argc, char *argv[])
 	}
 
 	printf(
-		"mcamos init id_cmd(0x7ee?)	mcamos init\n"
-		"mcamos dnload 0x1234 HHHHHHHHHHH\n"
-		"mcamos upload 0x1234 N	read N bytes\n"
+		"mcamos init id_cmd(0x7ee?0x5e0)	mcamos init\n"
+		"mcamos dnload 0x0f000000 HHHHHHHHHHH\n"
+		"mcamos upload 0x0f000100 N	read N bytes\n"
 	);
 	return 0;
 }

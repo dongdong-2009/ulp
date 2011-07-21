@@ -146,9 +146,19 @@ int can_filt(can_filter_t *filter, int n)
 	return ret;
 }
 
+void can_flush(void)
+{
+	CAN_CancelTransmit(CAN1, 0);
+	CAN_CancelTransmit(CAN1, 1);
+	CAN_CancelTransmit(CAN1, 2);
+	CAN_FIFORelease(CAN1, CAN_FIFO0);
+	CAN_FIFORelease(CAN1, CAN_FIFO1);
+}
+
 const can_bus_t can1 = {
 	.init = can_init,
 	.send = can_send,
 	.recv = can_recv,
 	.filt = can_filt,
+	.flush = can_flush,
 };
