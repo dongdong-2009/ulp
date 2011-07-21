@@ -236,8 +236,8 @@ int mcamos_srv_update(mcamos_srv_t * psrv)
 	addr |= cmd->byAddress[2];
 	addr <<= 8;
 	addr |= cmd->byAddress[3];
-	addr = ((addr & 0xffffff00) == psrv->inbox_addr) ? ((unsigned) (psrv->inbox) | (addr & 0xff)) : addr;
-	addr = ((addr & 0xffffff00) == psrv->outbox_addr) ? ((unsigned) (psrv ->outbox) | (addr & 0xff)) : addr;
+	addr = ((addr & 0xffffff00) == psrv->inbox_addr) ? ((unsigned) (psrv->inbox) + (addr & 0xff)) : addr;
+	addr = ((addr & 0xffffff00) == psrv->outbox_addr) ? ((unsigned) (psrv ->outbox) + (addr & 0xff)) : addr;
 
 	bytes = cmd ->byByteCnt[0];
 	bytes <<= 8;
