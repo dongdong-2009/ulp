@@ -74,7 +74,9 @@
 /* #define SYSCLK_FREQ_36MHz  36000000 */
 /* #define SYSCLK_FREQ_48MHz  48000000 */
 /* #define SYSCLK_FREQ_56MHz  56000000 */
+#ifndef CONFIG_USE_HSI
 #define SYSCLK_FREQ_72MHz  72000000
+#endif
 
 /*!< Uncomment the following line if you need to use external SRAM mounted
      on STM3210E-EVAL board (STM32 High density devices) as data memory  */ 
@@ -152,7 +154,6 @@
 /** @addtogroup STM32F10x_System_Private_FunctionPrototypes
   * @{
   */
-
 static void SetSysClock(void);
 
 #ifdef SYSCLK_FREQ_HSE
@@ -223,7 +224,14 @@ void SystemInit (void)
   /* Configure the System clock frequency, HCLK, PCLK2 and PCLK1 prescalers */
   /* Configure the Flash Latency cycles and enable prefetch buffer */
   SetSysClock();
-
+#ifdef CONFIG_USE_HSI
+	RCC_HSEConfig(RCC_HSE_OFF);
+	RCC_SYSCLKConfig(RCC_SYSCLKSource_HSI);
+	RCC_PLLConfig(RCC_PLLSource_HSI_Div2, RCC_PLLMul_16);
+	RCC_HCLKConfig(RCC_SYSCLK_Div1);		//64MHz
+	RCC_PCLK1Config(RCC_HCLK_Div2);			//32MHz
+	RCC_PCLK2Config(RCC_HCLK_Div1);			//64MHz
+#endif
 }
 
 /**

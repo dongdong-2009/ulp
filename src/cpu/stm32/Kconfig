@@ -10,6 +10,8 @@ choice 'stm32 cpu type select'	" \
 	cl	CONFIG_STM32F10X_CL \
 " md
 bool "use stm32 std periph driver?" CONFIG_USE_STDPERIPH_DRIVER y
+bool "use stm32 internal RC OSC?" CONFIG_USE_HSI n
+
 if [ "$CONFIG_STM32F10X_CL" = "y"]; then
 	bool "use stm32 std ethernet driver?" CONFIG_USE_STDETHERNET_DRIVER y
 fi
