@@ -19,8 +19,17 @@ there are 4 hardware modules in total:
 #include "shell/cmd.h"
 #include <stdlib.h>
 
-//#define __DEBUG_WAVEFORM /*switch to turn on/off waveform display*/
 #define HARDWARE_VERSION	0x0102 //v1.2
+
+//R = 0.01Ohm, G = 20V/V, Vref = 2V5, 16bit unsigned ADC => ratio = 1/5242.88= 256/1342177
+#define ipm_ratio_def 1342
+#if HARDWARE_VERSION == 0x0101
+//R18 = 22K, R17 = 47Ohm, Vref = 2V, 16bit unsigned ADC => ratio = 1/69.85513 = 256/17883
+#define vpm_ratio_def 17883
+#else
+//R18 = 22K, R17 = 100Ohm, Vref = 2V, 16bit unsigned ADC => ratio = 1/148.2715= 256/37957
+#define vpm_ratio_def 37957
+#endif
 
 #define T			20 //spark period, unit: ms
 #define ipm_ms			4 //norminal ipm measurement time
@@ -35,6 +44,8 @@ static unsigned short vpm_data[VPM_FIFO_N];
 static unsigned short ipm_data[IPM_FIFO_N];
 static short vpm_data_n = 0;
 static short ipm_data_n = 0;
+static int vpm_ratio __nvm; //vp(v) = vp(digit) * 256 / ratio
+static int ipm_ratio __nvm; //ip(mA) = ip(digit) * 256 / ratio
 
 static unsigned short mos_delay_clks __nvm;
 static unsigned short mos_close_clks __nvm;
@@ -75,10 +86,10 @@ void filter_init(struct filter_s *f)
 	f->bn = 19/*24*/;
 	f->an = 14;
 
-	f->b0 = (0.030468747091253801/*0.0006279240770159511*/ * (1 << f->bn));
-	f->b1 = (0.030468747091253801/*0.0006279240770159511*/ * (1 << f->bn));
-	f->a0 = (1.0000000000000000000 * (1 << f->an));
-	f->a1 = (-0.9390625058174924/*-0.9987441518459681*/ * (1 << f->an));
+	f->b0 = (int)(0.030468747091253801/*0.0006279240770159511*/ * (1 << f->bn));
+	f->b1 = (int)(0.030468747091253801/*0.0006279240770159511*/ * (1 << f->bn));
+	f->a0 = (int)(1.0000000000000000000 * (1 << f->an));
+	f->a1 = (int)(-0.9390625058174924/*-0.9987441518459681*/ * (1 << f->an));
 
 	f->xn_1 = 0;
 	f->yn_1 = 0;
@@ -165,42 +176,101 @@ void mos_Init(void)
 	TIM_Cmd(TIM2, ENABLE);
 }
 
+enum {
+	FLAG_DEBUG_NONE, //disp nothing
+	FLAG_DEBUG_VP, //disp trape waveform data
+	FLAG_DEBUG_IP, //disp triangle waveform data
+	FLAG_DEBUG_VI, //disp V(v)&I(mA)
+} burn_flag_debug;
+
 int cmd_burn_func(int argc, char *argv[])
 {
 	if(argc == 3) {
-		if(argv[1][0] == 'i') {
+		if(!strcmp(argv[1], "id")) {
 			sscanf(argv[2], "0x%x", &burn_id);
 			return 0;
 		}
 
-		int ns = atoi(argv[2]);
-		if(ns < 30) {
-			ns = 30;
-			printf("warnning: too small!!!, fixed to 30nS\n");
+		if(!strcmp(argv[1], "vp")) {
+			vpm_ratio = atoi(argv[2]);
+			return 0;
 		}
-		if(ns > 50000) {
-			ns = 50000;
-			printf("warnning: too big!!!, fixed to 50uS\n");
+
+		if(!strcmp(argv[1], "ip")) {
+			ipm_ratio = atoi(argv[2]);
+			return 0;
 		}
-		int delay_clks = ns *36 / 1000;
-		int total = delay_clks + mos_close_clks;
-		int close_clks = (total > 0xfff0) ? (0xfff0 - delay_clks) : mos_close_clks;
 
-		mos_delay_clks = (short) delay_clks;
-		mos_close_clks = (short) close_clks;
+		if(!strcmp(argv[1], "wp")) {
+			int ns = atoi(argv[2]);
+			if(ns < 30) {
+				ns = 30;
+				printf("warnning: too small!!!, fixed to 30nS\n");
+			}
+			if(ns > 50000) {
+				ns = 50000;
+				printf("warnning: too big!!!, fixed to 50uS\n");
+			}
+			int delay_clks = ns *36 / 1000;
+			int total = delay_clks + mos_close_clks;
+			int close_clks = (total > 0xfff0) ? (0xfff0 - delay_clks) : mos_close_clks;
 
-		mos_Init();
-		return 0;
+			mos_delay_clks = (short) delay_clks;
+			mos_close_clks = (short) close_clks;
+
+			mos_Init();
+			return 0;
+		}
+
+		if(!strcmp(argv[1], "debug")) {
+			if(!strcmp(argv[2], "vp"))
+				burn_flag_debug = FLAG_DEBUG_VP;
+			else if(!strcmp(argv[2], "ip"))
+				burn_flag_debug = FLAG_DEBUG_IP;
+			else if(!strcmp(argv[2], "vi"))
+				burn_flag_debug = FLAG_DEBUG_VI;
+			else
+				burn_flag_debug = FLAG_DEBUG_NONE;
+			return 0;
+		}
 	}
 
 	if(argc == 2) {
-		nvm_save();
-		return 0;
+		if(!strcmp(argv[1], "save")) {
+			nvm_save();
+			return 0;
+		}
+		else if(!strcmp(argv[1], "ical")) {
+			int val, i, fil, avg;
+			struct filter_s f, f2;
+			filter_init(&f);
+			filter_init(&f2);
+
+			ADC_Cmd(ADC1, ENABLE);
+			ADC_SoftwareStartConvCmd(ADC1, ENABLE);
+			while(1) {
+				ADC_ClearFlag(ADC1, ADC_FLAG_EOC);
+				while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC));
+				val = ADC_GetConversionValue(ADC1);
+				i = (val << 8) / ipm_ratio;
+				if(i > 500) { //bigger than 0.5A
+					fil = filt(&f, val);
+					avg = filt(&f2, fil);
+					i = (avg << 8) / ipm_ratio;
+					printf("%d %d %d %d\n", val, fil, avg, i);
+					mdelay(10);
+				}
+			}
+		}
 	}
 
 	printf(
-		"burn mos ns	set vpeak pulse width, 28ns resolution\n"
-		"burn id		set mcamos server can id, such as 0x5e0, 0x5e2, 0x5e4, 0x5e6\n"
+		"burn wp ns	set vpeak pulse width, 28ns resolution\n"
+		"burn id xx		set mcamos server can id, such as 0x5e0, 0x5e2, 0x5e4, 0x5e6\n"
+		"burn ical		current calibration mode\n"
+		"burn debug vp/ip/vi	disp trape waveform/triangle waveform/peak VI waveform\n"
+		"burn vp ratio		vp = vp*ratio/10000\n"
+		"burn ip ratio		ip = ip*ratio/10000\n"
 		"burn save	save the config value\n"
 	);
 
@@ -209,6 +279,8 @@ int cmd_burn_func(int argc, char *argv[])
 	printf("mos_close_clks = %d\n", mos_close_clks);
 	printf("burn_ms = %d\n", burn_ms);
 	printf("burn_id = 0x%x\n", burn_id);
+	printf("vpm_ratio = %d\n", vpm_ratio);
+	printf("ipm_ratio = %d\n", ipm_ratio);
 	return 0;
 }
 
@@ -344,7 +416,7 @@ void vpm_Update(int ops)
 		break;
 	case STOP:
 		n = VPM_FIFO_N - DMA_GetCurrDataCounter(DMA1_Channel6);
-		if(0) {
+		if(burn_flag_debug == FLAG_DEBUG_VP) {
 			i = (n > vpm_data_n) ? (n - vpm_data_n) : (VPM_FIFO_N - vpm_data_n + n);
 			printf("vpm_data[%d] = \n", i);
 			if(n > vpm_data_n) { //normal
@@ -370,7 +442,9 @@ void vpm_Update(int ops)
 		}
 
 		burn_data.vp = vp_max;
-		burn_data.vp_avg = filt(&burn_filter_vp, vp_max);
+		vp = filt(&burn_filter_vp, vp_max);
+		burn_data.vp_avg = (vp << 8) / vpm_ratio;
+
 		if(- time_left(burn_tick ) > BURN_FILTER_DELAY) {
 			burn_data.vp_max = (burn_data.vp_avg > burn_data.vp_max) ? burn_data.vp_avg : burn_data.vp_max;
 			burn_data.vp_min = (burn_data.vp_avg < burn_data.vp_min) ? burn_data.vp_avg : burn_data.vp_min;
@@ -499,7 +573,7 @@ void ipm_Update(int ops)
 		ADC_DMACmd(ADC1, DISABLE);
 		ADC_Cmd(ADC1, DISABLE);
 		n = IPM_FIFO_N - DMA_GetCurrDataCounter(DMA1_Channel1);
-		if(0) {
+		if(burn_flag_debug == FLAG_DEBUG_IP) {
 			int i = (n > ipm_data_n) ? (n - ipm_data_n) : (IPM_FIFO_N - ipm_data_n + n);
 			printf("ipm_data[%d] = \n", i);
 			if(n > ipm_data_n) { //normal
@@ -525,7 +599,8 @@ void ipm_Update(int ops)
 		}
 
 		burn_data.ip = ip_max;
-		burn_data.ip_avg = filt(&burn_filter_ip, ip_max);
+		ip = filt(&burn_filter_ip, ip_max);
+		burn_data.ip_avg = (ip << 8) / ipm_ratio;
 		if(- time_left(burn_tick ) > BURN_FILTER_DELAY) {
 			burn_data.ip_max = (burn_data.ip_avg > burn_data.ip_max) ? burn_data.ip_avg : burn_data.ip_max;
 			burn_data.ip_min = (burn_data.ip_avg < burn_data.ip_min) ? burn_data.ip_avg : burn_data.ip_min;
@@ -704,7 +779,7 @@ void com_Update(void)
 		break;
 
 	case 0:
-		break;
+		return;
 	}
 
 	burn_server.outbox[0] = inbox[0];
@@ -720,13 +795,19 @@ void burn_Init()
 	memset(&burn_data, 0, sizeof(burn_data));
 	burn_data.ip_min = 0xffff;
 	burn_data.vp_min = 0xffff;
+	burn_flag_debug = FLAG_DEBUG_NONE;
 
 	if(burn_ms == 0xffff) { //set default value
 		mos_delay_clks  = (unsigned short) (mos_delay_us_def * 36); //unit: 1/36 us
 		mos_close_clks  = (unsigned short) (mos_close_us_def * 36); //unit: 1/36 us
 		burn_ms = T;
+		vpm_ratio = vpm_ratio_def;
+		ipm_ratio = ipm_ratio_def;
 		nvm_save();
 	}
+
+	vpm_ratio = (vpm_ratio > 0) ? vpm_ratio : vpm_ratio_def;
+	ipm_ratio = (ipm_ratio > 0) ? ipm_ratio : ipm_ratio_def;
 
 	pmm_Init();
 	mos_Init();
@@ -737,32 +818,25 @@ void burn_Init()
 
 void Analysis(void)
 {
-#ifdef __DEBUG_WAVEFORM
-	int avg, min, max;
-#if HARDWARE_VERSION == 0x0101
-	//R18 = 22K, R17 = 47Ohm, Vref = 2V, 16bit unsigned ADC => ratio = 1/69.85513 = 256/17883
-	avg = (burn_data.vp_avg << 8)/17883;
-	min = (burn_data.vp_min << 8)/17883;
-	max = (burn_data.vp_max << 8)/17883;
-#else
-	//R18 = 22K, R17 = 100Ohm, Vref = 2V, 16bit unsigned ADC => ratio = 1/148.2715= 256/37957
-	avg = (burn_data.vp_avg << 8)/37957;
-	min = (burn_data.vp_min << 8)/37957;
-	max = (burn_data.vp_max << 8)/37957;
-#endif
-	printf("%d %d %d	", avg, min, max);
+	if(burn_flag_debug == FLAG_DEBUG_VI) {
+		int ori, avg, min, max;
+		ori = burn_data.vp;
+		avg = burn_data.vp_avg;
+		min = burn_data.vp_min;
+		max = burn_data.vp_max;
+		printf("%d %d %d %d	", ori, avg, min, max);
 
-	//R = 0.01Ohm, G = 20V/V, Vref = 2V5, 16bit unsigned ADC => ratio = 1/5242.88= 256/1342177
-	avg = (burn_data.ip_avg << 8) / 1342;
-	min = (burn_data.ip_min << 8) / 1342;
-	max = (burn_data.ip_max << 8) / 1342;
-	printf("%d %d %d	", avg, min, max);
+		ori = burn_data.ip;
+		avg = burn_data.ip_avg;
+		min = burn_data.ip_min;
+		max = burn_data.ip_max;
+		printf("%d %d %d %d	", ori, avg, min, max);
 
-	int wp = burn_data.wp;
-	int fire = burn_data.fire;
-	int lost = burn_data.lost;
-	printf("%d %d %d\n", wp, fire, lost);
-#endif
+		int wp = burn_data.wp;
+		int fire = burn_data.fire;
+		int lost = burn_data.lost;
+		printf("%d %d %d\n", wp, fire, lost);
+	}
 }
 
 void burn_Update()
