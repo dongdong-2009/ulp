@@ -6,59 +6,69 @@
 #include <stdio.h>
 #include <string.h>
 
-#define BDT GPIO_ReadInputDataBit(GPIOC,GPIO_Pin_6)
+#define BDT_PIN		GPIO_Pin_6
+#define BDT GPIO_ReadInputDataBit(GPIOC,BDT_PIN)
 
-#define ERROR_OK		0
-#define ERROR_TIMEOUT	-1
+//Error define
+#define ERROR_OK					0
+#define ERROR_TIMEOUT				-1
 #define ERROR_BOARD_NOT_EXIST		-2
-#define ERROR_CHANNEL_NOT_EXIST	-3
+#define ERROR_CHANNEL_NOT_EXIST		-3
 #define ERROR_BUSSW_NOT_EXIST		-4
 #define ERROR_CHSW_NOT_EXIST		-5
 
-#define CONFIG_SLOT_NR 5
+#define CONFIG_SLOT_NR				5
 
-#define MATRIX_RELAY_OP_RELAYON	(1<<0)
+#define MATRIX_RELAY_OP_RELAYON		(1<<0)
 #define MATRIX_RELAY_OP_RELAYOFF	(1<<1)
-#define MATRIX_RELAY_OP_BUSSWON	(1<<2)
+#define MATRIX_RELAY_OP_BUSSWON		(1<<2)
 #define MATRIX_RELAY_OP_BUSSWOFF	(1<<3)
-#define MATRIX_RELAY_OP_CHSWON	(1<<4)
-#define MATRIX_RELAY_OP_CHSWOFF	(1<<5)
+#define MATRIX_RELAY_OP_CHSWON		(1<<4)
+#define MATRIX_RELAY_OP_CHSWOFF		(1<<5)
 
 matrix_t chip1 = {
-	  	.bus = &spi2,
+		.bus = &spi2,
 		.idx = SPI_2_NSS,
 };
+
 bdInfo_t bdi[5];
 int nboard=0;
 unsigned char outbuffer[100];
 
 int matrix_init()
-{	unsigned int bdt[5] = {0x00,0x01,0x02,0x03,0x04};
+{
 	int i;
-	GPIO_InitTypeDef  GPIO_InitStructure;
+	unsigned short port_temp;
+
+	GPIO_InitTypeDef  GPIO_InitStructure;
+	//for matrix board select
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_3;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
+	//for bus select input
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6|GPIO_Pin_7|GPIO_Pin_8|GPIO_Pin_9|GPIO_Pin_10|GPIO_Pin_11;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
+	//for OE output
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
+	//for lan reset input
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
+	//for shift register spi bus init
 	spi_cfg_t cfg = {
 		.cpol = 0,
 		.cpha = 0,
@@ -66,27 +76,29 @@ int matrix_init()
 		.bseq = 1,
 		.csel = 0,
 		.freq = 4000000,
-	};
-	chip1.bus->init(&cfg);
+	};	chip1.bus->init(&cfg);
 	for(i=0; i<CONFIG_SLOT_NR; i++){
-		GPIO_Write(GPIOC,bdt[i]);
-		udelay(10000);
-		if(!BDT){
+		port_temp = GPIO_ReadOutputData(GPIOC);
+		port_temp &= 0xfff8;
+		port_temp |= i;
+		GPIO_Write(GPIOC, port_temp);		//chip select
+		mdelay(10);
+		if(!BDT)
 			nboard++;
-		}
 	}
 
 	if(nboard == 0){
 		printf("Warning: Non board exist???\n");
 		return ERROR_BOARD_NOT_EXIST;
-	}
+	}
+	//init each board information
 	for(i = 0; i < CONFIG_SLOT_NR; i ++) {
 		matrix_InitBoard(i, &bdi[i]);
-	}
+	}
 	matrix_DisconnectAll(-1);
 	//fpga_Set(OEN,bdt);
-        GPIO_SetBits(GPIOA,GPIO_Pin_0);
-        GPIO_ResetBits(GPIOC,GPIO_Pin_3);
+	GPIO_SetBits(GPIOA,GPIO_Pin_0);
+	GPIO_ResetBits(GPIOC,GPIO_Pin_3);
 	return ERROR_OK;
 }
 
