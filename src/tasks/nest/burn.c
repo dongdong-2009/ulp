@@ -913,9 +913,20 @@ void main(void)
 	}
 }
 
-/* igbt burn circuit v1.1 issues:
+/* 
+igbt burn board v1.1 issues:  
 1)  mos gate over-protection needed -- external smps power issue
 2) high/low voltage isolation needed -- solved, discharge path changed
 3) trig pin protection -- clamp diode added
 4) current trig option? better for current sampling .... not used
+
+igbt burn board v1.2 issues:
+1) screw hole isolation area not big enough
+2) mos heat issue
+3) mos on delay issue, R73: 4k7 -> 470, R72 Package 1206?
+4) reset issue, reset cap: 100n->10u, remove reset resistor 10k pull up
+5) mos alignment issue, not in a line
+6) 12v dcdc package silk mirror issue
+7) groud relief connection issue, difficult to soldering
+8) plastic handle issue
 */
