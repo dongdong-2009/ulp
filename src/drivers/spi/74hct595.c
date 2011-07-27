@@ -20,5 +20,5 @@ void nxp_74hct595_Init(nxp_74hct595_t *chip)
 
 void nxp_74hct595_WriteByte(nxp_74hct595_t *chip, unsigned char data)
 {
-	chip->bus->wreg(chip->idx, cnt);
+	chip->bus->wreg(chip->idx, data);
 }

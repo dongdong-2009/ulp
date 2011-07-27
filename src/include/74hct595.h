@@ -8,6 +8,7 @@
 
 typedef struct {
 	const spi_bus_t *bus;
+	int idx; //index of chip in the specified bus
 	int option;
 } nxp_74hct595_t;
 
