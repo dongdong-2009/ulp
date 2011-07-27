@@ -9,7 +9,9 @@
 #include <shell/cmd.h>
 #include "debug.h"
 #include "time.h"
+#include "nvm.h"
 
+static int nest_flag_ignore __nvm;
 static struct nest_info_s nest_info;
 
 int nest_init(void)
@@ -17,6 +19,8 @@ int nest_init(void)
 	task_Init();
 	cncb_init();
 	nest_message_init();
+	if(nest_flag_ignore == -1)
+		nest_flag_ignore = 0;
 	return 0;
 }
 
@@ -100,17 +104,75 @@ int nest_map(const struct nest_map_s *map, const char *str)
 	return id;
 }
 
+int nest_ignore(int mask)
+{
+	return (nest_flag_ignore & mask);
+}
+
 //nest shell command
 static int cmd_nest_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"nest help\n"
-		"nest log	print log message\n"
+		"nest log					print log message\n"
+		"nest ignore psv|bmr|rly|all|none|save|show	ignore some event for debug\n"
 	};
 
 	if(argc > 1) {
 		if(!strcmp(argv[1], "log"))
 			return cmd_nest_log_func(argc, argv);
+		if(!strcmp(argv[1], "ignore")) {
+			if(argc == 3) {
+				int ok = 0;
+				if(!strcmp(argv[2], "psv")) {
+					nest_flag_ignore |= PSV;
+					ok = 1;
+				}
+				else if(!strcmp(argv[2], "bmr")) {
+					nest_flag_ignore |= BMR;
+					ok = 1;
+				}
+				else if(!strcmp(argv[2], "rly")) {
+					nest_flag_ignore |= RLY;
+					ok = 1;
+				}
+				else if(!strcmp(argv[2], "all")) {
+					nest_flag_ignore |= (PSV | BMR | RLY);
+					ok = 1;
+				}
+				else if(!strcmp(argv[2], "none")) {
+					nest_flag_ignore = 0;
+					ok = 1;
+				}
+				else if(!strcmp(argv[2], "save")) {
+					nvm_save();
+					ok = 1;
+				}
+				else if(!strcmp(argv[2], "show")) {
+					ok = 1;
+				}
+
+				if(ok) {
+					nest_message("nest_ignore = ");
+					if(nest_ignore(RLY))
+						nest_message("|RLY");
+					else
+						nest_message("|   ");
+
+					if(nest_ignore(BMR))
+						nest_message("|BMR");
+					else
+						nest_message("|   ");
+
+					if(nest_ignore(PSV))
+						nest_message("|PSV");
+					else
+						nest_message("|   ");
+					nest_message("|\n");
+					return 0;
+				}
+			}
+		}
 	}
 
 	printf("%s", usage);

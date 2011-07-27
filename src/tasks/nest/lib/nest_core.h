@@ -9,6 +9,13 @@ int nest_init(void);
 int nest_update(void);
 int nest_mdelay(int ms);
 
+enum {
+	PSV = 1 << 0,
+	BMR = 1 << 1,
+	RLY = 1 << 2, /*CYC IGN RELAY ON/OFF*/
+};
+int nest_ignore(int mask);
+
 int nest_wait_plug_in(void);
 int nest_wait_pull_out(void);
 
