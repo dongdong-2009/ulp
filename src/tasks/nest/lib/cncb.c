@@ -151,6 +151,7 @@ int cncb_signal(int sig, int ops)
 #if 1
 #include "shell/cmd.h"
 #include "nest_can.h"
+#include "nest_power.h"
 
 //nest shell command
 static int cmd_cncb_func(int argc, char *argv[])
@@ -159,6 +160,7 @@ static int cmd_cncb_func(int argc, char *argv[])
 		"cncb flash	flash all cncb signal output\n"
 		"cncb sig1 0	sig1..6/7(BAT)/8(IGN)/9(LSD) = 0(low)/1(high)\n"
 		"cncb can dw/sw	slect dual wire/single wire can type\n"
+		"cncb power on/off/1/0	power on/off dut\n"
 	};
 
 	if(argc > 1) {
@@ -192,6 +194,22 @@ static int cmd_cncb_func(int argc, char *argv[])
 				ch = SW_CAN;
 			}
 			nest_can_sel(ch);
+			return 0;
+		}
+
+		if(!strcmp(argv[1], "power")) {
+			if(!strcmp(argv[2], "on")) {
+				nest_power_on();
+				return 0;
+			}
+			else if(!strcmp(argv[2], "off")) {
+				nest_power_off();
+				return 0;
+			}
+
+			int op = atoi(argv[2]);
+			if(op & 0x01) nest_power_on();
+			else nest_power_off();
 			return 0;
 		}
 	}
