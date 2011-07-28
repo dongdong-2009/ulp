@@ -20,7 +20,7 @@ int nest_init(void)
 	cncb_init();
 	nest_message_init();
 	if(nest_flag_ignore == -1)
-		nest_flag_ignore = 0;
+		nest_flag_ignore = PKT;
 	return 0;
 }
 
@@ -114,63 +114,67 @@ static int cmd_nest_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"nest help\n"
-		"nest log					print log message\n"
-		"nest ignore psv|bmr|rly|all|none|save|show	ignore some event for debug\n"
+		"nest save				save settings to nvm\n"
+		"nest log				print log message\n"
+		"nest ignore psv bmr rly pkt all		ignore some event for debug\n"
 	};
 
 	if(argc > 1) {
+		if(!strcmp(argv[1], "save")) {
+			nvm_save();
+			return 0;
+		}
 		if(!strcmp(argv[1], "log"))
 			return cmd_nest_log_func(argc, argv);
 		if(!strcmp(argv[1], "ignore")) {
-			if(argc == 3) {
-				int ok = 0;
-				if(!strcmp(argv[2], "psv")) {
-					nest_flag_ignore |= PSV;
-					ok = 1;
+			int ignore = 0, ok = 1;
+			for(int i = 2; i < argc; i ++) {
+				if(!strcmp(argv[i], "psv")) {
+					ignore |= PSV;
 				}
-				else if(!strcmp(argv[2], "bmr")) {
-					nest_flag_ignore |= BMR;
-					ok = 1;
+				else if(!strcmp(argv[i], "bmr")) {
+					ignore |= BMR;
 				}
-				else if(!strcmp(argv[2], "rly")) {
-					nest_flag_ignore |= RLY;
-					ok = 1;
+				else if(!strcmp(argv[i], "rly")) {
+					ignore |= RLY;
 				}
-				else if(!strcmp(argv[2], "all")) {
-					nest_flag_ignore |= (PSV | BMR | RLY);
-					ok = 1;
+				else if(!strcmp(argv[i], "pkt")) {
+					ignore |= PKT;
 				}
-				else if(!strcmp(argv[2], "none")) {
-					nest_flag_ignore = 0;
-					ok = 1;
+				else if(!strcmp(argv[i], "all")) {
+					ignore |= (PSV | BMR | RLY | PKT);
 				}
-				else if(!strcmp(argv[2], "save")) {
-					nvm_save();
-					ok = 1;
+				else {
+					ok = 0;
+					break;
 				}
-				else if(!strcmp(argv[2], "show")) {
-					ok = 1;
-				}
+			}
 
-				if(ok) {
-					nest_message("nest_ignore = ");
-					if(nest_ignore(RLY))
-						nest_message("|RLY");
-					else
-						nest_message("|   ");
+			//display current settings
+			if(ok) {
+				if(argc > 2)
+					nest_flag_ignore = ignore;
+				nest_message("nest_ignore = ");
+				if(nest_ignore(PKT))
+					nest_message("|PKT");
+				else
+					nest_message("|   ");
+				if(nest_ignore(RLY))
+					nest_message("|RLY");
+				else
+					nest_message("|   ");
 
-					if(nest_ignore(BMR))
-						nest_message("|BMR");
-					else
-						nest_message("|   ");
+				if(nest_ignore(BMR))
+					nest_message("|BMR");
+				else
+					nest_message("|   ");
 
-					if(nest_ignore(PSV))
-						nest_message("|PSV");
-					else
-						nest_message("|   ");
-					nest_message("|\n");
-					return 0;
-				}
+				if(nest_ignore(PSV))
+					nest_message("|PSV");
+				else
+					nest_message("|   ");
+				nest_message("|\n");
+				return 0;
 			}
 		}
 	}

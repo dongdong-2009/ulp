@@ -13,6 +13,7 @@ enum {
 	PSV = 1 << 0,
 	BMR = 1 << 1,
 	RLY = 1 << 2, /*CYC IGN RELAY ON/OFF*/
+	PKT = 1 << 3, /*IGBT BURN PEAK TEST*/
 };
 int nest_ignore(int mask);
 

@@ -318,6 +318,13 @@ static void CyclingTest(void)
 		vsep_mask("PCH26");
 		vsep_mask("PCH27");
 		break;
+	case BM_28180087:
+		vsep_mask("PCH03"); //2 way IGBT
+		vsep_mask("PCH04"); //2 way IGBT
+		vsep_mask("PCH13"); //FPR Short to Ground?
+		vsep_mask("PCH14"); //SMR Short to Ground?
+		vsep_mask("PCH27"); //MPR Short to Ground?
+		break;
 	default:
 		break;
 	}
@@ -336,18 +343,26 @@ static void CyclingTest(void)
 		while(nest_time_left(deadline) > 0) {
 			nest_update();
 			nest_light(RUNNING_TOGGLE);
+			fail = burn_verify(0);
+			if(fail) {
+				nest_error_set(PULSE_FAIL, "Cycling");
+				break;
+			}
 		}
 
-		nest_message("T = %02d min\n", min);
-		fail += Read_Memory(OUTBOX_ADDR, mailbox, 0x13);
-		fail += vsep_verify(mailbox + (0x1084 - 0x1080)); /*verify [1084 - 108b]*/
-		fail += hfps_verify(mailbox + (0x108c - 0x1080)); /*verify [108c - 1091]*/
-		fail += phdh_verify(mailbox + (0x1092 - 0x1080)); /*verify [1092 - 1092]*/
-		if (fail) {
-			memcpy(mfg_data.fb, mailbox, sizeof(mfg_data.fb));
-			nest_error_set(FB_FAIL, "Cycling");
-			break;
+		if(!fail) {
+			nest_message("T = %02d min\n", min);
+			fail += Read_Memory(OUTBOX_ADDR, mailbox, 0x13);
+			fail += vsep_verify(mailbox + (0x1084 - 0x1080)); /*verify [1084 - 108b]*/
+			fail += hfps_verify(mailbox + (0x108c - 0x1080)); /*verify [108c - 1091]*/
+			fail += phdh_verify(mailbox + (0x1092 - 0x1080)); /*verify [1092 - 1092]*/
+			if (fail) {
+				memcpy(mfg_data.fb, mailbox, sizeof(mfg_data.fb));
+				nest_error_set(FB_FAIL, "Cycling");
+				break;
+			}
 		}
+		else break;
 	}
 
 	//restart the dut
@@ -361,17 +376,17 @@ void TestStart(void)
 
 	//wait for dut insertion
 	nest_wait_plug_in();
-
 	nest_power_on();
-#if 1
+
 	//cyc ign, necessary???
-	for(int cnt = 0; cnt < 75; cnt ++) {
-		RELAY_IGN_SET(0);
-		nest_mdelay(100);
-		RELAY_IGN_SET(1);
-		nest_mdelay(100);
+	if(!nest_ignore(RLY)) {
+		for(int cnt = 0; cnt < 75; cnt ++) {
+			RELAY_IGN_SET(0);
+			nest_mdelay(100);
+			RELAY_IGN_SET(1);
+			nest_mdelay(100);
+		}
 	}
-#endif
 
 	//get dut info through can bus
 	nest_can_sel(DW_CAN);
@@ -381,21 +396,28 @@ void TestStart(void)
 		nest_error_set(CAN_FAIL, "CAN");
 		return;
 	}
-        
+
+	if(0) {//
+		memcpy(mfg_data.bmr, "28180087", sizeof(mfg_data.bmr));
+		Write_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
+	}
+	
 	//check base model nr
 	mfg_data.rsv1[0] = 0;
 	nest_message("DUT S/N: %s\n", mfg_data.bmr);
-	bmr = nest_map(bmr_map, mfg_data.bmr);
-	if(bmr < 0) {
-		nest_error_set(MTYPE_FAIL, "Model Type");
-		return;
+	if(!nest_ignore(BMR)) {
+		bmr = nest_map(bmr_map, mfg_data.bmr);
+		if(bmr < 0) {
+			nest_error_set(MTYPE_FAIL, "Model Type");
+			return;
+		}
 	}
-        
+
 	//relay settings
-	if(bmr == BM_28077390) { 
-		cncb_signal(SIG6, SIG_HI); 
+	if(bmr == BM_28077390) {
+		cncb_signal(SIG6, SIG_HI);
 	}
-	else if(bmr == BM_DK245105 || bmr == BM_28180087 || bmr == BM_28159907 || bmr == BM_28164665) 
+	else if(bmr == BM_DK245105 || bmr == BM_28180087 || bmr == BM_28159907 || bmr == BM_28164665)
 		cncb_signal(SIG6,SIG_LO);
 	else if(bmr == BM_28119979)
 		cncb_signal(SIG6,SIG_HI);
@@ -415,9 +437,11 @@ void TestStart(void)
 	memset(mfg_data.fb, 0x00, sizeof(mfg_data.fb));
 
 	//check psv of amb
-	if((mfg_data.psv & 0x02) == 0) {
-		nest_error_set(PSV_FAIL, "PSV");
-		return;
+	if(!nest_ignore(PSV)) {
+		if((mfg_data.psv & 0x02) == 0) {
+			nest_error_set(PSV_FAIL, "PSV");
+			return;
+		}
 	}
 }
 
