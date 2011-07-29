@@ -6,8 +6,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#define BDT_PIN		GPIO_Pin_6
-#define BDT GPIO_ReadInputDataBit(GPIOC,BDT_PIN)
+#define BDT_PIN						GPIO_Pin_6
+#define BDT							GPIO_ReadInputDataBit(GPIOC,BDT_PIN)
+#define BOARD_SR_LoadEable()		GPIO_SetBits(GPIOC,GPIO_Pin_3)
+#define BOARD_SR_LoadDisable()		GPIO_ResetBits(GPIOC,GPIO_Pin_3)
+#define BOARD_SR_OutputEable()		GPIO_ResetBits(GPIOA,GPIO_Pin_0)
+#define BOARD_SR_OutputDisable()	GPIO_SetBits(GPIOA,GPIO_Pin_0)
 
 //Error define
 #define ERROR_OK					0
@@ -31,9 +35,14 @@ matrix_t chip1 = {
 		.idx = SPI_2_NSS,
 };
 
+//local varible define
 bdInfo_t bdi[5];
 int nboard=0;
-unsigned char outbuffer[100];
+unsigned char BoardBuf[48];
+
+//local function define
+static matrix_BoardSelect(int bd);
+static int matrix_DisconnectAll (int bd);
 
 int matrix_init()
 {
@@ -78,11 +87,8 @@ int matrix_init()
 		.freq = 4000000,
 	};	chip1.bus->init(&cfg);
 	for(i=0; i<CONFIG_SLOT_NR; i++){
-		port_temp = GPIO_ReadOutputData(GPIOC);
-		port_temp &= 0xfff8;
-		port_temp |= i;
-		GPIO_Write(GPIOC, port_temp);		//chip select
-		mdelay(10);
+		matrix_BoardSelect(i);
+		mdelay(2);
 		if(!BDT)
 			nboard++;
 	}
@@ -94,16 +100,17 @@ int matrix_init()
 	//init each board information
 	for(i = 0; i < CONFIG_SLOT_NR; i ++) {
 		matrix_InitBoard(i, &bdi[i]);
+		matrix_DisconnectAll();
 	}
-	matrix_DisconnectAll(-1);
 	//fpga_Set(OEN,bdt);
 	GPIO_SetBits(GPIOA,GPIO_Pin_0);
-	GPIO_ResetBits(GPIOC,GPIO_Pin_3);
+	BOARD_SR_LoadDisable();			//shift register load disable
 	return ERROR_OK;
 }
 
 int matrix_InitBoard(int bd, bdInfo_t * pInfo)
-{	if(nboard == 0){
+{
+	if(nboard == 0){
 		pInfo-> bExist = 0;
 		return ERROR_BOARD_NOT_EXIST;
 	}
@@ -117,15 +124,13 @@ int matrix_InitBoard(int bd, bdInfo_t * pInfo)
 	pInfo-> iNrBus = 8;
 	pInfo-> bBusSWExist = 1;
 	pInfo-> bChSWExist = 0;
-        return ERROR_OK;
+	return ERROR_OK;
 }
 
-int matrix_DisconnectAll (int bd)
+static int matrix_DisconnectAll (int bd)
 {
-	int i;
 	int result;
-	for(i=46; i>=0; i--)
-	outbuffer[i] = 0x00;
+	memset(BoardBuf, 0x00, 48);
 	result = matrix_Update(bd);
 	return result;
 }
@@ -136,18 +141,17 @@ int matrix_Update(int bd) //bd: board nr 0~7
 	bdInfo_t * pInfo;
 
 	pInfo = &bdi[bd];
-	//if(pInfo->bExist != 1) {
-		//return ERROR_BOARD_NOT_EXIST;
-	//}
-	GPIO_Write(GPIOC,bd);
 
-	for(i=46; i>=0; i--)
-		chip1.bus->wreg(chip1.idx, outbuffer[i]);
-	//GPIO_ResetBits(GPIOA,GPIO_Pin_0); //enable all boards
-	GPIO_SetBits(GPIOC,GPIO_Pin_3);
-	udelay(20000);
-	GPIO_ResetBits(GPIOC,GPIO_Pin_3);
-	GPIO_ResetBits(GPIOA,GPIO_Pin_0);
+	matrix_BoardSelect(bd);
+	BOARD_SR_LoadEable();
+
+	for(i = 46; i >= 0; i--)
+		chip1.bus->wreg(chip1.idx, BoardBuf[i]);
+
+	udelay(10);
+	BOARD_SR_LoadDisable();
+	BOARD_SR_OutputEable();
+
 	return ERROR_OK;
 }
 
@@ -164,7 +168,7 @@ void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
 	//disconnect all?
 	if(cmd == MATRIX_CMD_DISCONNECTALL)
 	{
-		matrix_DisconnectAll(-1);
+		matrix_DisconnectAll();
 		return;
 	}
 
@@ -269,21 +273,29 @@ int matrix_SetRelayImage(int bd,int ch, int bus, int op)
 
 	//set relay image
 	if(op&MATRIX_RELAY_OP_RELAYON)
-		outbuffer[ch] = 1 << bus;
+		BoardBuf[ch] = 1 << bus;
 	else if(op&MATRIX_RELAY_OP_RELAYOFF)
-		outbuffer[ch] = 0 << bus;
+		BoardBuf[ch] = 0 << bus;
 	if (pInfo->bBusSWExist == 1){
 		if(op&MATRIX_RELAY_OP_BUSSWON)
-			outbuffer[46] = 1 << bus;
+			BoardBuf[46] = 1 << bus;
 		else if(op&MATRIX_RELAY_OP_BUSSWOFF)
-			outbuffer[46] = 0 << bus;
+			BoardBuf[46] = 0 << bus;
 	}
 	if (pInfo->bChSWExist == 1){
 		if(op&MATRIX_RELAY_OP_CHSWON)
-			outbuffer[47+(ch+7)/8] = ch%8;
+			BoardBuf[47+(ch+7)/8] = ch%8;
 		else if(op&MATRIX_RELAY_OP_CHSWOFF)
-			outbuffer[47+(ch+7)/8] = ~ch%8;
+			BoardBuf[47+(ch+7)/8] = ~ch%8;
 	}
 	return result;
 }
 
+static matrix_BoardSelect(int bd)
+{
+	unsigned short port_temp;
+	port_temp = GPIO_ReadOutputData(GPIOC);
+	port_temp &= 0xfff8;
+	port_temp |= bd;
+	GPIO_Write(GPIOC, port_temp);		//chip select
+}
