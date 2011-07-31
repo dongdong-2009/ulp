@@ -180,10 +180,6 @@ void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
 	for(i=0; i<nr_of_ch; i++)
 		col[i] = qdata[2+nr_of_ch+i];
 
-	//sock_read(&sock,&nr_of_ch, 1);
-	//sock_read(&sock,row,nr_of_ch);
-	//sock_read(&sock,col,nr_of_ch);
-
 #ifdef APP_VERBOSE
 	printf("NR_OF_CH = %d \n", nr_of_ch);
 	printf("<ROW|COL> = ");
@@ -205,7 +201,8 @@ void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
 
 	for(i = 0; i< CONFIG_SLOT_NR; i++)
 	{
-		if(bd_to_update[i]) matrix_Update(bd);
+		if(bd_to_update[i])
+			matrix_Update(bd);
 	}
 
 	return;
@@ -235,7 +232,7 @@ void matrix_handler(unsigned char cmd,char *pdata)
 	return;
 }
 
-int matrix_map(int vch, int vbus, int * bd, int* ch, int*bus)
+int matrix_map(int vch, int vbus, int * bd, int* ch, int* bus)
 {
 	//we do not support relay brd with different size yet
 	*bus = vbus;
