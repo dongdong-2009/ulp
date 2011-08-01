@@ -1,2 +1,2 @@
-obj-$(CONFIG_TCP_SERVER_MATRIX) += matrixserver.o
-obj-$(CONFIG_TCP_SERVER_MATRIX) += matrix.o
+obj-$(CONFIG_TASK_MATRIX) += matrixserver.o
+obj-$(CONFIG_TASK_MATRIX) += matrix.o

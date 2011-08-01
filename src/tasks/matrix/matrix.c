@@ -42,7 +42,9 @@ matrix_t chip1 = {
 static unsigned char BoardBuf[CONFIG_SLOT_NR][47];
 static bdInfo_t bdi[5];
 static int nboard=0;
-
+//support max_channel = 256
+static unsigned char row[256];
+static unsigned char col[256];
 
 //local function define
 static matrix_BoardSelect(int bd);
@@ -57,9 +59,9 @@ static int matrix_SetRelayImage(int bd, int ch, int bus, int op);
 int matrix_init()
 {
 	int i;
-	unsigned short port_temp;
 
-	GPIO_InitTypeDef  GPIO_InitStructure;
+	GPIO_InitTypeDef  GPIO_InitStructure;
+
 	//for matrix board select
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_3;
@@ -95,7 +97,8 @@ int matrix_init()
 		.bseq = 1,
 		.csel = 0,
 		.freq = 4000000,
-	};	chip1.bus->init(&cfg);
+	};	chip1.bus->init(&cfg);
+
 	for(i=0; i<CONFIG_SLOT_NR; i++){
 		matrix_BoardSelect(i);
 		mdelay(2);
@@ -106,12 +109,14 @@ int matrix_init()
 	if(nboard == 0){
 		printf("Warning: Non board exist???\n");
 		return ERROR_BOARD_NOT_EXIST;
-	}
+	}
+
 	//init each board information
 	for(i = 0; i < CONFIG_SLOT_NR; i ++) {
 		matrix_InitBoard(i, &bdi[i]);
 		matrix_DisconnectAll(i);
-	}
+	}
+
 	//fpga_Set(OEN,bdt);
 	GPIO_SetBits(GPIOA,GPIO_Pin_0);
 	BOARD_SR_LoadDisable();			//shift register load disable
@@ -143,12 +148,11 @@ void matrix_handler(unsigned char cmd,char *pdata)
 	return;
 }
 
-int matrix_Update(int bd) //bd: board nr 0~7
+//bd: board nr 0~7
+static int matrix_Update(int bd)
 {
 	int i;
-	bdInfo_t * pInfo;
 
-	pInfo = &bdi[bd];
 	matrix_BoardSelect(bd);
 
 	//shift register load data, don't support SPI DMA mode
@@ -201,7 +205,7 @@ static int matrix_InitBoard(int bd, bdInfo_t * pInfo)
 	< 0 - Update all boards in the DigESwitch box
           = 0 to 7
 */
-static int matrix_DisconnectAll (int bd)
+static int matrix_DisconnectAll(int bd)
 {
 	bdInfo_t * pInfo;
 	int result;
@@ -217,13 +221,12 @@ static int matrix_DisconnectAll (int bd)
 			result = matrix_Update(cbd);
 			if(result)
 				return result;
+		}
 	}
 
 	return result;
 }
 
-//support max_channel = 256
-static unsigned char row[256], col[256];
 static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
 {
 	int bd;
@@ -234,8 +237,7 @@ static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
 	unsigned char bd_to_update[CONFIG_SLOT_NR];
 
 	//disconnect all?
-	if(cmd == MATRIX_CMD_DISCONNECTALL)
-	{
+	if (cmd == MATRIX_CMD_DISCONNECTALL) {
 		matrix_DisconnectAll(-1);
 		return;
 	}
