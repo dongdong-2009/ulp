@@ -36,13 +36,23 @@ matrix_t chip1 = {
 };
 
 //local varible define
-bdInfo_t bdi[5];
-int nboard=0;
-unsigned char BoardBuf[48];
+/* BoardBuf is for ShiftRegister image
+ * BoardBuf[CONFIG_SLOT_NR][47] is for bus switch
+ */
+static unsigned char BoardBuf[CONFIG_SLOT_NR][47];
+static bdInfo_t bdi[5];
+static int nboard=0;
+
 
 //local function define
 static matrix_BoardSelect(int bd);
 static int matrix_DisconnectAll (int bd);
+static int matrix_InitBoard(int bd, bdInfo_t * pInfo);
+static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata);
+static int matrix_map(int vch, int vbus, int * bd, int* ch, int* bus);
+static int matrix_ConnectImage(int bd, int ch, int bus);
+static int matrix_DisconnectImage(int bd, int ch, int bus);
+static int matrix_SetRelayImage(int bd, int ch, int bus, int op);
 
 int matrix_init()
 {
@@ -100,112 +110,12 @@ int matrix_init()
 	//init each board information
 	for(i = 0; i < CONFIG_SLOT_NR; i ++) {
 		matrix_InitBoard(i, &bdi[i]);
-		matrix_DisconnectAll();
+		matrix_DisconnectAll(i);
 	}
 	//fpga_Set(OEN,bdt);
 	GPIO_SetBits(GPIOA,GPIO_Pin_0);
 	BOARD_SR_LoadDisable();			//shift register load disable
 	return ERROR_OK;
-}
-
-int matrix_InitBoard(int bd, bdInfo_t * pInfo)
-{
-	if(nboard == 0){
-		pInfo-> bExist = 0;
-		return ERROR_BOARD_NOT_EXIST;
-	}
-	//board exist, detect board info through iic bus
-	memset(pInfo,0,sizeof(bdInfo_t));
-	pInfo-> bExist = 1;
-
-	//iic access is not supported yet
-	pInfo-> iLen = 48;
-	pInfo-> iNrChannel = 46;
-	pInfo-> iNrBus = 8;
-	pInfo-> bBusSWExist = 1;
-	pInfo-> bChSWExist = 0;
-	return ERROR_OK;
-}
-
-static int matrix_DisconnectAll (int bd)
-{
-	int result;
-	memset(BoardBuf, 0x00, 48);
-	result = matrix_Update(bd);
-	return result;
-}
-
-int matrix_Update(int bd) //bd: board nr 0~7
-{
-	int i;
-	bdInfo_t * pInfo;
-
-	pInfo = &bdi[bd];
-
-	matrix_BoardSelect(bd);
-	BOARD_SR_LoadEable();
-
-	for(i = 46; i >= 0; i--)
-		chip1.bus->wreg(chip1.idx, BoardBuf[i]);
-
-	udelay(10);
-	BOARD_SR_LoadDisable();
-	BOARD_SR_OutputEable();
-
-	return ERROR_OK;
-}
-
-void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
-{
-	int bd;
-	int ch;
-	int bus;
-	int i;
-	unsigned char nr_of_ch;
-	unsigned char row[256],col[256];
-	unsigned char bd_to_update[CONFIG_SLOT_NR];
-
-	//disconnect all?
-	if(cmd == MATRIX_CMD_DISCONNECTALL)
-	{
-		matrix_DisconnectAll();
-		return;
-	}
-
-	for(i=0; i< CONFIG_SLOT_NR; i++) bd_to_update[i] = 0;
-
-	nr_of_ch = qdata[1];
-	for(i=0; i<nr_of_ch; i++)
-		row[i] = qdata[2+i];
-	for(i=0; i<nr_of_ch; i++)
-		col[i] = qdata[2+nr_of_ch+i];
-
-#ifdef APP_VERBOSE
-	printf("NR_OF_CH = %d \n", nr_of_ch);
-	printf("<ROW|COL> = ");
-	for(i=0; i<nr_of_ch; i++) printf("<%03d|%03d>  ", row[i],col[i]);
-	printf("\n");
-#endif /*APP_VERBOSE*/
-
-	//verify the data received
-
-	//implement
-	for(i=0; i< nr_of_ch; i++)
-	{
-		matrix_map(row[i],col[i],&bd,&ch,&bus);
-		bd_to_update[bd] = 1;
-		if(cmd == MATRIX_CMD_CONNECT)
-			matrix_ConnectImage(bd, ch, bus);
-		else matrix_DisconnectImage(bd,ch,bus);
-	}
-
-	for(i = 0; i< CONFIG_SLOT_NR; i++)
-	{
-		if(bd_to_update[i])
-			matrix_Update(bd);
-	}
-
-	return;
 }
 
 void matrix_handler(unsigned char cmd,char *pdata)
@@ -227,65 +137,31 @@ void matrix_handler(unsigned char cmd,char *pdata)
 			matrix_handler_setrelaystatus(cmd,pdata);
 			break;
 		default:
+			break;
 	}
 
 	return;
 }
 
-int matrix_map(int vch, int vbus, int * bd, int* ch, int* bus)
+int matrix_Update(int bd) //bd: board nr 0~7
 {
-	//we do not support relay brd with different size yet
-	*bus = vbus;
-	*bd = (int )(vch / 46);
-	*ch = vch % 46;
-
-	return ERROR_OK;
-}
-
-int matrix_ConnectImage(int bd, int ch, int bus)
-{
-	return matrix_SetRelayImage( \
-		bd, ch, bus, \
-		MATRIX_RELAY_OP_RELAYON| \
-		MATRIX_RELAY_OP_BUSSWON| \
-		MATRIX_RELAY_OP_CHSWON \
-	);
-}
-
-int matrix_DisconnectImage(int bd, int ch, int bus)
-{
-	return matrix_SetRelayImage( \
-		bd, ch, bus, \
-		MATRIX_RELAY_OP_RELAYOFF \
-	);
-}
-
-int matrix_SetRelayImage(int bd,int ch, int bus, int op)
-{
-	int result;
+	int i;
 	bdInfo_t * pInfo;
 
-	result= ERROR_OK;
 	pInfo = &bdi[bd];
+	matrix_BoardSelect(bd);
 
-	//set relay image
-	if(op&MATRIX_RELAY_OP_RELAYON)
-		BoardBuf[ch] = 1 << bus;
-	else if(op&MATRIX_RELAY_OP_RELAYOFF)
-		BoardBuf[ch] = 0 << bus;
-	if (pInfo->bBusSWExist == 1){
-		if(op&MATRIX_RELAY_OP_BUSSWON)
-			BoardBuf[46] = 1 << bus;
-		else if(op&MATRIX_RELAY_OP_BUSSWOFF)
-			BoardBuf[46] = 0 << bus;
-	}
-	if (pInfo->bChSWExist == 1){
-		if(op&MATRIX_RELAY_OP_CHSWON)
-			BoardBuf[47+(ch+7)/8] = ch%8;
-		else if(op&MATRIX_RELAY_OP_CHSWOFF)
-			BoardBuf[47+(ch+7)/8] = ~ch%8;
-	}
-	return result;
+	//shift register load data, don't support SPI DMA mode
+	BOARD_SR_LoadEable();
+	for(i = 46; i >= 0; i--)
+		chip1.bus->wreg(chip1.idx, BoardBuf[bd][i]);
+	BOARD_SR_LoadDisable();
+
+	BOARD_SR_OutputEable();
+	udelay(10);
+	BOARD_SR_OutputDisable();
+
+	return ERROR_OK;
 }
 
 static matrix_BoardSelect(int bd)
@@ -296,3 +172,158 @@ static matrix_BoardSelect(int bd)
 	port_temp |= bd;
 	GPIO_Write(GPIOC, port_temp);		//chip select
 }
+
+static int matrix_InitBoard(int bd, bdInfo_t * pInfo)
+{
+	if(nboard == 0){
+		pInfo-> bExist = 0;
+		return ERROR_BOARD_NOT_EXIST;
+	}
+	//board exist, detect board info through iic bus
+	memset(pInfo,0,sizeof(bdInfo_t));
+	pInfo-> bExist = 1;
+
+	//iic access is not supported yet
+	pInfo-> iLen = 48;
+	pInfo-> iNrChannel = 46;
+	pInfo-> iNrBus = 8;
+	pInfo-> bBusSWExist = 1;
+	pInfo-> bChSWExist = 0;
+	return ERROR_OK;
+}
+
+/*
+	This function will disconnect all of the channels from all of the buses.
+	This will happen on all of the boards in the DigESwitch box.
+	The disconnections include every channel from all eight on board buses
+	and the eight external bus/chan pins from the on board buses.
+	int bdNum:
+	< 0 - Update all boards in the DigESwitch box
+          = 0 to 7
+*/
+static int matrix_DisconnectAll (int bd)
+{
+	bdInfo_t * pInfo;
+	int result;
+	int cbd;
+
+	for (cbd = 0; cbd < CONFIG_SLOT_NR; cbd++) {
+		pInfo = &bdi[cbd];
+		if(pInfo->bExist != '1') 
+			continue;
+
+		if ((bd < 0) || (cbd == bd)) {
+			memset(BoardBuf[cbd], 0x00, pInfo->iLen);
+			result = matrix_Update(cbd);
+			if(result)
+				return result;
+	}
+
+	return result;
+}
+
+//support max_channel = 256
+static unsigned char row[256], col[256];
+static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
+{
+	int bd;
+	int ch;
+	int bus;
+	int i;
+	unsigned char nr_of_ch;
+	unsigned char bd_to_update[CONFIG_SLOT_NR];
+
+	//disconnect all?
+	if(cmd == MATRIX_CMD_DISCONNECTALL)
+	{
+		matrix_DisconnectAll(-1);
+		return;
+	}
+
+	//init, no board need update
+	memset(bd_to_update, 0, CONFIG_SLOT_NR);
+
+	nr_of_ch = qdata[1];
+	for (i = 0; i < nr_of_ch; i ++) {
+		row[i] = qdata[2 + i];
+		col[i] = qdata[2 + nr_of_ch + i];
+	}
+
+#ifdef APP_VERBOSE
+	printf("NR_OF_CH = %d \n", nr_of_ch);
+	printf("<ROW|COL> = ");
+	for(i=0; i<nr_of_ch; i++) printf("<%03d|%03d>  ", row[i],col[i]);
+	printf("\n");
+#endif /*APP_VERBOSE*/
+
+	//implement
+	for (i = 0; i < nr_of_ch; i++) {
+		matrix_map(row[i],col[i],&bd,&ch,&bus);
+		bd_to_update[bd] = 1;
+		if(cmd == MATRIX_CMD_CONNECT)
+			matrix_ConnectImage(bd, ch, bus);
+		else 
+			matrix_DisconnectImage(bd,ch,bus);
+	}
+
+	for(i = 0; i< CONFIG_SLOT_NR; i++)
+	{
+		if(bd_to_update[i])
+			matrix_Update(bd);
+	}
+
+	return;
+}
+
+static int matrix_map(int vch, int vbus, int * bd, int* ch, int* bus)
+{
+	//we do not support relay brd with different size yet
+	*bus = vbus;
+	*bd = (int )(vch / 46);
+	*ch = vch % 46;
+
+	return ERROR_OK;
+}
+
+static int matrix_ConnectImage(int bd, int ch, int bus)
+{
+	return matrix_SetRelayImage( \
+		bd, ch, bus, \
+		MATRIX_RELAY_OP_RELAYON| \
+		MATRIX_RELAY_OP_BUSSWON| \
+		MATRIX_RELAY_OP_CHSWON \
+	);
+}
+
+static int matrix_DisconnectImage(int bd, int ch, int bus)
+{
+	return matrix_SetRelayImage( \
+		bd, ch, bus, \
+		MATRIX_RELAY_OP_RELAYOFF \
+	);
+}
+
+static int matrix_SetRelayImage(int bd, int ch, int bus, int op)
+{
+	int result;
+	bdInfo_t * pInfo;
+
+	result= ERROR_OK;
+	pInfo = &bdi[bd];
+
+	//set relay image
+	if (op & MATRIX_RELAY_OP_RELAYON)
+		BoardBuf[bd][ch] |= 1 << bus;
+	else if(op & MATRIX_RELAY_OP_RELAYOFF)
+		BoardBuf[bd][ch] &= ~(1 << bus);
+
+	if (pInfo -> bBusSWExist == 1) {
+		if(op & MATRIX_RELAY_OP_BUSSWON)
+			BoardBuf[bd][pInfo->iNrChannel] |= 1 << bus;
+		else if(op & MATRIX_RELAY_OP_BUSSWOFF)
+			BoardBuf[bd][pInfo->iNrChannel] &= ~(1 << bus);
+	}
+
+	return result;
+}
+
