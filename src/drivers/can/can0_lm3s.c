@@ -6,6 +6,7 @@
 #include "can.h"
 #include "lm3s.h"
 #include <string.h>
+#include <assert.h>
 
 #define LM3S_TxMsgObjNr 32	//send msg object
 #define LM3S_RxMsgObjNr 1	//recv msg object
