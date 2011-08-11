@@ -3,6 +3,7 @@
 #include "config.h"
 #include "time.h"
 #include "stm32f10x.h"
+#include "mbi5025.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -30,9 +31,9 @@
 #define MATRIX_RELAY_OP_CHSWON		(1<<4)
 #define MATRIX_RELAY_OP_CHSWOFF		(1<<5)
 
-matrix_t chip1 = {
-		.bus = &spi2,
-		.idx = SPI_2_NSS,
+static mbi5025_t sr = {
+	.bus = &spi2,
+	.idx = SPI_2_NSS,
 };
 
 //local varible define
@@ -90,14 +91,7 @@ int matrix_init()
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
 	//for shift register spi bus init
-	spi_cfg_t cfg = {
-		.cpol = 0,
-		.cpha = 0,
-		.bits = 8,
-		.bseq = 1,
-		.csel = 0,
-		.freq = 4000000,
-	};	chip1.bus->init(&cfg);
+	mbi5025_Init(&sr);
 
 	for(i=0; i<CONFIG_SLOT_NR; i++){
 		matrix_BoardSelect(i);
@@ -158,7 +152,7 @@ static int matrix_Update(int bd)
 	//shift register load data, don't support SPI DMA mode
 	BOARD_SR_LoadEable();
 	for(i = 46; i >= 0; i--)
-		chip1.bus->wreg(chip1.idx, BoardBuf[bd][i]);
+		mbi5025_WriteByte(&sr, BoardBuf[bd][i]);
 	BOARD_SR_LoadDisable();
 
 	BOARD_SR_OutputEable();
