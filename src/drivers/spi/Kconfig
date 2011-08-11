@@ -41,3 +41,4 @@ bool "chip ad9833(dds)" CONFIG_DRIVER_AD9833
 bool "chip mcp41x(digi pot)" CONFIG_DRIVER_MCP41X
 bool "chip dac1x8s(8x10bit dac)" CONFIG_DRIVER_DAC1X8S
 bool "chip 74hct595 (shift register)" CONFIG_DRIVER_74HCT595
+bool "chip mbi5025 (shift register)" CONFIG_DRIVER_MBI5025
