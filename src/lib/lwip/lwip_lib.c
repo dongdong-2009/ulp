@@ -52,9 +52,9 @@ void lwip_lib_Init(void)
 	netmask.addr = 0;
 	gw.addr = 0;
 #else
-	IP4_ADDR(&ipaddr, 192, 168, 1, 99);
+	IP4_ADDR(&ipaddr, 192, 168, 2, 2);
 	IP4_ADDR(&netmask, 255, 255, 255, 0);
-	IP4_ADDR(&gw, 192, 168, 1, 254);
+	IP4_ADDR(&gw, 192, 168, 2, 1);
 #endif
 
 	netif_add(&netif, &ipaddr, &netmask, &gw, NULL, &ethernetif_init, &ethernet_input);
