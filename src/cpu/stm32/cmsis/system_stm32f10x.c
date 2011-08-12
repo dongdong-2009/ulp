@@ -231,6 +231,7 @@ void SystemInit (void)
 	RCC_HCLKConfig(RCC_SYSCLK_Div1);		//64MHz
 	RCC_PCLK1Config(RCC_HCLK_Div2);			//32MHz
 	RCC_PCLK2Config(RCC_HCLK_Div1);			//64MHz
+	RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);	//PLL selected as sysclk
 #endif
 }
 
