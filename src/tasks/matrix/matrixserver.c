@@ -9,8 +9,7 @@
 
 #include <string.h>
 
-#define GREETING "welcome to board tcp server! \r\n"
-#define HELLO "hello,beautiful girl! \r\n"
+#define GREETING "welcome to Matrix Board tcp server! \r\n"
 
 static err_t tcpserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err);
 static err_t tcpserver_accept(void *arg, struct tcp_pcb *pcb, err_t err);
@@ -44,7 +43,7 @@ static err_t tcpserver_accept(void *arg, struct tcp_pcb *pcb, err_t err)
 	tcp_err(pcb, tcpserver_conn_err);
 	tcp_recv(pcb, tcpserver_recv);
 
-	/* Send out the first message */
+	//Send out the first message, greeting message
 	tcp_write(pcb, GREETING, strlen(GREETING), 1);
 
 	return ERR_OK;
@@ -84,9 +83,6 @@ static err_t tcpserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_
 		}
 		cmd = recv[0];
 		matrix_handler(cmd,recv);
-		//tcp_write(pcb, HELLO, strlen(HELLO), 1);
-
-		//tcp_write(pcb, recv, p->tot_len, TCP_WRITE_FLAG_COPY);
 
 		/* End of processing, we free the pbuf */
 		pbuf_free(p);
