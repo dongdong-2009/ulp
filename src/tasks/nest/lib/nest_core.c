@@ -50,7 +50,7 @@ int nest_wait_plug_in(void)
 int nest_wait_pull_out(void)
 {
 	int light, err;
-	time_t deadline = time_get(1000 * 60 * 3);
+	time_t timer_restart = time_get(1000 * 60 * 3);
 
 	err = nest_error_get() -> type;
 	light = (nest_pass()) ? PASS_CMPLT_ON : FAIL_ABORT_ON;
