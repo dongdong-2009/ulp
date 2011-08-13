@@ -72,7 +72,7 @@ typedef union
 uVectorEntry;
 
 #if CONFIG_TASK_ETHDEMO == 1
-extern void eth_demo_isr(void);
+extern void lwip_lib_isr(void);
 static void eth_isr(void)
 {
 	unsigned long ulStatus;
@@ -82,7 +82,7 @@ static void eth_isr(void)
 	EthernetIntClear(ETH_BASE, ulStatus);
 	
 	if(ulStatus) {
-		eth_demo_isr();
+		lwip_lib_isr();
 	}
 }
 #define ETH_ISR	eth_isr

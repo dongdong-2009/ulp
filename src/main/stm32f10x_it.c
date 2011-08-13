@@ -267,11 +267,11 @@ void EXTI3_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-extern void eth_demo_isr(void);
+extern void lwip_lib_isr(void);
 void EXTI4_IRQHandler(void)
 {
-#if CONFIG_TASK_ETHDEMO == 1
-	eth_demo_isr();
+#if CONFIG_TASK_MATRIX == 1
+	lwip_lib_isr();
 	EXTI_ClearFlag(EXTI_Line4);
 #endif
 }
@@ -653,7 +653,7 @@ void ETH_IRQHandler(void)
 #if CONFIG_TASK_ETHDEMO == 1
 	/* Handles all the received frames */
 	while (ETH_GetRxPktSize() != 0) {
-		eth_demo_isr();
+		lwip_lib_isr();
 	}
 
 	/* Clear the Eth DMA Rx IT pending bits */

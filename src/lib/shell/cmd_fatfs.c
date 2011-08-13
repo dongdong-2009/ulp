@@ -17,10 +17,13 @@ static int cmd_fatfs_func(int argc, char *argv[])
 	FRESULT res;
 	FIL file;
 	FILINFO fileinfo;
-#ifdef CONFIG_FATFS_LFN
-	fileinfo.lfsize = 0;
-#endif
 	DIR fdir;
+#ifdef CONFIG_FATFS_LFN
+	char lfname_buf[32];
+	fileinfo.lfsize = 32;
+	fileinfo.lfname = lfname_buf;
+#endif
+
 
 	char *filename;
 	char path[] = "";
@@ -81,8 +84,10 @@ static int cmd_fatfs_func(int argc, char *argv[])
 				res = f_readdir(&fdir, &fileinfo);
 				if (res != FR_OK || fileinfo.fname[0] == 0) break;
 				if (fileinfo.fname[0] == '.') continue;
-				filename = fileinfo.fname;
-				printf("%s/%s \n\r",path, filename);
+				if (fileinfo.lfname[0] == 0)
+					printf("%s/%s \n\r",path, fileinfo.fname);
+				else
+					printf("%s/%s \n\r",path, fileinfo.lfname);
 			}
 		} else {
 			printf("operation failed!\n\r");

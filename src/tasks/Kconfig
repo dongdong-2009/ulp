@@ -12,6 +12,7 @@ bool "delphi nest program?" CONFIG_TASK_NEST
 
 if [ "$CONFIG_LIB_LWIP" = "y" ]; then
 	bool "enable task of 'eth demo'?" CONFIG_TASK_ETHDEMO
+	bool "enable task of MatrixBoard?" CONFIG_TASK_MATRIX
 fi
 
 bool "misc applications?" CONFIG_TASK_MISC

@@ -16,7 +16,7 @@ static err_t tcpserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_
 static err_t tcpserver_accept(void *arg, struct tcp_pcb *pcb, err_t err);
 static void tcpserver_conn_err(void *arg, err_t err);
 
-void tcpserver_Init(void)
+void lwip_app_Init(void)
 {
 	struct tcp_pcb *pcb;
 
@@ -32,7 +32,7 @@ void tcpserver_Init(void)
 	/* Specify the function to be called when a connection is established */
 	tcp_accept(pcb, tcpserver_accept);
 
-        matrix_init();
+	matrix_init();
 }
 
 static err_t tcpserver_accept(void *arg, struct tcp_pcb *pcb, err_t err)

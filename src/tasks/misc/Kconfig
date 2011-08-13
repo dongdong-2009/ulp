@@ -4,7 +4,8 @@
 # Written by miaofng@2010
 #
 
-choice 'pentair valve head demo program'	" \
+choice 'misc project configuration'	" \
+	MISC_NULL			CONFIG_MISC_NULL \
 	VALVE_HEAD_DEMO		CONFIG_MISC_VHD \
-" VALVE_HEAD_DEMO
-
+	ROWBOAT_SPC			CONFIG_MISC_SPC \
+" misc project
