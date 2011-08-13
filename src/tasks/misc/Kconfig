@@ -6,5 +6,6 @@
 
 choice 'pentair valve head demo program'	" \
 	VALVE_HEAD_DEMO		CONFIG_MISC_VHD \
+	SWITCH_LOAD_UNIT		CONFIG_MISC_SLU \
 " VALVE_HEAD_DEMO
 
