@@ -29,6 +29,9 @@ struct mfg_data_s {
 	char psv; //0x8017, process flag < ..|nest|amb|ict>, won't touched by nest???
 	char rsv2[8]; //0x8018 - 0x801f
 	char fb[0x17]; //0x8020 - 0x8036 fault bytes write back
+	char rsv3; //0x8037
+	unsigned short vp[4]; //0x8038 - 0x803f
+	unsigned short ip[4]; //0x8040 - 0x8048
 } mfg_data;
 
 //base model id
@@ -343,7 +346,7 @@ static void CyclingTest(void)
 		while(nest_time_left(deadline) > 0) {
 			nest_update();
 			nest_light(RUNNING_TOGGLE);
-			fail = burn_verify(0);
+			fail = burn_verify(mfg_data.vp, mfg_data.ip);
 			if(fail) {
 				nest_error_set(PULSE_FAIL, "Cycling");
 				break;
@@ -401,7 +404,7 @@ void TestStart(void)
 		memcpy(mfg_data.bmr, "28180087", sizeof(mfg_data.bmr));
 		Write_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
 	}
-	
+
 	//check base model nr
 	mfg_data.rsv1[0] = 0;
 	nest_message("DUT S/N: %s\n", mfg_data.bmr);
@@ -434,7 +437,7 @@ void TestStart(void)
 	//preset glvar
 	mfg_data.nest_psv = (char) ((nest_info_get() -> id_base) && 0x7f);
 	mfg_data.nest_nec = 0x00; //no err
-	memset(mfg_data.fb, 0x00, sizeof(mfg_data.fb));
+	memset(mfg_data.fb, 0x00, sizeof(mfg_data.fb) + 17); //+vp[4], ip[4]
 
 	//check psv of amb
 	if(!nest_ignore(PSV)) {
@@ -447,12 +450,13 @@ void TestStart(void)
 
 void TestStop(void)
 {
-	int fail = 0, addr;
+	int fail = 0, addr, size;
 	nest_message("#Test Stop\n");
 
 	//store fault bytes back to dut
 	addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> fb[0];
-	fail += Write_Memory(addr, mfg_data.fb, sizeof(mfg_data.fb));
+	size = sizeof(mfg_data.fb) + 17; //+rsv3 + vp[4] + ip[4]
+	fail += Write_Memory(addr, mfg_data.fb, size);
 
 	//store nest_psv & nest_nec
 	mfg_data.nest_psv |= 0x80;

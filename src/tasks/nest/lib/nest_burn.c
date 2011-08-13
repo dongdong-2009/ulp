@@ -106,19 +106,19 @@ static void burn_disp(const struct burn_data_s *burn_data)
 	nest_message("%d %d %d\n", wp, fire, lost);
 }
 
-int burn_verify(void *result)
+int burn_verify(unsigned short *vp, unsigned short *ip)
 {
 	int ret, ch;
 	struct burn_data_s burn_data;
-	
+
 	//ignore igbt burn test?
 	if(nest_ignore(PKT))
 		return 0;
-	
+
 	//check limit ok?
 	burn_vl = (burn_vl == -1) ? BURN_VL_DEF : burn_vl;
 	burn_il = (burn_il == -1) ? BURN_IL_DEF : burn_il;
-	
+
 	//get test result from burn board through mcamos/can protocol
 	for(ch = BURN_CH_COILA; ch <= BURN_CH_COILD; ch ++) {
 		ret = burn_read(ch, &burn_data);
@@ -126,35 +126,41 @@ int burn_verify(void *result)
 			nest_message("burn board channel %d not response\n", ch);
 			return -1;
 		}
-		
+
 		if(burn_log & (1 << ch)) {
 			nest_message("%d ", ch);
 			burn_disp(&burn_data);
 		}
-		
+
 		if(burn_data.lost > 10) {
 			nest_message("burn board channel %d sync lost too much(%d)\n", ch, burn_data.lost);
 			return -2;
 		}
-		
+
 		if(burn_data.wp > BURN_WL_DEF) {
 			nest_message("burn board channel %d wp(=%dnS) higher than threshold(=%dnS)\n", ch, burn_data.wp, BURN_WL_DEF);
 			return -3;
 		}
-		
+
 		if(burn_data.fire > 500) { //500 * 20mS = 10S
+			//save measurement result to mfg_data
+			if(vp != NULL)
+				vp[ch] = burn_data.vp_min;
+			if(ip != NULL)
+				ip[ch] = burn_data.ip_max;
+
 			if(burn_data.vp_min < burn_vl) {
 				nest_message("burn board channel %d vp(=%dV) lower than threshold(=%dV)\n", ch, burn_data.vp_min, burn_vl);
 				return -4;
 			}
-			
+
 			if(burn_data.ip_max > burn_il) {
 				nest_message("burn board channel %d ip(=%dmA) higher than threshold(=%dmA)\n", ch, burn_data.ip_max, burn_il);
 				return -5;
 			}
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -183,20 +189,20 @@ static int cmd_burn_func(int argc, char *argv[])
 					log = atoi(argv[i]);
 					log = 1 << (log % 4);
 				}
-				
+
 				burn_log |= log;
 			}
 			nest_message("burn_log = 0x%02x\n", burn_log);
 			return 0;
 		}
-		
+
 		if(!strcmp(argv[1], "vl")) {
 			if(argc == 3)
 				burn_vl = atoi(argv[2]);
 			nest_message("burn_vl = %dV\n", burn_vl);
 			return 0;
 		}
-		
+
 		if(!strcmp(argv[1], "il")) {
 			if(argc == 3)
 				burn_il = atoi(argv[2]);
@@ -204,7 +210,7 @@ static int cmd_burn_func(int argc, char *argv[])
 			return 0;
 		}
 	}
-	
+
 	if(argc == 2) {
 		if(!strcmp(argv[1], "save")) {
 			nvm_save();

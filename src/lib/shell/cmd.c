@@ -22,6 +22,44 @@ void cmd_Update(void)
 {
 }
 
+/*get pattern from a string, such as: 0,2-5,8*/
+int cmd_pattern_get(const char *str)
+{
+	char *p;
+	int n, pt = 0, start, stop, tmp, inverse = 0;
+
+	for(;(str != NULL) && (*str != 0); str = p) {
+		/*pre-process*/
+		for(;*str == ','; str ++); /*ignore ',' on head*/
+		p = strchr(str, ','); /*record  next segment position*/
+		if(!strncmp(str, "all", 3)) {
+			pt = -1;
+			inverse = 1; /*inverse selection*/
+			continue;
+		}
+
+		/*process current segment*/
+		n = sscanf(str, "%d-%d,", &start, &stop);
+		if(n > 0) {
+			stop = (n == 1) ? start : stop;
+			start = (start > 31) ? 31 : start;
+			start = (start < 0) ? 0 : start;
+			stop = (stop > 31) ? 31 : stop;
+			stop = (stop < 0) ? 0 : stop;
+			if(start > stop) { /*swap*/
+				tmp = start;
+				start = stop;
+				stop = tmp;
+			}
+
+			for(;start <= stop; start ++) {
+				pt = (inverse == 0) ? (pt | (1 << start)) : (pt & (~(1 << start)));
+			}
+		}
+	}
+	return pt;
+}
+
 static cmd_t *__name2cmd(const char *name)
 {
 	cmd_t **entry, **end;

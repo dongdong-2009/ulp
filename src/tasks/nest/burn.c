@@ -700,7 +700,7 @@ int pmm_Update(int ops, int ignore)
 		int us = TIM4 -> CCR1;
 		us -= TIM4 -> CCR2;
 		us += (us > 0) ? 0 : 0x10000;
-		burn_data.wp = us * 36;
+		burn_data.wp = us * 1000;
 	}
 
 	if(f & TIM_FLAG_Update) { //time over 65.535 mS
@@ -878,6 +878,8 @@ void burn_Update()
 				burn_state = BURN_INIT;
 				burn_timer = 0;
 				burn_data.lost ++;
+				burn_data.vp = burn_data.vp_avg = 0;
+				burn_data.ip = burn_data.ip_avg = 0;
 				printf("%d	reset:(\n", -time_left(burn_tick));
 				break;
 			}
@@ -913,8 +915,8 @@ void main(void)
 	}
 }
 
-/* 
-igbt burn board v1.1 issues:  
+/*
+igbt burn board v1.1 issues:
 1)  mos gate over-protection needed -- external smps power issue
 2) high/low voltage isolation needed -- solved, discharge path changed
 3) trig pin protection -- clamp diode added

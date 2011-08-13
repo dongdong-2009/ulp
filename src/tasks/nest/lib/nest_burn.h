@@ -39,6 +39,6 @@ enum {
 /*note: you may need to re-init can bus after these function call*/
 int burn_config(int ch, const struct burn_data_s *config);
 int burn_read(int ch, struct burn_data_s *result);
-int burn_verify(void *result);
+int burn_verify(unsigned short *vp, unsigned short *ip);
 
 #endif
