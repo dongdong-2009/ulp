@@ -12,6 +12,7 @@ choice 'nest project select'	" \
 	MT22.1_OLD	CONFIG_NEST_MT22P1_OLD \
 	MT80_OLD    	CONFIG_NEST_MT80_OLD \
 	HCU_GAC		CONFIG_NEST_HCU_GAC \
+	IGBT_BURN	CONFIG_NEST_IGBT_BURN \
 " MT92
 
 #nest type description:

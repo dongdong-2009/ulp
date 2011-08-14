@@ -9,7 +9,9 @@
 #include <shell/cmd.h>
 #include "debug.h"
 #include "time.h"
+#include "nvm.h"
 
+static int nest_flag_ignore __nvm;
 static struct nest_info_s nest_info;
 
 int nest_init(void)
@@ -17,6 +19,8 @@ int nest_init(void)
 	task_Init();
 	cncb_init();
 	nest_message_init();
+	if(nest_flag_ignore == -1)
+		nest_flag_ignore = PKT;
 	return 0;
 }
 
@@ -46,7 +50,7 @@ int nest_wait_plug_in(void)
 int nest_wait_pull_out(void)
 {
 	int light, err;
-	time_t deadline = time_get(1000 * 60 * 3);
+	time_t timer_restart = time_get(1000 * 60 * 3);
 
 	err = nest_error_get() -> type;
 	light = (nest_pass()) ? PASS_CMPLT_ON : FAIL_ABORT_ON;
@@ -100,17 +104,79 @@ int nest_map(const struct nest_map_s *map, const char *str)
 	return id;
 }
 
+int nest_ignore(int mask)
+{
+	return (nest_flag_ignore & mask);
+}
+
 //nest shell command
 static int cmd_nest_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"nest help\n"
-		"nest log	print log message\n"
+		"nest save				save settings to nvm\n"
+		"nest log				print log message\n"
+		"nest ignore psv bmr rly pkt all		ignore some event for debug\n"
 	};
 
 	if(argc > 1) {
+		if(!strcmp(argv[1], "save")) {
+			nvm_save();
+			return 0;
+		}
 		if(!strcmp(argv[1], "log"))
 			return cmd_nest_log_func(argc, argv);
+		if(!strcmp(argv[1], "ignore")) {
+			int ignore = 0, ok = 1;
+			for(int i = 2; i < argc; i ++) {
+				if(!strcmp(argv[i], "psv")) {
+					ignore |= PSV;
+				}
+				else if(!strcmp(argv[i], "bmr")) {
+					ignore |= BMR;
+				}
+				else if(!strcmp(argv[i], "rly")) {
+					ignore |= RLY;
+				}
+				else if(!strcmp(argv[i], "pkt")) {
+					ignore |= PKT;
+				}
+				else if(!strcmp(argv[i], "all")) {
+					ignore |= (PSV | BMR | RLY | PKT);
+				}
+				else {
+					ok = 0;
+					break;
+				}
+			}
+
+			//display current settings
+			if(ok) {
+				if(argc > 2)
+					nest_flag_ignore = ignore;
+				nest_message("nest_ignore = ");
+				if(nest_ignore(PKT))
+					nest_message("|PKT");
+				else
+					nest_message("|   ");
+				if(nest_ignore(RLY))
+					nest_message("|RLY");
+				else
+					nest_message("|   ");
+
+				if(nest_ignore(BMR))
+					nest_message("|BMR");
+				else
+					nest_message("|   ");
+
+				if(nest_ignore(PSV))
+					nest_message("|PSV");
+				else
+					nest_message("|   ");
+				nest_message("|\n");
+				return 0;
+			}
+		}
 	}
 
 	printf("%s", usage);

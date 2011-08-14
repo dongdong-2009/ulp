@@ -25,6 +25,7 @@
 #include "nest_message.h"
 #include "nest_can.h"
 #include "nest_chip.h"
+#include "nest_burn.h"
 
 //communication protocols
 #include "priv/mcamos.h"
