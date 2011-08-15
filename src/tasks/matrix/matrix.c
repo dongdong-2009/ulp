@@ -24,6 +24,7 @@
 
 #define CONFIG_SLOT_NR				5
 
+//matrix board operation define
 #define MATRIX_RELAY_OP_RELAYON		(1<<0)
 #define MATRIX_RELAY_OP_RELAYOFF	(1<<1)
 #define MATRIX_RELAY_OP_BUSSWON		(1<<2)
@@ -37,7 +38,8 @@ static mbi5025_t sr = {
 };
 
 //local varible define
-/* BoardBuf is for ShiftRegister image
+/* 
+ * BoardBuf is for ShiftRegister image
  * BoardBuf[CONFIG_SLOT_NR][47] is for bus switch
  */
 static unsigned char BoardBuf[CONFIG_SLOT_NR][47];
@@ -52,7 +54,6 @@ static matrix_BoardSelect(int bd);
 static int matrix_DisconnectAll (int bd);
 static int matrix_InitBoard(int bd, bdInfo_t * pInfo);
 static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata);
-static int matrix_map(int vch, int vbus, int * bd, int* ch, int* bus);
 static int matrix_ConnectImage(int bd, int ch, int bus);
 static int matrix_DisconnectImage(int bd, int ch, int bus);
 static int matrix_SetRelayImage(int bd, int ch, int bus, int op);
@@ -124,9 +125,9 @@ void matrix_handler(unsigned char cmd,char *pdata)
 	len = sizeof(pdata);
 	if (len <= 0) return;
 
-#ifdef APP_VERBOSE
+#if 1
 	printf("CMD = 0X%02X \n", cmd);
-#endif /*APP_VERBOSE*/
+#endif
 
 	//implement the operation
 	switch(cmd){
@@ -150,6 +151,7 @@ static int matrix_Update(int bd)
 	matrix_BoardSelect(bd);
 
 	//shift register load data, don't support SPI DMA mode
+	//BoardBuf[bd][46] means bus switch status, 1:on, 0:off
 	BOARD_SR_LoadEable();
 	for(i = 46; i >= 0; i--)
 		mbi5025_WriteByte(&sr, BoardBuf[bd][i]);
@@ -177,12 +179,12 @@ static int matrix_InitBoard(int bd, bdInfo_t * pInfo)
 		pInfo-> bExist = 0;
 		return ERROR_BOARD_NOT_EXIST;
 	}
-	//board exist, detect board info through iic bus
+	//if board exists, detect board info through iic bus
+	//iic access is not supported yet
+	
 	memset(pInfo,0,sizeof(bdInfo_t));
 	pInfo-> bExist = 1;
-
-	//iic access is not supported yet
-	pInfo-> iLen = 48;
+	pInfo-> iLen = 47;
 	pInfo-> iNrChannel = 46;
 	pInfo-> iNrBus = 8;
 	pInfo-> bBusSWExist = 1;
@@ -207,7 +209,7 @@ static int matrix_DisconnectAll(int bd)
 
 	for (cbd = 0; cbd < CONFIG_SLOT_NR; cbd++) {
 		pInfo = &bdi[cbd];
-		if(pInfo->bExist != '1') 
+		if(pInfo->bExist != 1) 
 			continue;
 
 		if ((bd < 0) || (cbd == bd)) {
@@ -245,40 +247,35 @@ static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
 		col[i] = qdata[2 + nr_of_ch + i];
 	}
 
-#ifdef APP_VERBOSE
+#if 1
+	//print the config information
 	printf("NR_OF_CH = %d \n", nr_of_ch);
 	printf("<ROW|COL> = ");
-	for(i=0; i<nr_of_ch; i++) printf("<%03d|%03d>  ", row[i],col[i]);
+	for(i=0; i<nr_of_ch; i++) 
+		printf("<%03d|%03d>  ", row[i],col[i]);
 	printf("\n");
-#endif /*APP_VERBOSE*/
+#endif
 
 	//implement
 	for (i = 0; i < nr_of_ch; i++) {
-		matrix_map(row[i],col[i],&bd,&ch,&bus);
+		//matrix map calculate,we do not support relay brd with different size yet
+		bus = row[i];
+		bd = (int )(col[i] / 46);
+		ch = col[i] % 46;
 		bd_to_update[bd] = 1;
 		if(cmd == MATRIX_CMD_CONNECT)
 			matrix_ConnectImage(bd, ch, bus);
 		else 
-			matrix_DisconnectImage(bd,ch,bus);
+			matrix_DisconnectImage(bd, ch, bus);
 	}
 
 	for(i = 0; i< CONFIG_SLOT_NR; i++)
 	{
 		if(bd_to_update[i])
-			matrix_Update(bd);
+			matrix_Update(i);
 	}
 
 	return;
-}
-
-static int matrix_map(int vch, int vbus, int * bd, int* ch, int* bus)
-{
-	//we do not support relay brd with different size yet
-	*bus = vbus;
-	*bd = (int )(vch / 46);
-	*ch = vch % 46;
-
-	return ERROR_OK;
 }
 
 static int matrix_ConnectImage(int bd, int ch, int bus)
