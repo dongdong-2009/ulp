@@ -1,0 +1,10 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2011
+#
+
+choice 'sss card type selection'	" \
+	CTRL		CONFIG_SSS_CARD_CTRL \
+	SIS		CONFIG_SSS_CARD_SIS \
+" SIS
