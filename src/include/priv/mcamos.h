@@ -7,6 +7,7 @@
 
 #include "config.h"
 #include "can.h"
+#include <stddef.h>
 
 // Message type IDs.
 #define MCAMOS_MSG_CMD_ID      (0x7EE)
@@ -40,6 +41,11 @@ struct mcamos_s {
 
 /*target = NULL will restore the default mcamos bus configuration*/
 int mcamos_init_ex(const struct mcamos_s *);
+#define mcamos_dnload_ex(addr, buf, n, ms) mcamos_dnload(NULL, addr, buf, n, ms)
+#define mcamos_upload_ex(addr, buf, n, ms) mcamos_upload(NULL, addr, buf, n, ms)
+#define mcamos_execute_ex(addr, ms) mcamos_execute(NULL, addr, ms)
+
+//obsoleted mcamos api
 int mcamos_init(const can_bus_t *can, int baud);
 int mcamos_dnload(const can_bus_t *can, int addr, const char *buf, int n, int timeout);
 int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout);
