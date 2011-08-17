@@ -34,7 +34,7 @@
 
 static mbi5025_t sr = {
 	.bus = &spi2,
-	.idx = SPI_2_NSS,
+	.idx = SPI_CS_DUMMY,
 };
 
 //local varible define
@@ -53,6 +53,7 @@ static unsigned char col[256];
 static matrix_BoardSelect(int bd);
 static int matrix_DisconnectAll (int bd);
 static int matrix_InitBoard(int bd, bdInfo_t * pInfo);
+static int matrix_Update(int bd);
 static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata);
 static int matrix_ConnectImage(int bd, int ch, int bus);
 static int matrix_DisconnectImage(int bd, int ch, int bus);
@@ -113,8 +114,10 @@ int matrix_init()
 	}
 
 	//fpga_Set(OEN,bdt);
-	GPIO_SetBits(GPIOA,GPIO_Pin_0);
-	BOARD_SR_LoadDisable();			//shift register load disable
+	//BOARD_SR_OutputDisable();
+	BOARD_SR_LoadDisable();
+	BOARD_SR_OutputEable();
+
 	return ERROR_OK;
 }
 
@@ -126,7 +129,20 @@ void matrix_handler(unsigned char cmd,char *pdata)
 	if (len <= 0) return;
 
 #if 1
-	printf("CMD = 0X%02X \n", cmd);
+	//print the operation for debug
+	switch(cmd){
+		case MATRIX_CMD_CONNECT:
+			printf("\nCMD = MATRIX_CMD_CONNECT! \n");
+			break;
+		case MATRIX_CMD_DISCONNECT:
+			printf("\nCMD = MATRIX_CMD_DISCONNECT! \n");
+			break;
+		case MATRIX_CMD_DISCONNECTALL:
+			printf("\nCMD = MATRIX_CMD_DISCONNECTALL! \n");
+			break;
+		default:
+			break;
+	}
 #endif
 
 	//implement the operation
@@ -152,14 +168,14 @@ static int matrix_Update(int bd)
 
 	//shift register load data, don't support SPI DMA mode
 	//BoardBuf[bd][46] means bus switch status, 1:on, 0:off
-	BOARD_SR_LoadEable();
 	for(i = 46; i >= 0; i--)
 		mbi5025_WriteByte(&sr, BoardBuf[bd][i]);
+	BOARD_SR_LoadEable();
 	BOARD_SR_LoadDisable();
 
-	BOARD_SR_OutputEable();
-	udelay(10);
-	BOARD_SR_OutputDisable();
+	// BOARD_SR_OutputEable();
+	// udelay(10);
+	// BOARD_SR_OutputDisable();
 
 	return ERROR_OK;
 }
@@ -319,4 +335,80 @@ static int matrix_SetRelayImage(int bd, int ch, int bus, int op)
 
 	return result;
 }
+
+
+#if 1
+#include "shell/cmd.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static int cmd_matrix_func(int argc, char *argv[])
+{
+	int temp = 0;
+	int i;
+	char simulator_data[4];
+
+	const char * usage = { \
+		" usage:\n" \
+		" matrix con nbus nch, matrix connect a point \n" \
+		" matrix dis nbus nch, matrix disconnect a point \n" \
+		" matrix on nboard, connect all relays on nboard  \n" \
+		" matrix off nboard, disconnect all relays on nboard \n" \
+	};
+
+	if (argc > 1) {
+		if(argv[1][0] == 'c') {
+			simulator_data[0] = (char)MATRIX_CMD_CONNECT;
+			simulator_data[1] = 1;
+			sscanf(argv[2], "%d", &temp);
+			simulator_data[2] = (char)temp;
+			sscanf(argv[3], "%d", &temp);
+			simulator_data[3] = (char)temp;
+			matrix_handler(MATRIX_CMD_CONNECT, simulator_data);
+		}
+
+		if(argv[1][0] == 'd') {
+			simulator_data[0] = (char)MATRIX_CMD_DISCONNECT;
+			simulator_data[1] = 1;
+			sscanf(argv[2], "%d", &temp);
+			simulator_data[2] = (char)temp;
+			sscanf(argv[3], "%d", &temp);
+			simulator_data[3] = (char)temp;
+			matrix_handler(MATRIX_CMD_DISCONNECT, simulator_data);
+		}
+
+		if(argv[1][1] == 'n') {
+			sscanf(argv[2], "%d", &temp);
+			matrix_BoardSelect(temp);
+			//shift register load data, don't support SPI DMA mode
+			//BoardBuf[bd][46] means bus switch status, 1:on, 0:off
+			for(i = 46; i >= 0; i--)
+				mbi5025_WriteByte(&sr, 0xff);
+			BOARD_SR_LoadEable();
+			BOARD_SR_LoadDisable();
+		}
+
+		if(argv[1][1] == 'f') {
+			sscanf(argv[2], "%d", &temp);
+			matrix_BoardSelect(temp);
+			//shift register load data, don't support SPI DMA mode
+			//BoardBuf[bd][46] means bus switch status, 1:on, 0:off
+			for(i = 46; i >= 0; i--)
+				mbi5025_WriteByte(&sr, 0x00);
+			BOARD_SR_LoadEable();
+			BOARD_SR_LoadDisable();
+		}
+	}
+
+	if(argc < 2) {
+		printf(usage);
+		return 0;
+	}
+
+	return 0;
+}
+const cmd_t cmd_matrix = {"matrix", cmd_matrix_func, "matrix board cmd"};
+DECLARE_SHELL_CMD(cmd_matrix)
+#endif
 
