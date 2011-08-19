@@ -183,7 +183,7 @@ enum {
 	FLAG_DEBUG_VI, //disp V(v)&I(mA)
 } burn_flag_debug;
 
-int cmd_burn_func(int argc, char *argv[])
+int cmd_igbt_func(int argc, char *argv[])
 {
 	if(argc == 3) {
 		if(!strcmp(argv[1], "id")) {
@@ -265,13 +265,13 @@ int cmd_burn_func(int argc, char *argv[])
 	}
 
 	printf(
-		"burn wp ns	set vpeak pulse width, 28ns resolution\n"
-		"burn id xx		set mcamos server can id, such as 0x5e0, 0x5e2, 0x5e4, 0x5e6\n"
-		"burn ical		current calibration mode\n"
-		"burn debug vp/ip/vi	disp trape waveform/triangle waveform/peak VI waveform\n"
-		"burn vp ratio		vp = vp*ratio/10000\n"
-		"burn ip ratio		ip = ip*ratio/10000\n"
-		"burn save	save the config value\n"
+		"igbt wp ns	set vpeak pulse width, 28ns resolution\n"
+		"igbt id xx		set mcamos server can id, such as 0x5e0, 0x5e2, 0x5e4, 0x5e6\n"
+		"igbt ical		current calibration mode\n"
+		"igbt debug vp/ip/vi	disp trape waveform/triangle waveform/peak VI waveform\n"
+		"igbt vp ratio		vp = vp*ratio/10000\n"
+		"igbt ip ratio		ip = ip*ratio/10000\n"
+		"igbt save	save the config value\n"
 	);
 
 	printf("\ncurrent nvm settings:\n");
@@ -284,8 +284,8 @@ int cmd_burn_func(int argc, char *argv[])
 	return 0;
 }
 
-const cmd_t cmd_burn = {"burn", cmd_burn_func, "burn board cmds"};
-DECLARE_SHELL_CMD(cmd_burn)
+const cmd_t cmd_igbt = {"igbt", cmd_igbt_func, "igbt board cmds"};
+DECLARE_SHELL_CMD(cmd_igbt)
 
 void vpm_Init(void)
 {
