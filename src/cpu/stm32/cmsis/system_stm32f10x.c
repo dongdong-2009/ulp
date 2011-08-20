@@ -225,7 +225,15 @@ void SystemInit (void)
   /* Configure the Flash Latency cycles and enable prefetch buffer */
   SetSysClock();
 #ifdef CONFIG_USE_HSI
-	//code for setting the PLL from HSI
+	RCC_HSEConfig(RCC_HSE_OFF);
+	//PLL = (HSI/2) * RCC_PLLMul_8 = 32M
+	RCC_PLLConfig(RCC_PLLSource_HSI_Div2, RCC_PLLMul_8);
+	RCC_HCLKConfig(RCC_SYSCLK_Div1);			//32MHz
+	RCC_PCLK1Config(RCC_HCLK_Div2);				//16MHz
+	RCC_PCLK2Config(RCC_HCLK_Div1);				//32MHz
+	RCC_PLLCmd(ENABLE);
+	while(RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET);
+	RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);	//PLL selected as sysclk
 #endif
 }
 
