@@ -108,8 +108,6 @@ int matrix_init()
 		return ERROR_BOARD_NOT_EXIST;
 	}
 
-	//fpga_Set(OEN,bdt);
-	//BOARD_SR_OutputDisable();
 	BOARD_SR_LoadDisable();
 	BOARD_SR_OutputEable();
 
