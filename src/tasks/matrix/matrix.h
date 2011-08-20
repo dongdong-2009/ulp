@@ -3,6 +3,14 @@
 
 #include "spi.h"
 
+//Error define
+#define ERROR_OK					0
+#define ERROR_TIMEOUT				-1
+#define ERROR_BOARD_NOT_EXIST		-2
+#define ERROR_CHANNEL_NOT_EXIST		-3
+#define ERROR_BUSSW_NOT_EXIST		-4
+#define ERROR_CHSW_NOT_EXIST		-5
+
 typedef struct {
 	const spi_bus_t *bus;
 	int idx; //index of chip in the specified bus
@@ -38,8 +46,6 @@ enum{
 };
 
 int matrix_init();
-void matrix_handler(unsigned char cmd,char *pdata);
-
-
+int matrix_handler(unsigned char cmd,char *pdata);
 
 #endif /*__MATRIX_H_*/
