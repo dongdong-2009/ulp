@@ -37,7 +37,7 @@ static nxp_74hct595_t nxp_74hct595 = {
 
 static int cmd_74hct595_func(int argc, char *argv[])
 {
-	unsigned char temp = 0;
+	int temp = 0;
 
 	const char * usage = { \
 		" usage:\n" \
