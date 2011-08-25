@@ -121,109 +121,15 @@ static int cmd_sss_func(int argc, char *argv[])
 			}
 			return 0;
 		}
-		else printf("invalid command \n");
+		else 
+			printf("invalid command \n");
 	}
-	/* if(argc > 1) {
-		if(argv[1][0] == 'l' && argv[1][3] != 't') {	//learn or select
-			can_bus = &can1;
-			can_cfg_t cfg={500000,0};
-			can_bus -> init(&cfg);
-			msg.dlc = argc - 2;
-			msg.flag = 0;
-			//msg.id = 0001;//学习时发过去的id
-			sscanf(argv[1], "%x", &msg.id); //id
-			for(x = 0; x < msg.dlc; x ++) {
-				sscanf(argv[2 + x], "%x", (int *)&msg.data[x]);
-			}
- 			if (can_bus -> send(&msg)) {
-				printf("uart send fail\n");
-			} else {
-				printf("      send   success!!\n");
-			}
-			return 0;
-		}
-		if(argv[1][0] == 's' && argv[1][3] != 'e') {	//select
-			can_bus = &can1;
-			can_cfg_t cfg={500000,0};
-			can_bus -> init(&cfg);
-			msg.dlc = argc - 2;
-			msg.flag = 0;
-			msg.id = 0002;//选择时发过去的id
-			//sscanf(argv[1], "%x", &msg.id); //id
-			for(x = 0; x < msg.dlc; x ++) {
-				sscanf(argv[2 + x], "%x", (int *)&msg.data[x]);
-			}
-			if (can_bus -> send(&msg)) {
-				printf("uart send fail\n");
-			} else {
-				printf("      send   success!!\n");
-			}
-			return 0;
-		}
-		if(argv[1][0] == 'q') {	//learn or select
-			can_bus = &can1;
-			can_cfg_t cfg={500000,0};
-			can_bus -> init(&cfg);
-			msg.dlc = argc - 2;
-			msg.flag = 0;
-			msg.id = 0003;//查询模式发过去的id
-			//sscanf(argv[1], "%x", &msg.id); //id
-			for(x = 0; x < msg.dlc; x ++) {
-				sscanf(argv[2 + x], "%x", (int *)&msg.data[x]);
-			}
-			if (can_bus -> send(&msg)) {
-				printf("uart send fail\n");
-			} else {
-				printf("      send   success!!\n");
-			}
-			return 0;
-		}
-		if(argv[1][0] == 'l' && argc == 2) {		//list
-			for(int i=0;i<128;i++) {
-				printf(sensor_lib_s[i].name,"\r");
-				printf(sensor_lib_s[i].ID,"\r");
-				printf(sensor_lib_s[i].speed,"\n");
-			}
-		}
-		if(argv[1][0] == 'c') {				//config
-			sscanf(argv[1], "%x", (int *)&sensors.name);
-			sscanf(argv[2], "%x", (int *)&sensors.ID);
-								//sensors.speed = 0;
-		}
-		if(argv[1][0] == 's' && argc == 2) {		//save
-
-		} */
 	printf("%s", usage);
 	return 0;
 }
 
 const cmd_t cmd_sss = {"sss", cmd_sss_func, "can monitor/debugger"};
 DECLARE_SHELL_CMD(cmd_sss)
-
-/* char can_updata (void)
-{
-	int reset=1;
-	reset = GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_8);
-	if (reset==0)
-		*((u32 *)0xE000ED0C) = 0x05fa0004;
-	if (!can_sss -> recv(&can_msg1)) {
-		memcpy(can_data,can_msg1.data,can_msg1.dlc);
-		if (can_data[0]==0xee)
-			printf("the sensor is not exsit! \r\n");
-		else if (can_data[0]==0xaa)
-			printf("the command is invalid! \r\n");
-		else if (can_data[0]==0xbb)
-			printf("the card has been reseted to  original state! \r\n ");
-		else if (can_msg1.id==0x0002) {
-				char i;
-				printf("Verification ID: 0x");
-				for(i=3;i>=0;i--)
-					printf("%x",can_msg1.data[i]);
-			}
-		printf("this card is simulating sensor %d !\r\n",can_msg1.data[2]);
-	}
-	return 0;
-} */
 
 int main(void)
 {
