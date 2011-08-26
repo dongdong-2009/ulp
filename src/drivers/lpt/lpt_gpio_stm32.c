@@ -81,6 +81,25 @@ struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
 #define rst_set(level) GPIO_WriteBit(GPIOC, GPIO_Pin_11, level)
 #endif 
 
+#ifdef CONFIG_LPT_PINMAP_APT
+/* pinmap:
+	data bus		PD0~7
+	addr bus		PD8
+	we/wr			PD9
+	oe				PD11
+	cs/enable		PD10
+*/
+#define CONFIG_LPT_WIDTH_8BIT
+#define db_pins ( \
+	GPIO_Pin_0 | GPIO_Pin_1| GPIO_Pin_2| GPIO_Pin_3 | \
+	GPIO_Pin_4 | GPIO_Pin_5| GPIO_Pin_6| GPIO_Pin_7 \
+)
+#define db_bank GPIOD
+#define cs_set(level) GPIO_WriteBit(GPIOD, GPIO_Pin_10, level)
+#define we_set(level) GPIO_WriteBit(GPIOD, GPIO_Pin_9, level)
+#define oe_set(level) GPIO_WriteBit(GPIOD, GPIO_Pin_11, level)
+#endif
+
 #define ndelay(ns) do { \
 	for(int i = ((ns) >> 3); i > 0 ; i -- ); \
 } while(0)
@@ -147,6 +166,20 @@ static int lpt_init(const struct lpt_cfg_s *cfg)
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 #endif
 
+#ifdef CONFIG_LPT_PINMAP_APT
+	//config addr bus as pushpull out
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+	//config ctrl pins as pushpull out
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_10;
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_11;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+#endif
+
 	if(lpt_cfg.mode == LPT_MODE_M68) {
 		cs_set(L);
 	}
@@ -176,6 +209,9 @@ static int lpt_setaddr(int addr)
 #endif
 #ifdef CONFIG_LPT_PINMAP_ZF32
 	GPIO_WriteBit(GPIOC, GPIO_Pin_10, (BitAction) (addr & 1));
+#endif
+#ifdef CONFIG_LPT_PINMAP_APT
+	GPIO_WriteBit(GPIOD, GPIO_Pin_8, (BitAction) (addr & 1));
 #endif
 	return 0;
 }
