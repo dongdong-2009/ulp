@@ -10,22 +10,22 @@
 #include "lpt.h"
 
 static lpt_bus_t *lcd_bus;
+static char jhd204a_fail;
 
 static jhd204a_status jhd204a_ReadStaus(void)
 {
-	int value = lcd_bus -> read(STA);
 	jhd204a_status status;
-	
+	int value;
+
+	value = lcd_bus -> read(STA);
 	status = (value & 0x80) ? Bit_Busy : Bit_Ok;
 	return status;
 }
 
-static char jhd204a_fail;
 static int jhd204a_wait(void)
 {
 	int ret = -1;
-	time_t ms = time_get(10); //timeout = 10mS
-	
+	time_t ms = time_get(10); //timeout = 10mS
 	while(jhd204a_fail == 0) {
 		if(!jhd204a_ReadStaus()) {
 			ret = 0;
@@ -140,7 +140,7 @@ int jhd204a_WriteString(int column, int row, const char *s)
 	jhd204a_wait();
 	jhd204a_WriteCommand(i);
 
-	for( i = 0 ; i < size ; i++){
+	for (i = 0 ; i < size ; i++) {
 		//check the busy bit
 		jhd204a_wait();
 		jhd204a_WriteData(*s ++);
