@@ -8,34 +8,68 @@
 #include "can.h"
 #include "time.h"
 #include "sys/sys.h"
+#include "priv/mcamos.h"
+
+#define SLU_INBOX_ADDR 0x0F000000
+#define SLU_OUTBOX_ADDR 0x0F000100
+#define SET 1
+#define GET 2
+#define ON 1
+#define OFF 2
 
 char card_address;
-can_msg_t recv_msg;
-int recv_data;
+char return_data[4];
+unsigned int relay_status = 0;
+
+struct slu_data_s{
+	char data_high;
+	char data_low;
+	char status;
+};
+
+void Led_R_On(void)
+{
+	GPIO_SetBits(GPIOA, GPIO_Pin_1);
+}
+
+void Led_G_On(void)
+{
+	GPIO_SetBits(GPIOA, GPIO_Pin_2);
+}
+
+void Led_R_Off(void)
+{
+	GPIO_ResetBits(GPIOA, GPIO_Pin_1);
+}
+
+void Led_G_Off(void)
+{
+	GPIO_ResetBits(GPIOA, GPIO_Pin_2);
+}
 
 void Address_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_15;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 }
 
 char Address_Read(void)
 {
-	char adress = 0;
-	adress += GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_3);
-	adress = (adress << 1);
-	adress += GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_2);
-	adress = (adress << 1);
-	adress += GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1);
-	adress = (adress << 1);
-	adress += GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_0);
-	adress = (adress << 1);
-	adress += GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_15);
-	return (adress);
+	char address = 0;
+	address += GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_3);
+	address = (address << 1);
+	address += GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_2);
+	address = (address << 1);
+	address += GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1);
+	address = (address << 1);
+	address += GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_0);
+	address = (address << 1);
+	address += GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_15);
+	return (address);
 }
 
 void Channel_Init(void)
@@ -43,9 +77,7 @@ void Channel_Init(void)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC, ENABLE);
 
-	if(card_address == 0x1f);
-	else{
-		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_8;
+		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_8;
 		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 		GPIO_Init(GPIOA, &GPIO_InitStructure);
@@ -53,11 +85,11 @@ void Channel_Init(void)
 		GPIO_Init(GPIOB, &GPIO_InitStructure);
 		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9;
 		GPIO_Init(GPIOC, &GPIO_InitStructure);
-	}
 }
 
-void relay_on(int channel)
+void relay_on(unsigned int channel)
 {
+	relay_status |= channel;
 	if((channel >> 0) & 0x01)
 		GPIO_SetBits(GPIOA, GPIO_Pin_3);
 	if((channel >> 1) & 0x01)
@@ -92,8 +124,9 @@ void relay_on(int channel)
 		GPIO_SetBits(GPIOA, GPIO_Pin_8);
 }
 
-void relay_off(int channel)
+void relay_off(unsigned int channel)
 {
+	relay_status &= ~channel;
 	if((channel >> 0) & 0x01)
 		GPIO_ResetBits(GPIOA, GPIO_Pin_3);
 	if((channel >> 1) & 0x01)
@@ -128,68 +161,226 @@ void relay_off(int channel)
 		GPIO_ResetBits(GPIOA, GPIO_Pin_8);
 }
 
-static const can_bus_t *can_bus;
-void Can1_Init(void)
+static int slu_wait(struct mcamos_s *m, int timeout)
 {
-	can_bus = &can1;
-	can_cfg_t cfg = {500000, 0};
-	can_bus -> init(&cfg);
-	can_filter_t filter[] = {
-		{
-			.id = (int)card_address,
-			.mask=  0xffff,
-			.flag = 0,
+	int ret;
+	char cmd;
+	time_t deadline = time_get(timeout);
+
+	do {
+		ret = mcamos_upload(m ->can, SLU_INBOX_ADDR, &cmd, 1, 10);
+		if(ret) {
+			return -1;
 		}
-	};
-	can_bus -> filt(filter, 1);
+
+		if(time_left(deadline) < 0) {
+			return -1;
+		}
+	} while(cmd != 0);
+
+	ret = mcamos_upload(m->can, SLU_OUTBOX_ADDR, return_data, 4, 10);
+	if(ret)
+		return -1;
+
+	return 0;
+}
+
+int Slu_Set(int card_num, const struct slu_data_s *data)
+{
+	int ret = -1;
+	char cmd = SET;
+	struct mcamos_s m;
+	m.can = &can1;
+	m.baud = 500000;
+	m.id_cmd = card_num;
+	m.id_dat = m.id_cmd + 20;
+
+	mcamos_init_ex(&m);
+	mcamos_dnload(m.can, SLU_INBOX_ADDR + 1, (char *) data, sizeof(struct slu_data_s ), 10);
+	mcamos_dnload(m.can, SLU_INBOX_ADDR, &cmd, 1, 10);
+	ret = slu_wait(&m, 10);
+	mcamos_init_ex(NULL);
+	return ret;
+}
+
+int Slu_Get(int card_num, const struct slu_data_s *data)
+{
+	int ret = -1;
+	char cmd = GET;
+	struct mcamos_s m;
+	m.can = &can1;
+	m.baud = 500000;
+	m.id_cmd = card_num;
+	m.id_dat = m.id_cmd + 20;
+
+	mcamos_init_ex(&m);
+	mcamos_dnload(m.can, SLU_INBOX_ADDR, &cmd, 1, 10);
+	ret = slu_wait(&m, 10);
+	relay_status = (int)return_data[2];
+	relay_status <<= 8;
+	relay_status += (int)return_data[3];
+	mcamos_init_ex(NULL);
+	return ret;
+}
+
+static mcamos_srv_t slu_server;
+
+void Server_Init(void)
+{
+	int slu_id = (int)card_address;
+	slu_server.can = &can1;
+	slu_server.id_cmd = slu_id;
+	slu_server.id_dat = slu_id + 20;
+	slu_server.baud = 500000;
+	slu_server.timeout = 8;
+	slu_server.inbox_addr = SLU_INBOX_ADDR;
+	slu_server.outbox_addr = SLU_OUTBOX_ADDR;
+	mcamos_srv_init(&slu_server);
+}
+
+void Server_Update(void)
+{
+	char ret = 0;
+	struct slu_data_s data;
+	unsigned int channel;
+	char *inbox = slu_server.inbox;
+	Led_G_On();
+	if(relay_status)
+		Led_R_On();
+	else
+		Led_R_Off();
+	mcamos_srv_update(&slu_server);
+	switch(inbox[0]) {
+	case SET:
+		memcpy(&data, slu_server.inbox + 1, sizeof(struct slu_data_s));
+		channel = (int)data.data_high;
+		channel <<= 8;
+		channel += (int)data.data_low;
+		if(data.status == ON)
+			relay_on(channel);
+		else if(data.status == OFF)
+			relay_off(channel);
+		else
+			return;
+		break;
+
+	case GET:
+		slu_server.outbox[2] = (char)(relay_status >> 8);
+		slu_server.outbox[3] = (char)relay_status;
+		break;
+		
+	case 0:
+		return;
+	}
+
+	slu_server.outbox[0] = inbox[0];
+	slu_server.outbox[1] = ret;
+	inbox[0] = 0;
+}
+
+void display_status(int status)
+{
+	if((status >> 0) & 0x01)
+		printf("      Channel 0 is on now!!\n");
+	if((status >> 1) & 0x01)
+		printf("      Channel 1 is on now!!\n");
+	if((status >> 2) & 0x01)
+		printf("      Channel 2 is on now!!\n");
+	if((status >> 3) & 0x01)
+		printf("      Channel 3 is on now!!\n");
+	if((status >> 4) & 0x01)
+		printf("      Channel 4 is on now!!\n");
+	if((status >> 5) & 0x01)
+		printf("      Channel 5 is on now!!\n");
+	if((status >> 6) & 0x01)
+		printf("      Channel 6 is on now!!\n");
+	if((status >> 7) & 0x01)
+		printf("      Channel 7 is on now!!\n");
+	if((status >> 8) & 0x01)
+		printf("      Channel 8 is on now!!\n");
+	if((status >> 9) & 0x01)
+		printf("      Channel 9 is on now!!\n");
+	if((status >> 10) & 0x01)
+		printf("      Channel 10 is on now!!\n");
+	if((status >> 11) & 0x01)
+		printf("      Channel 11 is on now!!\n");
+	if((status >> 12) & 0x01)
+		printf("      Channel 12 is on now!!\n");
+	if((status >> 13) & 0x01)
+		printf("      Channel 13 is on now!!\n");
+	if((status >> 14) & 0x01)
+		printf("      Channel 14 is on now!!\n");
+	if((status >> 15) & 0x01)
+		printf("      Channel 15 is on now!!\n");
 }
 
 static int cmd_relay_func(int argc, char *argv[])
 {
+	struct slu_data_s slu_data;
+	int ret = -1;
 	int data;
-	can_msg_t msg;
-	msg.dlc = 3;
+	int id = 0;
 	const char *usage = {
 		"usage:\n"
-		"  relay set card_number channel\n"
-		"  relay reset card_number channel\n"
-		"  relay query card_number channel\n"
+		"  relay set card_number channel on/off\n"
+		"  relay get card_number\n"
 	};
 
-	if(argc != 4){
+	if(argc != 3 && argc != 5){
 		printf("error: command is wrong!!\n");
 		printf("%s", usage);
+		return -1;
 	}
 	else{
-		sscanf(argv[2], "%d", &msg.id);
-		data = cmd_ptget(argv[3]);
-		if((data > 0xffff) || (msg.id > 12) || ( msg.id > 8 && data > 0xf ))
-			printf("error: command is wrong!!\n");
-		else{
-			msg.data[1] = (char)(data >> 8);
-			msg.data[2] = (char)data;
-			if(!strcmp(argv[1], "on")){
-				msg.data[0] = 0;
-				if(can_bus -> send(&msg))
-					printf("      send fail!!\n");
-				else
-					printf("      send success!!\n");
-			}else if(!strcmp(argv[1], "off")){
-				msg.data[0] = 1;
-				if(can_bus -> send(&msg))
-					printf("      send fail!!\n");
-				else
-					printf("      send success!!\n");
-			}else if(!strcmp(argv[1], "query")){
-				msg.data[0] = 2;
-				if(can_bus -> send(&msg))
-					printf("      send fail!!\n");
-				else
-					printf("      send success!!\n");
+		if(argc == 5 && !strcmp(argv[1], "set")){
+			sscanf(argv[2], "%d", &id);
+			data = cmd_pattern_get(argv[3]);
+			if((data > 0xffff) || (id > 12) || (id > 8 && data > 0xf) || (strcmp(argv[4], "on") && strcmp(argv[4], "off"))){
+				printf("error: command is wrong!!\n");
+				return -1;
+			}
+			else{
+				slu_data.data_high = (char)(data >> 8);
+				slu_data.data_low = (char)data;
+				if(!strcmp(argv[4], "on")){
+					slu_data.status = ON;
+					ret = Slu_Set(id, &slu_data);
+				}
+				else if(!strcmp(argv[4], "off")){
+					slu_data.status = OFF;
+					ret = Slu_Set(id, &slu_data);
+				}
+				if(ret){
+					printf("      operation fail!!\n");
+					return -1;
+				}
+				else{
+					printf("      operation success!!\n");
+					return 0;
+				}
 			}
 		}
+		else if(argc == 3 && !strcmp(argv[1], "get")){
+			sscanf(argv[2], "%d", &id);
+			if(id > 12){
+				printf("error: command is wrong!!\n");
+				return -1;
+			}
+			else{
+				if(Slu_Get(id, &slu_data)){
+					printf("      operation fail!!\n");
+					return -1;
+				}
+				else{
+					printf("      operation success!!\n");
+					display_status(relay_status);
+					return 0;
+				}
+			}
+				
+		}
 	}
-	return 0;
+	return -1;
 }
 
 const cmd_t cmd_relay = {"relay", cmd_relay_func, "control relay"};
@@ -199,15 +390,23 @@ void Slu_Init()
 {
 	Address_Init();
 	card_address = Address_Read();
-	Channel_Init();
-	Can1_Init();
+	if(card_address != 0x1f){
+		Channel_Init();
+		Server_Init();
+	}	
 }
 
 void Slu_Update()
 {
-	if(!can_bus -> recv(&recv_msg)){
-		memcpy(recv_data, recv_msg.data, recv_msg.dlc);
-	}
+	if(card_address != 0x1f) Server_Update();
 }
 
-DECLARE_TASK(Slu_Init, Slu_Update)
+void main()
+{
+	task_Init();
+	Slu_Init();
+	while(1){
+		task_Update();
+		Slu_Update();
+	}
+}
