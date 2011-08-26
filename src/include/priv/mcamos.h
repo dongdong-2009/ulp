@@ -37,19 +37,25 @@ struct mcamos_s {
 	int baud;
 	int id_cmd;
 	int id_dat;
+	int timeout; //unit: mS
 };
 
 /*target = NULL will restore the default mcamos bus configuration*/
-int mcamos_init_ex(const struct mcamos_s *);
-#define mcamos_dnload_ex(addr, buf, n, ms) mcamos_dnload(NULL, addr, buf, n, ms)
-#define mcamos_upload_ex(addr, buf, n, ms) mcamos_upload(NULL, addr, buf, n, ms)
-#define mcamos_execute_ex(addr, ms) mcamos_execute(NULL, addr, ms)
+int mcamos_init_ex(struct mcamos_s *);
+#define mcamos_dnload_ex(addr, buf, n) mcamos_dnload(NULL, addr, buf, n, -1)
+#define mcamos_upload_ex(addr, buf, n) mcamos_upload(NULL, addr, buf, n, -1)
+#define mcamos_execute_ex(addr) mcamos_execute(NULL, addr, -1)
 
 //obsoleted mcamos api
 int mcamos_init(const can_bus_t *can, int baud);
 int mcamos_dnload(const can_bus_t *can, int addr, const char *buf, int n, int timeout);
 int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout);
 int mcamos_execute(const can_bus_t *can, int addr, int timeout);
+
+#define MCAMOS_INBOX_ADDR 	0x0F000000
+#define MCAMOS_OUTBOX_ADDR	0x0F000100
+#define MCAMOS_BAUD		500000
+#define MCAMOS_TIMEOUT		10
 
 typedef struct {
 	const can_bus_t *can;

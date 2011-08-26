@@ -17,17 +17,25 @@ struct mcamos_s mcamos, mcamos_def;
 #define MCAMOS_MSG_1_STD_ID mcamos.id_cmd
 #define MCAMOS_MSG_2_STD_ID mcamos.id_dat
 
-int mcamos_init_ex(const struct mcamos_s *mcamos_new)
+int mcamos_init_ex(struct mcamos_s *mcamos_new)
 {
 	int ret = 0;
 	can_cfg_t cfg = CAN_CFG_DEF;
 	struct mcamos_s mcamos_old;
 
+	//default settings
+	mcamos_new ->baud = (mcamos ->baud == 0) ? MCAMOS_BAUD : mcamos_new ->baud;
+	mcamos_new ->id_cmd = (mcamos ->id_cmd == 0) ? MCAMOS_MSG_CMD_ID : mcamos_new ->id_cmd;
+	mcamos_new ->id_dat = (mcamos ->id_dat == 0) ? MCAMOS_MSG_DAT_ID : mcamos_new ->id_dat;
+	mcamos_new ->timeout = (mcamos ->timeout == 0) ? MCAMOS_TIMEOUT : mcamos_new ->timeout;
+
 	mcamos_new = (mcamos_new == NULL) ? &mcamos_def : mcamos_new;
-	if((mcamos_new->can == NULL) || !memcmp(&mcamos_new, &mcamos, sizeof(struct mcamos_s))) {
-		//the same as current configuration, nothing needs to do
+	if(mcamos_new->can == NULL)
+		return -1;
+
+	//hw re-init necessary?
+	if(!memcmp(&mcamos_new, &mcamos, sizeof(struct mcamos_s)))
 		return 0;
-	}
 
 	memcpy(&mcamos_old, &mcamos, sizeof(struct mcamos_s));
 	memcpy(&mcamos, mcamos_new, sizeof(struct mcamos_s));
@@ -66,6 +74,7 @@ int mcamos_dnload(const can_bus_t *can, int addr, const char *buf, int n, int ti
 	time_t deadline = time_get(timeout);
 	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *)msg.data;
 	can = (can == NULL) ? mcamos.can : can;
+	timeout = (timeout < 0) ? mcamos.timeout : timeout;
 
 	//step1, send command
 	cmd -> byAddress[0] = (char) (addr >> 24);
@@ -114,6 +123,7 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 	time_t deadline = time_get(timeout);
 	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *)msg.data;
 	can = (can == NULL) ? mcamos.can : can;
+	timeout = (timeout < 0) ? mcamos.timeout : timeout;
 
 	//step1, send command
 	cmd -> byAddress[0] = (char) (addr >> 24);
@@ -165,6 +175,7 @@ int mcamos_execute(const can_bus_t *can, int addr, int timeout)
 	time_t deadline = time_get(timeout);
 	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *) msg.data;
 	can = (can == NULL) ? mcamos.can : can;
+	timeout = (timeout < 0) ? mcamos.timeout : timeout;
 
 	cmd -> byAddress[0] = (char) (addr >> 24);
 	cmd -> byAddress[1] = (char) (addr >> 16);
@@ -206,6 +217,11 @@ int mcamos_srv_init(mcamos_srv_t *psrv)
 			.flag = 0,
 		},
 	};
+
+	psrv->baud = (psrv->baud == 0) ? MCAMOS_BAUD : psrv->baud;
+	psrv->timeout = (psrv->timeout == 0) ? 10 : psrv->timeout;
+	psrv->inbox_addr = (psrv->inbox_addr == 0) ? MCAMOS_INBOX_ADDR : psrv->inbox_addr;
+	psrv->outbox_addr = (psrv->outbox_addr == 0) ? MCAMOS_OUTBOX_ADDR : psrv->outbox_addr;
 
 	cfg.baud = psrv->baud;
 	ret = psrv->can ->init(&cfg);
