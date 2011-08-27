@@ -21,3 +21,6 @@ bool "PF11 as CS" CONFIG_SPI_CS_PF11
 #for vvt board dds
 bool "PB0 as CS" CONFIG_SPI_CS_PB0
 
+#for apt c131 board mcp23s17
+bool "PD12 as CS" CONFIG_SPI_CS_PD12
+
