@@ -23,13 +23,13 @@ int mcamos_init_ex(struct mcamos_s *mcamos_new)
 	can_cfg_t cfg = CAN_CFG_DEF;
 	struct mcamos_s mcamos_old;
 
-	//default settings
-	mcamos_new ->baud = (mcamos ->baud == 0) ? MCAMOS_BAUD : mcamos_new ->baud;
-	mcamos_new ->id_cmd = (mcamos ->id_cmd == 0) ? MCAMOS_MSG_CMD_ID : mcamos_new ->id_cmd;
-	mcamos_new ->id_dat = (mcamos ->id_dat == 0) ? MCAMOS_MSG_DAT_ID : mcamos_new ->id_dat;
-	mcamos_new ->timeout = (mcamos ->timeout == 0) ? MCAMOS_TIMEOUT : mcamos_new ->timeout;
-
 	mcamos_new = (mcamos_new == NULL) ? &mcamos_def : mcamos_new;
+	
+	//default settings
+	mcamos_new ->baud = (mcamos_new ->baud == 0) ? MCAMOS_BAUD : mcamos_new ->baud;
+	mcamos_new ->id_cmd = (mcamos_new ->id_cmd == 0) ? MCAMOS_MSG_CMD_ID : mcamos_new ->id_cmd;
+	mcamos_new ->id_dat = (mcamos_new ->id_dat == 0) ? MCAMOS_MSG_DAT_ID : mcamos_new ->id_dat;
+	mcamos_new ->timeout = (mcamos_new ->timeout == 0) ? MCAMOS_TIMEOUT : mcamos_new ->timeout;
 	if(mcamos_new->can == NULL)
 		return -1;
 

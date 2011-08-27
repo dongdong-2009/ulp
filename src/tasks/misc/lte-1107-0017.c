@@ -9,6 +9,8 @@
 #include "time.h"
 #include "sys/sys.h"
 #include "priv/mcamos.h"
+#include "led.h"
+#include "nvm.h"
 
 #define SLU_INBOX_ADDR 0x0F000000
 #define SLU_OUTBOX_ADDR 0x0F000100
@@ -17,15 +19,16 @@
 #define ON 1
 #define OFF 2
 
+static int channel_num __nvm;
 char card_address;
-char return_data[4];
 unsigned int relay_status = 0;
 
 struct slu_data_s{
-	char data_high;
-	char data_low;
+	int data;
 	char status;
 };
+
+unsigned char return_data[6];
 
 void Led_R_On(void)
 {
@@ -177,10 +180,10 @@ static int slu_wait(struct mcamos_s *m, int timeout)
 			return -1;
 		}
 	} while(cmd != 0);
-
-	ret = mcamos_upload(m->can, SLU_OUTBOX_ADDR, return_data, 4, 10);
-	if(ret)
+	ret = mcamos_upload(m->can, SLU_OUTBOX_ADDR, (char*)return_data, 6, 10);
+	if(ret || (char)return_data[1] == -1){
 		return -1;
+	}
 
 	return 0;
 }
@@ -199,7 +202,6 @@ int Slu_Set(int card_num, const struct slu_data_s *data)
 	mcamos_dnload(m.can, SLU_INBOX_ADDR + 1, (char *) data, sizeof(struct slu_data_s ), 10);
 	mcamos_dnload(m.can, SLU_INBOX_ADDR, &cmd, 1, 10);
 	ret = slu_wait(&m, 10);
-	mcamos_init_ex(NULL);
 	return ret;
 }
 
@@ -216,10 +218,13 @@ int Slu_Get(int card_num, const struct slu_data_s *data)
 	mcamos_init_ex(&m);
 	mcamos_dnload(m.can, SLU_INBOX_ADDR, &cmd, 1, 10);
 	ret = slu_wait(&m, 10);
-	relay_status = (int)return_data[2];
+	relay_status = (unsigned int)return_data[5];
 	relay_status <<= 8;
-	relay_status += (int)return_data[3];
-	mcamos_init_ex(NULL);
+	relay_status += (unsigned int)(return_data[4]);
+	relay_status <<= 8;
+	relay_status += (unsigned int)(return_data[3]);
+	relay_status <<= 8;
+	relay_status += (unsigned int)(return_data[2]);
 	return ret;
 }
 
@@ -240,10 +245,12 @@ void Server_Init(void)
 
 void Server_Update(void)
 {
+	int channel_num_temp;
 	char ret = 0;
 	struct slu_data_s data;
 	unsigned int channel;
 	char *inbox = slu_server.inbox;
+	channel_num_temp = 1 << channel_num;
 	Led_G_On();
 	if(relay_status)
 		Led_R_On();
@@ -253,20 +260,21 @@ void Server_Update(void)
 	switch(inbox[0]) {
 	case SET:
 		memcpy(&data, slu_server.inbox + 1, sizeof(struct slu_data_s));
-		channel = (int)data.data_high;
-		channel <<= 8;
-		channel += (int)data.data_low;
-		if(data.status == ON)
-			relay_on(channel);
-		else if(data.status == OFF)
-			relay_off(channel);
-		else
-			return;
-		break;
-
+		channel = data.data;
+		if(channel >= channel_num_temp)
+			ret = -1;
+		else{
+			if(data.status == ON)
+				relay_on(channel);
+			else if(data.status == OFF)
+				relay_off(channel);
+			else
+				return;
+			break;
+		}
+		
 	case GET:
-		slu_server.outbox[2] = (char)(relay_status >> 8);
-		slu_server.outbox[3] = (char)relay_status;
+		memcpy(&(slu_server.outbox[2]), &relay_status, sizeof(relay_status));
 		break;
 		
 	case 0:
@@ -280,45 +288,76 @@ void Server_Update(void)
 
 void display_status(int status)
 {
-	if((status >> 0) & 0x01)
+	if((status >> 0) & 0x0001)
 		printf("      Channel 0 is on now!!\n");
-	if((status >> 1) & 0x01)
+	if((status >> 1) & 0x0001)
 		printf("      Channel 1 is on now!!\n");
-	if((status >> 2) & 0x01)
+	if((status >> 2) & 0x0001)
 		printf("      Channel 2 is on now!!\n");
-	if((status >> 3) & 0x01)
+	if((status >> 3) & 0x0001)
 		printf("      Channel 3 is on now!!\n");
-	if((status >> 4) & 0x01)
+	if((status >> 4) & 0x0001)
 		printf("      Channel 4 is on now!!\n");
-	if((status >> 5) & 0x01)
+	if((status >> 5) & 0x0001)
 		printf("      Channel 5 is on now!!\n");
-	if((status >> 6) & 0x01)
+	if((status >> 6) & 0x0001)
 		printf("      Channel 6 is on now!!\n");
-	if((status >> 7) & 0x01)
+	if((status >> 7) & 0x0001)
 		printf("      Channel 7 is on now!!\n");
-	if((status >> 8) & 0x01)
+	if((status >> 8) & 0x0001)
 		printf("      Channel 8 is on now!!\n");
-	if((status >> 9) & 0x01)
+	if((status >> 9) & 0x0001)
 		printf("      Channel 9 is on now!!\n");
-	if((status >> 10) & 0x01)
+	if((status >> 10) & 0x0001)
 		printf("      Channel 10 is on now!!\n");
-	if((status >> 11) & 0x01)
+	if((status >> 11) & 0x0001)
 		printf("      Channel 11 is on now!!\n");
-	if((status >> 12) & 0x01)
+	if((status >> 12) & 0x0001)
 		printf("      Channel 12 is on now!!\n");
-	if((status >> 13) & 0x01)
+	if((status >> 13) & 0x0001)
 		printf("      Channel 13 is on now!!\n");
-	if((status >> 14) & 0x01)
+	if((status >> 14) & 0x0001)
 		printf("      Channel 14 is on now!!\n");
-	if((status >> 15) & 0x01)
+	if((status >> 15) & 0x0001)
 		printf("      Channel 15 is on now!!\n");
+	if((status >> 16) & 0x0001)
+		printf("      Channel 16 is on now!!\n");
+	if((status >> 17) & 0x0001)
+		printf("      Channel 17 is on now!!\n");
+	if((status >> 18) & 0x0001)
+		printf("      Channel 18 is on now!!\n");
+	if((status >> 19) & 0x0001)
+		printf("      Channel 19 is on now!!\n");
+	if((status >> 20) & 0x0001)
+		printf("      Channel 20 is on now!!\n");
+	if((status >> 21) & 0x0001)
+		printf("      Channel 21 is on now!!\n");
+	if((status >> 22) & 0x0001)
+		printf("      Channel 22 is on now!!\n");
+	if((status >> 23) & 0x0001)
+		printf("      Channel 23 is on now!!\n");
+	if((status >> 24) & 0x0001)
+		printf("      Channel 24 is on now!!\n");
+	if((status >> 25) & 0x0001)
+		printf("      Channel 25 is on now!!\n");
+	if((status >> 26) & 0x0001)
+		printf("      Channel 26 is on now!!\n");
+	if((status >> 27) & 0x0001)
+		printf("      Channel 27 is on now!!\n");
+	if((status >> 28) & 0x0001)
+		printf("      Channel 28 is on now!!\n");
+	if((status >> 29) & 0x0001)
+		printf("      Channel 29 is on now!!\n");
+	if((status >> 30) & 0x0001)
+		printf("      Channel 30 is on now!!\n");
+	if((status >> 31) & 0x0001)
+		printf("      Channel 31 is on now!!\n");
 }
 
 static int cmd_relay_func(int argc, char *argv[])
 {
 	struct slu_data_s slu_data;
 	int ret = -1;
-	int data;
 	int id = 0;
 	const char *usage = {
 		"usage:\n"
@@ -334,14 +373,12 @@ static int cmd_relay_func(int argc, char *argv[])
 	else{
 		if(argc == 5 && !strcmp(argv[1], "set")){
 			sscanf(argv[2], "%d", &id);
-			data = cmd_pattern_get(argv[3]);
-			if((data > 0xffff) || (id > 12) || (id > 8 && data > 0xf) || (strcmp(argv[4], "on") && strcmp(argv[4], "off"))){
+			slu_data.data = cmd_pattern_get(argv[3]);
+			if(id > 20 || (strcmp(argv[4], "on") && strcmp(argv[4], "off"))){
 				printf("error: command is wrong!!\n");
 				return -1;
 			}
 			else{
-				slu_data.data_high = (char)(data >> 8);
-				slu_data.data_low = (char)data;
 				if(!strcmp(argv[4], "on")){
 					slu_data.status = ON;
 					ret = Slu_Set(id, &slu_data);
@@ -362,7 +399,7 @@ static int cmd_relay_func(int argc, char *argv[])
 		}
 		else if(argc == 3 && !strcmp(argv[1], "get")){
 			sscanf(argv[2], "%d", &id);
-			if(id > 12){
+			if(id > 20){
 				printf("error: command is wrong!!\n");
 				return -1;
 			}
@@ -376,8 +413,19 @@ static int cmd_relay_func(int argc, char *argv[])
 					display_status(relay_status);
 					return 0;
 				}
+			}	
+		}
+		else if(argc == 3 && !strcmp(argv[1], "save")){
+			sscanf(argv[2], "%d", &id);
+			channel_num = id;
+			if(nvm_save()){
+				printf("      operation fail!!\n");
+				return -1;
 			}
-				
+			else{
+				printf("      operation success!!\n");
+				return 0;
+			}
 		}
 	}
 	return -1;
