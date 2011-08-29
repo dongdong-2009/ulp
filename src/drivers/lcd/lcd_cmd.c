@@ -14,6 +14,7 @@
 static int cmd_lcd_func(int argc, char *argv[])
 {
 	int row, col;
+	int w, h;
 	struct lcd_s *lcd = lcd_get(NULL);
 #ifdef CONFIG_DRIVER_PWM2
 	int duty;
@@ -73,9 +74,16 @@ static int cmd_lcd_func(int argc, char *argv[])
 			return 0;
 		}
 
-		row = atoi(argv[2]);
-		col = atoi(argv[3]);
-		lcd_puts(lcd, row, col, argv[4]);
+		col = atoi(argv[2]);
+		row = atoi(argv[3]);
+		//x,col means horizontal coordinate
+		//y,row means vertical coordinate
+		if (lcd->type == LCD_TYPE_CHAR){
+			lcd_get_font(lcd, &w, &h);
+			row = row * h;
+			col = col * w;
+		}
+		lcd_puts(lcd, col, row, argv[4]);
 		return 0;
 	}
 
