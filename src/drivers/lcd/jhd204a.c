@@ -97,13 +97,13 @@ int jhd204a_WriteChar(int row,int column,char ch)
 			i = 0x80 + column;
 			break;
 		case 1:
-			i = 0xa0 + column;
-			break;
-		case 2:
 			i = 0xc0 + column;
 			break;
+		case 2:
+			i = 0x94 + column;
+			break;
 		case 3:
-			i = 0xe0 + column;
+			i = 0xd4 + column;
 			break;
 		default:
 			break;
@@ -137,13 +137,13 @@ int jhd204a_WriteString(int column, int row, const char *s)
 			i = 0x80 + column;
 			break;
 		case 1:
-			i = 0xa0 + column;
-			break;
-		case 2:
 			i = 0xc0 + column;
 			break;
+		case 2:
+			i = 0x94 + column;
+			break;
 		case 3:
-			i = 0xe0 + column;
+			i = 0xd4 + column;
 			break;
 		default:
 			break;
@@ -188,6 +188,6 @@ static const struct lcd_dev_s jhd204a = {
 
 static void jhd204a_reg(void)
 {
-	lcd_add(&jhd204a, "JHD204A", LCD_TYPE_CHAR | LCD_TYPE_AUTOCLEAR);
+	lcd_add(&jhd204a, "JHD204A", LCD_TYPE_CHAR);
 }
 driver_init(jhd204a_reg);
