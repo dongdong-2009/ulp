@@ -25,19 +25,20 @@ static jhd204a_status jhd204a_ReadStaus(void)
 static int jhd204a_wait(void)
 {
 	int ret = -1;
-	time_t ms = time_get(10); //timeout = 10mS
+	time_t ms = time_get(10); //timeout = 10mS
+
 	while(jhd204a_fail == 0) {
 		if(!jhd204a_ReadStaus()) {
 			ret = 0;
 			break;
 		}
-		
+
 		if(time_left(ms) < 0) {
 			jhd204a_fail = 1;
 			break;
 		}
 	}
-	
+
 	return ret;
 }
 
@@ -51,8 +52,14 @@ static void jhd204a_WriteData(char data)
 	lcd_bus -> write(DIN, data);
 }
 
-int jhd204a_Init(void)
+int jhd204a_Init(const struct lcd_cfg_s *cfg)
 {
+	//lpt port init
+	struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
+	lpt_cfg.mode = LPT_MODE_M68;
+	lcd_bus = cfg -> bus;
+	lcd_bus->init(&lpt_cfg);
+
 	mdelay(15);
 	jhd204a_WriteCommand(JHD204A_COMMAND_SETFUNC);
 	mdelay(5);
@@ -61,17 +68,23 @@ int jhd204a_Init(void)
 	jhd204a_WriteCommand(JHD204A_COMMAND_SETFUNC);
 
 	jhd204a_WriteCommand(JHD204A_COMMAND_SETFUNC);
-	jhd204a_wait();
+	jhd204a_wait();
+
 	jhd204a_WriteCommand(JHD204A_COMMAND_OFFSCREEN);	//turn off screen
 	//check the busy bit
-	jhd204a_wait();
+	jhd204a_wait();
+
 	jhd204a_WriteCommand(JHD204A_COMMAND_CLRSCREEN);	//clear screeen
 	//check the busy bit
-	jhd204a_wait();
-	jhd204a_WriteCommand(jhd204a_COMMAND_SETPTMOVE);	//set jhd204a ram pointer
+	jhd204a_wait();
+
+	jhd204a_WriteCommand(JHD204A_COMMAND_SETPTMOVE);	//set jhd204a ram pointer
 	//check the busy bit
-	jhd204a_wait();
-	jhd204a_WriteCommand(JHD204A_COMMAND_ONSCREEN);		//set screen display	jhd204a_wait();
+	jhd204a_wait();
+
+	jhd204a_WriteCommand(JHD204A_COMMAND_ONSCREEN);		//set screen display
+	jhd204a_wait();
+
 	return 0;
 }
 
@@ -159,20 +172,22 @@ int jhd204a_ClearScreen(void)
 	return 0;
 }
 
-static const lcd_t jhd204a = {
-	.w = 20,
-	.h = 4,
+static const struct lcd_dev_s jhd204a = {
+	.xres = 20,
+	.yres = 4,
 	.init = jhd204a_Init,
 	.puts = jhd204a_WriteString,
-	.clear_all = jhd204a_ClearScreen,
-	.clear_rect = NULL,
-	.scroll = NULL,
+
+	.setwindow = NULL,
+	.rgram = NULL,
+	.wgram = NULL,
+
+	.writereg = NULL,
+	.readreg = NULL,
 };
 
 static void jhd204a_reg(void)
 {
-	lcd_bus = &lpt;
-	lcd_bus->init();
-	lcd_add(&jhd204a);
+	lcd_add(&jhd204a, "JHD204A", LCD_TYPE_CHAR | LCD_TYPE_AUTOCLEAR);
 }
 driver_init(jhd204a_reg);

@@ -27,22 +27,22 @@ void mcp23s17_Init(mcp23s17_t *chip)
 	chip->bus->init(&cfg);
 
 	//ioconfig reg config
-	mcp23s17_WriteByte(&mcp23s17, ADDR_IOCON, 0x00);
+	mcp23s17_WriteByte(chip, ADDR_IOCON, 0x00);
 
 	//porta config
-	if (mcp23s17.option & MCP23017_PORTA_OUT) {
-		mcp23s17_WriteByte(&mcp23s17, ADDR_IODIRA, 0x00);
+	if (chip->option & MCP23017_PORTA_OUT) {
+		mcp23s17_WriteByte(chip, ADDR_IODIRA, 0x00);
 	} else {
-		mcp23s17_WriteByte(&mcp23s17, ADDR_IODIRA, 0xff);
-		mcp23s17_WriteByte(&mcp23s17, ADDR_GPPUA, 0xff);
+		mcp23s17_WriteByte(chip, ADDR_IODIRA, 0xff);
+		mcp23s17_WriteByte(chip, ADDR_GPPUA, 0xff);
 	}
 
 	//portb config
-	if (mcp23s17.option & MCP23017_PORTB_OUT) {
-		mcp23s17_WriteByte(&mcp23s17, ADDR_IODIRB, 0x00);
+	if (chip->option & MCP23017_PORTB_OUT) {
+		mcp23s17_WriteByte(chip, ADDR_IODIRB, 0x00);
 	} else {
-		mcp23s17_WriteByte(&mcp23s17, ADDR_IODIRB, 0xff);
-		mcp23s17_WriteByte(&mcp23s17, ADDR_GPPUB, 0xff);
+		mcp23s17_WriteByte(chip, ADDR_IODIRB, 0xff);
+		mcp23s17_WriteByte(chip, ADDR_GPPUB, 0xff);
 	}
 }
 int mcp23s17_WriteByte(mcp23s17_t *chip, unsigned char addr, unsigned char data)
@@ -112,7 +112,7 @@ static int cmd_mcp23s17_func(int argc, char *argv[])
 
 	if (argc == 0 || argv[2][0] == 'r') {
 		//sscanf(argv[3], "%x", &addr);
-		mcp23s17_ReadByte(&mcp23017, addr, (unsigned char *)&temp);
+		mcp23s17_ReadByte(&mcp23s17, addr, (unsigned char *)&temp);
 		printf("0x%x\n", (unsigned char)temp);
 		return 1;
 	}
