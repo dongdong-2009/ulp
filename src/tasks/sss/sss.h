@@ -9,6 +9,7 @@ void RESET_Init(void);
 #define SSS_OUTBOX_ADDR 0x0F000100
 
 enum {
+	SSS_CMD_NONE,
 	SSS_CMD_QUERY,
 	SSS_CMD_LEARN,
 	SSS_CMD_SELECT,

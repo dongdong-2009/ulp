@@ -1,41 +1,27 @@
-#ifndef __SIS_H
-#define __SIS_H
-//#pragma once 
+/*
+ *	miaofng@2011 initial version
+ */
+#ifndef __SIS_H_
+#define __SIS_H_
 
-#include "stdio.h"
-#include "string.h"
-#include "stm32f10x.h"
-#define  s_8kmps
+#include "dbs.h"
 
-extern uint16_t size;
-extern char okmode;
+/*supported sis protocols*/
+enum {
+	SIS_PROTOCOL_DBS,
+	SIS_PROTOCOL_INVALID,
+};
 
-typedef  char ad_flag;
-enum  message_speed{s_1k,s_2k,s_3k,s_4k};
+/*sis_sensor_s, 32bytes*/
+struct sis_sensor_s {
+	char cksum;
+	char protocol;
+	char name[14];
+	union {
+		struct dbs_sensor_s dbs;
+		char data[15];
+	};
+};
 
-#ifdef	s_8kmps
-#define  b0 198;
-#define  b1 396;
-#define  bit_time 11; //us
-#endif
-
-#ifdef   s_4kmps
-#define  b0  396
-#define  b1  792  
-#define  bit_time 22;  //us
-#endif
-
-#ifdef   s_2kmps
-#define  b0  253
-#define  b1  506
-#define  bit_time  14; //us
-#endif
-
-#ifdef   s_1kmps
-#define  b0  517
-#define  b1  1034
-#define  bit_time  29; //us
-#endif
-
-
+char sis_sum(void *p, int n);
 #endif
