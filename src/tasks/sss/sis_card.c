@@ -108,6 +108,8 @@ int card_getpower(void)
 {
 	if(ADC_GetFlagStatus (ADC1, ADC_FLAG_EOC)) {
 		int mv = ADC_GetConversionValue(ADC1);
+		ADC_ClearFlag(ADC1, ADC_FLAG_EOC);
+		ADC_SoftwareStartConvCmd(ADC1, ENABLE);
 		mv = mv * 3300 / 4096 * 440 / 110; /*110K/(110K + 330K)*/
 		if(card_power_on == 1) {
 			if(mv < 3000) {
@@ -117,6 +119,12 @@ int card_getpower(void)
 					card_power_cnt = 0;
 				}
 			}
+			else {
+				card_power_cnt ++;
+				if(card_power_cnt > 5) {
+					card_power_cnt = 5;
+				}
+			}
 		}
 		else {
 			if(mv > 7000) {
@@ -124,6 +132,12 @@ int card_getpower(void)
 				if(card_power_cnt > 5) {
 					card_power_on = 1;
 					card_power_cnt = 5;
+				}
+			}
+			else {
+				card_power_cnt --;
+				if(card_power_cnt < 0) {
+					card_power_cnt = 0;
 				}
 			}
 		}
@@ -160,13 +174,10 @@ int card_player_init(int min, int max, int div) //MIN/MAX CURRENT + SPEED
 	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
 
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_Toggle;
-	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
+	TIM_OCInitStructure.TIM_OutputState = TIM_ForcedAction_Active;
 	TIM_OCInitStructure.TIM_Pulse = 0xffff;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
+	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
 	TIM_OC2Init(TIM2, &TIM_OCInitStructure);
-
-	//default select low current idle status
-	TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_ForcedAction_InActive);
 
 	//TIM3 -> pwm, set low/high limit of current modulation
 	TIM_DeInit(TIM3);
@@ -215,8 +226,14 @@ int card_player_start(unsigned short *fifo, int n, int repeat)
 	TIM_DMACmd(TIM2, TIM_DMA_CC2, ENABLE);
 
 	TIM_SetCounter(TIM2, 0);
-	TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_ForcedAction_InActive); //idle
+	TIM_SetCompare2(TIM2, 1); //first start bit always at time = 1
+
+	TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_ForcedAction_Active); //idle
+	TIM_CCxCmd(TIM2, TIM_Channel_2, TIM_CCx_Enable);
+	//TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_ForcedAction_InActive); //idle
+	//TIM_CCxCmd(TIM2, TIM_Channel_2, TIM_CCx_Enable);
 	TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_OCMode_Toggle);
+	TIM_CCxCmd(TIM2, TIM_Channel_2, TIM_CCx_Enable);
 	TIM_Cmd(TIM2, ENABLE);
 	return 0;
 }
@@ -233,7 +250,11 @@ int card_player_left(void)
 */
 int card_player_stop(void)
 {
+	while(!TIM_GetFlagStatus(TIM2, TIM_FLAG_CC2));
+	TIM_ClearFlag(TIM2, TIM_FLAG_CC2);
 	TIM_Cmd(TIM2, DISABLE);
+	TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_ForcedAction_Active); //idle
+	TIM_CCxCmd(TIM2, TIM_Channel_2, TIM_CCx_Enable);
 	return 0;
 }
 

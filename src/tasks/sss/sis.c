@@ -11,6 +11,7 @@
 #include "priv/mcamos.h"
 #include "sis_card.h"
 #include <string.h>
+#include "shell/cmd.h"
 
 static enum {
 	SIS_STM_INIT,
@@ -94,6 +95,42 @@ static int serv_update(void)
 	}
 	return inbox[0];
 }
+
+static int cmd_sis_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"sis select name	select a sensor by name\n"
+	};
+
+	if(argc == 3) {
+		if(!strcmp(argv[1], "select")) {
+			int sensor = 0;
+			const char trace[3][10] = {
+				{0x06, 0x20, 0x00, 0x44, 0x00, 0x50, 0x71, 0x83,  0x01, 0x01},
+				{0x08, 0x20, 0x00, 0x73, 0x93, 0x20, 0x71, 0x90,  0x01, 0x02},
+				{0x02, 0x20, 0x09, 0x2e, 0x03, 0x62, 0x13, 0x34,  0x01, 0x02},
+			};
+
+			if(sscanf(argv[2], "%d", &sensor) > 0) {
+				if((sensor < 3) && (sensor >= 0)) {
+					memset(&sis_sensor, 0, sizeof(sis_sensor));
+					sis_sensor.protocol = SIS_PROTOCOL_DBS;
+					sprintf(sis_sensor.name, "%d", sensor);
+					memcpy(&sis_sensor.dbs, trace[sensor], 10);
+					sis_sensor.cksum = 0 - sis_sum(&sis_sensor, sizeof(sis_sensor));
+					nvm_save();
+					return 0;
+				}
+			}
+		}
+	}
+
+	printf("%s", usage);
+	return 0;
+}
+const cmd_t cmd_sis = {"sis", cmd_sis_func, "sis debug commands"};
+DECLARE_SHELL_CMD(cmd_sis)
 
 static void sis_init(void)
 {
