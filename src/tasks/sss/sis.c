@@ -12,6 +12,7 @@
 #include "sis_card.h"
 #include <string.h>
 #include "shell/cmd.h"
+#include "led.h"
 
 static enum {
 	SIS_STM_INIT,
@@ -158,6 +159,8 @@ static void sis_update(void)
 	serv_update();
 	switch(sis_stm) {
 	case SIS_STM_INIT:
+		led_on(LED_GREEN);
+		led_on(LED_RED);
 		if(!sis_sum(&sis_sensor, sizeof(sis_sensor))) {
 			sis_stm = SIS_STM_READY;
 		}
@@ -167,9 +170,12 @@ static void sis_update(void)
 		}
 		break;
 	case SIS_STM_READY:
+		led_on(LED_GREEN);
+		led_off(LED_RED);
 		if(card_getpower()) { //handle power-up event
 			dbs_init(&sis_sensor.dbs, NULL); //only dbs protocol implemented
 			sis_stm = SIS_STM_RUN;
+			led_flash(LED_GREEN);
 		}
 		if(sis_event == SIS_EVENT_LEARN) {
 			sis_event = SIS_EVENT_NONE;
