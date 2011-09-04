@@ -17,11 +17,16 @@ static enum {
 	SIS_STM_INIT,
 	SIS_STM_READY,
 	SIS_STM_RUN, //normal run
-	SIS_STM_LEARN, //learn mode
+	SIS_LEARN_INIT, //learn mode
+	SIS_LEARN_UPDATE,
 	SIS_STM_ERR,
 } sis_stm;
 static mcamos_srv_t sis_server;
 static struct sis_sensor_s sis_sensor __nvm;
+static enum {
+	SIS_EVENT_NONE,
+	SIS_EVENT_LEARN,
+} sis_event = SIS_EVENT_NONE;
 
 char sis_sum(void *p, int n)
 {
@@ -71,6 +76,7 @@ static int serv_update(void)
 		}
 		break;
 	case SSS_CMD_LEARN:
+		sis_event = SIS_EVENT_LEARN;
 		sis = (struct sis_sensor_s *)(inbox + 1);
 		finish = dbs_learn_finish();
 		if(finish) {
@@ -101,6 +107,7 @@ static int cmd_sis_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"sis select name	select a sensor by name\n"
+		"sis learn		learn a new sensor, and print it's para\n"
 	};
 
 	if(argc == 3) {
@@ -126,6 +133,13 @@ static int cmd_sis_func(int argc, char *argv[])
 		}
 	}
 
+	if(argc == 2) {
+		if(!strcmp(argv[1], "learn")) {
+			sis_event = SIS_EVENT_LEARN;
+			return 0;
+		}
+	}
+
 	printf("%s", usage);
 	return 0;
 }
@@ -137,25 +151,29 @@ static void sis_init(void)
 	card_init();
 	serv_init();
 	sis_stm = SIS_STM_INIT;
-	if(!sis_sum(&sis_sensor, sizeof(sis_sensor))) {
-		sis_stm = SIS_STM_READY;
-	}
 }
 
 static void sis_update(void)
 {
-	int event = serv_update();
+	serv_update();
 	switch(sis_stm) {
 	case SIS_STM_INIT:
+		if(!sis_sum(&sis_sensor, sizeof(sis_sensor))) {
+			sis_stm = SIS_STM_READY;
+		}
+		if(sis_event == SIS_EVENT_LEARN) {
+			sis_event = SIS_EVENT_NONE;
+			sis_stm = SIS_LEARN_INIT;
+		}
 		break;
 	case SIS_STM_READY:
 		if(card_getpower()) { //handle power-up event
 			dbs_init(&sis_sensor.dbs, NULL); //only dbs protocol implemented
 			sis_stm = SIS_STM_RUN;
 		}
-		if(event == SSS_CMD_LEARN) {
-			dbs_learn_init();
-			sis_stm = SIS_STM_LEARN;
+		if(sis_event == SIS_EVENT_LEARN) {
+			sis_event = SIS_EVENT_NONE;
+			sis_stm = SIS_LEARN_INIT;
 		}
 		break;
 	case SIS_STM_RUN:
@@ -163,10 +181,30 @@ static void sis_update(void)
 		if(!card_getpower())
 			dbs_poweroff();
 		break;
-	case SIS_STM_LEARN:
+	case SIS_LEARN_INIT:
+		dbs_learn_init();
+		sis_stm = SIS_LEARN_UPDATE;
+		break;
+	case SIS_LEARN_UPDATE:
 		dbs_learn_update();
 		if(dbs_learn_finish()) {
-			sis_stm = SIS_STM_READY;
+#if 1
+			struct dbs_sensor_s sensor;
+			if(!dbs_learn_result(&sensor)) {
+				printf("\n\ndbs sensor = {\n");
+				printf("	.speed = 0x%02x(%dmps)\n", sensor.speed, (1 << (4 - sensor.speed))*1000);
+				printf("	.addr = 0x%02x\n", sensor.addr);
+				for(int i = 0; i < 8; i ++) {
+					unsigned x = sensor.trace[i] & 0xff;
+					printf("	.trace[%d] = 0x%02x\n", i, x);
+				}
+				printf("}\n");
+			}
+			else {
+				printf("learn failed\n");
+			}
+#endif
+			sis_stm = SIS_STM_INIT;
 		}
 		break;
 	case SIS_STM_ERR:

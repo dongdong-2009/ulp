@@ -272,16 +272,17 @@ int card_recorder_init(void *cfg)
 
 	//halt current modulation output(Imax = Imin = 0)
 	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_8 | GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	GPIO_ResetBits(GPIOC, GPIO_InitStructure.GPIO_Pin);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_8 | GPIO_Pin_9);
 
 	//tim3 -> capture
 	TIM_Cmd(TIM3, DISABLE);
 	GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, DISABLE);
 
-	TIM_TimeBaseStructure.TIM_Period = 60000;
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
+	TIM_TimeBaseStructure.TIM_Period = 0xffff;
+	TIM_TimeBaseStructure.TIM_Prescaler = 72 - 1; //1uS per count
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
 	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
@@ -294,6 +295,9 @@ int card_recorder_init(void *cfg)
 	TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
 	TIM_ICInitStructure.TIM_ICFilter = 0x0;
 	TIM_ICInit(TIM3, &TIM_ICInitStructure);
+
+	//power up external sensor
+	GPIO_SetBits(GPIOB, GPIO_Pin_11);
 	return 0;
 }
 
@@ -318,9 +322,6 @@ int card_recorder_start(void *fifo, int n, int repeat)
 
 	TIM_DMACmd(TIM3, TIM_DMA_CC4, ENABLE);
 	TIM_Cmd(TIM3, ENABLE);
-
-	//power up external sensor
-	GPIO_SetBits(GPIOB, GPIO_Pin_11);
 	return 0;
 }
 
@@ -332,7 +333,7 @@ int card_recorder_left(void)
 int card_recorder_stop(void)
 {
 	//power down external sensor
-	GPIO_SetBits(GPIOB, GPIO_Pin_11);
+	GPIO_ResetBits(GPIOB, GPIO_Pin_11);
 	TIM_Cmd(TIM3, DISABLE);
 	return 0;
 }

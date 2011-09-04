@@ -8,6 +8,8 @@
 #include "sis_card.h"
 #include <string.h>
 
+#define CONFIG_DBS_LEARN 1
+
 static enum {
 	DBS_STM_INIT,
 	DBS_STM_BLACK,	/*comm blackout pedriod, DBS_BLK_MS*/
@@ -17,6 +19,12 @@ static enum {
 	DBS_STM_FAULT,	/*continous fault message*/
 	DBS_STM_ACC,	/*continous acc message*/
 	DBS_STM_ERROR,	/*dbs itself hardware error*/
+#ifdef CONFIG_DBS_LEARN
+	DBS_LEARN_BLACK, /*comm blackout pedriod, DBS_BLK_MS*/
+	DBS_LEARN_BUSY,
+	DBS_LEARN_PASS,
+	DBS_LEARN_FAIL,
+#endif
 } dbs_stm = DBS_STM_INIT;
 static time_t dbs_timer;
 #define DBS_FIFO_SIZE (4096) //10mS buffer * 8000msg/1S * (19 + 2)bit/msg * 2edge/bit = 3360
@@ -93,17 +101,13 @@ int dbs_encode(int bits, int init)
 	return 0;
 }
 
-int dbs_decode(union dbs_msg_s *msg)
-{
-	return 0;
-}
-
 void dbs_init(struct dbs_sensor_s *sensor, void *cfg)
 {
 	int div = sensor->speed;
-	div *= 205; //72MHz / 205 / 2 = 5.694uS
+	div *= 205; //72MHz / 205 / 2 = 5.694uS, 8000mps => T=5.35~5.95uS
 	card_player_init(5, 25, div);
 	memcpy(&dbs_sensor, sensor, sizeof(dbs_sensor));
+	dbs_stm = DBS_STM_INIT;
 	dbs_timer = 0;
 }
 
@@ -171,24 +175,251 @@ void dbs_poweroff(void)
 	card_player_stop();
 }
 
+/* dbs learn:
+	1) capture 500mS data or enough data(> DBS_LEARN_SIZE)
+	2) analysis tracebility data
+*/
+#ifdef CONFIG_DBS_LEARN
+
+static const char dbs_us[5][2] = {
+	{05, 48}, //8000-1000mps
+	{05, 06}, //8000mps	T=5.35~5.95uS
+	{10, 12}, //4000mps	T=10.7~11.9uS
+	{21, 24}, //2000mps	T=21.3~23.8uS
+	{42, 48}, //1000mps	T=42.8~47.6uS
+};
+
+/*get speed info( = smallest upgoing edge interval) */
+static int dbs_learn_speed(struct dbs_sensor_s *sensor, int n)
+{
+	int i, us;
+	int min, cnt, us_min, us_max;
+	char speed = DBS_SPEED_INVALID;
+
+	us_min = dbs_us[0][0];
+	us_max = dbs_us[0][1];
+	min = us_max;
+	do {
+		//find smallest interval
+		for(i = 1; i < n; i ++) {
+			us = dbs_fifo[i] - dbs_fifo[i - 1];
+			if((us < us_min) || (us > us_max))
+				continue;
+
+			if(us < min) {
+				min = us;
+				cnt = 0;
+			}
+
+			cnt += (us == min) ? 1 : 0;
+		}
+
+		//is it an approprite interval?
+		if(cnt > 16) {
+			for(i = 1; i < 5; i ++) {
+				if((min >= dbs_us[i][0]) && (min <= dbs_us[i][1])) {
+					speed = i;
+					break;
+				}
+			}
+
+			if(i < 5)
+				break;
+			else
+				us_min = min;
+		}
+	} while(us_min <= us_max);
+
+	if(speed != DBS_SPEED_INVALID) {
+		sensor -> speed = speed;
+		return 0;
+	}
+
+	return -1;
+}
+
+/*decode a dbs msg each time*/
+static int dbs_learn_decode(union dbs_msg_s *msg, int n, int speed)
+{
+	int us, us_min, us_max;
+	int w, bits = 0, stm = 0, nbits = 1; /*n = 1 => start bit 0 has been received*/
+	int crc, ret = -1;
+
+	do {
+		w = -1;
+		dbs_size ++;
+		us = dbs_fifo[dbs_size] - dbs_fifo[dbs_size - 1];
+		us = (us < 0) ? (us + 0x10000) : us;
+
+		//us in 2T range?
+		us_min = dbs_us[speed][0];
+		us_max = dbs_us[speed][1];
+		if((us >= us_min) && (us <= us_max))
+			w = 2;
+
+		//us in 3T range
+		us_min = us_min + (us_min >> 1);
+		us_max = us_max + ((us_max + 1) >> 1);
+		if((us >= us_min) && (us <= us_max))
+			w = 3;
+
+		//us in 4T range?
+		us_min = dbs_us[speed][0] << 1;
+		us_max = dbs_us[speed][1] << 1;
+		if((us >= us_min) && (us <= us_max))
+			w = 4;
+
+		//us bigger than 4T?
+		if(us > us_max)
+			w = 5;
+
+		if(us < 0) {
+			//a noise, decode fail ...
+			return -1;
+		}
+
+		//manchester decode state machine
+		if(stm == 0) {
+			if(w == 2) { //0 received
+				bits <<= 1;
+				bits |= 0x00;
+				nbits ++;
+				stm = 0;
+			}
+			else if(w == 3) {//11 received
+				bits <<= 2;
+				bits |= 0x03;
+				nbits += 2;
+				stm = 1;
+			}
+			else if(w == 4) {//10 received
+				bits <<= 2;
+				bits |= 0x02;
+				nbits += 2;
+				stm = 0;
+			}
+			else
+				break;
+		}
+		else {
+			if(w == 2) { //1 received
+				bits <<= 1;
+				bits |= 0x01;
+				nbits ++;
+				stm = 1;
+			}
+			else if(w == 3) { //0 received
+				bits <<= 1;
+				bits |= 0x00;
+				nbits ++;
+				stm = 0;
+			}
+			else
+				break;
+		}
+	} while(dbs_size < n);
+
+	if(nbits == 18) { //last received 1, it only has down going edge
+		bits <<= 1;
+		bits |= 0x01;
+		nbits ++;
+	}
+
+	if(nbits == 19) {
+		msg -> value = bits << 3;
+		crc = bits & 0x1f;
+		if(crc == crc5(bits >> 5))
+			ret = 0;
+	}
+
+	return ret;
+}
+
 void dbs_learn_init(void)
 {
+	card_recorder_init(NULL);
 	memset(dbs_fifo, 0, sizeof(dbs_fifo));
 	dbs_size = 0;
-	card_recorder_init(NULL);
-	card_recorder_start(dbs_fifo, DBS_FIFO_SIZE, 1);
+	dbs_timer = time_get(DBS_BLK_MS_MIN);
+	dbs_stm = DBS_LEARN_BLACK;
+	memset(&dbs_sensor, 0, sizeof(dbs_sensor));
 }
 
 void dbs_learn_update(void)
 {
+	int i, n;
+	if(dbs_stm == DBS_LEARN_BLACK) {
+		if(time_left(dbs_timer) < 0) {
+			card_recorder_start(dbs_fifo, DBS_FIFO_SIZE, 1);
+			dbs_stm = DBS_LEARN_BUSY;
+			dbs_timer = time_get(500); //capture 500mS
+		}
+		return;
+	}
+
+	if(dbs_stm != DBS_LEARN_BUSY)
+		return;
+
+	if(time_left(dbs_timer) > 0) {
+		return;
+	}
+
+	n = DBS_FIFO_SIZE - card_recorder_left();
+	card_recorder_stop();
+	if(n < 20) {
+		dbs_stm = DBS_LEARN_FAIL;
+		return;
+	}
+
+	if(dbs_learn_speed(&dbs_sensor, n) < 0) {
+		dbs_stm = DBS_LEARN_FAIL;
+		return;
+	}
+
+#if 1
+	//print
+	for(i = 1; i < n; i ++) {
+		int us = dbs_fifo[i] - dbs_fifo[i - 1];
+		us = (us < 0) ? 0x10000 + us : us;
+		if(us > (1 << (dbs_sensor.speed - 1)) * 6 * 2) {
+			printf("\n%05d: ", dbs_fifo[i - 1]);
+		}
+		printf("%02d ", us);
+	}
+#endif
+
+	dbs_sensor.addr = -1;
+	for(i = 0; i < 8; i ++) {
+		union dbs_msg_s msg;
+		if(dbs_learn_decode(&msg, n, dbs_sensor.speed))
+			break;
+		if(msg.trace.type != 0x00)
+			break;
+
+		if(dbs_sensor.addr == -1)
+			dbs_sensor.addr = msg.trace.addr;
+		else if(msg.trace.addr != dbs_sensor.addr)
+			break;
+
+		dbs_sensor.trace[i] = msg.trace.data;
+	}
+
+	dbs_stm = (i == 8) ? DBS_LEARN_PASS : DBS_LEARN_FAIL;
+	return;
 }
 
 int dbs_learn_finish(void)
 {
-	return 0;
+	return ((dbs_stm == DBS_LEARN_PASS) || (dbs_stm == DBS_LEARN_FAIL));
 }
 
 int dbs_learn_result(struct dbs_sensor_s *sensor)
 {
-	return 0;
+	int ret = -1;
+	if(dbs_stm == DBS_LEARN_PASS) {
+		memcpy(sensor, &dbs_sensor, sizeof(dbs_sensor));
+		ret = 0;
+	}
+	return ret;
 }
+#endif

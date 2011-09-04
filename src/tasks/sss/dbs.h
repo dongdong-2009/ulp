@@ -20,6 +20,7 @@
 #define __DBS_H
 
 #define DBS_BLK_MS 130 /*comm blackout after powerup, 30mS min*/
+#define DBS_BLK_MS_MIN 30
 #define DBS_IMG_MS 20 /*inter msg group delay, 10mS min*/
 #define DBS_IMD_MS 1 /*inter msg delay, 1ms max, 2bit normal*/
 #define DBS_OKD_MS 1000 /*delay between SOH-OK*/
@@ -74,6 +75,13 @@ union dbs_msg_s {
 	} acc; /*acceleration data msg*/
 
 	unsigned value; //bit [21, 3] effective
+};
+enum {
+	DBS_SPEED_INVALID,
+	DBS_SPEED_8000MPS,
+	DBS_SPEED_4000MPS,
+	DBS_SPEED_2000MPS,
+	DBS_SPEED_1000MPS,
 };
 
 /*dbs protocol sensor para*/
