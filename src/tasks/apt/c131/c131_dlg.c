@@ -3,7 +3,7 @@
  */
 #include "config.h"
 #include "osd/osd.h"
-#include "stepmotor.h"
+#include "c131_relay.h"
 #include "key.h"
 #include "stm32f10x.h"
 

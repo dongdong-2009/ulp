@@ -10,13 +10,39 @@
 #include <stdio.h>
 #include <string.h>
 
+//Local Static RAM define
 static unsigned char LoadRAM[8];static unsigned short pLoadRAM;
 static unsigned char SRImage[6];
+
+//Local Device define
+static mbi5025_t sr = {
+	.bus = &spi2,
+	.load_pin = SPI_CS_PC3,
+	.oe_pin = SPI_CS_PC4,
+};
 
 void c131_relay_Init(void)
 {
 	//load config from rom
 	pLoadRAM = (unsigned short)LoadRAM;
+	
+	//spi device init
+	mbi5025_Init(&sr);
+	mbi5025_DisableLoad(&sr);
+	mbi5025_EnableOE(&sr);
+}
+
+int c131_relay_Update(void)
+{
+	memset(SRImage, 0x00, sizeof(SRImage));
+
+	SRImage[1] = LoadRAM[2];
+	SRImage[2] = LoadRAM[4];
+	SRImage[3] = LoadRAM[6];
+	SRImage[4] = LoadRAM[1];
+	SRImage[5] = LoadRAM[0];
+
+	mbi5025_WriteBytes(&sr, SRImage, sizeof(SRImage));
 }
 
 int loop_SetRelayStatus(unsigned short loop_relays, int act)

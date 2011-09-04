@@ -52,6 +52,7 @@
 
 //function declaration
 void c131_relay_Init(void);
+int c131_relay_Update(void);
 int loop_SetRelayStatus(unsigned short loop_relays, int act);
 int loop_GetRelayStatus(unsigned short * ploop_status);
 int ess_SetRelayStatus(unsigned short ess_relays, int act);
