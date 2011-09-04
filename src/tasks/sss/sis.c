@@ -184,8 +184,10 @@ static void sis_update(void)
 		break;
 	case SIS_STM_RUN:
 		dbs_update();
-		if(!card_getpower())
+		if(!card_getpower()) {
 			dbs_poweroff();
+			sis_stm = SIS_STM_READY;
+		}
 		break;
 	case SIS_LEARN_INIT:
 		dbs_learn_init();

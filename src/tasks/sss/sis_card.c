@@ -240,7 +240,12 @@ int card_player_start(unsigned short *fifo, int n, int repeat)
 
 int card_player_left(void)
 {
-	return DMA_GetCurrDataCounter(DMA1_Channel7);
+	int n = DMA_GetCurrDataCounter(DMA1_Channel7);
+	if(n == 0) {
+		//wait for last bit sent out
+		while(!TIM_GetFlagStatus(TIM2, TIM_FLAG_CC2));
+	}
+	return n;
 }
 
 /*
@@ -250,7 +255,6 @@ int card_player_left(void)
 */
 int card_player_stop(void)
 {
-	while(!TIM_GetFlagStatus(TIM2, TIM_FLAG_CC2));
 	TIM_ClearFlag(TIM2, TIM_FLAG_CC2);
 	TIM_Cmd(TIM2, DISABLE);
 	TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_ForcedAction_Active); //idle
