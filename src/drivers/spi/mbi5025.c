@@ -21,7 +21,39 @@ void mbi5025_Init(mbi5025_t *chip)
 
 void mbi5025_WriteByte(mbi5025_t *chip, unsigned char data)
 {
+	spi_cs_set(chip->load_pin, 0);
 	chip->bus->wreg(chip->idx, data);
+	spi_cs_set(chip->load_pin, 1);	
+}
+
+void mbi5025_WriteBytes(mbi5025_t *chip, unsigned char * pdata, int len)
+{
+	int i;
+
+	spi_cs_set(chip->load_pin, 0);
+	for (i = 0; i < len; i++)
+		chip->bus->wreg(chip->idx, *(pdata++));
+	spi_cs_set(chip->load_pin, 1);	
+}
+
+void mbi5025_EnableLoad(mbi5025_t *chip)
+{
+	spi_cs_set(chip->load_pin, 1);
+}
+
+void mbi5025_DisableLoad(mbi5025_t *chip)
+{
+	spi_cs_set(chip->load_pin, 0);
+}
+
+void mbi5025_EnableOE(mbi5025_t *chip)
+{
+	spi_cs_set(chip->oe_pin, 0);
+}
+
+void mbi5025_DisableOE(mbi5025_t *chip)
+{
+	spi_cs_set(chip->oe_pin, 1);
 }
 
 #if 1
@@ -33,6 +65,8 @@ void mbi5025_WriteByte(mbi5025_t *chip, unsigned char data)
 static mbi5025_t sr = {
 	.bus = &spi2,
 	.idx = SPI_CS_DUMMY,
+	.load_pin = SPI_CS_PC3,
+	.oe_pin = SPI_CS_PC4,
 };
 
 static int cmd_mbi5025_func(int argc, char *argv[])
@@ -46,8 +80,10 @@ static int cmd_mbi5025_func(int argc, char *argv[])
 	};
 
 	if (argc > 1) {
-		if(argv[1][0] == 'i')
+		if(argv[1][0] == 'i') {
 			mbi5025_Init(&sr);
+			mbi5025_EnableOE(&sr);
+		}
 
 		if (argv[1][0] == 'w') {
 			sscanf(argv[2], "%x", &temp);
