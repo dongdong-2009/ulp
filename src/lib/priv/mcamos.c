@@ -71,10 +71,11 @@ int mcamos_dnload(const can_bus_t *can, int addr, const char *buf, int n, int ti
 {
 	int ret;
 	can_msg_t msg;
-	time_t deadline = time_get(timeout);
+	time_t deadline;
 	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *)msg.data;
 	can = (can == NULL) ? mcamos.can : can;
 	timeout = (timeout < 0) ? mcamos.timeout : timeout;
+	deadline = time_get(timeout);
 
 	//step1, send command
 	cmd -> byAddress[0] = (char) (addr >> 24);
@@ -120,10 +121,11 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 {
 	int ret, bytes;
 	can_msg_t msg;
-	time_t deadline = time_get(timeout);
+	time_t deadline;
 	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *)msg.data;
 	can = (can == NULL) ? mcamos.can : can;
 	timeout = (timeout < 0) ? mcamos.timeout : timeout;
+	deadline = time_get(timeout);
 
 	//step1, send command
 	cmd -> byAddress[0] = (char) (addr >> 24);
