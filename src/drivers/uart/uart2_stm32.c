@@ -15,8 +15,8 @@
 #define ENABLE_TX_DMA 1
 #define TX_FIFO_SZ CONFIG_UART2_TF_SZ
 static char uart_fifo_tx[TX_FIFO_SZ];
-static char uart_fifo_tn; //nr of bytes to send
-static char uart_fifo_tp; //pos of tx fifo start
+static short uart_fifo_tn; //nr of bytes to send
+static short uart_fifo_tp; //pos of tx fifo start
 static void uart_SetupTxDMA(void *p, int n);
 #endif
 
@@ -24,7 +24,7 @@ static void uart_SetupTxDMA(void *p, int n);
 #define ENABLE_RX_DMA 1
 #define RX_FIFO_SZ CONFIG_UART2_RF_SZ
 static char uart_fifo_rx[RX_FIFO_SZ];
-static char uart_fifo_rn;
+static short uart_fifo_rn;
 static void uart_SetupRxDMA(void *p, int n);
 #endif
 
