@@ -16,6 +16,7 @@ if [ "$CONFIG_LWIP_APP" = "y" ]; then
 	bool "enable task of MatrixBoard?" CONFIG_TASK_MATRIX
 fi
 
+bool "enable APT application" CONFIG_TASK_APT
 bool "misc applications?" CONFIG_TASK_MISC
 
 mainmenu_option next_comment

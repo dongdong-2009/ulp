@@ -1,0 +1,5 @@
+#
+# Written by david@2011
+#
+
+bool "enable APT_C131 application" CONFIG_TASK_APTC131
