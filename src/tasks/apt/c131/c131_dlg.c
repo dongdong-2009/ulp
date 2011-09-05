@@ -6,271 +6,190 @@
 #include "c131_relay.h"
 #include "key.h"
 #include "stm32f10x.h"
+#include "sys/task.h"
 
-#define DELAY_MS 1000
-#define REPEAT_MS 10
+//local key may
+static const int keymap[] = {
+	KEY_UP,
+	KEY_DOWN,
+	KEY_ENTER,
+	KEY_RIGHT,
+	KEY_LEFT,
+	KEY_RESET,
+	KEY_NONE
+};
 
 //private functions
-static int dlg_GetSteps(void);
-static int dlg_GetRunMode(void);
-static int dlg_GetRPM(void);
-static int dlg_GetAutoSteps(void);
-
 static int dlg_SelectGroup(const osd_command_t *cmd);
-static int dlg_Run(const osd_command_t *cmd);
-static int dlg_ResetStep(const osd_command_t *cmd);
-static int dlg_ChangeRunMode(const osd_command_t *cmd);
-static int dlg_ChangeRPM(const osd_command_t *cmd);
-static int dlg_ChangeAutoSteps(const osd_command_t *cmd);
 
-const char str_status[] = "status";
-const char str_rpm[] = "rpm";
-const char str_cfg[] = "config";
-const char str_autosteps[] = "autosteps";
-const char str_manu[] = "manu";
-const char str_auto[] = "auto";
-const char str_err[] = "err";
+static int dlg_GetSDMType1(void);
+static int dlg_GetSDMType2(void);
+static int dlg_GetSDMType3(void);
+static int dlg_GetAPTMode1(void);
+static int dlg_GetAPTMode2(void);
+static int dlg_GetType(void);
+static int dlg_GetMode(void);
+static int dlg_GetInfo(void);
 
-const osd_item_t items_status[] = {
-	{5, 0, 6, 1, (int)str_status, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{0, 1, 6, 1, (int)dlg_GetSteps, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
-	{12, 1, 4, 1, (int)dlg_GetRunMode, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+const char str_sdmtype[] = "SDM Type Select";
+const char str_aptmode[] = "APT Mode Select";
+const char str_aptstatus[] = "APT Status";
+const char str_type[] = "Type:";
+const char str_mode[] = "Mode:";
+const char str_info[] = "Info:";
+
+const osd_item_t items_sdmtype[] = {
+	{2, 0, 15, 1, (int)str_sdmtype, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{0, 1, 6, 1, (int)dlg_GetSDMType1, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{0, 2, 6, 1, (int)dlg_GetSDMType2, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{0, 3, 6, 1, (int)dlg_GetSDMType3, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
-const osd_item_t items_rpm[] = {
-	{5, 2, 6, 1, (int)str_cfg, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{0, 3, 3, 1, (int)str_rpm, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{8, 3, 8, 1, (int)dlg_GetRPM, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+const osd_item_t items_aptmode[] = {
+	{2, 4, 15, 1, (int)str_aptmode, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{0, 5, 6, 1, (int)dlg_GetAPTMode1, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{0, 6, 6, 1, (int)dlg_GetAPTMode2, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
-const osd_item_t items_steps[] = {
-	{5, 4, 6, 1, (int)str_cfg, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{0, 5, 9, 1, (int)str_autosteps, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{8, 5, 8, 1, (int)dlg_GetAutoSteps, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+const osd_item_t items_aptstatus[] = {
+	{4, 7, 10, 1, (int)str_aptstatus, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{0, 8, 5, 1, (int)str_type, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	// {0, 9, 5, 1, (int)dlg_GetType, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	{0, 9, 5, 1, (int)str_mode, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	// {0, 11, 5, 1, (int)dlg_GetMode, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	{0, 10, 5, 1, (int)str_info, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	// {0, 13, 5, 1, (int)dlg_GetInfo, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	NULL,
+};
+
+const osd_command_t cmds_type[] = {
+	{.event = KEY_UP, .func = dlg_SelectGroup},
+	{.event = KEY_DOWN, .func = dlg_SelectGroup},
+	{.event = KEY_RIGHT, .func = NULL},
+	{.event = KEY_LEFT, .func = NULL},
+	{.event = KEY_RESET, .func = NULL},
+	{.event = KEY_ENTER, .func = NULL},
+	NULL,
+};
+
+const osd_command_t cmds_mode[] = {
+	{.event = KEY_UP, .func = dlg_SelectGroup},
+	{.event = KEY_DOWN, .func = dlg_SelectGroup},
+	{.event = KEY_RIGHT, .func = NULL},
+	{.event = KEY_LEFT, .func = NULL},
+	{.event = KEY_RESET, .func = NULL},
+	{.event = KEY_ENTER, .func = NULL},
 	NULL,
 };
 
 const osd_command_t cmds_status[] = {
 	{.event = KEY_UP, .func = dlg_SelectGroup},
 	{.event = KEY_DOWN, .func = dlg_SelectGroup},
-	{.event = KEY_RIGHT, .func = dlg_Run},
-	{.event = KEY_LEFT, .func = dlg_Run},
-	{.event = KEY_RESET, .func = dlg_ResetStep},
-	{.event = KEY_ENTER, .func = dlg_ChangeRunMode},
-	{.event = KEY_MENU, .func = dlg_ResetStep},
-	{.event = KEY_OSD, .func = dlg_ChangeRunMode},
+	{.event = KEY_RIGHT, .func = NULL},
+	{.event = KEY_LEFT, .func = NULL},
+	{.event = KEY_RESET, .func = NULL},
+	{.event = KEY_ENTER, .func = NULL},
 	NULL,
 };
 
-const osd_command_t cmds_rpm[] = {
-	{.event = KEY_UP, .func = dlg_SelectGroup},
-	{.event = KEY_DOWN, .func = dlg_SelectGroup},
-	{.event = KEY_RIGHT, .func = dlg_ChangeRPM},
-	{.event = KEY_LEFT, .func = dlg_ChangeRPM},
-	{.event = KEY_RESET, .func = dlg_ChangeRPM},
-	{.event = KEY_ENTER, .func = dlg_ChangeRPM},
-	{.event = KEY_MENU, .func = dlg_ChangeRPM},
-	{.event = KEY_OSD, .func = dlg_ChangeRPM},
-	{.event = KEY_0, .func = dlg_ChangeRPM},
-	{.event = KEY_1, .func = dlg_ChangeRPM},
-	{.event = KEY_2, .func = dlg_ChangeRPM},
-	{.event = KEY_3, .func = dlg_ChangeRPM},
-	{.event = KEY_4, .func = dlg_ChangeRPM},
-	{.event = KEY_5, .func = dlg_ChangeRPM},
-	{.event = KEY_6, .func = dlg_ChangeRPM},
-	{.event = KEY_7, .func = dlg_ChangeRPM},
-	{.event = KEY_8, .func = dlg_ChangeRPM},
-	{.event = KEY_9, .func = dlg_ChangeRPM},
+const osd_group_t c131_grps[] = {
+	{.items = items_sdmtype, .cmds = cmds_type, .order = 0, .option = GROUP_DRAW_FULLSCREEN},
+	{.items = items_aptmode, .cmds = cmds_mode, .order = 1, .option = GROUP_DRAW_FULLSCREEN},
+	{.items = items_aptstatus, .cmds = cmds_status, .order = 2, .option = GROUP_DRAW_FULLSCREEN},
 	NULL,
 };
 
-const osd_command_t cmds_steps[] = {
-	{.event = KEY_UP, .func = dlg_SelectGroup},
-	{.event = KEY_DOWN, .func = dlg_SelectGroup},
-	{.event = KEY_RIGHT, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_LEFT, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_RESET, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_ENTER, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_MENU, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_OSD, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_0, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_1, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_2, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_3, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_4, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_5, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_6, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_7, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_8, .func = dlg_ChangeAutoSteps},
-	{.event = KEY_9, .func = dlg_ChangeAutoSteps},
-	NULL,
-};
-
-const osd_group_t sm_grps[] = {
-	{.items = items_status, .cmds = cmds_status, .order = 0, .option = GROUP_DRAW_FULLSCREEN},
-	{.items = items_rpm, .cmds = cmds_rpm, .order = 1, .option = GROUP_DRAW_FULLSCREEN},
-	{.items = items_steps, .cmds = cmds_steps, .order = 2, .option = GROUP_DRAW_FULLSCREEN},
-	NULL,
-};
-
-osd_dialog_t sm_dlg = {
-	.grps = sm_grps,
+osd_dialog_t c131_dlg = {
+	.grps = c131_grps,
 	.cmds = NULL,
 	.func = NULL,
 	.option = 0,
 };
 
-static int dlg_GetSteps(void)
-{
-	return sm_GetSteps();
-}
-
-static int dlg_GetRunMode(void)
-{
-	const char *str;
-	int mode;
-	
-	mode = sm_GetRunMode();
-	switch (mode) {
-	case SM_RUNMODE_AUTO:
-		str = str_auto;
-		break;
-	case SM_RUNMODE_MANUAL:
-		str = str_manu;
-		break;
-	default:
-		str = str_err;
-	}
-
-	return (int) str;
-}
-
-static int dlg_GetRPM(void)
-{
-	return sm_GetRPM();
-}
-
-static int dlg_GetAutoSteps(void)
-{
-	return sm_GetAutoSteps();
-}
-
 static int dlg_SelectGroup(const osd_command_t *cmd)
 {
 	int result = -1;
-	
+
 	if(cmd->event == KEY_UP)
 		result = osd_SelectPrevGroup();
 	else
 		result = osd_SelectNextGroup();
-	
-	return result;
-}
-
-static int dlg_Run(const osd_command_t *cmd)
-{
-	if(sm_GetRunMode() == SM_RUNMODE_MANUAL) {
-		key_SetKeyScenario(0, REPEAT_MS);
-	}
-	
-	sm_StartMotor((cmd->event == KEY_RIGHT)? 0 : 1);
-	
-	return 0;
-}
-
-static int dlg_ResetStep(const osd_command_t *cmd)
-{
-	sm_ResetStep();
-	
-	return 0;
-}
-
-static int dlg_ChangeRunMode(const osd_command_t *cmd)
-{
-	int ret;
-	int mode;
-	
-	mode = sm_GetRunMode();
-	mode ++;
-	if(mode >= SM_RUNMODE_INVALID)
-		mode = 0;
-	
-	ret = sm_SetRunMode(mode);
-	return ret;
-}
-
-static int dlg_ChangeRPM(const osd_command_t *cmd)
-{
-	int result = -1;
-	int rpm = sm_GetRPM();
-	
-	switch(cmd->event){
-	case KEY_LEFT:
-		rpm --;
-		result = sm_SetRPM(rpm);
-		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
-		break;
-	case KEY_RIGHT:
-		rpm ++;
-		result = sm_SetRPM(rpm);
-		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
-		break;
-	case KEY_RESET:
-	case KEY_MENU:
-		/*get config from flash*/
-		sm_GetConfigFromFlash();
-		rpm = sm_GetRPM();
-		result = sm_SetRPM(rpm);
-		break;
-	case KEY_ENTER:
-	case KEY_OSD:
-		/*store config to flash*/
-		sm_SaveConfigToFlash();
-		break;
-	default:
-		rpm = key_SetEntryAndGetDigit();
-		result = sm_SetRPM(rpm);
-		break;
-	}
 
 	return result;
 }
 
-static int dlg_ChangeAutoSteps(const osd_command_t *cmd)
+static int dlg_GetSDMType1(void)
 {
-	int result = -1;
-	int steps = sm_GetAutoSteps();
-	
-	switch(cmd->event){
-	case KEY_LEFT:
-		steps --;
-		result = sm_SetAutoSteps(steps);
-		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
-		break;
-	case KEY_RIGHT:
-		steps ++;
-		result = sm_SetAutoSteps(steps);
-		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
-		break;
-	case KEY_RESET:
-	case KEY_MENU:
-		/*get config from flash*/
-		sm_GetConfigFromFlash();
-		steps = sm_GetAutoSteps();
-		result = sm_SetAutoSteps(steps);
-		break;
-	case KEY_ENTER:
-	case KEY_OSD:
-		/*store config to flash*/
-		sm_SaveConfigToFlash();
-		break;
-	default:
-		steps = key_SetEntryAndGetDigit();
-		result = sm_SetAutoSteps(steps);
-		break;
+
+	return NULL;
+}
+
+static int dlg_GetSDMType2(void)
+{
+
+	return NULL;
+}
+
+static int dlg_GetSDMType3(void)
+{
+
+	return NULL;
+}
+
+static int dlg_GetAPTMode1(void)
+{
+
+	return NULL;
+}
+
+static int dlg_GetAPTMode2(void)
+{
+
+	return NULL;
+}
+
+static int dlg_GetType(void)
+{
+
+	return NULL;
+}
+
+static int dlg_GetMode(void)
+{
+
+	return NULL;
+}
+
+static int dlg_GetInfo(void)
+{
+
+	return NULL;
+}
+
+static void c131_Init(void)
+{
+	int hdlg;
+	hdlg = osd_ConstructDialog(&c131_dlg);
+	osd_SetActiveDialog(hdlg);
+
+	//set key map
+	key_SetLocalKeymap(keymap);
+}
+
+static void c131_Update(void)
+{
+
+}
+
+void main(void)
+{
+	task_Init();
+	c131_Init();
+
+	while(1) {
+		task_Update();
+		c131_Update();
 	}
-	
-	return result;
 }
