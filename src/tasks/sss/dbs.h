@@ -86,9 +86,9 @@ enum {
 
 /*dbs protocol sensor para*/
 struct dbs_sensor_s {
-	char trace[8];
 	char addr; //0x01 0x02 0x03
 	char speed; //1->8000mps, 2->4000mps, 3->2000mps, 4->1000mps
+	char trace[8];
 };
 
 //normal run

@@ -1,143 +1,403 @@
-#include "can.h"
-#include "flash.h"
+/*
+ *	sky@2011 initial version
+ *	peng.guo@2011 modify
+ *	miaofng@2011 rewrite
+ *
+ */
 #include "config.h"
+#include "sys/task.h"
 #include "shell/cmd.h"
+#include "priv/mcamos.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "time.h"
-#include "linux/list.h"
-#include "sys/sys.h"
 #include "sss.h"
-#include "sys/task.h"
-#include "stm32f10x.h"
+#include "sis.h"
 #include "nvm.h"
-#include "priv/mcamos.h"
+#include "led.h"
+#include "debug.h"
 
-static int j;
-static struct sensor_nvm_s sensor_lib_s[64] __nvm;				//
-static char mailbox[64];
+#define SSS_MAGIC 0x56784321
+#define SSS_LIST_SIZE	64
 
-void ADDRESS_GPIO_Init(void)
+static struct sis_sensor_s sss_list[SSS_LIST_SIZE] __nvm;
+static unsigned sss_magic __nvm;
+static char sss_mailbox[64];
+
+/*search the specified sensor in list, or find an empty one if name == NULL*/
+static struct sis_sensor_s *sss_search(const char *name)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
-	//板卡LED部分
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10|GPIO_Pin_12;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	GPIO_SetBits(GPIOC, GPIO_Pin_12);
-	//PCB Bug
-	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_0;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
+	int i;
+	struct sis_sensor_s *sis = NULL;
+
+	for(i = 0; i < SSS_LIST_SIZE; i ++) {
+		sis = &sss_list[i];
+		if((sis->protocol != 0) && (!sis_sum(sis, sizeof(struct sis_sensor_s)))) {
+			if((name != NULL) && (!strncmp(sis->name, name, 13))) {
+				break;
+			}
+		}
+		else {
+			if(name == NULL) {
+				sis = &sss_list[i];
+				break;
+			}
+		}
+		sis = NULL;
+	}
+
+	return sis;
 }
 
-void RESET_Init(void)
+static int mcamos_wait(int id, int ms)
 {
-	//PCB Bug
-	GPIO_InitTypeDef GPIO_InitStructure;
-	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_8;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	char mailbox;
+	int ret = -1;
+	time_t deadline = time_get(ms);
+	do {
+		if(mcamos_upload_ex(MCAMOS_INBOX_ADDR, &mailbox, 1))
+			break;
+
+		if(mailbox == 0) {
+			if(mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, &mailbox, 1))
+				break;
+
+			if(mailbox == id) {
+				ret = 0;
+				break;
+			}
+		}
+	} while(time_left(ms) > 0);
+	return ret;
+}
+
+static int cmd_sss_list(const char *name)
+{
+	int i, ret = -1;
+	struct sis_sensor_s *sis;
+
+	for(i = 0; i < SSS_LIST_SIZE; i ++) {
+		sis = &sss_list[i];
+		if((sis->protocol != 0) && (!sis_sum(sis, sizeof(struct sis_sensor_s)))) {
+			if(name == NULL) {
+				printf("%s;\n", sis->name);
+				ret = 0;
+			}
+			else if(!strcmp(name, sis->name)) {
+				sis_print(sis);
+				ret = 0;
+			}
+		}
+	}
+
+	if(ret) {
+		if(name != NULL) {
+			printf("sensor not found");
+			ret = -1;
+		}
+		else {
+			printf("no sensor in the list");
+			ret = -2;
+		}
+	}
+
+	return ret;
+}
+
+static int cmd_sss_config(const char *name, const char *para)
+{
+	int n;
+	struct sis_sensor_s *sis = NULL;
+	struct sis_sensor_s new;
+
+	assert(name != NULL);
+	sis = sss_search(name);
+	if(para == NULL) { //del
+		if(sis != NULL) {
+			memset(sis, 0, sizeof(struct sis_sensor_s));
+			nvm_save();
+			return 0;
+		}
+		else {
+			printf("sensor not found");
+			return -1;
+		}
+	}
+
+	if(sis == NULL) {
+		sis = sss_search(NULL);
+		if(sis == NULL) {
+			printf("sss list full");
+			return -2;
+		}
+	}
+
+	memset(&new, 0, sizeof(new));
+	new.protocol = SIS_PROTOCOL_DBS;
+	strncpy(new.name, name, 13);
+	n = sscanf(para, "0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x", \
+		&new.data[0], &new.data[1], &new.data[2], &new.data[3],  \
+		&new.data[4], &new.data[5], &new.data[6], &new.data[7],  \
+		&new.data[8], &new.data[9] \
+	);
+	new.cksum = 0 - sis_sum(&new, sizeof(new));
+
+	if(n == 10) {
+		memcpy(sis, &new, sizeof(new));
+		nvm_save();
+		return 0;
+	}
+
+	printf("para not enough");
+	return -3;
+}
+
+static int cmd_sss_select(const char *name, int bdn)
+{
+	int ret;
+	struct sis_sensor_s *sis;
+	struct mcamos_s m = {
+		.can = &can1,
+		.id_cmd = sss_GetID(bdn),
+		.id_dat = sss_GetID(bdn) + 1,
+	};
+
+	assert(name != NULL);
+	sis = sss_search(name);
+	if(sis == NULL) {
+		printf("sensor not found");
+		return -1;
+	}
+
+	//communication with the sis board
+	mcamos_init_ex(&m);
+	ret = mcamos_wait(0, 0);
+	if(ret) {
+		printf("board %d not exist", bdn);
+		return -1;
+	}
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR + 1, sis, sizeof(struct sis_sensor_s));
+	sss_mailbox[0] = SSS_CMD_SELECT;
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, sss_mailbox, 1);
+	ret += mcamos_wait(SSS_CMD_SELECT, 10);
+	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, sss_mailbox, 2);
+	if(ret) {
+		printf("board %d communication error", bdn);
+		return -2;
+	}
+
+	if(sss_mailbox[1]) {
+		printf("board %d sensor not supported", bdn);
+		return -3;
+	}
+
+	return 0;
+}
+
+static int cmd_sss_query(int bdn)
+{
+	int ret;
+	struct sis_sensor_s sis;
+	struct mcamos_s m = {
+		.can = &can1,
+		.id_cmd = sss_GetID(bdn),
+		.id_dat = sss_GetID(bdn) + 1,
+	};
+
+	//communication with the sis board
+	mcamos_init_ex(&m);
+	ret = mcamos_wait(SSS_CMD_QUERY, 10);
+	if(ret) {
+		printf("board %d not exist", bdn);
+		return -1;
+	}
+
+	sss_mailbox[0] = SSS_CMD_QUERY;
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, sss_mailbox, 1);
+	ret += mcamos_wait(SSS_CMD_QUERY, 10);
+	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, sss_mailbox, 2 + sizeof(sis));
+	if(ret) {
+		printf("board %d communication error", bdn);
+		return -2;
+	}
+
+	if(sss_mailbox[1]) {
+		printf("board %d sensor not configured", bdn);
+		return -3;
+	}
+
+	memcpy(&sis, &sss_mailbox[2], sizeof(sis));
+	printf("board %02d: %s\n", bdn, sis.name);
+	return 0;
+}
+
+static int cmd_sss_learn(const char *name, int bdn)
+{
+	int ret;
+	struct sis_sensor_s sis, *p;
+	struct mcamos_s m = {
+		.can = &can1,
+		.id_cmd = sss_GetID(bdn),
+		.id_dat = sss_GetID(bdn) + 1,
+	};
+
+	memset(&sis, 0, sizeof(sis));
+	sis.protocol = SIS_PROTOCOL_DBS;
+	strcpy(sis.name, name);
+
+	//communication with the sis board
+	mcamos_init_ex(&m);
+	ret = mcamos_wait(SSS_CMD_QUERY, 10);
+	if(ret) {
+		printf("board %d not exist", bdn);
+		return -1;
+	}
+
+	sss_mailbox[0] = SSS_CMD_LEARN;
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR + 1, &sis, sizeof(sis));
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, sss_mailbox, 1);
+	ret += mcamos_wait(SSS_CMD_LEARN, 1000);
+	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, sss_mailbox, 2 + sizeof(sis));
+	if(ret) {
+		printf("board %d communication error", bdn);
+		return -2;
+	}
+
+	if(sss_mailbox[1]) {
+		printf("board %d sensor cann't identified", bdn);
+		return -3;
+	}
+
+	//printf
+	memcpy(&sis, &sss_mailbox[2], sizeof(sis));
+	printf("board %02d: %s\n", bdn, sis.name);
+	sis_print(&sis);
+
+	//save to nvm
+	p = sss_search(name);
+	if(p == NULL) {
+		printf("sss list full");
+		return -4;
+	}
+
+	memcpy(p, &sis, sizeof(sis));
+	return 0;
 }
 
 static int cmd_sss_func(int argc, char *argv[])
 {
+	int ret = -1;
 	const char *usage = {
 		"usage:\n"
-		"sss send id d0 d1 d2 d3 d4 d5 d6 d7 d8    sss send,  id (0001)\n"
+		"sss learn name <bdn>			add/modify new sensor automatically\n"
+		"sss config name speed,addr,trace0,..	add/modify/remove new sensor manually, 0x01 = 8000mps\n"
+		"sss select name <bdn>			select a sensor to be emulated, bdn is optional\n"
+		"sss query bdn				query specified board sensor info\n"
+		"sss list <name>				list all supported sensors\n"
 	};
-	if(argc == 2) {
-		if(!strcmp(argv[1],"save"))
-			nvm_save();
-		else if(!strcmp(argv[1],"list"))
-			for(int i=0;i<128;i++)
-				printf(sensor_lib_s[i].name,"\r",sensor_lib_s[i].ID,"\n");
-		else
-			printf("invalid command \n");
-		return 0;
-	}
-	if(argc == 3) {
-		if(!strcmp(argv[1],"query")) {
-			char cmd = SSS_CMD_QUERY;
-			struct mcamos_s m;
-			m.can = &can1;
-			m.baud = 500000;
-			m.id_cmd = (int)argv[2];
-			m.id_dat = (int)argv[2] + 24;
-			mcamos_init_ex(&m);
-			mcamos_dnload(&can1,SSS_INBOX_ADDR ,&cmd,1,10);
 
-		}
-		else if(1)
-			printf("invalid command \n");
-		return 0;
+	if((argc >= 2) && (!strcmp(argv[1], "list"))) {
+		char *name = (argc > 2) ? argv[2] : NULL;
+		ret = cmd_sss_list(name);
 	}
-	if(argc == 4) {
-		if(!strcmp(argv[1],"learn")) {
-			char cmd ;
-			struct mcamos_s m;
-			m.can = &can1;
-			m.baud = 500000;
-			m.id_cmd = (int)argv[2];
-			m.id_dat = (int)argv[2] + 24;
-			mcamos_init_ex(&m);
-			mailbox[0] = SSS_CMD_LEARN;
-			mcamos_dnload(&can1,SSS_INBOX_ADDR , mailbox, 1, 10);
-			do {
-				mcamos_upload(&can1,SSS_INBOX_ADDR, &cmd, 1, 10);
-			} while(cmd != 0);
-			mcamos_upload(&can1,SSS_OUTBOX_ADDR + 1, mailbox, 1, 10);//如何
-			return 0;
-		}
-		else if(!strcmp(argv[1],"select")) {
-			char cmd = SSS_CMD_SELECT;
-			struct mcamos_s m;
-			m.can = &can1;
-			m.baud = 500000;
-			m.id_cmd = (int)argv[2];
-			m.id_dat = (int)argv[2] + 24;
-			mcamos_init_ex(&m);
-			mailbox[0] = cmd;
-			for(j = 0;j <= 128;j ++) {
- 				if(j == 128)
-					printf("The sensor is not exsit \n");
-				if(strcmp(argv[3],sensor_lib_s[j].name) == 0) {
-					//mailbox[0] = cmd;
-					memcpy(mailbox + 1, &sensor_lib_s[j], sizeof(struct sensor_nvm_s));
-					mcamos_dnload(&can1,SSS_INBOX_ADDR + 1,mailbox + 1,sizeof(struct sensor_nvm_s),10);
-					mcamos_dnload(&can1,SSS_INBOX_ADDR ,mailbox ,1,10);
 
-				mcamos_upload(&can1 ,SSS_INBOX_ADDR ,mailbox ,1,10);
-				if(mailbox[0] == 0) {
-					printf("send success \n");
-				}
-                                }
+	if((argc >= 3) && (!strcmp(argv[1], "config"))) {
+		char *para = (argc > 3) ? argv[3] : NULL;
+		ret = cmd_sss_config(argv[2], para);
+	}
+
+	if((argc >= 3) && (!strcmp(argv[1], "select"))) {
+		int pat, i;
+		ret = 0;
+		pat = (argc > 3) ? cmd_pattern_get(argv[3]) : 0xff << 1;
+		for(i = 1; i <= 31; i ++) {
+			if(pat & (1 << i)) {
+				ret = cmd_sss_select(argv[2], i);
+				if(ret)
+					break;
 			}
-			return 0;
 		}
-		else 
-			printf("invalid command \n");
 	}
-	printf("%s", usage);
+
+	if((argc == 3) && (!strcmp(argv[1], "query"))) {
+		int pat, i;
+		ret = 0;
+		pat = (argc > 2) ? cmd_pattern_get(argv[2]) : 0xff << 1;
+		for(i = 1; i <= 31; i ++) {
+			if(pat & (1 << i)) {
+				ret = cmd_sss_query(i);
+				if(ret)
+					break;
+			}
+		}
+	}
+
+	if((argc >= 3) && (!strcmp(argv[1], "learn"))) {
+		int pat, i;
+		ret = 0;
+		pat = (argc > 3) ? cmd_pattern_get(argv[3]) : 0x02;
+		for(i = 1; i <= 31; i ++) {
+			if(pat & (1 << i)) {
+				ret = cmd_sss_learn(argv[2], i);
+				if(ret)
+					break;
+			}
+		}
+	}
+
+	if((argc == 1) || (!strcmp(argv[1], "help")))
+		printf("%s", usage);
+
+	if(ret == 0)
+		printf("##OK##\n");
+	else
+		printf("##%d##ERROR##\n", ret);
+
 	return 0;
 }
 
 const cmd_t cmd_sss = {"sss", cmd_sss_func, "can monitor/debugger"};
 DECLARE_SHELL_CMD(cmd_sss)
 
+static void sss_Init(void)
+{
+	led_on(LED_GREEN);
+	led_off(LED_RED);
+	if(sss_magic != SSS_MAGIC) {
+		sss_magic = SSS_MAGIC;
+		memset(sss_list, 0, sizeof(sss_list));
+		nvm_save();
+	}
+}
+
+//poll each board healthy status
+static char sss_slot = 1;
+static void sss_Update(void)
+{
+	int ret;
+	struct mcamos_s m = {
+		.can = &can1,
+		.id_cmd = sss_GetID(sss_slot),
+		.id_dat = sss_GetID(sss_slot) + 1,
+	};
+
+	mcamos_init_ex(&m);
+	ret = mcamos_wait(0, 0);
+	if(ret) {
+		led_off(LED_GREEN);
+		led_flash(LED_RED);
+	}
+
+	sss_slot = (sss_slot < 8) ? sss_slot + 1 : 1;
+}
+
 int main(void)
 {
 	task_Init();
-	//can1_int();
-        ADDRESS_GPIO_Init();
+	sss_Init();
 	while(1) {
 		task_Update();
-		//can_updata();
+		sss_Update();
 	}
 }
