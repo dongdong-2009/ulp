@@ -12,6 +12,8 @@
 #include <string.h>
 #include "debug.h"
 
+//#define MCAMOS_DEBUG
+
 struct mcamos_s mcamos, mcamos_def;
 
 #define MCAMOS_MSG_1_STD_ID mcamos.id_cmd
@@ -163,7 +165,9 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 		}
 		else {
 			//assert(1 == 0); //dut in factory mode already???
+#ifdef MCAMOS_DEBUG
 			can_msg_print(&msg, "...strange can frame\n");
+#endif
 		}
 	}
 
