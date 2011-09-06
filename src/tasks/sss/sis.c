@@ -37,40 +37,42 @@ static void serv_init(void)
 	mcamos_srv_init(&sis_server);
 }
 
-static int serv_update(void)
+static void serv_update(void)
 {
-	char finish, ret;
+	char ret = -1;
 	char *inbox = sis_server.inbox;
 	char *outbox = sis_server.outbox + 2;
-	int flag_new;
 	struct sis_sensor_s *sis, new;
 
-	ret = 0; //successfully
-	finish = 1; //finished the cmd
 	mcamos_srv_update(&sis_server);
 	switch(inbox[0]) {
+	case SSS_CMD_NONE:
+		return;
 	case SSS_CMD_QUERY:
 		memcpy(outbox, &sis_sensor, sizeof(sis_sensor));
+		if((!sis_sum(&sis_sensor, sizeof(sis_sensor))) && (sis_sensor.protocol != SIS_PROTOCOL_INVALID))
+			ret = 0;
 		break;
 	case SSS_CMD_SELECT:
 		ret = -1;
 		if((sis_stm == SIS_STM_READY) || (sis_stm == SIS_STM_INIT)) {
-			flag_new = 0;
 			sis = (struct sis_sensor_s *)(inbox + 1);
 			if(!sis_sum(sis, sizeof(struct sis_sensor_s))) {
 				ret = 0;
-				flag_new = memcmp(&sis_sensor, sis, sizeof(sis_sensor));
 				memcpy(&sis_sensor, sis, sizeof(sis_sensor));
-				if(flag_new)
-					nvm_save();
 			}
 		}
 		break;
 	case SSS_CMD_LEARN:
-		sis_event = SIS_EVENT_LEARN;
-		sis = (struct sis_sensor_s *)(inbox + 1);
-		finish = dbs_learn_finish();
-		if(finish) {
+		if((sis_stm == SIS_STM_READY) || (sis_stm == SIS_STM_INIT)) {
+			sis_event = SIS_EVENT_LEARN;
+			ret = 0;
+		}
+		break;
+	case SSS_CMD_LEARN_RESULT:
+		ret = -2; //op refused
+		if(dbs_learn_finish()) {
+			sis = (struct sis_sensor_s *)(inbox + 1);
 			memcpy(&new, sis, sizeof(new));
 			ret = dbs_learn_result(&new.dbs);
 			if(!ret) { //success
@@ -81,16 +83,21 @@ static int serv_update(void)
 			}
 		}
 		break;
+	case SSS_CMD_CLEAR:
+		memset(&sis_sensor, 0, sizeof(sis_sensor));
+		sis_sensor.protocol = SIS_PROTOCOL_INVALID;
+	case SSS_CMD_SAVE:
+		ret = 0;
+		nvm_save();
+		break;
 	default:
+		ret = -1; //unsupported command
 		break;
 	}
 
-	if(finish) {
-		sis_server.outbox[0] = inbox[0];
-		sis_server.outbox[1] = ret;
-		inbox[0] = 0; //clear inbox testid indicate cmd ops finished!
-	}
-	return inbox[0];
+	sis_server.outbox[0] = inbox[0];
+	sis_server.outbox[1] = ret;
+	sis_server.inbox[0] = 0; //!!!clear inbox testid indicate cmd ops finished
 }
 
 static int cmd_sis_func(int argc, char *argv[])
@@ -151,7 +158,7 @@ static void sis_update(void)
 	case SIS_STM_INIT:
 		led_on(LED_GREEN);
 		led_on(LED_RED);
-		if(!sis_sum(&sis_sensor, sizeof(sis_sensor))) {
+		if((!sis_sum(&sis_sensor, sizeof(sis_sensor))) && (sis_sensor.protocol != SIS_PROTOCOL_INVALID)) {
 			sis_stm = SIS_STM_READY;
 		}
 		if(sis_event == SIS_EVENT_LEARN) {

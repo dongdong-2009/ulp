@@ -50,7 +50,7 @@ static struct sis_sensor_s *sss_search(const char *name)
 	return sis;
 }
 
-static int mcamos_wait(int id, int ms)
+static int mcamos_wait(int ms)
 {
 	char mailbox;
 	int ret = -1;
@@ -60,13 +60,8 @@ static int mcamos_wait(int id, int ms)
 			break;
 
 		if(mailbox == 0) {
-			if(mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, &mailbox, 1))
-				break;
-
-			if(mailbox == id) {
-				ret = 0;
-				break;
-			}
+			ret = 0;
+			break;
 		}
 	} while(time_left(ms) > 0);
 	return ret;
@@ -81,7 +76,7 @@ static int cmd_sss_list(const char *name)
 		sis = &sss_list[i];
 		if((sis->protocol != 0) && (!sis_sum(sis, sizeof(struct sis_sensor_s)))) {
 			if(name == NULL) {
-				printf("%s;\n", sis->name);
+				printf("sensor %02d:	%s;\n", i, sis->name);
 				ret = 0;
 			}
 			else if(!strcmp(name, sis->name)) {
@@ -161,6 +156,7 @@ static int cmd_sss_select(const char *name, int bdn)
 		.can = &can1,
 		.id_cmd = sss_GetID(bdn),
 		.id_dat = sss_GetID(bdn) + 1,
+		.timeout = 50,
 	};
 
 	assert(name != NULL);
@@ -172,7 +168,7 @@ static int cmd_sss_select(const char *name, int bdn)
 
 	//communication with the sis board
 	mcamos_init_ex(&m);
-	ret = mcamos_wait(0, 0);
+	ret = mcamos_wait(0);
 	if(ret) {
 		printf("board %d not exist", bdn);
 		return -1;
@@ -180,7 +176,7 @@ static int cmd_sss_select(const char *name, int bdn)
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR + 1, sis, sizeof(struct sis_sensor_s));
 	sss_mailbox[0] = SSS_CMD_SELECT;
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, sss_mailbox, 1);
-	ret += mcamos_wait(SSS_CMD_SELECT, 10);
+	ret += mcamos_wait(100);
 	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, sss_mailbox, 2);
 	if(ret) {
 		printf("board %d communication error", bdn);
@@ -203,11 +199,12 @@ static int cmd_sss_query(int bdn)
 		.can = &can1,
 		.id_cmd = sss_GetID(bdn),
 		.id_dat = sss_GetID(bdn) + 1,
+		.timeout = 50,
 	};
 
 	//communication with the sis board
 	mcamos_init_ex(&m);
-	ret = mcamos_wait(SSS_CMD_QUERY, 10);
+	ret = mcamos_wait(0);
 	if(ret) {
 		printf("board %d not exist", bdn);
 		return -1;
@@ -215,7 +212,7 @@ static int cmd_sss_query(int bdn)
 
 	sss_mailbox[0] = SSS_CMD_QUERY;
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, sss_mailbox, 1);
-	ret += mcamos_wait(SSS_CMD_QUERY, 10);
+	ret += mcamos_wait(100);
 	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, sss_mailbox, 2 + sizeof(sis));
 	if(ret) {
 		printf("board %d communication error", bdn);
@@ -229,6 +226,7 @@ static int cmd_sss_query(int bdn)
 
 	memcpy(&sis, &sss_mailbox[2], sizeof(sis));
 	printf("board %02d: %s\n", bdn, sis.name);
+	sis_print(&sis);
 	return 0;
 }
 
@@ -240,6 +238,7 @@ static int cmd_sss_learn(const char *name, int bdn)
 		.can = &can1,
 		.id_cmd = sss_GetID(bdn),
 		.id_dat = sss_GetID(bdn) + 1,
+		.timeout = 50,
 	};
 
 	memset(&sis, 0, sizeof(sis));
@@ -248,16 +247,31 @@ static int cmd_sss_learn(const char *name, int bdn)
 
 	//communication with the sis board
 	mcamos_init_ex(&m);
-	ret = mcamos_wait(SSS_CMD_QUERY, 10);
+	ret = mcamos_wait(0);
 	if(ret) {
 		printf("board %d not exist", bdn);
 		return -1;
 	}
 
+	//send learn cmd to sis card
 	sss_mailbox[0] = SSS_CMD_LEARN;
-	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR + 1, &sis, sizeof(sis));
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, sss_mailbox, 1);
-	ret += mcamos_wait(SSS_CMD_LEARN, 1000);
+
+	//try to read the answer, may fail(learn busy)
+	ret += mcamos_wait(100);
+	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, sss_mailbox, 2);
+	if((ret == 0) && (sss_mailbox[1] != 0)) {
+		printf("operation refused");
+		return -5;
+	}
+
+	//sis card is busy on learn
+	mdelay(800);
+
+	sss_mailbox[0] = SSS_CMD_LEARN_RESULT;
+	memcpy(&sss_mailbox[1], &sis, sizeof(sis));
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, sss_mailbox, sizeof(sis) + 1);
+	ret += mcamos_wait(100);
 	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, sss_mailbox, 2 + sizeof(sis));
 	if(ret) {
 		printf("board %d communication error", bdn);
@@ -271,17 +285,49 @@ static int cmd_sss_learn(const char *name, int bdn)
 
 	//printf
 	memcpy(&sis, &sss_mailbox[2], sizeof(sis));
-	printf("board %02d: %s\n", bdn, sis.name);
+	printf("board %02d found ", bdn);
 	sis_print(&sis);
 
 	//save to nvm
 	p = sss_search(name);
+	p = (p == NULL) ? sss_search(NULL) : p;
 	if(p == NULL) {
 		printf("sss list full");
 		return -4;
 	}
 
 	memcpy(p, &sis, sizeof(sis));
+	nvm_save();
+	return 0;
+}
+
+static int cmd_sss_save(int bdn, int clear)
+{
+	int ret;
+	struct mcamos_s m = {
+		.can = &can1,
+		.id_cmd = sss_GetID(bdn),
+		.id_dat = sss_GetID(bdn) + 1,
+		.timeout = 50,
+	};
+
+	//communication with the sis board
+	mcamos_init_ex(&m);
+	ret = mcamos_wait(0);
+	if(ret) {
+		printf("board %d not exist", bdn);
+		return -1;
+	}
+
+	sss_mailbox[0] = (clear) ? SSS_CMD_CLEAR : SSS_CMD_SAVE;
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, sss_mailbox, 1);
+	mdelay(500); //sis card are busy on nvm_save() now ...
+	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, sss_mailbox, 2);
+	if(ret) {
+		printf("board %d communication error", bdn);
+		return -2;
+	}
+
 	return 0;
 }
 
@@ -293,8 +339,9 @@ static int cmd_sss_func(int argc, char *argv[])
 		"sss learn name <bdn>			add/modify new sensor automatically\n"
 		"sss config name speed,addr,trace0,..	add/modify/remove new sensor manually, 0x01 = 8000mps\n"
 		"sss select name <bdn>			select a sensor to be emulated, bdn is optional\n"
-		"sss query bdn				query specified board sensor info\n"
+		"sss query <bdn>				query specified board sensor info\n"
 		"sss list <name>				list all supported sensors\n"
+		"sss save/clear <bdn>			save/clear sis board current configuration\n"
 	};
 
 	if((argc >= 2) && (!strcmp(argv[1], "list"))) {
@@ -308,9 +355,9 @@ static int cmd_sss_func(int argc, char *argv[])
 	}
 
 	if((argc >= 3) && (!strcmp(argv[1], "select"))) {
-		int pat, i;
-		ret = 0;
+		unsigned pat, i;
 		pat = (argc > 3) ? cmd_pattern_get(argv[3]) : 0xff << 1;
+		ret = (pat <= 1) ? -1 : 0;
 		for(i = 1; i <= 31; i ++) {
 			if(pat & (1 << i)) {
 				ret = cmd_sss_select(argv[2], i);
@@ -320,10 +367,10 @@ static int cmd_sss_func(int argc, char *argv[])
 		}
 	}
 
-	if((argc == 3) && (!strcmp(argv[1], "query"))) {
+	if((argc >= 2) && (!strcmp(argv[1], "query"))) {
 		int pat, i;
-		ret = 0;
 		pat = (argc > 2) ? cmd_pattern_get(argv[2]) : 0xff << 1;
+		ret = (pat <= 1) ? -1 : 0;
 		for(i = 1; i <= 31; i ++) {
 			if(pat & (1 << i)) {
 				ret = cmd_sss_query(i);
@@ -335,11 +382,37 @@ static int cmd_sss_func(int argc, char *argv[])
 
 	if((argc >= 3) && (!strcmp(argv[1], "learn"))) {
 		int pat, i;
-		ret = 0;
 		pat = (argc > 3) ? cmd_pattern_get(argv[3]) : 0x02;
+		ret = (pat <= 1) ? -1 : 0;
 		for(i = 1; i <= 31; i ++) {
 			if(pat & (1 << i)) {
 				ret = cmd_sss_learn(argv[2], i);
+				if(ret)
+					break;
+			}
+		}
+	}
+
+	if((argc >= 2) && (!strcmp(argv[1], "save"))) {
+		int pat, i;
+		pat = (argc > 2) ? cmd_pattern_get(argv[2]) : 0xff << 1;
+		ret = (pat <= 1) ? -1 : 0;
+		for(i = 1; i <= 31; i ++) {
+			if(pat & (1 << i)) {
+				ret = cmd_sss_save(i, 0);
+				if(ret)
+					break;
+			}
+		}
+	}
+
+	if((argc >= 2) && (!strcmp(argv[1], "clear"))) {
+		int pat, i;
+		pat = (argc > 2) ? cmd_pattern_get(argv[2]) : 0xff << 1;
+		ret = (pat <= 1) ? -1 : 0;
+		for(i = 1; i <= 31; i ++) {
+			if(pat & (1 << i)) {
+				ret = cmd_sss_save(i, 1);
 				if(ret)
 					break;
 			}
@@ -380,10 +453,11 @@ static void sss_Update(void)
 		.can = &can1,
 		.id_cmd = sss_GetID(sss_slot),
 		.id_dat = sss_GetID(sss_slot) + 1,
+		.timeout = 50,
 	};
 
 	mcamos_init_ex(&m);
-	ret = mcamos_wait(0, 0);
+	ret = mcamos_wait(0);
 	if(ret) {
 		led_off(LED_GREEN);
 		led_flash(LED_RED);
