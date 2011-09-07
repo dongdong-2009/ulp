@@ -104,7 +104,7 @@ int dbs_encode(int bits, int init)
 
 void dbs_init(struct dbs_sensor_s *sensor, void *cfg)
 {
-	int div = sensor->speed;
+	int div = (1 << (sensor->speed - 1));
 	div *= 205; //72MHz / 205 / 2 = 5.694uS, 8000mps => T=5.35~5.95uS
 	card_player_init(5, 25, div);
 	memcpy(&dbs_sensor, sensor, sizeof(dbs_sensor));
@@ -145,7 +145,9 @@ void dbs_update(void)
 		while(card_player_left() > 0);
 		card_player_stop();
 		dbs_stm = (dbs_stm == DBS_STM_TRACE1) ? DBS_STM_TRACE2 : DBS_STM_OK;
-		dbs_stm = ((dbs_stm == DBS_STM_OK) && ( dbs_sensor.mode == 1))? DBS_STM_ACC : DBS_STM_OK;
+		if(dbs_stm == DBS_STM_OK) {
+			dbs_stm = (dbs_sensor.mode == 1) ? DBS_STM_ACC : DBS_STM_OK;
+		}
 		dbs_timer = time_get(DBS_IMG_MS);
 		break;
 	case DBS_STM_OK: //note: stm will stay at this state!!!
@@ -171,7 +173,7 @@ void dbs_update(void)
 		msg.acc.type = dbs_sensor.addr;
 		msg.acc.data = 0x000; //0b00;
 		msg.acc.crc = crc5(msg.value >> 8);
-		dbs_encode(msg.value >> 3, 0x03);
+		dbs_encode(msg.value >> 3, 1);
 		card_player_start(dbs_fifo, dbs_size, 1); //repeat mode
 		dbs_stm = DBS_STM_ACC_UPDATE;
 		break;
