@@ -51,8 +51,7 @@ void c131_diag_Init(void)
 int c131_DiagSW(void)
 {
 	unsigned char data;
-	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOB, data);
-	
+	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOB, data);
 	return 0;
 }
 
@@ -60,15 +59,14 @@ int c131_DiagLOOP(void)
 {
 	unsigned char data;
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOB, data);
-	
+
 	return 0;
 }
 
 int c131_DiagLED(void)
 {
 	unsigned char data;
-	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOA, data);
-	
+	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOA, data);
 	return 0;
 }
 
@@ -118,5 +116,5 @@ static int c131_adc_GetValue(void)
 	while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC));
 	value = ADC_GetConversionValue(ADC1);
 	value &= 0x0fff;
-	return value
+	return value;
 }
