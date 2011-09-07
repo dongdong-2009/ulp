@@ -46,3 +46,9 @@ if [ "$CONFIG_TASK_MISC" = "y" ]; then
 	endmenu	
 fi
 
+if [ "$CONFIG_TASK_SSS" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'sss'
+		source src/tasks/sss/Kconfig
+	endmenu
+fi

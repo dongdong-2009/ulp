@@ -10,7 +10,7 @@ void led_hwInit(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-#if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1)
+#if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1) || (CONFIG_TASK_SSS == 1)
 	/* Enable GPIOA,GPIOC clock */
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
   
@@ -60,7 +60,7 @@ void led_hwSetStatus(led_t led, led_status_t status)
 	
 	switch(led) {
 		case LED_GREEN:
-#if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1)
+#if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1) || (CONFIG_TASK_SSS == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_12, ba);
 #elif CONFIG_MISC_VHD == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_8, ba);
@@ -69,7 +69,7 @@ void led_hwSetStatus(led_t led, led_status_t status)
 #endif
 			break;
 		case LED_RED:
-#if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1)
+#if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1) || (CONFIG_TASK_SSS == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_10, ba);
 #elif CONFIG_MISC_VHD == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_6, ba);
