@@ -4,6 +4,11 @@
 #ifndef __C131_MISC_H_
 #define __C131_MISC_H_
 
+typedef enum {
+	C131_MODE_NORMAL,
+	C131_MODE_SIMULATOR,
+} c131_mode_t;
+
 //for failed led
 #define FailLed_On()		GPIO_SetBits(GPIOC, GPIO_Pin_2)
 #define FailLed_Off()		GPIO_ResetBits(GPIOC, GPIO_Pin_2)
@@ -26,6 +31,10 @@
 
 //for sdm ready detect
 #define Get_SDMStatus()		GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_8)
+
+//for sdm working mode
+int Set_C131Mode(int workmode);
+int Get_C131Mode(void);
 
 void c131_misc_Init(void);
 

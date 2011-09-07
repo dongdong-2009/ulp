@@ -6,6 +6,8 @@
 #include "stm32f10x.h"
 #include "c131_misc.h"
 
+static int c131_mode = C131_MODE_NORMAL;
+
 void c131_misc_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -29,4 +31,15 @@ void c131_misc_Init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+}
+
+int Set_C131Mode(int workmode)
+{
+	c131_mode = workmode;
+	return 0;
+}
+
+int Get_C131Mode(void)
+{
+	return c131_mode;
 }

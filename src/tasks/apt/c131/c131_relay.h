@@ -3,10 +3,20 @@
  */
 #ifndef __C131_RELAY_H_
 #define __C131_RELAY_H_
+
+typedef struct c131_load_s {
+	int load_bExist;
+	int load_option;
+	char load_name[16];
+	unsigned char load_ram[8];
+} c131_load_t;
 typedef enum {
 	RELAY_OFF = 0,
 	RELAY_ON
 } relay_status;
+
+//global define
+#define NUM_OF_LOAD			32
 
 //LOOP define
 #define C131_LOOP1			((unsigned short)0x0001)  /*!< loop 1 selected */
@@ -61,5 +71,11 @@ int led_SetRelayStatus(unsigned short led_relays, int act);
 int led_GetRelayStatus(unsigned short * pled_status);
 int sw_SetRelayStatus(unsigned short sw_relays, int act);
 int sw_GetRelayStatus(unsigned short * psw_status);
+
+
+int c131_GetLoad(c131_load_t ** pload, int index_load);
+int c131_AddLoad(c131_load_t * pload);
+int c131_ConfirmLoad(int index_load);
+int c131_GetCurrentLoadIndex(void);
 
 #endif /*__C131_RELAY_H_*/
