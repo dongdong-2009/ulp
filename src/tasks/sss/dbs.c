@@ -18,6 +18,7 @@ static enum {
 	DBS_STM_OK,	/*2 ok message + DBS_OKD_MS*/
 	DBS_STM_FAULT,	/*continous fault message*/
 	DBS_STM_ACC,	/*continous acc message*/
+	DBS_STM_ACC_UPDATE,
 	DBS_STM_ERROR,	/*dbs itself hardware error*/
 #ifdef CONFIG_DBS_LEARN
 	DBS_LEARN_BLACK, /*comm blackout pedriod, DBS_BLK_MS*/
@@ -144,6 +145,7 @@ void dbs_update(void)
 		while(card_player_left() > 0);
 		card_player_stop();
 		dbs_stm = (dbs_stm == DBS_STM_TRACE1) ? DBS_STM_TRACE2 : DBS_STM_OK;
+		dbs_stm = ((dbs_stm == DBS_STM_OK) && ( dbs_sensor.mode == 1))? DBS_STM_ACC : DBS_STM_OK;
 		dbs_timer = time_get(DBS_IMG_MS);
 		break;
 	case DBS_STM_OK: //note: stm will stay at this state!!!
@@ -164,6 +166,17 @@ void dbs_update(void)
 		break;
 	case DBS_STM_FAULT:
 	case DBS_STM_ACC:
+		msg.value = 0;
+		msg.acc.start = 0x00; //0b00;
+		msg.acc.type = dbs_sensor.addr;
+		msg.acc.data = 0x000; //0b00;
+		msg.acc.crc = crc5(msg.value >> 8);
+		dbs_encode(msg.value >> 3, 0x03);
+		card_player_start(dbs_fifo, dbs_size, 1); //repeat mode
+		dbs_stm = DBS_STM_ACC_UPDATE;
+		break;
+	case DBS_STM_ACC_UPDATE:
+		break;
 	case DBS_STM_ERROR:
 	default:
 		break;
@@ -360,11 +373,11 @@ void dbs_learn_update(void)
 	if(dbs_stm != DBS_LEARN_BUSY)
 		return;
 
-	if(time_left(dbs_timer) > 0) {
+	n = DBS_FIFO_SIZE - card_recorder_left();
+	if((time_left(dbs_timer) > 0) && (n < 512)) {
 		return;
 	}
 
-	n = DBS_FIFO_SIZE - card_recorder_left();
 	card_recorder_stop();
 	if(n < 20) {
 		dbs_stm = DBS_LEARN_FAIL;
@@ -375,6 +388,8 @@ void dbs_learn_update(void)
 		dbs_stm = DBS_LEARN_FAIL;
 		return;
 	}
+	if(n > 500)
+		dbs_sensor.mode = 1;
 
 #if 1
 	//print
@@ -388,7 +403,7 @@ void dbs_learn_update(void)
 	}
 #endif
 
-	dbs_sensor.addr = -1;
+	dbs_sensor.addr = 15;
 	for(i = 0; i < 8; i ++) {
 		union dbs_msg_s msg;
 		if(dbs_learn_decode(&msg, n, dbs_sensor.speed))
@@ -396,7 +411,7 @@ void dbs_learn_update(void)
 		if(msg.trace.type != 0x00)
 			break;
 
-		if(dbs_sensor.addr == -1)
+		if(dbs_sensor.addr > 3)
 			dbs_sensor.addr = msg.trace.addr;
 		else if(msg.trace.addr != dbs_sensor.addr)
 			break;

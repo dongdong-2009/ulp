@@ -207,6 +207,13 @@ int card_player_init(int min, int max, int div) //MIN/MAX CURRENT + SPEED
 
 int card_player_start(unsigned short *fifo, int n, int repeat)
 {
+	if(repeat) {
+		//time base re-init for repeat mode
+		TIM2->ARR = fifo[n];
+		fifo[n] = 1;
+		n ++;
+	}
+
 	DMA_InitTypeDef DMA_InitStructure;
 	DMA_Cmd(DMA1_Channel7, DISABLE);
 	DMA_DeInit(DMA1_Channel7);

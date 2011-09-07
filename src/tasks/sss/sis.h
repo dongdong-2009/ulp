@@ -39,6 +39,7 @@ static inline char sis_print(const struct sis_sensor_s *sis)
 	if(sis->protocol == SIS_PROTOCOL_DBS) {
 		const struct dbs_sensor_s *dbs = &sis->dbs;
 		printf("	.speed = 0x%02x(%dmps)\n", dbs->speed, (1 << (4 - dbs->speed))*1000);
+		printf("	.mode = 0x%02x\n", dbs->mode);
 		printf("	.addr = 0x%02x\n", dbs->addr);
 		for(int i = 0; i < 8; i ++) {
 			unsigned x = dbs->trace[i] & 0xff;

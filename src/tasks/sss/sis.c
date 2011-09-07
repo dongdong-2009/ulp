@@ -198,6 +198,7 @@ static void sis_update(void)
 			if(!dbs_learn_result(&sensor)) {
 				printf("\n\ndbs sensor = {\n");
 				printf("	.speed = 0x%02x(%dmps)\n", sensor.speed, (1 << (4 - sensor.speed))*1000);
+				printf("	.mode = 0x%02x\n", sensor.mode);
 				printf("	.addr = 0x%02x\n", sensor.addr);
 				for(int i = 0; i < 8; i ++) {
 					unsigned x = sensor.trace[i] & 0xff;
