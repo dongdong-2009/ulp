@@ -38,12 +38,17 @@ static inline char sis_print(const struct sis_sensor_s *sis)
 	printf("sensor %s = {\n", sis->name);
 	if(sis->protocol == SIS_PROTOCOL_DBS) {
 		const struct dbs_sensor_s *dbs = &sis->dbs;
+		printf("	.mode = 0x%02x\n", (dbs->mode) & 0xff);
+		printf("	.addr = 0x%02x\n", (dbs->addr) & 0xff);
 		printf("	.speed = 0x%02x(%dmps)\n", dbs->speed, (1 << (4 - dbs->speed))*1000);
-		printf("	.addr = 0x%02x\n", dbs->addr);
 		for(int i = 0; i < 8; i ++) {
-			unsigned x = dbs->trace[i] & 0xff;
-			printf("	.trace[%d] = 0x%02x\n", i, x);
+			printf("	.trace[%d] = 0x%02x\n", i, dbs->trace[i] & 0xff);
 		}
+
+		printf("	.dbs = {0x%02x", sis->data[0]);
+		for(int i = 1; i < sizeof(struct dbs_sensor_s); i ++)
+			printf(",0x%02x", sis->data[i] & 0xff);
+		printf("}\n");
 	}
 	printf("}\n");
 	return 0;
