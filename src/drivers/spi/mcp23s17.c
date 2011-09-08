@@ -86,10 +86,10 @@ static int cmd_mcp23s17_func(int argc, char *argv[])
 
 	const char * usage = { \
 		" usage:\n" \
-		" mcp23017 init, chip init \n" \
-		" mcp23017 write addr value, write reg \n" \
-		" mcp23017 read addr, read reg\n" \
-		" mcp23017 read repeat addr, repeat read reg\n" \
+		" mcp23s17 init, chip init \n" \
+		" mcp23s17 write addr value, write reg \n" \
+		" mcp23s17 read addr, read reg\n" \
+		" mcp23s17 read repeat addr, repeat read reg\n" \
 	};
 
 	if (argc > 1) {
