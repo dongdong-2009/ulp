@@ -7,4 +7,5 @@ obj-$(CONFIG_NEST_MT60_OLD) += mt60.o
 obj-$(CONFIG_NEST_MT80_OLD) += mt80.o
 obj-$(CONFIG_NEST_HCU_GAC) += hcu.o
 obj-$(CONFIG_NEST_IGBT_BURN) += burn.o
+obj-$(CONFIG_NEST_FIXTURE) += fixture.o
 
