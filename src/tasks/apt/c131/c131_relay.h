@@ -10,9 +10,10 @@ typedef struct c131_load_s {
 	char load_name[16];
 	unsigned char load_ram[8];
 } c131_load_t;
-typedef enum {
+
+typedef enum {
 	RELAY_OFF = 0,
-	RELAY_ON
+	RELAY_ON,
 } relay_status;
 
 //global define

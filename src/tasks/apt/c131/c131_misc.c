@@ -30,7 +30,11 @@ void c131_misc_Init(void)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	//power set
+	Disable_SDMPWR();
+	Disable_EXTPWR();
+	Disable_LEDPWR();
 }
 
 int Set_C131Mode(int workmode)

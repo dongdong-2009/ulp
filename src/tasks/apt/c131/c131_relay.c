@@ -22,7 +22,7 @@ static unsigned char SRImage[6];
 
 //Local Device define
 static mbi5025_t sr = {
-	.bus = &spi2,
+	.bus = &spi1,
 	.load_pin = SPI_CS_PC3,
 	.oe_pin = SPI_CS_PC4,
 };
@@ -36,7 +36,8 @@ void c131_relay_Init(void)
 	//spi device init
 	mbi5025_Init(&sr);
 	mbi5025_DisableLoad(&sr);
-	mbi5025_EnableOE(&sr);
+	mbi5025_EnableOE(&sr);
+
 	//init config which has been confirmed
 	c131_current_load = 0;
 	//
