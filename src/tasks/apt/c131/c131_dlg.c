@@ -27,15 +27,21 @@ enum {
 	DIAGNOSIS_OVER,
 };
 
+enum {
+	SDM_UNEXIST,
+	SDM_EXIST,
+};
+
 //private functions
 static int dlg_SelectGroup(const osd_command_t *cmd);
 static int dlg_SelectSDMType(const osd_command_t *cmd);
 static int dlg_SelectPWRType(const osd_command_t *cmd);
 static int dlg_SelectAPTMode(const osd_command_t *cmd);
 static int dlg_SelectAPTDiag(const osd_command_t *cmd);
+static int dlg_SelectAPTStatus(const osd_command_t *cmd);
 
 static int GetSDMType(void);
-static int dlg_GetInfo(void);
+static int GetLinkInfo(void);
 static int GetPWRType(void);
 static int GetPwrINorEX(void);
 
@@ -49,9 +55,12 @@ static char mode_select_ok = 0x7f;
 static char aptdiag_ram[16];	//the last char for EOC
 static char status_diag;
 
+static char status_link = 0;
+
 static char sdm_pwr = 0;
 static char led_pwr = 0;
 static char pwr_type = 0;
+
 
 const char str_sdmtype[] = "SDM Type Select";
 const char str_sdmpwr[] = "SDM Power Select";
@@ -61,10 +70,13 @@ const char str_aptstatus[] = "APT Status";
 const char str_type[] = "Type:";
 const char str_mode[] = "Mode:";
 const char str_info[] = "Info:";
+const char str_link[] = "Link:";
 const char str_led[] = "LED:";
 const char str_sdm[] = "SDM:";
 const char str_internal[] = "Internal";
 const char str_external[] = "External";
+const char str_sdmon[] = "SDM  On ";
+const char str_sdmoff[] = "SDM  Off";
 
 const osd_item_t items_sdmtype[] = {
 	{2, 0, 15, 1, (int)str_sdmtype, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
@@ -75,8 +87,8 @@ const osd_item_t items_sdmtype[] = {
 
 const osd_item_t items_pwrtype[] = {
 	{2, 4, 16, 1, (int)str_sdmpwr, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{0, 6, 4, 1, (int)GetPWRType, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_NONE},
-	{11, 6, 8, 1, (int)GetPwrINorEX, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_NONE},
+	{0, 6, 4, 1, (int)GetPWRType, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	{11, 6, 8, 1, (int)GetPwrINorEX, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
 	NULL,
 };
 
@@ -99,9 +111,9 @@ const osd_item_t items_aptstatus[] = {
 	{0, 17, 5, 1, (int)str_type, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
 	{5, 17, 15, 1, (int)sdmtype_ram, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_NONE},
 	{0, 18, 5, 1, (int)str_mode, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{6, 18, 10, 1, (int)aptmode_ram, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_NONE},
-	{0, 19, 5, 1, (int)str_info, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	// {0, 13, 5, 1, (int)dlg_GetInfo, ITEM_DRAW_TXT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	{5, 18, 10, 1, (int)aptmode_ram, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_NONE},
+	{0, 19, 5, 1, (int)str_link, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{5, 19, 15, 1, (int)GetLinkInfo, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
 	NULL,
 };
 
@@ -148,10 +160,10 @@ const osd_command_t cmds_diag[] = {
 const osd_command_t cmds_status[] = {
 	{.event = KEY_UP, .func = dlg_SelectGroup},
 	{.event = KEY_DOWN, .func = dlg_SelectGroup},
-	{.event = KEY_RIGHT, .func = NULL},
-	{.event = KEY_LEFT, .func = NULL},
+	{.event = KEY_RIGHT, .func = dlg_SelectAPTStatus},
+	{.event = KEY_LEFT, .func = dlg_SelectAPTStatus},
 	{.event = KEY_RESET, .func = NULL},
-	{.event = KEY_ENTER, .func = NULL},
+	{.event = KEY_ENTER, .func = dlg_SelectAPTStatus},
 	NULL,
 };
 
@@ -253,7 +265,7 @@ static int GetPWRType(void)
 }
 
 static int GetPwrINorEX(void)
-{	if (pwr_type == 0) {
+{	if (pwr_type == 0) {
 		if (sdm_pwr == 0) {
 			return (int)str_internal;
 		} else {
@@ -275,12 +287,16 @@ static int dlg_SelectAPTMode(const osd_command_t *cmd)
 		strcpy(aptmode_ram, "Normal   ");
 		if (Get_C131Mode() == C131_MODE_NORMAL)
 			mode_select_ok = 0xff;
+		else
+			mode_select_ok = 0x7f;
 	} else if(cmd->event == KEY_RIGHT) {
 		memset(aptmode_ram, 0x00, 10);
 		strcpy(aptmode_ram, "Simulator");
-	} else if(cmd->event == KEY_ENTER) {
 		if (Get_C131Mode() == C131_MODE_SIMULATOR)
 			mode_select_ok = 0xff;
+		else
+			mode_select_ok = 0x7f;
+	} else if(cmd->event == KEY_ENTER) {
 		if (strcmp(aptmode_ram, "Simulator") == 0) {
 			Set_C131Mode(C131_MODE_SIMULATOR);
 		} else {
@@ -295,18 +311,34 @@ static int dlg_SelectAPTMode(const osd_command_t *cmd)
 static int dlg_SelectAPTDiag(const osd_command_t *cmd)
 {
 	if (cmd->event == KEY_ENTER) {
-		c131_DiagSW();
-		c131_DiagLED();
-		c131_DiagLOOP();
+		if (status_diag == DIAGNOSIS_NOTYET) {
+			//power on for IGN_LED
+			Enable_SDMPWR();
+			c131_DiagSW();
+			c131_DiagLED();
+			//c131_DiagLOOP();
+			Disable_SDMPWR();
+
+			strcpy(aptdiag_ram, "Diagnose  Over");
+			status_diag = DIAGNOSIS_OVER;
+		}
 	}
 
 	return 0;
 }
 
-static int dlg_GetInfo(void)
-{
 
-	return NULL;
+static int dlg_SelectAPTStatus(const osd_command_t *cmd)
+{
+	return 0;
+}
+
+static int GetLinkInfo(void)
+{
+	if (status_link == SDM_UNEXIST)
+		return (int)str_sdmoff;
+	else
+		return (int)str_sdmon;
 }
 
 static void c131_Init(void)
@@ -337,13 +369,19 @@ static void c131_Init(void)
 	strcpy(aptdiag_ram, "Enter -> Start");
 	status_diag = DIAGNOSIS_NOTYET;
 
+	status_link = 0;
+
 	//app init
 	GetSDMType();
 }
 
 static void c131_Update(void)
 {
-
+	if (Get_SDMStatus()) {
+		status_link = SDM_UNEXIST;
+	} else {
+		status_link = SDM_EXIST;
+	}
 }
 
 void main(void)

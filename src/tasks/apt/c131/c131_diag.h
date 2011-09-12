@@ -6,6 +6,7 @@
 
 //diagnosis debug define
 #define DIAG_DEBUG		1
+#define DIAG_LCD		1
 
 //Error define
 #define ERROR_OK					0
@@ -18,6 +19,8 @@
 #define LOOP_HIGH_LIMIT		0x0680
 #define LOOP_LOW_LIMIT		0x0560
 
+//6MA -> 0x3d7
+//14MA -> 0x8f5
 #define SW1_6MA_HIGH_LIMIT	0x03ff
 #define SW1_6MA_LOW_LIMIT	0x03bb
 #define SW1_14MA_HIGH_LIMIT	0x0980

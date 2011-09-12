@@ -40,7 +40,6 @@ void c131_relay_Init(void)
 
 	//init config which has been confirmed
 	c131_current_load = 0;
-	//
 }
 
 int c131_relay_Update(void)

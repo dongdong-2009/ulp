@@ -7,6 +7,8 @@
 #include "mcp23s17.h"
 #include "c131_diag.h"
 #include "c131_relay.h"
+#include "lcd.h"
+#include "time.h"
 
 //ADC Port define
 #define CH_DIAG_ADC		ADC_Channel_11
@@ -31,6 +33,7 @@
 //local function define
 static void c131_adc_Init(void);
 static int c131_adc_GetValue(void);
+static struct lcd_s *apt_lcd;
 
 //pravite varibles define
 static mcp23s17_t mcp23s17 = {
@@ -50,12 +53,26 @@ void c131_diag_Init(void)
 
 	//adc init
 	c131_adc_Init();
+
+	//get the lcd device pointer
+	apt_lcd = lcd_get(NULL);
 }
 
 int c131_DiagSW(void)
 {
 	int temp;
 	int result = 0;
+
+#if DIAG_LCD
+	int w, h;
+	//x,col means horizontal coordinate
+	//y,row means vertical coordinate
+	if (apt_lcd->type == LCD_TYPE_CHAR){
+		lcd_get_font(apt_lcd, &w, &h);
+	}
+	lcd_puts(apt_lcd, 5 * w, 2 * h, "Diagnose SW   ");
+	mdelay(500);
+#endif
 
 	//DIAG FOR SW1
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOB, SW1_FBC);
@@ -64,7 +81,7 @@ int c131_DiagSW(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("14MA is %d \n", temp);
+	printf("14MA is %x \n", temp);
 #endif
 	if ((temp <= SW1_14MA_LOW_LIMIT) || (temp >= SW1_14MA_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
@@ -74,7 +91,7 @@ int c131_DiagSW(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("6MA is %d \n", temp);
+	printf("6MA is %x \n", temp);
 #endif
 	if ((temp <= SW1_6MA_LOW_LIMIT) || (temp >= SW1_6MA_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
@@ -87,7 +104,7 @@ int c131_DiagSW(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("2K82 is %d \n", temp);
+	printf("2K82 is %x \n", temp);
 #endif
 	if ((temp <= SW2_2K82_LOW_LIMIT) || (temp >= SW2_2K82_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
@@ -97,7 +114,7 @@ int c131_DiagSW(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("6MA is %d \n", temp);
+	printf("820R is %x \n", temp);
 #endif
 	if ((temp <= SW2_820_LOW_LIMIT) || (temp >= SW2_820_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
@@ -110,9 +127,9 @@ int c131_DiagSW(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("DSB is %d \n", temp);
+	printf("DSB is %x \n", temp);
 #endif
-	temp >>= 1;
+	temp >>= 4;
 	if (temp <= 0) {
 		result = ERROR_SWITCH;
 	}
@@ -120,10 +137,10 @@ int c131_DiagSW(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("DSB is %d \n", temp);
+	printf("DSB is %x \n", temp);
 #endif
-	temp >>= 1;
-	if (temp >= 0) {
+	temp >>= 4;
+	if (temp > 0) {
 		result = ERROR_SWITCH;
 	}
 
@@ -134,9 +151,9 @@ int c131_DiagSW(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("DSB is %d \n", temp);
+	printf("PSB is %x \n", temp);
 #endif
-	temp >>= 1;
+	temp >>= 4;
 	if (temp <= 0) {
 		result = ERROR_SWITCH;
 	}
@@ -144,10 +161,10 @@ int c131_DiagSW(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("DSB is %d \n", temp);
+	printf("PSB is %x \n", temp);
 #endif
-	temp >>= 1;
-	if (temp >= 0) {
+	temp >>= 4;
+	if (temp > 0) {
 		result = ERROR_SWITCH;
 	}
 
@@ -158,7 +175,7 @@ int c131_DiagSW(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("900 is %d \n", temp);
+	printf("900 is %x \n", temp);
 #endif
 	if ((temp <= SW5_900_LOW_LIMIT) || (temp >= SW5_900_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
@@ -168,7 +185,7 @@ int c131_DiagSW(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("220 is %d \n", temp);
+	printf("220 is %x \n", temp);
 #endif
 	if ((temp <= SW5_220_LOW_LIMIT) || (temp >= SW5_220_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
@@ -186,6 +203,17 @@ int c131_DiagLOOP(void)
 	int temp;
 	int result = 0;
 
+#if DIAG_LCD
+	int w, h;
+	//x,col means horizontal coordinate
+	//y,row means vertical coordinate
+	if (apt_lcd->type == LCD_TYPE_CHAR){
+		lcd_get_font(apt_lcd, &w, &h);
+	}
+	lcd_puts(apt_lcd, 5 * w, 2 * h, "Diagnose LOOP ");
+	mdelay(500);
+#endif
+
 	//open the loop feedback channel
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOB, LOOP_FBC);
 
@@ -202,7 +230,7 @@ int c131_DiagLOOP(void)
 		loop_SetRelayStatus(C131_LOOP1 << i, RELAY_ON);
 		c131_relay_Update();
 #if DIAG_DEBUG
-		printf("loop %d value is %d \n", i+1, temp);
+		printf("loop %x value is %x \n", i+1, temp);
 #endif
 		if ((temp > LOOP_HIGH_LIMIT) || (temp < LOOP_LOW_LIMIT)) {
 			result = ERROR_LOOP;
@@ -223,15 +251,26 @@ int c131_DiagLED(void)
 	int temp;
 	int result = 0;
 
+#if DIAG_LCD
+	int w, h;
+	//x,col means horizontal coordinate
+	//y,row means vertical coordinate
+	if (apt_lcd->type == LCD_TYPE_CHAR){
+		lcd_get_font(apt_lcd, &w, &h);
+	}
+	lcd_puts(apt_lcd, 5 * w, 2 * h, "Diagnose LED  ");
+	mdelay(500);
+#endif
+
 	//for led2 diagnosis
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOA, LED2_FBC);
 	led_SetRelayStatus(C131_LED2, RELAY_ON);
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("LED2 is %d \n", temp);
+	printf("LED2 is %x \n", temp);
 #endif
-	temp >>= 2;
+	temp >>= 4;
 	if (temp > 0) {
 		result = ERROR_LED;
 	}
@@ -240,7 +279,7 @@ int c131_DiagLED(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("LED2 is %d \n", temp);
+	printf("LED2 is %x \n", temp);
 #endif
 	if ((temp > LED_HIGH_LIMIT) || (temp < LED_LOW_LIMIT)) {
 		result = ERROR_LED;
@@ -252,18 +291,18 @@ int c131_DiagLED(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("LED3 is %d \n", temp);
+	printf("LED3 is %x \n", temp);
 #endif
-	temp >>= 2;
+	temp >>= 4;
 	if (temp > 0) {
 		result = ERROR_LED;
-	}
+	} 
 
 	led_SetRelayStatus(C131_LED3, RELAY_OFF);
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("LED3 is %d \n", temp);
+	printf("LED3 is %x \n", temp);
 #endif
 	if ((temp > LED_HIGH_LIMIT) || (temp < LED_LOW_LIMIT)) {
 		result = ERROR_LED;
@@ -275,9 +314,9 @@ int c131_DiagLED(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("LED5 is %d \n", temp);
+	printf("LED5 is %x \n", temp);
 #endif
-	temp >>= 2;
+	temp >>= 4;
 	if (temp > 0) {
 		result = ERROR_LED;
 	}
@@ -286,7 +325,7 @@ int c131_DiagLED(void)
 	c131_relay_Update();
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
-	printf("LED5 is %d \n", temp);
+	printf("LED5 is %x \n", temp);
 #endif
 	if ((temp > LED_HIGH_LIMIT) || (temp < LED_LOW_LIMIT)) {
 		result = ERROR_LED;
