@@ -43,6 +43,9 @@ enum {
 	KEY_TIMER = 0x6f,
 	KEY_AV = 0x78,
 	KEY_CC = 0x7a,
+	KEY_PLAY,
+	KEY_FORWARD,
+	KEY_BACKWARD,
 	KEY_DUMMY,
 };
 

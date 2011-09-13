@@ -11,6 +11,7 @@
 #include "debug.h"
 
 #define NVM_MAGIC ((int)(0x13572468))
+char nvm_flag_null;
 
 //move __nvm data from section ".nvm.flash" to ".nvm.ram"
 int nvm_init(void)
@@ -33,13 +34,17 @@ int nvm_init(void)
 	flash_Read(&magic, src, 4);
 	flash_Read(&sz_nvm, src + 4, 4);
 	flash_Read(dst, src + 8, sz_ram);
-	flash_Erase(src, (sz_rom + FLASH_PAGE_SZ - 1) / FLASH_PAGE_SZ);
+	if(sz_nvm != -1) {
+		flash_Erase(src, (sz_rom + FLASH_PAGE_SZ - 1) / FLASH_PAGE_SZ);
+	}
+
 	if(magic == NVM_MAGIC && sz_nvm == sz_ram) {
 		//rom1 -> rom 2
 		flash_Erase(bak, (sz_rom + FLASH_PAGE_SZ - 1) / FLASH_PAGE_SZ);
-		flash_Write(bak + 8, dst, sz_ram);
 		flash_Write(bak + 4, &sz_nvm, 4);
+		flash_Write(bak + 8, dst, sz_ram);
 		flash_Write(bak + 0, &magic, 4);
+		nvm_flag_null = 0;
 		return 0;
 	}
 
@@ -49,10 +54,12 @@ int nvm_init(void)
 	flash_Read(&sz_nvm, src + 4, 4);
 	if(magic == NVM_MAGIC && sz_nvm == sz_ram) {
 		flash_Read(dst, src + 8, sz_ram);
+		nvm_flag_null = 0;
 		return 0;
 	}
 
 	//fail ...
+	nvm_flag_null = 1;
 	return -1;
 }
 
@@ -74,8 +81,8 @@ int nvm_save(void)
 	//ram -> rom 2
 	dest += sz_rom;
 	flash_Erase(dest, (sz_rom + FLASH_PAGE_SZ - 1) / FLASH_PAGE_SZ);
-	flash_Write(dest + 8, src, sz_ram);
 	flash_Write(dest + 4, &sz_ram, 4);
+	flash_Write(dest + 8, src, sz_ram);
 	flash_Write(dest + 0, &magic, 4);
 	return 0;
 }
@@ -93,7 +100,12 @@ void nvm_isr(void)
 	sz_ram = (sz_ram + 3) & ( ~ 0x03); //align to 4 bytes boundary
 
 	//ram -> rom 1, rom1 always blank for urgently store
-	flash_Write(dest + 8, src, sz_ram);
 	flash_Write(dest + 4, &sz_ram, 4);
+	flash_Write(dest + 8, src, sz_ram);
 	flash_Write(dest + 0, &magic, 4);
+}
+
+int nvm_is_null(void)
+{
+	return nvm_flag_null;
 }

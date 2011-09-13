@@ -20,4 +20,7 @@ int nvm_save(void);
 //for power-down auto save function
 void nvm_isr(void);
 
+//return true if nvm is null(no correct info inside it)
+int nvm_is_null(void);
+
 #endif /*__NVM_H_*/

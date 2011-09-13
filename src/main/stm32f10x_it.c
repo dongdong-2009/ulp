@@ -267,8 +267,13 @@ void EXTI3_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
+extern void lwip_lib_isr(void);
 void EXTI4_IRQHandler(void)
 {
+#if CONFIG_TASK_MATRIX == 1
+	lwip_lib_isr();
+	EXTI_ClearFlag(EXTI_Line4);
+#endif
 }
 
 /*******************************************************************************
@@ -355,7 +360,7 @@ void DMA1_Channel7_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void ADC1_2_IRQHandler(void)
+__weak void ADC1_2_IRQHandler(void)
 {	
 #if CONFIG_TASK_MOTOR == 1
 	//ADC_ClearITPendingBit(ADC1, ADC_IT_JEOC);
@@ -643,13 +648,12 @@ void USBWakeUp_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-extern void eth_demo_isr(void);
 void ETH_IRQHandler(void)
 {
 #if CONFIG_TASK_ETHDEMO == 1
 	/* Handles all the received frames */
 	while (ETH_GetRxPktSize() != 0) {
-		eth_demo_isr();
+		lwip_lib_isr();
 	}
 
 	/* Clear the Eth DMA Rx IT pending bits */

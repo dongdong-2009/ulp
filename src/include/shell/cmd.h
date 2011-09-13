@@ -46,4 +46,7 @@ int cmd_queue_init(struct cmd_queue_s *);
 int cmd_queue_update(struct cmd_queue_s *);
 int cmd_queue_exec(struct cmd_queue_s *, const char *);
 
+/*common command related subroutines*/
+int cmd_pattern_get(const char *str); //get pattern from a string, such as: "0,2-5,8" or "all,1" for inverse selection
+
 #endif /*__CMD_H_*/

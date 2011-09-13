@@ -24,7 +24,9 @@ int nest_chip_bind(nest_chip_t *chip, const char *reg_name, const char *pin_name
 	int found = -1;
 	for(int i = 0; i < chip -> nr_of_regs; i ++) {
 		if(!strcmp(chip -> regs[i].name, reg_name)) {
-			//assert(chip -> regs[i].bind == NULL); //to avoid once more bind by mistake
+			if(chip -> regs[i].bind != NULL) {
+				assert(chip -> regs[i].bind == pin_name); //to avoid once more bind by mistake
+			}
 			chip -> regs[i].bind = pin_name;
 			found = 0;
 			break;

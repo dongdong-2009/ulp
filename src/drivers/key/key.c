@@ -10,7 +10,7 @@
 #include "time.h"
 #include <stddef.h>
 
-#define DIGIT_ENTRY_TIMEOUT	500 /*unit: mS*/
+#define DIGIT_ENTRY_TIMEOUT	1000 /*unit: mS*/
 
 static const keyboard_t *key_local;
 static const keyboard_t *key_remote;
@@ -184,7 +184,7 @@ int keyboard_Add(const keyboard_t *kb, int kt)
 	return 0;
 }
 
-#if 0
+#if 1
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>

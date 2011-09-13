@@ -157,59 +157,10 @@ int shell_ReadLine(const char *prompt, char *str)
 				strcpy(shell -> cmd_buffer, "pause");
 			else
 				strcpy(shell -> cmd_buffer, "kill all");
+		case '@':
+			putchar('\r');
 		case '\r':		// Return
 			shell -> cmd_idx = -1;
-			ready = 1;
-			putchar('\n');
-			break;
-		case '+':
-		case '-':
-			idx = shell -> cmd_idx;
-			do {
-				carry_flag = 0;
-				tmp = shell -> cmd_buffer[idx];
-				if( tmp < '0' || tmp > '9') {
-					if(tmp != '.')
-						break;
-					else if(idx != shell -> cmd_idx) {
-						//float support
-						idx --;
-						printf("\033[D"); /*left shift 1 char*/
-						carry_flag = 1;
-						continue;
-					}
-				}
-
-				if(ch == '+') {
-					tmp ++;
-					if(tmp > '9') {
-						tmp = '0';
-						carry_flag = 1;
-					}
-				}
-				else {
-					tmp --;
-					if(tmp < '0') {
-						tmp = '9';
-						carry_flag = 1;
-					}
-				}
-
-				/*replace*/
-				shell -> cmd_buffer[idx] = tmp;
-				idx --;
-
-				/*terminal display*/
-				printf("\033[1C"); /*right shift 1 char*/
-				putchar(127);
-				putchar(tmp);
-				printf("\033[D"); /*left shift 1 char*/
-			} while(carry_flag);
-
-			if(idx == shell -> cmd_idx)
-				continue;
-
-			shell -> cmd_idx = -2 - shell -> cmd_idx;
 			ready = 1;
 			putchar('\n');
 			break;
@@ -245,27 +196,37 @@ int shell_ReadLine(const char *prompt, char *str)
 			switch (ch) {
 				case 'A': /*UP key*/
 					offset = shell -> cmd_idx;
-					memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
-					cmd_GetHistory(shell -> cmd_buffer, -1);
-					shell -> cmd_idx = strlen(shell -> cmd_buffer);
+					ch = shell->cmd_buffer[offset];
+					if((offset == len) /*|| ((offset < len) && ((ch < '0') || (ch > '9')))*/) {
+						memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
+						cmd_GetHistory(shell -> cmd_buffer, -1);
+						shell -> cmd_idx = strlen(shell -> cmd_buffer);
 
-					/*terminal display*/
-					if(offset > 0)
-						printf("\033[%dD", offset); /*mov cursor to left*/
-					printf("\033[K"); /*clear contents after cursor*/
-					printf(shell -> cmd_buffer);
+						/*terminal display*/
+						if(offset > 0)
+							printf("\033[%dD", offset); /*mov cursor to left*/
+						printf("\033[K"); /*clear contents after cursor*/
+						printf(shell -> cmd_buffer);
+					}
+					else
+						ch = '+';
 					break;
 				case 'B': /*DOWN key*/
 					offset = shell -> cmd_idx;
-					memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
-					cmd_GetHistory(shell -> cmd_buffer, 1);
-					shell -> cmd_idx = strlen(shell -> cmd_buffer);
+					ch = shell->cmd_buffer[offset];
+					if((offset == len) /*|| ((offset < len) && ((ch < '0') || (ch > '9')))*/) {
+						memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
+						cmd_GetHistory(shell -> cmd_buffer, 1);
+						shell -> cmd_idx = strlen(shell -> cmd_buffer);
 
-					/*terminal display*/
-					if(offset > 0)
-						printf("\033[%dD", offset); /*mov cursor to left*/
-					printf("\033[K"); /*clear contents after cursor*/
-					printf(shell -> cmd_buffer);
+						/*terminal display*/
+						if(offset > 0)
+							printf("\033[%dD", offset); /*mov cursor to left*/
+						printf("\033[K"); /*clear contents after cursor*/
+						printf(shell -> cmd_buffer);
+					}
+					else
+						ch = '-';
 					break;
 				case 'C': /*RIGHT key*/
 					if(shell -> cmd_idx < len) {
@@ -282,9 +243,57 @@ int shell_ReadLine(const char *prompt, char *str)
 				default:
 					break;
 			}
+			if((ch == '+') || (ch == '-')) {
+				idx = shell -> cmd_idx;
+				do {
+					carry_flag = 0;
+					tmp = shell -> cmd_buffer[idx];
+					if( tmp < '0' || tmp > '9') {
+						if(tmp != '.')
+							break;
+						else if(idx != shell -> cmd_idx) {
+							//float support
+							idx --;
+							printf("\033[D"); /*left shift 1 char*/
+							carry_flag = 1;
+							continue;
+						}
+					}
+
+					if(ch == '+') {
+						tmp ++;
+						if(tmp > '9') {
+							tmp = '0';
+							carry_flag = 1;
+						}
+					}
+					else {
+						tmp --;
+						if(tmp < '0') {
+							tmp = '9';
+							carry_flag = 1;
+						}
+					}
+
+					/*replace*/
+					shell -> cmd_buffer[idx] = tmp;
+					idx --;
+
+					/*terminal display*/
+					printf("\033[1C"); /*right shift 1 char*/
+					putchar(127);
+					putchar(tmp);
+					printf("\033[D"); /*left shift 1 char*/
+				} while(carry_flag);
+
+				if(idx == shell -> cmd_idx)
+					continue;
+
+				shell -> cmd_idx = -2 - shell -> cmd_idx;
+				ready = 1;
+				putchar('\n');
+			}
 			continue;
-		case '/':
-			ch = '-';
 		default:
 			if((ch < ' ') || (ch > 126))
 				continue;
