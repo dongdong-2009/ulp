@@ -1,4 +1,5 @@
 /*
+*	ETC CHIP PHDH(28026624) DRIVER
  * 	miaofng@2011 initial version
  */
 

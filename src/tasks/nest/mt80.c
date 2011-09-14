@@ -1,3 +1,14 @@
+/*
+* there are three types of mt80 nest in delphi
+*	type1, designed by ball system - named as mt80_old
+*	type2, designed by linktron before 2009? the same as ball system's nest - named as mt80-old
+*	type3, designed by linktron in 2011 - named as mt80
+*
+* difference between mt80_old & mt80
+*	1, add lock coil, controlled by SIG_6(BALL SYSTEM'S BUG NAME SIG_4)
+*	2, old SIG_6 move to SIG_5(to switch 0: LOAD37  8Ohm + 1mH > JMP5 E61  & 1: LOAD 9 30mH + 53Ohm > JMP4 E61, DUT PIN E67 DC_MOTOR/IAC)
+*	3, add fixture id cpu
+*/
 #include "lib/nest.h"
 #include "chips/tc1762.h"
 #include "chips/vsep.h"
@@ -408,6 +419,7 @@ void TestStart(void)
 	//check base model nr
 	mfg_data.rsv1[0] = 0;
 	nest_message("DUT S/N: %s\n", mfg_data.bmr);
+	bmr = BM_28180087; //tricky, debug dut
 	if(!nest_ignore(BMR)) {
 		bmr = nest_map(bmr_map, mfg_data.bmr);
 		if(bmr < 0) {
@@ -417,19 +429,12 @@ void TestStart(void)
 	}
 
 	//relay settings
-	if(bmr == BM_28077390) {
-		cncb_signal(SIG6, SIG_HI);
-	}
-	else if(bmr == BM_DK245105 || bmr == BM_28180087 || bmr == BM_28159907 || bmr == BM_28164665)
-		cncb_signal(SIG6,SIG_LO);
-	else if(bmr == BM_28119979)
-		cncb_signal(SIG6,SIG_HI);
-	else {
-		cncb_signal(SIG6,SIG_HI);
-		cncb_signal(SIG1,SIG_LO);
-		cncb_signal(SIG2,SIG_LO);
-		cncb_signal(SIG3,SIG_LO);
-	}
+	cncb_signal(SIG6,SIG_HI); //IAC
+	cncb_signal(SIG1,SIG_LO); //C71 FPR LOAD6(30Ohm + 70mH) JMP1 = GND, HSD
+	cncb_signal(SIG2,SIG_LO); //C70 SMR LOAD7(30Ohm + 70mH) JMP2 = GND, HSD
+	cncb_signal(SIG3,SIG_LO); //E7 = NC
+	if(bmr == BM_DK245105 || bmr == BM_28180087 || bmr == BM_28159907 || bmr == BM_28164665)
+		cncb_signal(SIG6,SIG_LO); //etc
 
 	//chip pinmaps
 	chips_bind();
