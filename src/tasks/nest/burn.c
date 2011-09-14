@@ -19,10 +19,14 @@ there are 4 hardware modules in total:
 #include "shell/cmd.h"
 #include <stdlib.h>
 
-#define HARDWARE_VERSION	0x0102 //v1.2
+#define HARDWARE_VERSION	0x0104 //v1.4
 
 //R = 0.01Ohm, G = 20V/V, Vref = 2V5, 16bit unsigned ADC => ratio = 1/5242.88= 256/1342177
 #define ipm_ratio_def 1342
+#if HARDWARE_VERSION == 0x0104
+//R = 0.01Ohm, G = 20V/V, Vref = 3V3, 16bit unsigned ADC => ratio = 1/3971.88= 256/1016801
+#define ipm_ratio_def 1016
+#endif
 #if HARDWARE_VERSION == 0x0101
 //R18 = 22K, R17 = 47Ohm, Vref = 2V, 16bit unsigned ADC => ratio = 1/69.85513 = 256/17883
 #define vpm_ratio_def 17883
@@ -153,7 +157,7 @@ void mos_Init(void)
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OCInitStructure.TIM_Pulse = mos_delay_clks;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
+	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High; /*bc847+zxgd3003->lm5109b*/
 	TIM_OC1Init(TIM2, &TIM_OCInitStructure);
 
 	/* TIM2 configuration in Input Capture Mode */
@@ -269,8 +273,8 @@ int cmd_igbt_func(int argc, char *argv[])
 		"igbt id xx		set mcamos server can id, such as 0x5e0, 0x5e2, 0x5e4, 0x5e6\n"
 		"igbt ical		current calibration mode\n"
 		"igbt debug vp/ip/vi	disp trape waveform/triangle waveform/peak VI waveform\n"
-		"igbt vp ratio		vp = vp*ratio/10000\n"
-		"igbt ip ratio		ip = ip*ratio/10000\n"
+		"igbt vp ratio		vp = D(vp)*256/ratio\n"
+		"igbt ip ratio		ip = D(ip)*256/ratio\n"
 		"igbt save	save the config value\n"
 	);
 
