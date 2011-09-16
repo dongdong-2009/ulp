@@ -21,11 +21,13 @@ there are 4 hardware modules in total:
 
 #define HARDWARE_VERSION	0x0104 //v1.4
 
-//R = 0.01Ohm, G = 20V/V, Vref = 2V5, 16bit unsigned ADC => ratio = 1/5242.88= 256/1342177
-#define ipm_ratio_def 1342
+
 #if HARDWARE_VERSION == 0x0104
 //R = 0.01Ohm, G = 20V/V, Vref = 3V3, 16bit unsigned ADC => ratio = 1/3971.88= 256/1016801
 #define ipm_ratio_def 1016
+#else
+//R = 0.01Ohm, G = 20V/V, Vref = 2V5, 16bit unsigned ADC => ratio = 1/5242.88= 256/1342177
+#define ipm_ratio_def 1342
 #endif
 #if HARDWARE_VERSION == 0x0101
 //R18 = 22K, R17 = 47Ohm, Vref = 2V, 16bit unsigned ADC => ratio = 1/69.85513 = 256/17883
@@ -38,7 +40,7 @@ there are 4 hardware modules in total:
 #define T			20 //spark period, unit: ms
 #define ipm_ms			4 //norminal ipm measurement time
 #define vpm_ms			1 //norminal vpm measurement time
-#define mos_delay_us_def	0.8 //range: 1/36 ~ 65535/36 uS
+#define mos_delay_us_def	1.7 //range: 1/36 ~ 65535/36 uS
 #define mos_close_us_def	1000 //range: 1/36 ~ 65535/36 uS
 
 //rough waveform data, captured by vpm_Update & ipm_Update
@@ -189,6 +191,19 @@ enum {
 
 int cmd_igbt_func(int argc, char *argv[])
 {
+	if(argc == 4) {
+		if(!strcmp(argv[1], "vp")) {
+			int v = atoi(argv[2]);
+			int d = atoi(argv[3]);
+			vpm_ratio = (d << 8) / v;
+		}
+		if(!strcmp(argv[1], "ip")) {
+			int mA = atoi(argv[2]);
+			int d = atoi(argv[3]);
+			ipm_ratio = (d << 8) / mA;
+		}
+	}
+
 	if(argc == 3) {
 		if(!strcmp(argv[1], "id")) {
 			sscanf(argv[2], "0x%x", &burn_id);
@@ -273,8 +288,10 @@ int cmd_igbt_func(int argc, char *argv[])
 		"igbt id xx		set mcamos server can id, such as 0x5e0, 0x5e2, 0x5e4, 0x5e6\n"
 		"igbt ical		current calibration mode\n"
 		"igbt debug vp/ip/vi	disp trape waveform/triangle waveform/peak VI waveform\n"
-		"igbt vp ratio		vp = D(vp)*256/ratio\n"
-		"igbt ip ratio		ip = D(ip)*256/ratio\n"
+		"igbt vp ratio		vp(v) = D(vp)*256/ratio\n"
+		"igbt vp V Digi		V applied voltage, Digi: converted value\n"
+		"igbt ip ratio		ip(mA) = D(ip)*256/ratio\n"
+		"igbt ip mA Digi		mA applied current, Digi: converted value\n"
 		"igbt save	save the config value\n"
 	);
 
