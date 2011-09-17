@@ -18,8 +18,8 @@
 #include <string.h>
 
 //Peak Pulse Limit default setting
-#define BURN_VL_DEF	410 //Vpmin unit: V
-#define BURN_IL_DEF	11500 //Ipmax unit: mA
+#define BURN_VL_DEF	400 //Vpmin unit: V
+#define BURN_IL_DEF	11000 //Ipmax unit: mA
 #define BURN_WL_DEF	5000 //peak width unit: nS
 
 static int burn_vl __nvm;
