@@ -318,6 +318,7 @@ static void CyclingTest(void)
 	hfps_trap("STATUS_L", 0xff, 0x71);
 	phdh_init();
 	vsep_init();
+	burn_init();
 
 	switch(bmr) {
 	case BM_28077390:
@@ -333,6 +334,8 @@ static void CyclingTest(void)
 		vsep_mask("PCH27");
 		break;
 	case BM_28180087:
+		burn_mask(BURN_CH_COILC);
+		burn_mask(BURN_CH_COILD);
 		vsep_mask("PCH03"); //2 way IGBT
 		vsep_mask("PCH04"); //2 way IGBT
 		vsep_mask("PCH13"); //FPR Short to Ground?

@@ -23,6 +23,8 @@
 static int burn_vl __nvm;
 static int burn_il __nvm;
 static int burn_log = 0;
+static char burn_flag;
+static time_t burn_timer;
 
 static int burn_wait(struct mcamos_s *m, int timeout)
 {
@@ -46,6 +48,23 @@ static int burn_wait(struct mcamos_s *m, int timeout)
 		return -1;
 
 	return outbox[1];
+}
+
+int burn_init(void)
+{
+	//check limit ok?
+	burn_vl = (burn_vl == -1) ? BURN_VL_DEF : burn_vl;
+	burn_il = (burn_il == -1) ? BURN_IL_DEF : burn_il;
+
+	burn_flag = 0;
+	burn_timer = time_get(60000);
+	return 0;
+}
+
+int burn_mask(int ch)
+{
+	burn_flag |= (1 << ch);
+	return 0;
 }
 
 int burn_config(int ch, const struct burn_data_s *config)
@@ -115,10 +134,6 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 	if(nest_ignore(PKT))
 		return 0;
 
-	//check limit ok?
-	burn_vl = (burn_vl == -1) ? BURN_VL_DEF : burn_vl;
-	burn_il = (burn_il == -1) ? BURN_IL_DEF : burn_il;
-
 	//get test result from burn board through mcamos/can protocol
 	for(ch = BURN_CH_COILA; ch <= BURN_CH_COILD; ch ++) {
 		ret = burn_read(ch, &burn_data);
@@ -157,6 +172,14 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 			if(burn_data.ip_max > burn_il) {
 				nest_message("burn board channel %d ip(=%dmA) higher than threshold(=%dmA)\n", ch, burn_data.ip_max, burn_il);
 				return -5;
+			}
+		}
+		else {
+			if(time_left(burn_timer) < 0) {
+				if((~burn_flag) & (1 << ch)) {
+					nest_message("burn board channel %d not fire\n", ch);
+					return -6;
+				}
 			}
 		}
 	}
