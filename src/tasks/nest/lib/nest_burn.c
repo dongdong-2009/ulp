@@ -27,6 +27,7 @@ static int burn_il __nvm;
 static int burn_log = 0;
 static char burn_flag;
 static time_t burn_timer;
+static char burn_fail_counter;
 
 static int burn_wait(struct mcamos_s *m, int timeout)
 {
@@ -80,6 +81,7 @@ int burn_init(void)
 	burn_il = (burn_il == -1) ? BURN_IL_DEF : burn_il;
 
 	burn_flag = 0;
+	burn_fail_counter = 0;
 	burn_timer = time_get(60000);
 	return fail;
 }
@@ -163,7 +165,8 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 		ret = burn_read(ch, &burn_data);
 		if(ret) {
 			nest_message("burn board channel %d not response\n", ch);
-			return -1;
+			ret = -1;
+			break;
 		}
 
 		if(burn_log & (1 << ch)) {
@@ -173,12 +176,14 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 
 		if(burn_data.lost > 10) {
 			nest_message("burn board channel %d sync lost too much(%d)\n", ch, burn_data.lost);
-			return -2;
+			ret = -2;
+			break;
 		}
 
 		if(burn_data.wp > BURN_WL_DEF) {
 			nest_message("burn board channel %d wp(=%dnS) higher than threshold(=%dnS)\n", ch, burn_data.wp, BURN_WL_DEF);
-			return -3;
+			ret = -3;
+			break;
 		}
 
 		if(burn_data.fire > 500) { //500 * 20mS = 10S
@@ -190,25 +195,30 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 
 			if(burn_data.vp_min < burn_vl) {
 				nest_message("burn board channel %d vp(=%dV) lower than threshold(=%dV)\n", ch, burn_data.vp_min, burn_vl);
-				return -4;
+				ret = -4;
+				break;
 			}
 
 			if(burn_data.ip_max > burn_il) {
 				nest_message("burn board channel %d ip(=%dmA) higher than threshold(=%dmA)\n", ch, burn_data.ip_max, burn_il);
-				return -5;
+				ret = -5;
+				break;
 			}
 		}
 		else {
 			if(time_left(burn_timer) < 0) {
 				if((~burn_flag) & (1 << ch)) {
 					nest_message("burn board channel %d not fire\n", ch);
-					return -6;
+					ret = -6;
+					break;
 				}
 			}
 		}
 	}
 
-	return 0;
+	burn_fail_counter += (ret < 0) ? 1 : 0;
+	ret = (burn_fail_counter > 30) ? ret : 0;
+	return ret;
 }
 
 //burn shell command
