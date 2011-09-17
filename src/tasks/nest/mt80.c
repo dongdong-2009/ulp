@@ -347,6 +347,7 @@ static void CyclingTest(void)
 	}
 
 	nest_message("#Output Cycling Test Start ... \n");
+	ccp_Init(&can1, 500000);
 	mailbox[0] = TESTID_OCYLTST;
 	mailbox[1] = 0x00; //cycle ETC/EST in sequencial mode
 	if(bmr == BM_DK245105 || bmr == BM_28180087 || bmr == BM_28159907 || bmr == BM_28164665)

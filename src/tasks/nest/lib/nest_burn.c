@@ -14,6 +14,8 @@
 #include "shell/cmd.h"
 #include "nvm.h"
 #include "nest_core.h"
+#include "nest_power.h"
+#include <string.h>
 
 //Peak Pulse Limit default setting
 #define BURN_VL_DEF	410 //Vpmin unit: V
@@ -52,13 +54,34 @@ static int burn_wait(struct mcamos_s *m, int timeout)
 
 int burn_init(void)
 {
+	int ch, fail;
+	int try = 5;
+
+	//poll burn board
+	do {
+		try --;
+		fail = 0;
+		for(ch = BURN_CH_COILA; ch <= BURN_CH_COILD; ch ++) {
+			if(burn_read(ch, NULL)) {
+				fail = -1;
+				break;
+			}
+		}
+
+		if(fail) {
+			nest_power_reboot();
+			nest_message("warnning: burn board not response, reboot...\n");
+		}
+		else break;
+	} while(try > 0);
+
 	//check limit ok?
 	burn_vl = (burn_vl == -1) ? BURN_VL_DEF : burn_vl;
 	burn_il = (burn_il == -1) ? BURN_IL_DEF : burn_il;
 
 	burn_flag = 0;
 	burn_timer = time_get(60000);
-	return 0;
+	return fail;
 }
 
 int burn_mask(int ch)
@@ -101,7 +124,8 @@ int burn_read(int ch, struct burn_data_s *result)
 	if(ret)
 		return -1;
 
-	ret = mcamos_upload(m.can, BURN_OUTBOX_ADDR + 2, (char *) result, sizeof(struct burn_data_s), 10);
+	if(result)
+		ret = mcamos_upload(m.can, BURN_OUTBOX_ADDR + 2, (char *) result, sizeof(struct burn_data_s), 10);
 	mcamos_init_ex(NULL); //restore!!! it's dangerious here
 	return ret;
 }
