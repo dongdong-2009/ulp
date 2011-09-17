@@ -196,11 +196,13 @@ int cmd_igbt_func(int argc, char *argv[])
 			int v = atoi(argv[2]);
 			int d = atoi(argv[3]);
 			vpm_ratio = (d << 8) / v;
+			return 0;
 		}
 		if(!strcmp(argv[1], "ip")) {
 			int mA = atoi(argv[2]);
 			int d = atoi(argv[3]);
 			ipm_ratio = (d << 8) / mA;
+			return 0;
 		}
 	}
 
@@ -221,16 +223,8 @@ int cmd_igbt_func(int argc, char *argv[])
 		}
 
 		if(!strcmp(argv[1], "wp")) {
-			int ns = atoi(argv[2]);
-			if(ns < 30) {
-				ns = 30;
-				printf("warnning: too small!!!, fixed to 30nS\n");
-			}
-			if(ns > 50000) {
-				ns = 50000;
-				printf("warnning: too big!!!, fixed to 50uS\n");
-			}
-			int delay_clks = ns *36 / 1000;
+			int nclk = atoi(argv[2]);
+			int delay_clks = nclk + 25; /*25 * 1000 / 36 = 0.694 uS, trig delay*/
 			int total = delay_clks + mos_close_clks;
 			int close_clks = (total > 0xfff0) ? (0xfff0 - delay_clks) : mos_close_clks;
 
@@ -284,20 +278,19 @@ int cmd_igbt_func(int argc, char *argv[])
 	}
 
 	printf(
-		"igbt wp ns	set vpeak pulse width, 28ns resolution\n"
-		"igbt id xx		set mcamos server can id, such as 0x5e0, 0x5e2, 0x5e4, 0x5e6\n"
+		"igbt wp nclk		set vpeak pulse width = nclk * 27.8nS(1/36MHz)\n"
+		"igbt id xx		set mcamos server can id, such as 0x5e0/2/4/6\n"
 		"igbt ical		current calibration mode\n"
 		"igbt debug vp/ip/vi	disp trape waveform/triangle waveform/peak VI waveform\n"
 		"igbt vp ratio		vp(v) = D(vp)*256/ratio\n"
 		"igbt vp V Digi		V applied voltage, Digi: converted value\n"
 		"igbt ip ratio		ip(mA) = D(ip)*256/ratio\n"
 		"igbt ip mA Digi		mA applied current, Digi: converted value\n"
-		"igbt save	save the config value\n"
+		"igbt save		save the config value\n"
 	);
 
 	printf("\ncurrent nvm settings:\n");
-	printf("mos_delay_clks = %d\n", mos_delay_clks);
-	printf("mos_close_clks = %d\n", mos_close_clks);
+	printf("burn_wp = %d\n", mos_delay_clks - 25);
 	printf("burn_ms = %d\n", burn_ms);
 	printf("burn_id = 0x%x\n", burn_id);
 	printf("vpm_ratio = %d\n", vpm_ratio);
