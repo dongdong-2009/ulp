@@ -442,12 +442,12 @@ void TestStart(void)
 	}
 
 	//relay settings
-	cncb_signal(SIG6,SIG_HI); //IAC
 	cncb_signal(SIG1,SIG_LO); //C71 FPR LOAD6(30Ohm + 70mH) JMP1 = GND, HSD
 	cncb_signal(SIG2,SIG_LO); //C70 SMR LOAD7(30Ohm + 70mH) JMP2 = GND, HSD
 	cncb_signal(SIG3,SIG_LO); //E7 = NC
-	if(bmr == BM_DK245105 || bmr == BM_28180087 || bmr == BM_28159907 || bmr == BM_28164665)
-		cncb_signal(SIG6,SIG_LO); //etc
+	cncb_signal(SIG6,SIG_LO); //ETC
+	if(bmr == BM_28277390 || bmr == BM_28119979)
+		cncb_signal(SIG6,SIG_HI); //IAC
 
 	//chip pinmaps
 	chips_bind();
