@@ -19,10 +19,16 @@ there are 4 hardware modules in total:
 #include "shell/cmd.h"
 #include <stdlib.h>
 
-#define HARDWARE_VERSION	0x0102 //v1.2
+#define HARDWARE_VERSION	0x0104 //v1.4
 
+
+#if HARDWARE_VERSION == 0x0104
+//R = 0.01Ohm, G = 20V/V, Vref = 3V3, 16bit unsigned ADC => ratio = 1/3971.88= 256/1016801
+#define ipm_ratio_def 1016
+#else
 //R = 0.01Ohm, G = 20V/V, Vref = 2V5, 16bit unsigned ADC => ratio = 1/5242.88= 256/1342177
 #define ipm_ratio_def 1342
+#endif
 #if HARDWARE_VERSION == 0x0101
 //R18 = 22K, R17 = 47Ohm, Vref = 2V, 16bit unsigned ADC => ratio = 1/69.85513 = 256/17883
 #define vpm_ratio_def 17883
@@ -34,7 +40,7 @@ there are 4 hardware modules in total:
 #define T			20 //spark period, unit: ms
 #define ipm_ms			4 //norminal ipm measurement time
 #define vpm_ms			1 //norminal vpm measurement time
-#define mos_delay_us_def	0.8 //range: 1/36 ~ 65535/36 uS
+#define mos_delay_us_def	1.7 //range: 1/36 ~ 65535/36 uS
 #define mos_close_us_def	1000 //range: 1/36 ~ 65535/36 uS
 
 //rough waveform data, captured by vpm_Update & ipm_Update
@@ -153,7 +159,7 @@ void mos_Init(void)
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OCInitStructure.TIM_Pulse = mos_delay_clks;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
+	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High; /*bc847+zxgd3003->lm5109b*/
 	TIM_OC1Init(TIM2, &TIM_OCInitStructure);
 
 	/* TIM2 configuration in Input Capture Mode */
@@ -185,6 +191,21 @@ enum {
 
 int cmd_igbt_func(int argc, char *argv[])
 {
+	if(argc == 4) {
+		if(!strcmp(argv[1], "vp")) {
+			int v = atoi(argv[2]);
+			int d = atoi(argv[3]);
+			vpm_ratio = (d << 8) / v;
+			return 0;
+		}
+		if(!strcmp(argv[1], "ip")) {
+			int mA = atoi(argv[2]);
+			int d = atoi(argv[3]);
+			ipm_ratio = (d << 8) / mA;
+			return 0;
+		}
+	}
+
 	if(argc == 3) {
 		if(!strcmp(argv[1], "id")) {
 			sscanf(argv[2], "0x%x", &burn_id);
@@ -202,16 +223,8 @@ int cmd_igbt_func(int argc, char *argv[])
 		}
 
 		if(!strcmp(argv[1], "wp")) {
-			int ns = atoi(argv[2]);
-			if(ns < 30) {
-				ns = 30;
-				printf("warnning: too small!!!, fixed to 30nS\n");
-			}
-			if(ns > 50000) {
-				ns = 50000;
-				printf("warnning: too big!!!, fixed to 50uS\n");
-			}
-			int delay_clks = ns *36 / 1000;
+			int nclk = atoi(argv[2]);
+			int delay_clks = nclk + 25; /*25 * 1000 / 36 = 0.694 uS, trig delay*/
 			int total = delay_clks + mos_close_clks;
 			int close_clks = (total > 0xfff0) ? (0xfff0 - delay_clks) : mos_close_clks;
 
@@ -265,18 +278,19 @@ int cmd_igbt_func(int argc, char *argv[])
 	}
 
 	printf(
-		"igbt wp ns	set vpeak pulse width, 28ns resolution\n"
-		"igbt id xx		set mcamos server can id, such as 0x5e0, 0x5e2, 0x5e4, 0x5e6\n"
+		"igbt wp nclk		set vpeak pulse width = nclk * 27.8nS(1/36MHz)\n"
+		"igbt id xx		set mcamos server can id, such as 0x5e0/2/4/6\n"
 		"igbt ical		current calibration mode\n"
 		"igbt debug vp/ip/vi	disp trape waveform/triangle waveform/peak VI waveform\n"
-		"igbt vp ratio		vp = vp*ratio/10000\n"
-		"igbt ip ratio		ip = ip*ratio/10000\n"
-		"igbt save	save the config value\n"
+		"igbt vp ratio		vp(v) = D(vp)*256/ratio\n"
+		"igbt vp V Digi		V applied voltage, Digi: converted value\n"
+		"igbt ip ratio		ip(mA) = D(ip)*256/ratio\n"
+		"igbt ip mA Digi		mA applied current, Digi: converted value\n"
+		"igbt save		save the config value\n"
 	);
 
 	printf("\ncurrent nvm settings:\n");
-	printf("mos_delay_clks = %d\n", mos_delay_clks);
-	printf("mos_close_clks = %d\n", mos_close_clks);
+	printf("burn_wp = %d\n", mos_delay_clks - 25);
 	printf("burn_ms = %d\n", burn_ms);
 	printf("burn_id = 0x%x\n", burn_id);
 	printf("vpm_ratio = %d\n", vpm_ratio);
