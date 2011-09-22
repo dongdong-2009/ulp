@@ -58,7 +58,8 @@ int nest_wait_pull_out(void)
 
 #if CONFIG_NEST_LOG_SIZE > 0
 	//save the log message to flash
-	nvm_save();
+	if(nest_fail())
+		nvm_save();
 #endif
 
 	while(! cncb_detect(0)) {
