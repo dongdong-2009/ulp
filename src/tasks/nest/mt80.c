@@ -446,7 +446,7 @@ void TestStart(void)
 	cncb_signal(SIG2,SIG_LO); //C70 SMR LOAD7(30Ohm + 70mH) JMP2 = GND, HSD
 	cncb_signal(SIG3,SIG_LO); //E7 = NC
 	cncb_signal(SIG6,SIG_LO); //ETC
-	if(bmr == BM_28277390 || bmr == BM_28119979)
+	if(bmr == BM_28077390 || bmr == BM_28119979)
 		cncb_signal(SIG6,SIG_HI); //IAC
 
 	//chip pinmaps
