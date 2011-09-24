@@ -1,5 +1,18 @@
 #include "lib/nest.h"
 #include "priv/mcamos.h"
+#include "time.h"
+
+static time_t fixture_timer;
+static char fixture_led_on = 0;
+
+void leds_set(int on)
+{
+	for(int i = SIG1; i <= SIG6; i ++)
+		cncb_signal(i, (on)?SIG_LO:SIG_HI);
+	for(int i = BAT; i <= LED_P; i ++)
+		cncb_signal(i, (on)?LSD_ON:LSD_OFF);
+}
+
 
 void main(void)
 {
@@ -8,34 +21,18 @@ void main(void)
 	nest_message("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
 
 	while(1){
-		//wait for dut insertion
-		nest_message("please press the start switch\n");
-		nest_wait_plug_in();
-
-		//send can message, remote not connected, so can controller try to resend again and again
-		struct mcamos_s m = {
-			.can = &can1,
-		};
-		nest_can_sel(DW_CAN);
-		mcamos_init_ex(&m);
-		mcamos_dnload_ex(0x0F000000, (char *) &m, sizeof(m));
-
-		nest_message("please release the start switch to restart test routine\n");
-		//preset to off all on state
-		for(int i = SIG1; i <= SIG6; i ++)
-			cncb_signal(i, SIG_LO);
-		for(int i = BAT; i <= LED_P; i ++)
-			cncb_signal(i, LSD_ON);
-
+		fixture_timer = 0;
+		fixture_led_on = 1;
+		leds_set(fixture_led_on);
+		nest_update();
+		//start test???
 		while(! cncb_detect(0)) {
-			//flash all cncb outputs
-			nest_message("flash sig1~6, bat/ign/lsd/led_f/led_r/led_p\n");
-			for(int i = SIG1; i <= LED_P; i ++) {
-				cncb_signal(i, TOGGLE);
+			nest_update();
+			if(time_left(fixture_timer) < 0) {
+				fixture_timer = time_get(3000);
+				fixture_led_on = !fixture_led_on;
+				leds_set(fixture_led_on);
 			}
-
-			//handling serial command
-			nest_mdelay(300);
 		}
 	}
 } // main
