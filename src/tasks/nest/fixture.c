@@ -21,10 +21,16 @@ void main(void)
 		mcamos_dnload_ex(0x0F000000, (char *) &m, sizeof(m));
 
 		nest_message("please release the start switch to restart test routine\n");
+		//preset to off all on state
+		for(int i = SIG1; i <= SIG6; i ++)
+			cncb_signal(i, SIG_LO);
+		for(int i = BAT; i <= LED_P; i ++)
+			cncb_signal(i, LSD_ON);
+
 		while(! cncb_detect(0)) {
 			//flash all cncb outputs
 			nest_message("flash sig1~6, bat/ign/lsd/led_f/led_r/led_p\n");
-			for(int i = SIG1; i <= LSD; i ++) {
+			for(int i = SIG1; i <= LED_P; i ++) {
 				cncb_signal(i, TOGGLE);
 			}
 
