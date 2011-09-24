@@ -85,8 +85,12 @@ int cncb_signal(int sig, int ops)
 
 	switch (ops) {
 	case SIG_HI:
+		cncb_signal_save |= mask;
+		ba = Bit_SET;
+		break;
 	case SIG_LO:
-		ba = (BitAction) ops;
+		cncb_signal_save &= ~mask;
+		ba = Bit_RESET;
 		break;
 	case TOGGLE:
 		cncb_signal_save = cncb_signal_save ^ mask;
