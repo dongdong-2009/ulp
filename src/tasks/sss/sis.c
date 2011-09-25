@@ -22,6 +22,7 @@ static enum {
 	SIS_LEARN_UPDATE,
 	SIS_STM_ERR,
 } sis_stm;
+static time_t sis_timer = 0;
 static mcamos_srv_t sis_server;
 static struct sis_sensor_s sis_sensor __nvm;
 static enum {
@@ -98,6 +99,7 @@ static void serv_update(void)
 	sis_server.outbox[0] = inbox[0];
 	sis_server.outbox[1] = ret;
 	sis_server.inbox[0] = 0; //!!!clear inbox testid indicate cmd ops finished
+	sis_timer = time_get(500);
 }
 
 static int cmd_sis_func(int argc, char *argv[])
@@ -168,7 +170,10 @@ static void sis_update(void)
 		break;
 	case SIS_STM_READY:
 		led_on(LED_GREEN);
-		led_off(LED_RED);
+		if(time_left(sis_timer) < 0)
+			led_flash(LED_RED);
+		else
+			led_off(LED_RED);
 		if(card_getpower()) { //handle power-up event
 			dbs_init(&sis_sensor.dbs, NULL); //only dbs protocol implemented
 			sis_stm = SIS_STM_RUN;
@@ -180,6 +185,10 @@ static void sis_update(void)
 		}
 		break;
 	case SIS_STM_RUN:
+		if(time_left(sis_timer) < 0)
+			led_flash(LED_RED);
+		else
+			led_off(LED_RED);
 		dbs_update();
 		if(!card_getpower()) {
 			dbs_poweroff();
