@@ -191,7 +191,7 @@ static int cmd_sss_select(const char *name, int bdn)
 	return 0;
 }
 
-static int cmd_sss_query(int bdn)
+static int cmd_sss_query(int bdn, int echo)
 {
 	int ret;
 	struct sis_sensor_s sis;
@@ -206,7 +206,7 @@ static int cmd_sss_query(int bdn)
 	mcamos_init_ex(&m);
 	ret = mcamos_wait(0);
 	if(ret) {
-		printf("board %d not exist", bdn);
+		if(echo) printf("board %d not exist", bdn);
 		return -1;
 	}
 
@@ -215,18 +215,18 @@ static int cmd_sss_query(int bdn)
 	ret += mcamos_wait(100);
 	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR, sss_mailbox, 2 + sizeof(sis));
 	if(ret) {
-		printf("board %d communication error", bdn);
+		if(echo) printf("board %d communication error", bdn);
 		return -2;
 	}
 
 	if(sss_mailbox[1]) {
-		printf("board %d sensor not configured", bdn);
+		if(echo) printf("board %d sensor not configured", bdn);
 		return -3;
 	}
 
 	memcpy(&sis, &sss_mailbox[2], sizeof(sis));
-	printf("board %02d: %s\n", bdn, sis.name);
-	sis_print(&sis);
+	if(echo) printf("board %02d: %s\n", bdn, sis.name);
+	if(echo) sis_print(&sis);
 	return 0;
 }
 
@@ -373,7 +373,7 @@ static int cmd_sss_func(int argc, char *argv[])
 		ret = (pat <= 1) ? -1 : 0;
 		for(i = 1; i <= 31; i ++) {
 			if(pat & (1 << i)) {
-				ret = cmd_sss_query(i);
+				ret = cmd_sss_query(i, 1);
 				if(ret)
 					break;
 			}
@@ -446,31 +446,41 @@ static void sss_Init(void)
 
 //poll each board healthy status
 static char sss_slot = 1;
+static int sss_health = 0;
 static void sss_Update(void)
 {
-	int ret;
-	struct mcamos_s m = {
-		.can = &can1,
-		.id_cmd = sss_GetID(sss_slot),
-		.id_dat = sss_GetID(sss_slot) + 1,
-		.timeout = 50,
-	};
+	int ret = cmd_sss_query(sss_slot, 0);
+	if(ret && ret != -3)
+		sss_health &= ~(1 << sss_slot);
+	else
+		sss_health |= 1 << sss_slot;
 
-	mcamos_init_ex(&m);
-	ret = mcamos_wait(0);
-	if(ret) {
+	if((sss_health >> 1) != 0xff) {
 		led_off(LED_GREEN);
 		led_flash(LED_RED);
 	}
-
+	else {
+		led_off(LED_RED);
+		led_on(LED_GREEN);
+	}
 	sss_slot = (sss_slot < 8) ? sss_slot + 1 : 1;
 }
+
+//#define SSS_DEBUG_LOOP_TIME
+#ifdef SSS_DEBUG_LOOP_TIME
+static time_t sss_loop_timer;
+#endif
 
 int main(void)
 {
 	task_Init();
 	sss_Init();
+        mdelay(300);
 	while(1) {
+#ifdef SSS_DEBUG_LOOP_TIME
+		printf("loop = %dmS\n", - time_left(sss_loop_timer));
+		sss_loop_timer = time_get(0);
+#endif
 		task_Update();
 		sss_Update();
 	}
