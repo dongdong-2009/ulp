@@ -14,15 +14,20 @@
 #include "shell/cmd.h"
 #include "nvm.h"
 #include "nest_core.h"
+#include "nest_power.h"
+#include <string.h>
 
 //Peak Pulse Limit default setting
-#define BURN_VL_DEF	410 //Vpmin unit: V
-#define BURN_IL_DEF	11500 //Ipmax unit: mA
+#define BURN_VL_DEF	400 //Vpmin unit: V
+#define BURN_IL_DEF	11000 //Ipmax unit: mA
 #define BURN_WL_DEF	5000 //peak width unit: nS
 
 static int burn_vl __nvm;
 static int burn_il __nvm;
 static int burn_log = 0;
+static char burn_flag;
+static time_t burn_timer;
+static char burn_fail_counter;
 
 static int burn_wait(struct mcamos_s *m, int timeout)
 {
@@ -46,6 +51,45 @@ static int burn_wait(struct mcamos_s *m, int timeout)
 		return -1;
 
 	return outbox[1];
+}
+
+int burn_init(void)
+{
+	int ch, fail;
+	int try = 5;
+
+	//poll burn board
+	do {
+		try --;
+		fail = 0;
+		for(ch = BURN_CH_COILA; ch <= BURN_CH_COILD; ch ++) {
+			if(burn_read(ch, NULL)) {
+				fail = -1;
+				break;
+			}
+		}
+
+		if(fail) {
+			nest_power_reboot();
+			nest_message("warnning: burn board not response, reboot...\n");
+		}
+		else break;
+	} while(try > 0);
+
+	//check limit ok?
+	burn_vl = (burn_vl == -1) ? BURN_VL_DEF : burn_vl;
+	burn_il = (burn_il == -1) ? BURN_IL_DEF : burn_il;
+
+	burn_flag = 0;
+	burn_fail_counter = 0;
+	burn_timer = time_get(60000);
+	return fail;
+}
+
+int burn_mask(int ch)
+{
+	burn_flag |= (1 << ch);
+	return 0;
 }
 
 int burn_config(int ch, const struct burn_data_s *config)
@@ -82,7 +126,8 @@ int burn_read(int ch, struct burn_data_s *result)
 	if(ret)
 		return -1;
 
-	ret = mcamos_upload(m.can, BURN_OUTBOX_ADDR + 2, (char *) result, sizeof(struct burn_data_s), 10);
+	if(result)
+		ret = mcamos_upload(m.can, BURN_OUTBOX_ADDR + 2, (char *) result, sizeof(struct burn_data_s), 10);
 	mcamos_init_ex(NULL); //restore!!! it's dangerious here
 	return ret;
 }
@@ -115,16 +160,13 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 	if(nest_ignore(PKT))
 		return 0;
 
-	//check limit ok?
-	burn_vl = (burn_vl == -1) ? BURN_VL_DEF : burn_vl;
-	burn_il = (burn_il == -1) ? BURN_IL_DEF : burn_il;
-
 	//get test result from burn board through mcamos/can protocol
 	for(ch = BURN_CH_COILA; ch <= BURN_CH_COILD; ch ++) {
 		ret = burn_read(ch, &burn_data);
 		if(ret) {
 			nest_message("burn board channel %d not response\n", ch);
-			return -1;
+			ret = -1;
+			break;
 		}
 
 		if(burn_log & (1 << ch)) {
@@ -134,12 +176,14 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 
 		if(burn_data.lost > 10) {
 			nest_message("burn board channel %d sync lost too much(%d)\n", ch, burn_data.lost);
-			return -2;
+			ret = -2;
+			break;
 		}
 
 		if(burn_data.wp > BURN_WL_DEF) {
 			nest_message("burn board channel %d wp(=%dnS) higher than threshold(=%dnS)\n", ch, burn_data.wp, BURN_WL_DEF);
-			return -3;
+			ret = -3;
+			break;
 		}
 
 		if(burn_data.fire > 500) { //500 * 20mS = 10S
@@ -151,17 +195,30 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 
 			if(burn_data.vp_min < burn_vl) {
 				nest_message("burn board channel %d vp(=%dV) lower than threshold(=%dV)\n", ch, burn_data.vp_min, burn_vl);
-				return -4;
+				ret = -4;
+				break;
 			}
 
 			if(burn_data.ip_max > burn_il) {
 				nest_message("burn board channel %d ip(=%dmA) higher than threshold(=%dmA)\n", ch, burn_data.ip_max, burn_il);
-				return -5;
+				ret = -5;
+				break;
+			}
+		}
+		else {
+			if(time_left(burn_timer) < 0) {
+				if((~burn_flag) & (1 << ch)) {
+					nest_message("burn board channel %d not fire\n", ch);
+					ret = -6;
+					break;
+				}
 			}
 		}
 	}
 
-	return 0;
+	burn_fail_counter += (ret < 0) ? 1 : 0;
+	ret = (burn_fail_counter > 30) ? ret : 0;
+	return ret;
 }
 
 //burn shell command
