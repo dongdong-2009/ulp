@@ -446,16 +446,27 @@ static void sss_Init(void)
 
 //poll each board healthy status
 static char sss_slot = 1;
-static int sss_health = 0;
+static int sss_health = 0xffff;
 static void sss_Update(void)
 {
-	int ret = cmd_sss_query(sss_slot, 0);
-	if(ret && ret != -3)
-		sss_health &= ~(1 << sss_slot);
-	else
-		sss_health |= 1 << sss_slot;
+	int ret, mask;
 
-	if((sss_health >> 1) != 0xff) {
+	mask = 1 << sss_slot;
+	ret = cmd_sss_query(sss_slot, 0);
+	if(ret && ret != -3) {
+		if(sss_health & mask) {
+			printf("warnning: sis board %d fail(%d)!!!\n", sss_slot, ret);
+			sss_health &= ~(1 << sss_slot);
+		}
+	}
+	else {
+		if(!(sss_health & mask)) {
+			printf("warnning: sis board %d getting better!!!\n", sss_slot);
+			sss_health |= 1 << sss_slot;
+		}
+	}
+
+	if((sss_health >> 1) & 0xff != 0xff) {
 		led_off(LED_GREEN);
 		led_flash(LED_RED);
 	}
