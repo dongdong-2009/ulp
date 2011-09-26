@@ -4,59 +4,68 @@
 #ifndef __C131_H_
 #define __C131_H_
 #include "osd/osd.h"
+#include "can.h"
 
 typedef enum {
-	C131_MODE_NORMAL,
-	C131_MODE_SIMULATOR,
-} c131_mode_t;
+	APT_MODE_NORMAL,
+	APT_MODE_SIMULATOR,
+} apt_mode_t;
 
-typedef enum {
-	C131_STAGE1_RELAY,
-	C131_STAGE1_CANMSG,
-	C131_STAGE2_RELAY,
-	C131_STAGE2_CANMSG,
-	C131_GET_DTCMSG,
-}c131_stage_t;
-
-typedef enum {
-	DIAGNOSIS_NOTYET,
-	DIAGNOSIS_OVER,
-}c131_diagnosis_t;
-
-typedef enum {
-	SDM_UNEXIST,
-	SDM_EXIST,
-}c131_exist_t;
-
-typedef enum {
-	C131_TEST_NOTYET,
-	C131_TEST_ONGOING,
-	C131_TEST_FAIL,
-	C131_TEST_SUCCESSFUL,
-}c131_test_t;
-
-typedef struct c131_load_s {
+typedef struct apt_load_s {
 	int load_bExist;
 	int load_option;
 	char load_name[16];
 	unsigned char load_ram[8];
-} c131_load_t;
+} apt_load_t;
 
-extern osd_dialog_t c131_dlg;
+typedef struct dtc_s {
+	unsigned char dtc_hb;
+	unsigned char dtc_mb;
+	unsigned char dtc_lb;
+	unsigned char dtc_status;
+} dtc_t;
 
-int c131_GetLoad(c131_load_t ** pload, int index_load);
-int c131_AddLoad(c131_load_t * pload);
-int c131_ConfirmLoad(int index_load);
-int c131_GetCurrentLoadIndex(void);
+typedef struct c131_dtc_s {
+	short dtc_bExist;
+	short dtc_bPositive;
+	int dtc_len;
+	dtc_t *pdtc;
+} c131_dtc_t;
 
-//for sdm working mode
-int c131_SetMode(int workmode);
-int c131_GetMode(void);
+extern osd_dialog_t apt_dlg;
+
+//for cmd module function
+int apt_GetMode(void);
+int apt_SetAPTRAM(unsigned char *p);
+int apt_AddLoad(apt_load_t * pload);
 
 //for dlg function define
-int c131_GetSDMType(int index_load, char *pname);
-int c131_GetLinkInfo(void);
-int c131_GetTestStatus(void);
-int c131_SetTeststatus(int status);
+int apt_GetSDMTypeName(void);
+int apt_GetSDMTypeSelect(void);
+int apt_SelectSDMType(int keytype);
 
+int apt_GetSDMPWRName(void);
+int apt_GetSDMPWRIndicator(void);
+int apt_GetLEDPWRName(void);
+int apt_GetLEDPWRIndicator(void);
+int apt_SelectPWR(int keytype);
+
+int apt_GetAPTModeName(void);
+int apt_GetAPTModeIndicator(void);
+int apt_SelectAPTMode(int keytype);
+
+int apt_GetLinkInfo(void);
+
+int apt_GetDiagInfo(void);
+int apt_SelectAPTDiag(int keytype);
+
+int apt_GetTestInfo(void);
+int apt_SelectAPTTest(int keytype);
+
+int apt_GetDTCInfo(void);
+int apt_SelectAPTDTC(int keytype);
+
+//for can send
+int c131_can_ClearHistoryDTC(void);
+int c131_can_GetDTC(c131_dtc_t *pc131_dtc);
 #endif /*__C131_H_*/

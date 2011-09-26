@@ -3,7 +3,6 @@
  */
 #ifndef __C131_DRIVER_H_
 #define __C131_DRIVER_H_
-#include "can.h"
 
 typedef enum {
 	RELAY_OFF = 0,
@@ -11,34 +10,38 @@ typedef enum {
 } relay_status;
 
 #define		AIRBAG_CAN_ID		0x8c
-#define		C131_DIAG_REQ_ID	0x708
-#define		C131_DIAG_RES_ID	0x728
+#define		C131_DIAG_REQ_ID	0x7A2
+#define		C131_DIAG_RES_ID	0x7C2
 
 //global define
 #define NUM_OF_LOAD			32
 
 //for failed led
-#define FailLed_On()		GPIO_SetBits(GPIOC, GPIO_Pin_2)
-#define FailLed_Off()		GPIO_ResetBits(GPIOC, GPIO_Pin_2)
+#define FailLed_On()			GPIO_SetBits(GPIOC, GPIO_Pin_2)
+#define FailLed_Off()			GPIO_ResetBits(GPIOC, GPIO_Pin_2)
 
 //for buzzer
-#define Buzzer_On()			GPIO_SetBits(GPIOC, GPIO_Pin_0)
-#define Buzzer_Off()		GPIO_ResetBits(GPIOC, GPIO_Pin_0)
+#define Buzzer_On()				GPIO_SetBits(GPIOC, GPIO_Pin_0)
+#define Buzzer_Off()			GPIO_ResetBits(GPIOC, GPIO_Pin_0)
 
 //for external power
-#define Enable_EXTPWR()		GPIO_SetBits(GPIOC, GPIO_Pin_6)
-#define Disable_EXTPWR()	GPIO_ResetBits(GPIOC, GPIO_Pin_6)
+#define Enable_SDMEXTPWR()		GPIO_SetBits(GPIOC, GPIO_Pin_6)
+#define Disable_SDMEXTPWR()		GPIO_ResetBits(GPIOC, GPIO_Pin_6)
 
 //for external led power
-#define Enable_LEDPWR()		GPIO_SetBits(GPIOC, GPIO_Pin_5)
-#define Disable_LEDPWR()	GPIO_ResetBits(GPIOC, GPIO_Pin_5)
+#define Enable_LEDEXTPWR()		GPIO_SetBits(GPIOC, GPIO_Pin_5)
+#define Disable_LEDEXTPWR()		GPIO_ResetBits(GPIOC, GPIO_Pin_5)
 
 //for sdm power
-#define Enable_SDMPWR()		GPIO_SetBits(GPIOD, GPIO_Pin_13)
-#define Disable_SDMPWR()	GPIO_ResetBits(GPIOD, GPIO_Pin_13)
+#define Enable_SDMPWR()			GPIO_SetBits(GPIOD, GPIO_Pin_13)
+#define Disable_SDMPWR()		GPIO_ResetBits(GPIOD, GPIO_Pin_13)
+
+//for led power
+#define Enable_LEDPWR()			GPIO_SetBits(GPIOE, GPIO_Pin_7)
+#define Disable_LEDPWR()		GPIO_ResetBits(GPIOE, GPIO_Pin_7)
 
 //for sdm ready detect
-#define Get_SDMStatus()		GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_8)
+#define Get_SDMStatus()			GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_8)
 
 
 //LOOP define
@@ -97,12 +100,5 @@ int led_SetRelayStatus(unsigned short led_relays, int act);
 int led_GetRelayStatus(unsigned short * pled_status);
 int sw_SetRelayStatus(unsigned short sw_relays, int act);
 int sw_GetRelayStatus(unsigned short * psw_status);
-
-//for can send
-void c131_can_SendOtherECUMsg(void);
-int c131_can_GetAirbagMsg(can_msg_t *pmsg);
-int c131_can_ClearHistoryDTC(void);
-int c131_can_GetDTC(void);
-
 
 #endif /*__C131_DRIVER_H_*/
