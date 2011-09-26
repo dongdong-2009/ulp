@@ -444,10 +444,19 @@ int apt_SelectPWR(int keytype)
 	} else if(keytype == KEY_RIGHT) {
 		indicator_pwr = 1;
 	} else if(keytype == KEY_ENTER) {
-		if (indicator_pwr)
+		if (indicator_pwr) {
 			led_pwr = ~led_pwr;
-		else
+			if (led_pwr)
+				Enable_LEDEXTPWR();
+			else
+				Disable_LEDEXTPWR();
+		} else {
 			sdm_pwr = ~sdm_pwr;
+			if (sdm_pwr)
+				Enable_SDMEXTPWR();
+			else
+				Disable_SDMEXTPWR();
+		}
 	}
 
 	return 0;
@@ -509,10 +518,12 @@ int apt_SelectAPTDiag(int keytype)
 {
 	if (keytype == KEY_ENTER) {
 		Enable_SDMPWR();
+		Enable_LEDPWR();
 		c131_DiagSW();
 		c131_DiagLED();
 		c131_DiagLOOP();
 		Disable_SDMPWR();
+		Disable_LEDPWR();
 		status_diag = DIAGNOSIS_OVER;
 	}
 
