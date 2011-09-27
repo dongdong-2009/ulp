@@ -56,6 +56,12 @@ int nest_wait_pull_out(void)
 	light = (nest_pass()) ? PASS_CMPLT_ON : FAIL_ABORT_ON;
 	nest_light(light);
 
+#if CONFIG_NEST_LOG_SIZE > 0
+	//save the log message to flash
+	if(nest_fail())
+		nvm_save();
+#endif
+
 	while(! cncb_detect(0)) {
 		nest_light_flash(err);
 #ifdef CONFIG_NEST_AUTORESTART
@@ -116,7 +122,7 @@ static int cmd_nest_func(int argc, char *argv[])
 		"nest help\n"
 		"nest save				save settings to nvm\n"
 		"nest log				print log message\n"
-		"nest ignore psv bmr rly pkt all		ignore some event for debug\n"
+		"nest ignore psv bmr rly pkt all non		ignore some event for debug\n"
 	};
 
 	if(argc > 1) {
@@ -143,6 +149,9 @@ static int cmd_nest_func(int argc, char *argv[])
 				}
 				else if(!strcmp(argv[i], "all")) {
 					ignore |= (PSV | BMR | RLY | PKT);
+				}
+				else if(!strcmp(argv[i], "non")) {
+					ignore = 0;
 				}
 				else {
 					ok = 0;

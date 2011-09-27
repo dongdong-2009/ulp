@@ -10,6 +10,7 @@ bool "enable task of 'vvt'?" CONFIG_TASK_VVT
 bool "Handheld Vehicle Programmer?" CONFIG_TASK_HVP
 bool "delphi nest program?" CONFIG_TASK_NEST
 bool "enable lwip application" CONFIG_LWIP_APP
+bool "delphi safe sensor simulator?" CONFIG_TASK_SSS
 
 if [ "$CONFIG_LWIP_APP" = "y" ]; then
 	bool "enable task of 'eth demo'?" CONFIG_TASK_ETHDEMO

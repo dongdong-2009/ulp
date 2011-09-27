@@ -731,6 +731,11 @@ ERROR_CODE Verify_VSEPFaultTest(UINT8 * pdata)
 			if (mtype.par == 1) continue;
 		}
 
+		if((ch == 18) || (ch == 19)) { //PCH19..PCH20 MT221SS BYPASS
+			if(mtype.mt221ss)
+				continue;
+		}
+
 		//get ch val
 		val = pdata[(UINT8)(ch/4)];
 		val = (val>>((ch%4)*2))&0x03;
@@ -1219,6 +1224,7 @@ void TestStart(void)
 		mtype.iac  = (BOOL)((buffer[0]&0x0F) == 0x05);
 		mtype.par = (BOOL)((buffer[1]&0xFF) == 0xFF);
 		mtype.mt601 = (BOOL)((buffer[3]&0xFF) == 0x00);
+		mtype.mt221ss = (BOOL)((buffer[3]&0xFF) == 0x03);
 	}
 	else {
 		/* Base model identification bytes:
