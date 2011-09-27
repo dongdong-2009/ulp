@@ -58,6 +58,8 @@ typedef enum {
 #define C131_LOOP11			((unsigned short)0x0400)  /*!< loop 11 selected */
 #define C131_LOOP12			((unsigned short)0x0800)  /*!< loop 12 selected */
 #define C131_LOOP			((unsigned short)0x1000)  /*!< loop  selected */
+#define C131_LOOP11B		((unsigned short)0x2000)  /*!< loop  selected */
+#define C131_LOOP12B		((unsigned short)0x4000)  /*!< loop  selected */
 
 //ESS define
 #define C131_ESS1			((unsigned short)0x0001)  /*!< ess 1 selected */

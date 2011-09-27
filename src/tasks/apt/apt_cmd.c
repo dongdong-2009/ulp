@@ -127,20 +127,16 @@ static int cmd_apt_func(int argc, char *argv[])
 		//for power off/on
 		if(strcmp(argv[1], "pwr") == 0) {
 			if (strcmp(argv[3], "sdm") == 0) {
-				if (strcmp(argv[2], "on") == 0) {
+				if (strcmp(argv[2], "on") == 0)
 					Enable_SDMPWR();
-					Enable_LEDPWR();
-				}
-				if (strcmp(argv[2], "off") == 0) {
+				if (strcmp(argv[2], "off") == 0)
 					Disable_SDMPWR();
-					Disable_LEDPWR();
-				}
 			}
 			if (strcmp(argv[3], "led") == 0) {
 				if (strcmp(argv[2], "on") == 0)
-					Enable_LEDEXTPWR();
+					Enable_LEDPWR();
 				if (strcmp(argv[2], "off") == 0)
-					Disable_LEDEXTPWR();
+					Disable_LEDPWR();
 			}
 			return 0;
 		}
