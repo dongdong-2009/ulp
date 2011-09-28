@@ -4,9 +4,9 @@
 
 #include "config.h"
 #include "sys/task.h"
-#include "vvt/vvt.h"
-#include "vvt/misfire.h"
-#include "vvt/vvt_pulse.h"
+#include "vvt.h"
+#include "misfire.h"
+#include "driver/vvt_pulse.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "sys/task.h"

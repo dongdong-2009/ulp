@@ -3,11 +3,11 @@
  */
 
 #include "config.h"
-#include "vvt/misfire.h"
+#include "misfire.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "mcao.h"
-#include "vvt/vvt_pulse.h"
+#include "driver/vvt_pulse.h"
 
 
 //global
