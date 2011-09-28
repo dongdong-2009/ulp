@@ -64,6 +64,7 @@ int osd_ConstructDialog(const osd_dialog_t *dlg)
 	}
 
 	osd_dlg_get_rect(kdlg, &kdlg->margin);
+	osd_ShowDialog(kdlg, ITEM_UPDATE_INIT);
 	return (int)kdlg;
 }
 
@@ -87,13 +88,13 @@ int osd_DestroyDialog(int handle)
 	return 0;
 }
 
-int osd_ShowDialog(osd_dialog_k *kdlg, int update)
+int osd_ShowDialog(osd_dialog_k *kdlg, int ops)
 {
 	osd_group_k *kgrp;
 	
 	//show groups
 	for(kgrp = kdlg->kgrps; kgrp != NULL; kgrp = kgrp->next)
-		osd_ShowGroup(kgrp, update);
+		osd_ShowGroup(kgrp, ops);
 	
 	return (int)kdlg;
 }

@@ -78,7 +78,7 @@ int osd_SelectGroup(const osd_group_t *grp)
 
 int osd_grp_select(struct osd_dialog_ks *kdlg, osd_group_k *kgrp)
 {	
-	if(kgrp -> status < STATUS_NORMAL)
+	if(kgrp ->status == STATUS_GRAYED)
 		return -1;
 
 	if(kdlg->active_kgrp != NULL) {
@@ -87,6 +87,13 @@ int osd_grp_select(struct osd_dialog_ks *kdlg, osd_group_k *kgrp)
 	
 	kgrp->focus = 1;
 	kdlg->active_kgrp = kgrp;
+	if(!osd_eng_is_visible(&kgrp->margin)) { //need scroll now
+		osd_HideDialog(kdlg);
+		osd_eng_scroll(kgrp->margin.x1, kgrp->margin.y1);
+		osd_ShowDialog(kdlg, ITEM_UPDATE_INIT);
+	}
+	else
+		osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERFOCUSCHANGE);
 	return 0;
 }
 
@@ -110,7 +117,7 @@ int osd_ConstructGroup(const osd_group_t *grp)
 	kgrp->grp = grp;
 	kgrp->next = NULL;
 	kgrp->prev = NULL;
-	kgrp->status = osd_grp_get_status(grp);
+	kgrp->status = STATUS_HIDE;
 	kgrp->focus = 0;
 
 	osd_grp_get_rect(kgrp, &kgrp->margin);
@@ -138,26 +145,25 @@ static int set_color(int status)
 	return osd_eng_set_color(fg, bg);
 }
 
-int osd_ShowGroup(osd_group_k *kgrp, int update)
+int osd_ShowGroup(osd_group_k *kgrp, int ops)
 {
 	int status;
-	const osd_group_t *grp;
+	const osd_group_t *grp = kgrp->grp;
 	const osd_item_t *item;
 	
-	if(!osd_eng_is_visible(&kgrp -> margin))
-		return 0;
-	
 	//evaluate new group status
-	grp = kgrp->grp;
-	status = osd_grp_get_status(grp);
-	if(kgrp->focus)
-		status = STATUS_FOCUSED;
+	status = osd_grp_get_status(kgrp, ops);
 	
 	set_color(status);
 	for(item = grp->items; (item != NULL) && (item->draw != NULL); item ++) {
-		if(kgrp->status != status)
+		if(kgrp->status != status) {
 			osd_HideItem(item);
-		osd_ShowItem(item, status);
+			osd_ShowItem(item, status);
+		}
+		else if(item->update == ops) {
+			//osd_HideItem(item);
+			osd_ShowItem(item, status);
+		}
 	}
 	
 	kgrp->status = status;
@@ -167,18 +173,14 @@ int osd_ShowGroup(osd_group_k *kgrp, int update)
 int osd_HideGroup(osd_group_k *kgrp)
 {
 	int status;
-	const osd_group_t *grp;
+	const osd_group_t *grp = kgrp->grp;
 	const osd_item_t *item;
 	
-	if(!osd_eng_is_visible(&kgrp -> margin))
+	if(kgrp->status == STATUS_HIDE)
 		return 0;
 
 	//evaluate new group status
-	grp = kgrp->grp;
-	status = osd_grp_get_status(grp);
-	if(kgrp->focus)
-		status = STATUS_FOCUSED;
-
+	status = osd_grp_get_status(kgrp, ITEM_UPDATE_HIDE);
 	set_color(status);
 	kgrp->status = status;
 	for(item = kgrp->grp->items; (item != NULL) && (item->draw != NULL); item ++)
@@ -187,18 +189,37 @@ int osd_HideGroup(osd_group_k *kgrp)
 	return 0;
 }
 
-int osd_grp_get_status(const osd_group_t *grp)
+int osd_grp_get_status(const osd_group_k *kgrp, int ops)
 {
-	int status = grp -> order;
+	int status = kgrp->status;
 	int (*get_status)(const osd_group_t *grp);
-	
+
+#if 0
 	if(grp->option & GROUP_RUNTIME_STATUS == GROUP_RUNTIME_STATUS) {
 		get_status = (int (*)(const osd_group_t *)) grp -> order;
 		status = get_status(grp);
 	}
-	
-	if(status > STATUS_NORMAL)
-		status = STATUS_NORMAL;
+#endif
+
+	switch(ops) {
+	case ITEM_UPDATE_INIT:
+		if(osd_eng_is_visible(&kgrp->margin)) {
+			status = STATUS_VISIBLE;
+		}
+	case ITEM_UPDATE_ALWAYS:
+		if(kgrp->focus) {
+			status = (status == STATUS_VISIBLE) ? STATUS_FOCUSED : status;
+		}
+		else {
+			status = (status == STATUS_FOCUSED) ? STATUS_VISIBLE : status;
+		}
+		break;
+	case ITEM_UPDATE_HIDE:
+		status = STATUS_HIDE;
+		break;
+	default:
+		break;
+	}
 	return status;
 }
 

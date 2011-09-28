@@ -43,15 +43,13 @@ void osd_Update(void)
 			ret = osd_HandleCommand(event, kgrp->grp->cmds);
 		if(ret)
 			osd_HandleCommand(event, kdlg->dlg->cmds);
+		if(!ret)
+			osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERCOMMAND);
 	}
 	
 	//update always
 	if(time_left(osd_update_always_timer) < 0) {
 		osd_update_always_timer = time_get(OSD_UPDATE_ALWAYS_MS);
-		if(!osd_eng_is_visible(&kgrp->margin)) { //need scroll now
-			osd_HideDialog(kdlg);
-			osd_eng_scroll(kgrp->margin.x1, kgrp->margin.y1);
-		}
 		osd_ShowDialog(kdlg, ITEM_UPDATE_ALWAYS);
 	}
 }

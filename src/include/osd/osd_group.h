@@ -16,9 +16,9 @@ enum {
 
 //group status
 enum {
-	STATUS_VISIBLE = -2,
+	STATUS_HIDE,
 	STATUS_GRAYED,
-	STATUS_NORMAL,
+	STATUS_VISIBLE,
 	STATUS_FOCUSED,
 };
 
@@ -54,10 +54,10 @@ osd_group_t *osd_GetCurrentGroup(void);
 //private
 int osd_ConstructGroup(const osd_group_t *grp);
 int osd_DestroyGroup(osd_group_k *kgrp);
-int osd_ShowGroup(osd_group_k *kgrp, int update);
+int osd_ShowGroup(osd_group_k *kgrp, int ops);
 int osd_HideGroup(osd_group_k *kgrp);
 int osd_grp_select(struct osd_dialog_ks *kdlg, osd_group_k *kgrp);
-int osd_grp_get_status(const osd_group_t *grp);
+int osd_grp_get_status(const osd_group_k *grp, int ops);
 rect_t *osd_grp_get_rect(const osd_group_k *kgrp, rect_t *margin);
 #ifdef CONFIG_DRIVER_PD
 int osd_grp_react(osd_group_k *kgrp, int event, const dot_t *p);

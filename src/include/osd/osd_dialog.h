@@ -36,7 +36,7 @@ int osd_GetActiveDialog(void);
 int osd_DestroyDialog(int handle);
 
 //private
-int osd_ShowDialog(osd_dialog_k *kdlg, int update);
+int osd_ShowDialog(osd_dialog_k *kdlg, int ops);
 int osd_HideDialog(osd_dialog_k *kdlg);
 rect_t *osd_dlg_get_rect(const osd_dialog_k *kdlg, rect_t *margin);
 #ifdef CONFIG_DRIVER_PD
