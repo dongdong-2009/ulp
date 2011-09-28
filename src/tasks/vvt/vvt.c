@@ -111,3 +111,8 @@ void vvt_isr(void)
 	pss_SetSpeed(tmp);
 }
 
+void EXTI9_5_IRQHandler(void)
+{
+	EXTI->PR = EXTI_Line6;
+	vvt_isr();
+}

@@ -23,7 +23,6 @@
 #include "stm32f10x_it.h"
 #include "stm32_eth.h"
 #include "motor/motor.h"
-#include "vvt/vvt.h"
 #include "sys/system.h"
 #include "sys/task.h"
 #include <stdio.h>
@@ -431,12 +430,8 @@ void CAN_SCE_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void EXTI9_5_IRQHandler(void)
+__weak void EXTI9_5_IRQHandler(void)
 {
-#if CONFIG_TASK_VVT == 1
-	EXTI->PR = EXTI_Line6;
-	vvt_isr();
-#endif
 }
 
 /*******************************************************************************
