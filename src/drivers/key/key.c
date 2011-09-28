@@ -49,7 +49,7 @@ int key_Init(void)
 	if(key_remote != NULL)
 		key_remote->init();
 	if(key_encoder != NULL)
-		key_remote->init();
+		key_encoder->init();
 	return 0;
 }
 
