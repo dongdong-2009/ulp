@@ -1,3 +1,7 @@
+/*
+ * cong.chen@2011 initial version
+ * David@2011 improved
+ */
 #include "matrix.h"
 #include "spi.h"
 #include "config.h"
@@ -14,14 +18,6 @@
 #define BOARD_SR_OutputEable()		GPIO_ResetBits(GPIOA,GPIO_Pin_0)
 #define BOARD_SR_OutputDisable()	GPIO_SetBits(GPIOA,GPIO_Pin_0)
 
-//Error define
-#define ERROR_OK					0
-#define ERROR_TIMEOUT				-1
-#define ERROR_BOARD_NOT_EXIST		-2
-#define ERROR_CHANNEL_NOT_EXIST		-3
-#define ERROR_BUSSW_NOT_EXIST		-4
-#define ERROR_CHSW_NOT_EXIST		-5
-
 #define CONFIG_SLOT_NR				5
 
 //matrix board operation define
@@ -34,7 +30,7 @@
 
 static mbi5025_t sr = {
 	.bus = &spi2,
-	.idx = SPI_2_NSS,
+	.idx = SPI_CS_DUMMY,
 };
 
 //local varible define
@@ -50,10 +46,11 @@ static unsigned char row[256];
 static unsigned char col[256];
 
 //local function define
-static matrix_BoardSelect(int bd);
+static void matrix_BoardSelect(int bd);
 static int matrix_DisconnectAll (int bd);
 static int matrix_InitBoard(int bd, bdInfo_t * pInfo);
-static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata);
+static int matrix_Update(int bd);
+static int matrix_handler_setrelaystatus(unsigned char cmd,char *qdata);
 static int matrix_ConnectImage(int bd, int ch, int bus);
 static int matrix_DisconnectImage(int bd, int ch, int bus);
 static int matrix_SetRelayImage(int bd, int ch, int bus, int op);
@@ -94,11 +91,16 @@ int matrix_init()
 	//for shift register spi bus init
 	mbi5025_Init(&sr);
 
-	for(i=0; i<CONFIG_SLOT_NR; i++){
+	//detect whether the board exist
+	//init each exist board information
+	for(i = 0; i<CONFIG_SLOT_NR; i++){
 		matrix_BoardSelect(i);
 		mdelay(2);
-		if(!BDT)
+		if (!BDT) {
 			nboard++;
+			matrix_InitBoard(i, &bdi[i]);
+			matrix_DisconnectAll(i);
+		}
 	}
 
 	if(nboard == 0){
@@ -106,27 +108,30 @@ int matrix_init()
 		return ERROR_BOARD_NOT_EXIST;
 	}
 
-	//init each board information
-	for(i = 0; i < CONFIG_SLOT_NR; i ++) {
-		matrix_InitBoard(i, &bdi[i]);
-		matrix_DisconnectAll(i);
-	}
+	BOARD_SR_LoadDisable();
+	BOARD_SR_OutputEable();
 
-	//fpga_Set(OEN,bdt);
-	GPIO_SetBits(GPIOA,GPIO_Pin_0);
-	BOARD_SR_LoadDisable();			//shift register load disable
 	return ERROR_OK;
 }
 
-void matrix_handler(unsigned char cmd,char *pdata)
+int matrix_handler(unsigned char cmd,char *pdata)
 {
-	int len;
-
-	len = sizeof(pdata);
-	if (len <= 0) return;
-
+	int result;
 #if 1
-	printf("CMD = 0X%02X \n", cmd);
+	//print the operation for debug
+	switch(cmd){
+		case MATRIX_CMD_CONNECT:
+			printf("\nCMD = MATRIX_CMD_CONNECT! \n");
+			break;
+		case MATRIX_CMD_DISCONNECT:
+			printf("\nCMD = MATRIX_CMD_DISCONNECT! \n");
+			break;
+		case MATRIX_CMD_DISCONNECTALL:
+			printf("\nCMD = MATRIX_CMD_DISCONNECTALL! \n");
+			break;
+		default:
+			break;
+	}
 #endif
 
 	//implement the operation
@@ -134,13 +139,13 @@ void matrix_handler(unsigned char cmd,char *pdata)
 		case MATRIX_CMD_CONNECT:
 		case MATRIX_CMD_DISCONNECT:
 		case MATRIX_CMD_DISCONNECTALL:
-			matrix_handler_setrelaystatus(cmd,pdata);
+			result = matrix_handler_setrelaystatus(cmd,pdata);
 			break;
 		default:
 			break;
 	}
 
-	return;
+	return result;
 }
 
 //bd: board nr 0~7
@@ -152,19 +157,19 @@ static int matrix_Update(int bd)
 
 	//shift register load data, don't support SPI DMA mode
 	//BoardBuf[bd][46] means bus switch status, 1:on, 0:off
-	BOARD_SR_LoadEable();
 	for(i = 46; i >= 0; i--)
 		mbi5025_WriteByte(&sr, BoardBuf[bd][i]);
+	BOARD_SR_LoadEable();
 	BOARD_SR_LoadDisable();
 
-	BOARD_SR_OutputEable();
-	udelay(10);
-	BOARD_SR_OutputDisable();
+	// BOARD_SR_OutputEable();
+	// udelay(10);
+	// BOARD_SR_OutputDisable();
 
 	return ERROR_OK;
 }
 
-static matrix_BoardSelect(int bd)
+static void matrix_BoardSelect(int bd)
 {
 	unsigned short port_temp;
 	port_temp = GPIO_ReadOutputData(GPIOC);
@@ -223,7 +228,7 @@ static int matrix_DisconnectAll(int bd)
 	return result;
 }
 
-static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
+static int matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
 {
 	int bd;
 	int ch;
@@ -235,7 +240,7 @@ static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
 	//disconnect all?
 	if (cmd == MATRIX_CMD_DISCONNECTALL) {
 		matrix_DisconnectAll(-1);
-		return;
+		return ERROR_OK;
 	}
 
 	//init, no board need update
@@ -262,7 +267,11 @@ static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
 		bus = row[i];
 		bd = (int )(col[i] / 46);
 		ch = col[i] % 46;
-		bd_to_update[bd] = 1;
+		if (bdi[bd].bExist == 0) {
+			return ERROR_BOARD_NOT_EXIST;
+		} else {
+			bd_to_update[bd] = 1;
+		}
 		if(cmd == MATRIX_CMD_CONNECT)
 			matrix_ConnectImage(bd, ch, bus);
 		else 
@@ -275,7 +284,7 @@ static void matrix_handler_setrelaystatus(unsigned char cmd,char *qdata)
 			matrix_Update(i);
 	}
 
-	return;
+	return ERROR_OK;
 }
 
 static int matrix_ConnectImage(int bd, int ch, int bus)
@@ -319,4 +328,152 @@ static int matrix_SetRelayImage(int bd, int ch, int bus, int op)
 
 	return result;
 }
+
+
+#if 1
+#include "shell/cmd.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static int cmd_matrix_func(int argc, char *argv[])
+{
+	int temp = 0;
+	int bd, ch, bus;
+	int i;
+	char simulator_data[4];
+
+	const char * usage = { \
+		" usage:\n" \
+		" matrix info,         printf the board information \n" \
+		" matrix con nbus nch, matrix connect a point \n" \
+		" matrix dis nbus nch, matrix disconnect a point \n" \
+		" matrix on,           connect all relays \n" \
+		" matrix off,          disconnect all relays \n" \
+		" matrix channel nch,  connect all (8) relays on nch\n" \
+		" matrix bus nbus,     connect all (46) relays on nbus\n" \
+	};
+
+	if (argc > 1) {
+		if(strcmp(argv[1], "info") == 0) {
+			for (i = 0; i < CONFIG_SLOT_NR; i++) {
+				if (bdi[i].bExist == 0) {
+					printf(" Board %d don't exist \n\n", i);
+				} else {
+					printf(" Board %d info as follow:\n", i);
+					printf(" Shift register chain length: %d\n", bdi[i].iLen);
+					printf(" Number of channel on board: %d\n", bdi[i].iNrChannel);
+					printf(" Number of bus on board: %d\n", bdi[i].iNrBus);
+					printf(" Bus switch exist status: %d\n", bdi[i].bBusSWExist);
+					printf(" Channel switch exist status: %d\n\n", bdi[i].bChSWExist);
+				}
+			}
+			return 0;
+		}
+
+		//connect infomation
+		if(strcmp(argv[1], "con") == 0) {
+			simulator_data[0] = (char)MATRIX_CMD_CONNECT;
+			simulator_data[1] = 1;
+			sscanf(argv[2], "%d", &temp);
+			simulator_data[2] = (char)temp;
+			sscanf(argv[3], "%d", &temp);
+			simulator_data[3] = (char)temp;
+			temp = matrix_handler(MATRIX_CMD_CONNECT, simulator_data);
+			if (temp != ERROR_OK) {
+				printf("Operation Error! Error Code is : %d\n", temp);
+			}
+			return 0;
+		}
+
+		//disconnection infomation
+		if(strcmp(argv[1], "dis") == 0) {
+			simulator_data[0] = (char)MATRIX_CMD_DISCONNECT;
+			simulator_data[1] = 1;
+			sscanf(argv[2], "%d", &temp);
+			simulator_data[2] = (char)temp;
+			sscanf(argv[3], "%d", &temp);
+			simulator_data[3] = (char)temp;
+			temp = matrix_handler(MATRIX_CMD_DISCONNECT, simulator_data);
+			if (temp != ERROR_OK) {
+				printf("Operation Error! Error Code is : %d\n", temp);
+			}
+			return 0;
+		}
+
+		if(strcmp(argv[1], "on") == 0) {
+			for (bd = 0; bd < CONFIG_SLOT_NR; bd++) {
+				if (bdi[bd].bExist == 1) {
+					matrix_BoardSelect(bd);
+					for (i = 46; i >= 0; i--) {
+						BoardBuf[bd][i] = 0xff;
+						mbi5025_WriteByte(&sr, BoardBuf[bd][i]);
+					}
+					BOARD_SR_LoadEable();
+					BOARD_SR_LoadDisable();
+				}
+			}
+			return 0;
+		}
+
+		if(strcmp(argv[1], "off") == 0) {
+			for (bd = 0; bd < CONFIG_SLOT_NR; bd++) {
+				if (bdi[bd].bExist == 1) {
+					matrix_BoardSelect(bd);
+					for (i = 46; i >= 0; i--) {
+						BoardBuf[bd][i] = 0x00;
+						mbi5025_WriteByte(&sr, BoardBuf[bd][i]);
+					}
+					BOARD_SR_LoadEable();
+					BOARD_SR_LoadDisable();
+				}
+			}
+			return 0;
+		}
+
+		//channel on
+		if(strcmp(argv[1], "channel") == 0) {
+			sscanf(argv[2], "%d", &temp);
+			bd = (int )(temp / 46);
+			ch = temp % 46;
+			matrix_BoardSelect(bd);
+			BoardBuf[bd][ch] = 0xff;
+			BoardBuf[bd][46] = 0xff;
+			for(i = 46; i >= 0; i--) {
+				mbi5025_WriteByte(&sr, BoardBuf[bd][i]);
+			}
+			BOARD_SR_LoadEable();
+			BOARD_SR_LoadDisable();
+			return 0;
+		}
+
+		//bus on
+		if(argv[1][0] == 'b') {
+			sscanf(argv[2], "%d", &bus);
+			for (bd = 0; bd < CONFIG_SLOT_NR; bd++) {
+				if (bdi[bd].bExist == 1) {
+					matrix_BoardSelect(bd);
+					temp = (0x01 << bus);
+					for (i = 46; i >= 0; i--) {
+						BoardBuf[bd][i] |= (unsigned char)temp;
+						mbi5025_WriteByte(&sr, BoardBuf[bd][i]);
+					}
+					BOARD_SR_LoadEable();
+					BOARD_SR_LoadDisable();
+				}
+			}
+			return 0;
+		}
+	}
+
+	if(argc < 2) {
+		printf(usage);
+		return 0;
+	}
+
+	return 0;
+}
+const cmd_t cmd_matrix = {"matrix", cmd_matrix_func, "matrix board cmd"};
+DECLARE_SHELL_CMD(cmd_matrix)
+#endif
 

@@ -17,11 +17,13 @@ enum {
 	SPI_CS_PB10,
 	SPI_CS_PB12, /*SPI2_NSS*/
 	SPI_2_NSS = SPI_CS_PB12,
+	SPI_CS_PC3,
 	SPI_CS_PC4,
 	SPI_CS_PC5,
 	SPI_CS_PC8,
 	SPI_CS_PF11,
 	SPI_CS_PB0,
+	SPI_CS_PD12,
 };
 
 //private

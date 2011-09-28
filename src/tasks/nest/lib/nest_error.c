@@ -37,9 +37,5 @@ int nest_error_set(int type, const char *info)
 	min = nest_err.time / 1000 / 60;
 	min = min > 15 ? 15 : 0;
 	nest_err.nec = (min << 4) | (type & 0x0f);
-#if CONFIG_NEST_LOG_SIZE > 0
-	//save the log message to flash
-	nvm_save();
-#endif
 	return 0;
 }

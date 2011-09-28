@@ -5,6 +5,8 @@
 #ifndef __NEST_POWER_H_
 #define __NEST_POWER_H_
 
+#include "cncb.h"
+
 #if(!defined(CONFIG_NEST_MT60_OLD) && !defined(CONFIG_NEST_MT80_OLD))
 static inline void RELAY_BAT_SET(int ON)
 {

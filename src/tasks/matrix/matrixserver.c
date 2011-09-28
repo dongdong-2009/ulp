@@ -1,4 +1,7 @@
-
+/*
+ * cong.chen@2011 initial version
+ * David@2011 improved
+ */
 #include "eth_demo/tcpserver.h"
 #include "lwip/tcp.h"
 #include "spi.h"

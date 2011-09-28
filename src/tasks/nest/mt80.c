@@ -52,21 +52,34 @@ static char mailbox[32];
 //base model types declaration
 enum {
 	BM_28077390,
-	BM_DK245105,
 	BM_28119979,
-	BM_28180087,
-	BM_28159907,
 	BM_28164665,
+	BM_28180087,
+	BM_28264387,
+
+	BM_28159907,
+	BM_28190870,
+	BM_28249355,
+
+	BM_DK245105,
 };
 
 //base model number to id maps
 const struct nest_map_s bmr_map[] = {
+	/*2IGBT*/
 	{"28077390", BM_28077390},
-	{"DK245105", BM_DK245105},
 	{"28119979", BM_28119979},
-	{"28180087", BM_28180087},
-	{"28159907", BM_28159907},
 	{"28164665", BM_28164665},
+	{"28180087", BM_28180087},
+	{"28264387", BM_28264387},
+
+	/*4IGBT*/
+	{"28159907", BM_28159907},
+	{"28190870", BM_28190870},
+	{"28249355", BM_28249355},
+
+	/*OBSOLETE?*/
+	{"DK245105", BM_DK245105},
 	END_OF_MAP,
 };
 
@@ -318,23 +331,21 @@ static void CyclingTest(void)
 	hfps_trap("STATUS_L", 0xff, 0x71);
 	phdh_init();
 	vsep_init();
+	burn_init();
 
 	switch(bmr) {
 	case BM_28077390:
-		vsep_mask("PCH03");
-		vsep_mask("PCH04");
-		vsep_mask("PCH05");
-		vsep_mask("PCH13");
-		vsep_mask("PCH14");
-		vsep_mask("PCH18");
-		vsep_mask("PCH24");
-		vsep_mask("PCH25");
-		vsep_mask("PCH26");
-		vsep_mask("PCH27");
-		break;
+	case BM_28119979:
+	case BM_28164665:
 	case BM_28180087:
+	case BM_28264387:
+		burn_mask(BURN_CH_COILC);
+		burn_mask(BURN_CH_COILD);
 		vsep_mask("PCH03"); //2 way IGBT
 		vsep_mask("PCH04"); //2 way IGBT
+	case BM_28159907:
+	case BM_28190870:
+	case BM_28249355:
 		vsep_mask("PCH13"); //FPR Short to Ground?
 		vsep_mask("PCH14"); //SMR Short to Ground?
 		vsep_mask("PCH27"); //MPR Short to Ground?
@@ -344,6 +355,7 @@ static void CyclingTest(void)
 	}
 
 	nest_message("#Output Cycling Test Start ... \n");
+	ccp_Init(&can1, 500000);
 	mailbox[0] = TESTID_OCYLTST;
 	mailbox[1] = 0x00; //cycle ETC/EST in sequencial mode
 	if(bmr == BM_DK245105 || bmr == BM_28180087 || bmr == BM_28159907 || bmr == BM_28164665)
@@ -411,8 +423,9 @@ void TestStart(void)
 		return;
 	}
 
-	if(0) {//
-		memcpy(mfg_data.bmr, "28180087", sizeof(mfg_data.bmr));
+	if(0) {
+		memcpy(mfg_data.bmr, "28164665", sizeof(mfg_data.bmr));
+		mfg_data.psv = 0x03;
 		Write_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
 	}
 
@@ -429,12 +442,12 @@ void TestStart(void)
 	}
 
 	//relay settings
-	cncb_signal(SIG6,SIG_HI); //IAC
 	cncb_signal(SIG1,SIG_LO); //C71 FPR LOAD6(30Ohm + 70mH) JMP1 = GND, HSD
 	cncb_signal(SIG2,SIG_LO); //C70 SMR LOAD7(30Ohm + 70mH) JMP2 = GND, HSD
 	cncb_signal(SIG3,SIG_LO); //E7 = NC
-	if(bmr == BM_DK245105 || bmr == BM_28180087 || bmr == BM_28159907 || bmr == BM_28164665)
-		cncb_signal(SIG6,SIG_LO); //etc
+	cncb_signal(SIG6,SIG_LO); //ETC
+	if(bmr == BM_28077390 || bmr == BM_28119979)
+		cncb_signal(SIG6,SIG_HI); //IAC
 
 	//chip pinmaps
 	chips_bind();

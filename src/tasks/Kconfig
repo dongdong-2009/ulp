@@ -9,13 +9,15 @@ bool "enable task of 'stepmotor'?" CONFIG_TASK_STEPMOTOR
 bool "enable task of 'vvt'?" CONFIG_TASK_VVT
 bool "Handheld Vehicle Programmer?" CONFIG_TASK_HVP
 bool "delphi nest program?" CONFIG_TASK_NEST
+bool "enable lwip application" CONFIG_LWIP_APP
 bool "delphi safe sensor simulator?" CONFIG_TASK_SSS
 
-if [ "$CONFIG_LIB_LWIP" = "y" ]; then
+if [ "$CONFIG_LWIP_APP" = "y" ]; then
 	bool "enable task of 'eth demo'?" CONFIG_TASK_ETHDEMO
 	bool "enable task of MatrixBoard?" CONFIG_TASK_MATRIX
 fi
 
+bool "enable APT application" CONFIG_TASK_APT
 bool "misc applications?" CONFIG_TASK_MISC
 
 mainmenu_option next_comment

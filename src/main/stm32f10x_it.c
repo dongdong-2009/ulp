@@ -270,9 +270,11 @@ void EXTI3_IRQHandler(void)
 extern void lwip_lib_isr(void);
 void EXTI4_IRQHandler(void)
 {
-#if CONFIG_TASK_MATRIX == 1
+#if (CONFIG_LIB_LWIP == 1) 
+#if (CONFIG_MAC_ENC28J60 == 1) || (CONFIG_MAC_ENC424J600 == 1)
 	lwip_lib_isr();
 	EXTI_ClearFlag(EXTI_Line4);
+#endif
 #endif
 }
 
@@ -650,7 +652,7 @@ void USBWakeUp_IRQHandler(void)
 *******************************************************************************/
 void ETH_IRQHandler(void)
 {
-#if CONFIG_TASK_ETHDEMO == 1
+#if (CONFIG_LIB_LWIP == 1) && (CONFIG_MAC_STM32 == 1)
 	/* Handles all the received frames */
 	while (ETH_GetRxPktSize() != 0) {
 		lwip_lib_isr();

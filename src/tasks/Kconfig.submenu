@@ -39,6 +39,13 @@ if [ "$CONFIG_TASK_ETHDEMO" = "y" ]; then
 	endmenu	
 fi
 
+if [ "$CONFIG_TASK_APT" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'apt applications select'
+		source src/tasks/apt/Kconfig
+	endmenu	
+fi
+
 if [ "$CONFIG_TASK_MISC" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'misc applications select'

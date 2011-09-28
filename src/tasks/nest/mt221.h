@@ -121,13 +121,15 @@ typedef struct
 				 mt18.1: 2-> 2est/igbt, 3->3est/igbt, 4-> 4est/igbt */
 	UINT8 mt601;
 	UINT8 model;
+	UINT8 mt221ss;
 } ModelType;
 
 #define PRINT_MODEL_TYPE() do{ \
 	if(mtype.par < 2) { if(mtype.par == 1) message("2"); else message("4"); } else { message("%d", mtype.par); } \
 	if(mtype.igbt == 1) message("IGBT"); else message("EST"); \
 	if(mtype.iac == 1) message(" + IAC"); else message(" + ETC"); \
-	if(mtype.mt601== 1) message(" + MT60.1"); else message(" + NOTMT601"); \
+	if(mtype.mt601== 1) message(" + MT60.1"); \
+	if(mtype.mt221ss== 1) message(" + MT22.1SS"); \
 	message("\n"); \
 } while(0)
 

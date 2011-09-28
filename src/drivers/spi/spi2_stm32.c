@@ -79,9 +79,7 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	SPI_SSOutputCmd(spi, ENABLE);
 #endif
 
-#ifdef CONFIG_SPI2_CS_SOFT
 	spi_cs_init();
-#endif
 
 #ifdef CONFIG_SPI2_DMA
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);

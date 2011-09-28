@@ -1,6 +1,5 @@
-obj-$(CONFIG_SPI_CS_GPIO) += spi_cs.o
 ifeq ($(CONFIG_CPU_STM32),y)
-	ifneq (,$(filter y, $(CONFIG_SPI1_CS_SOFT) $(CONFIG_SPI2_CS_SOFT)))
+	ifneq (,$(filter y, $(CONFIG_DRIVER_SPI1) $(CONFIG_DRIVER_SPI2) $(CONFIG_DRIVER_SPI3)))
 		obj-y += cs_stm32.o
 	endif
 	obj-$(CONFIG_DRIVER_SPI1) += spi1_stm32.o
@@ -14,3 +13,4 @@ obj-$(CONFIG_DRIVER_MCP41X) += mcp41x.o
 obj-$(CONFIG_DRIVER_DAC1X8S) += dac1x8s.o
 obj-$(CONFIG_DRIVER_74HCT595) += 74hct595.o
 obj-$(CONFIG_DRIVER_MBI5025) += mbi5025.o
+obj-$(CONFIG_DRIVER_MCP23S17) += mcp23s17.o

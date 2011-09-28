@@ -6,6 +6,12 @@
 bool "general key driver" CONFIG_DRIVER_KEYBOARD
 if [ "$CONFIG_DRIVER_KEYBOARD" = "y" ]; then
 	bool "adc key driver" CONFIG_DRIVER_ADCKEY
+	if [ "$CONFIG_DRIVER_ADCKEY" = "y" ]; then
+		choice 'STM32 ADC Channel select'	" \
+			ADC12_IN0 CONFIG_ADCKEY_ADC12_IN0 \
+			ADC12_IN8 CONFIG_ADCKEY_ADC12_IN8 \
+		" ADC12_IN0
+	fi
 	bool "gpio key driver" CONFIG_DRIVER_GPIOKEY
 	if [ "$CONFIG_DRIVER_GPIOKEY" = "y" ]; then
 		choice 'keyboard layout select'	" \

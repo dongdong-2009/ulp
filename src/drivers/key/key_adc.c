@@ -8,7 +8,20 @@
 #include "stm32f10x.h"
 #include "time.h"
 
-#define ADCKEY_PIN GPIO_Pin_0
+#ifdef CONFIG_ADCKEY_ADC12_IN0
+#define ADCKEY_CLOCK_PROT	RCC_APB2Periph_GPIOA
+#define ADCKEY_PIN			GPIO_Pin_0
+#define ADCKEY_PORT			GPIOA
+#define ADCKEY_CHANNEL		ADC_Channel_0
+#endif
+
+#ifdef CONFIG_ADCKEY_ADC12_IN8
+#define ADCKEY_CLOCK_PROT	RCC_APB2Periph_GPIOB
+#define ADCKEY_PIN			GPIO_Pin_0
+#define ADCKEY_PORT			GPIOB
+#define ADCKEY_CHANNEL		ADC_Channel_8
+#endif
+
 #define ADCKEY_JITTER (1 << 8) /* +/- 128 */
 #define ADCKEY_UPDATE_MS (10)
 #define ADCKEY_DETECT_CNT (10) /*detect time = ADCKEY_DETECT_CNT * ADCKEY_UPDATE_MS*/
@@ -67,13 +80,13 @@ int adckey_Init(void)
 	ADC_InitTypeDef ADC_InitStructure;
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	RCC_APB2PeriphClockCmd(ADCKEY_CLOCK_PROT, ENABLE);
 	RCC_ADCCLKConfig(RCC_PCLK2_Div6); /*72Mhz/6 = 12Mhz*/
 
-	/* Configure PC.04 (ADC Channel14) as analog input*/
+	/* Configure ADC Channel as analog input*/
 	GPIO_InitStructure.GPIO_Pin = ADCKEY_PIN;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
+	GPIO_Init(ADCKEY_PORT, &GPIO_InitStructure);
 
 	ADC_DeInit(ADC1);
 	ADC_StructInit(&ADC_InitStructure);
@@ -87,7 +100,7 @@ int adckey_Init(void)
 	ADC_Init(ADC1, &ADC_InitStructure);
 
 	/* ADC1 regular channel_0 configuration */
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_239Cycles5);
+	ADC_RegularChannelConfig(ADC1, ADCKEY_CHANNEL, 1, ADC_SampleTime_239Cycles5);
 	/* Enable ADC1 */
 	ADC_Cmd(ADC1, ENABLE);
 

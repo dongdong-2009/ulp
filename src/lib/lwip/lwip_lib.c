@@ -69,7 +69,9 @@ void lwip_lib_Init(void)
 	lwip_timer = time_get(SYSTEMTICK_PERIOD_MS);
 
 	/* Initilaize the application , this function must implemented by application */
+#ifdef	CONFIG_LWIP_APP
 	lwip_app_Init();
+#endif
 }
 
 void lwip_lib_Update(void)
