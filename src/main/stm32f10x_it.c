@@ -394,7 +394,7 @@ void USB_HP_CAN1_TX_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void USB_LP_CAN1_RX0_IRQHandler(void)
+__weak void USB_LP_CAN1_RX0_IRQHandler(void)
 {
 #ifdef CONFIG_USE_STM32_USB_DRIVER
 	extern void USB_Istr(void);
@@ -409,7 +409,7 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void CAN_RX1_IRQHandler(void)
+void CAN1_RX1_IRQHandler(void)
 {
 }
 
@@ -420,7 +420,7 @@ void CAN_RX1_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void CAN_SCE_IRQHandler(void)
+void CAN1_SCE_IRQHandler(void)
 {
 }
 

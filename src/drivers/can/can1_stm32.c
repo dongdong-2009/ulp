@@ -1,5 +1,6 @@
 /*
  *	miaofng@2010 initial version
+ *	David, add interrupt support
  */
 
 #include "config.h"
@@ -7,6 +8,16 @@
 #include "stm32f10x.h"
 #include <string.h>
 #include "time.h"
+#include "stm32f10x_it.h"
+
+#if CONFIG_CAN1_RF_SZ > 0
+#define ENABLE_CAN_INT 1
+#define RX_FIFO_SZ CONFIG_CAN1_RF_SZ
+static can_msg_t can_fifo_rx[RX_FIFO_SZ];
+static int circle_header;
+static int circle_tailer;
+static int circle_number;
+#endif
 
 static int can_init(const can_cfg_t *cfg)
 {
@@ -77,6 +88,27 @@ static int can_init(const can_cfg_t *cfg)
 	CAN_FilterInitStructure.CAN_FilterFIFOAssignment=0 ;
 	CAN_FilterInitStructure.CAN_FilterActivation=ENABLE;
 	CAN_FilterInit(&CAN_FilterInitStructure);
+
+#if ENABLE_CAN_INT
+	NVIC_InitTypeDef  NVIC_InitStructure;
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_0);
+#ifndef STM32F10X_CL
+	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN1_RX0_IRQn;
+#else
+	NVIC_InitStructure.NVIC_IRQChannel = CAN1_RX0_IRQn;
+#endif
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+
+	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
+	CAN_ITConfig(CAN1, CAN_IT_FMP0, ENABLE);
+	circle_header = 0;
+	circle_tailer = 0;
+	circle_number = 0;
+#endif
+
 	return 0;
 }
 
@@ -101,6 +133,18 @@ int can_send(const can_msg_t *msg)
 
 int can_recv(can_msg_t *msg)
 {
+#if ENABLE_CAN_INT
+	if (circle_number == 0) {
+		return -1;
+	} else {
+		(*msg) = can_fifo_rx[circle_tailer];
+		circle_number --;
+		circle_tailer ++;
+		if (circle_tailer == RX_FIFO_SZ)
+			circle_tailer = 0;
+	}
+	return 0;
+#else
 	CanRxMsg msg_st;
 
 	if(CAN_MessagePending(CAN1, CAN_FIFO0) > 0)
@@ -115,6 +159,7 @@ int can_recv(can_msg_t *msg)
 	msg->dlc = msg_st.DLC;
 	memcpy(msg->data, msg_st.Data, msg->dlc);
 	return 0;
+#endif
 }
 
 int can_filt(can_filter_t *filter, int n)
@@ -166,6 +211,30 @@ void can_flush(void)
 	CAN_FIFORelease(CAN1, CAN_FIFO0);
 	CAN_FIFORelease(CAN1, CAN_FIFO1);
 }
+
+#if ENABLE_CAN_INT
+//for can1 receive FIFO 0 interrupt
+void USB_LP_CAN1_RX0_IRQHandler(void)
+{
+	CanRxMsg msg_st;
+	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
+	while (CAN_MessagePending(CAN1, CAN_FIFO0)) {
+		CAN_Receive(CAN1, CAN_FIFO0, &msg_st);
+		can_fifo_rx[circle_header].id = (msg_st.IDE == CAN_ID_EXT) ? msg_st.ExtId : msg_st.StdId;
+		can_fifo_rx[circle_header].flag = (msg_st.IDE == CAN_ID_EXT) ? CAN_FLAG_EXT : 0;
+		can_fifo_rx[circle_header].dlc = msg_st.DLC;
+		memcpy(can_fifo_rx[circle_header].data, msg_st.Data, msg_st.DLC);
+		circle_number ++;
+		if (circle_number == RX_FIFO_SZ) {
+			circle_number --;
+		} else {
+			circle_header ++;
+			if (circle_header == RX_FIFO_SZ)
+				circle_header = 0;
+		}
+	}
+}
+#endif
 
 const can_bus_t can1 = {
 	.init = can_init,
