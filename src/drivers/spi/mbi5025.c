@@ -23,7 +23,7 @@ void mbi5025_WriteByte(mbi5025_t *chip, unsigned char data)
 {
 	spi_cs_set(chip->load_pin, 0);
 	chip->bus->wreg(chip->idx, data);
-	spi_cs_set(chip->load_pin, 1);	
+	spi_cs_set(chip->load_pin, 1);
 }
 
 void mbi5025_WriteBytes(mbi5025_t *chip, unsigned char * pdata, int len)
@@ -63,7 +63,7 @@ void mbi5025_DisableOE(mbi5025_t *chip)
 #include <string.h>
 
 static mbi5025_t sr = {
-	.bus = &spi2,
+	.bus = &spi1,
 	.idx = SPI_CS_DUMMY,
 	.load_pin = SPI_CS_PC3,
 	.oe_pin = SPI_CS_PC4,
@@ -72,22 +72,27 @@ static mbi5025_t sr = {
 static int cmd_mbi5025_func(int argc, char *argv[])
 {
 	int temp = 0;
+	int i;
 
 	const char * usage = { \
 		" usage:\n" \
 		" mbi5025 init, chip init \n" \
-		" mbi5025 write value, write reg \n" \
+		" mbi5025 write v1 v2 ...., write reg with 0xv1 0xv2... \n" \
 	};
 
 	if (argc > 1) {
 		if(argv[1][0] == 'i') {
 			mbi5025_Init(&sr);
 			mbi5025_EnableOE(&sr);
+			printf("Init Successful!\n");
 		}
 
 		if (argv[1][0] == 'w') {
-			sscanf(argv[2], "%x", &temp);
-			mbi5025_WriteByte(&sr, temp);
+			for (i = 0; i < (argc - 2); i++) {
+				sscanf(argv[2+i], "%x", &temp);
+				mbi5025_WriteByte(&sr, temp);
+			}
+			printf("%d Bytes Write Successful!\n", argc-2);
 		}
 	}
 
