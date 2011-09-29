@@ -137,7 +137,7 @@ int ili932x_Initializtion(const struct lcd_cfg_s *cfg)
 		ili932x_WriteRegister(0x0000, 0x0001); //start internal osc
 		ili932x_WriteRegister(0x0001, 0x0100);
 		ili932x_WriteRegister(0x0002, 0x0700); //power on sequence
-		ili932x_WriteRegister(0x0003, (1 << 12) | (1 << 5) | (1 << 4)); //65K
+		ili932x_WriteRegister(0x0003, (0 << 12) | (1 << 5) | (1 << 4)); //65K
 		ili932x_WriteRegister(0x0004, 0x0000);
 		ili932x_WriteRegister(0x0008, 0x0207);
 		ili932x_WriteRegister(0x0009, 0x0000);
