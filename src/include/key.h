@@ -46,6 +46,9 @@ enum {
 	KEY_PLAY,
 	KEY_FORWARD,
 	KEY_BACKWARD,
+	//special keycodes for encoder
+	KEY_ENCODER_P, //+
+	KEY_ENCODER_N, //-
 	KEY_DUMMY,
 };
 
