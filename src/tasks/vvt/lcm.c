@@ -36,7 +36,9 @@ static int get_wss(void) {return lcm_dat.wss;}
 static int get_vss(void) {return lcm_dat.vss;}
 static int get_mfr(void) {return lcm_dat.mfr;}
 static int get_knk(void) {return lcm_dat.knk;}
-static int get_dio(void) {return lcm_dat.dio;}
+static int get_dio(void) {
+	return lcm_dat.dio;
+}
 
 const char str_rpm[] = "RPM";
 const char str_cam[] = "CAM ADV";
@@ -92,6 +94,7 @@ const osd_command_t cmds_items[] = {
 	{.event = KEY_ENTER, .func = set_items_value},
 	{.event = KEY_ENCODER_P, .func = set_items_value},
 	{.event = KEY_ENCODER_N, .func = set_items_value},
+	{.event = OSDE_GRP_FOCUS, .func = set_items_value},
 	NULL,
 };
 
@@ -118,6 +121,7 @@ static int set_group_focus(const osd_command_t *cmd)
 	osd_group_t *group = osd_GetCurrentGroup();
 	short *p = (short *) &lcm_cfg;
 	switch(cmd->event) {
+	case OSDE_GRP_FOCUS:
 	case KEY_ENTER:
 		lcm_flag.focus = 1;
 		p += group->order << 1;
@@ -150,6 +154,14 @@ static int set_items_value(const osd_command_t *cmd)
 		return set_group_focus(cmd);
 
 	switch(cmd->event) {
+	case OSDE_GRP_FOCUS:
+		p =  (short *) &lcm_cfg;
+		p += group->order << 1;
+		encoder_SetRange(p[0], p[1]);
+		p = (short *) &lcm_dat;
+		encoder_SetValue(p[group->order]);
+		break;
+
 	case KEY_ENTER:
 		lcm_flag.focus = 0;
 		break;
