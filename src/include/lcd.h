@@ -57,7 +57,7 @@ struct lcd_dev_s {
 	//api for pixel based lcd module
 	int (*setwindow)(int x0, int y0, int x1, int y1);
 	int (*rgram)(void *dest, int n); //note: n indicates nr of pixel
-	int (*wgram)(const void *src, int n);
+	int (*wgram)(const void *src, int n, int color);
 
 	//for debug purpose
 	int (*writereg)(int reg, int val);

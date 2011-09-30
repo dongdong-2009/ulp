@@ -192,7 +192,7 @@ int lcd_bitblt(struct lcd_s *lcd, const void *bits, int x, int y, int w, int h)
 		v = bit_get(i, bits);
 		v = (v != 0) ? lcd -> fgcolor : lcd -> bgcolor;
 		//warnning!!! be carefull of the endianess and rgb format here ...
-		ret = lcd -> dev -> wgram(&v, 1);
+		ret = lcd -> dev -> wgram(&v, 1, 0);
 		i ++;
 	}
 
@@ -204,7 +204,7 @@ int lcd_imageblt(struct lcd_s *lcd, const void *image, int x, int y, int w, int 
 	int ret = lcd_set_window(lcd, x, y, w, h);
 	if(!ret) {
 		//warnning!!! be carefull of the rgb format here ...
-		ret = lcd -> dev -> wgram(image, w * h);
+		ret = lcd -> dev -> wgram(image, w * h, 0);
 	}
 
 	return ret;
@@ -212,17 +212,10 @@ int lcd_imageblt(struct lcd_s *lcd, const void *image, int x, int y, int w, int 
 
 static int lcd_clear_pixel(struct lcd_s *lcd, int x, int y, int w, int h)
 {
-	int i, n;
-	int ret = lcd_set_window(lcd, x, y, w, h);
+	if(!lcd_set_window(lcd, x, y, w, h))
+		return lcd -> dev -> wgram(NULL, w * h, lcd -> bgcolor);
 
-	i = 0;
-	n = w * h;
-	while ( !ret && i < n ) {
-		ret = lcd -> dev -> wgram(&lcd -> bgcolor, 1);
-		i ++;
-	}
-
-	return ret;
+	return -1;
 }
 
 static int lcd_clear_char(struct lcd_s *lcd, int x, int y, int w, int h)

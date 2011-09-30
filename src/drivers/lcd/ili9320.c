@@ -42,11 +42,13 @@ static inline int ili932x_ReadData(void)
 }
 
 /*write graphic ram*/
-static int ili932x_WriteGRAM(const void *src, int n)
+static int ili932x_WriteGRAM(const void *src, int n, int color)
 {
 	const unsigned short *p = src;
+	short v = (short) color;
 	while (n > 0) {
-		ili932x_bus -> write(DAT, *p ++);
+		v = (src != NULL) ? (*p ++) : v;
+		ili932x_bus -> write(DAT, v);
 		n --;
 	}
 	return 0;
