@@ -220,18 +220,36 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
 	while (CAN_MessagePending(CAN1, CAN_FIFO0)) {
 		CAN_Receive(CAN1, CAN_FIFO0, &msg_st);
+		circle_number ++;
+#if CONFIG_CAN1_FIFO_OVERRIDE
 		can_fifo_rx[circle_header].id = (msg_st.IDE == CAN_ID_EXT) ? msg_st.ExtId : msg_st.StdId;
 		can_fifo_rx[circle_header].flag = (msg_st.IDE == CAN_ID_EXT) ? CAN_FLAG_EXT : 0;
 		can_fifo_rx[circle_header].dlc = msg_st.DLC;
 		memcpy(can_fifo_rx[circle_header].data, msg_st.Data, msg_st.DLC);
-		circle_number ++;
+
 		if (circle_number == RX_FIFO_SZ) {
 			circle_number --;
-		} else {
-			circle_header ++;
-			if (circle_header == RX_FIFO_SZ)
-				circle_header = 0;
+			circle_tailer++;
+			if (circle_tailer == RX_FIFO_SZ)
+				circle_tailer = 0;
 		}
+		circle_header ++;
+		if (circle_header == RX_FIFO_SZ)
+			circle_header = 0;
+#else
+		if (circle_number == RX_FIFO_SZ) {
+			circle_number --;
+			return;
+		}
+		can_fifo_rx[circle_header].id = (msg_st.IDE == CAN_ID_EXT) ? msg_st.ExtId : msg_st.StdId;
+		can_fifo_rx[circle_header].flag = (msg_st.IDE == CAN_ID_EXT) ? CAN_FLAG_EXT : 0;
+		can_fifo_rx[circle_header].dlc = msg_st.DLC;
+		memcpy(can_fifo_rx[circle_header].data, msg_st.Data, msg_st.DLC);
+
+		circle_header ++;
+		if (circle_header == RX_FIFO_SZ)
+			circle_header = 0;
+#endif
 	}
 }
 #endif

@@ -14,5 +14,6 @@ if [ "$CONFIG_DRIVER_CAN1" = "y" ]; then
 	if [ "$CONFIG_CPU_STM32" = "y" ]; then
 		bool "remap PB8/9 as tx/rx pin" CONFIG_CAN1_REMAP
 		int "can rx fifo size" CONFIG_CAN1_RF_SZ 32
+		bool "enable override feature of FIFO" CONFIG_CAN1_FIFO_OVERRIDE
 	fi
 fi
