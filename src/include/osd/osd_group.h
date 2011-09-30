@@ -31,6 +31,7 @@ typedef struct osd_group_s {
 
 //private
 #define COLOR_FG_DEF BLACK
+#define COLOR_FG_GRAY GRAY
 #define COLOR_BG_DEF WHITE	
 #define COLOR_FG_FOCUS WHITE
 #define COLOR_BG_FOCUS BLUE

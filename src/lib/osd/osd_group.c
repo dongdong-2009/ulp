@@ -134,6 +134,11 @@ static int set_color(int status)
 		fg = (int) COLOR_FG_FOCUS;
 		bg = (int) COLOR_BG_FOCUS;
 	}
+
+	if(status == STATUS_GRAYED) {
+		fg = (int) COLOR_FG_GRAY;
+		bg = (int) COLOR_BG_DEF;
+	}
 	
 	return osd_eng_set_color(fg, bg);
 }
