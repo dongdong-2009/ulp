@@ -247,6 +247,6 @@ int osd_grp_react(osd_group_k *kgrp, int event, const dot_t *p)
 	else event = OSDE_NONE;
 	
 	//default to KEY_ENTER event
-	return (event == OSDE_NONE) ? KEY_ENTER : event;
+	return event;
 }
 #endif
