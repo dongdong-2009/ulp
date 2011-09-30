@@ -20,7 +20,7 @@
 #define STA 0
 #define DAT 1
 
-static lpt_bus_t *ili932x_bus;
+static const lpt_bus_t *ili932x_bus;
 static unsigned short ili932x_id;
 
 /*write index register*/
@@ -45,13 +45,11 @@ static inline int ili932x_ReadData(void)
 static int ili932x_WriteGRAM(const void *src, int n, int color)
 {
 	const unsigned short *p = src;
-	short v = (short) color;
-	while (n > 0) {
-		v = (src != NULL) ? (*p ++) : v;
-		ili932x_bus -> write(DAT, v);
-		n --;
+	if(src == NULL) {
+		return ili932x_bus ->writen(DAT, color, n);
 	}
-	return 0;
+
+	return ili932x_bus ->writeb(DAT, src, n);
 }
 
 /*write graphic ram*/
