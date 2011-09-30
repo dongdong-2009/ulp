@@ -27,17 +27,17 @@ static int key_hwinit(void)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	
+
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	
+
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	
+
 	return 0;
 }
 
@@ -47,20 +47,56 @@ static short key_hwgetvalue(void)
 	value |= (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0));
 	value <<= 1;
 	value |= (!GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_13));
-	
-	value = (value == 0) ? NOKEY : value - 1;
+
+	if(value == 0)
+		value = NOKEY;
+	else
+		value -= 1;
+
 	return value;
 }
 #endif
 
-int key_init(void)
+#if CONFIG_GPIOKEY_LAYOUT_VVT == 1
+#include "stm32f10x.h"
+
+static int key_hwinit(void)
+{
+	/* key pin map:
+		key0, S_ENCODER		PB11
+	*/
+	GPIO_InitTypeDef GPIO_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	return 0;
+}
+
+static short key_hwgetvalue(void)
+{
+	short value = 0;
+	value |= (!GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11));
+
+	if(value == 0)
+		value = NOKEY;
+	else
+		value -= 1;
+
+	return value;
+}
+#endif
+
+static int key_init(void)
 {
 	/*init static variables*/
 	key.value = 0;
 	key.flag_nokey = 1;
 	key_counter = 0;
 	key_timer = time_get(KEY_UPDATE_MS);
-	
+
 	return key_hwinit();
 }
 
@@ -71,7 +107,7 @@ static void key_update(void)
 	if(time_left(key_timer) > 0)
 		return;
 	key_timer = time_get(KEY_UPDATE_MS);
-	
+
 	//get key code from gpio level
 	value = key_hwgetvalue();
 
@@ -105,8 +141,8 @@ static const keyboard_t key_gpio = {
 	.getkey = key_getkey,
 };
 
-static void key_reg(void)
+static void key_reg_gpio(void)
 {
 	keyboard_Add(&key_gpio, KEYBOARD_TYPE_LOCAL);
 }
-driver_init(key_reg);
+driver_init(key_reg_gpio);
