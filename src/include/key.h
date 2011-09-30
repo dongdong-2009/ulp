@@ -49,6 +49,13 @@ enum {
 	//special keycodes for encoder
 	KEY_ENCODER_P, //+
 	KEY_ENCODER_N, //-
+	//special keycodes for touchscreen
+	PDE_NONE,
+	PDE_DN,
+	PDE_UP,
+	PDE_CLICK,
+	PDE_HOLD,
+	PDE_DRAG,
 	KEY_DUMMY,
 };
 

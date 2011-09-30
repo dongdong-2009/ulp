@@ -7,6 +7,7 @@
 
 #include "config.h"
 #include "common/glib.h"
+#include "key.h"
 
 #ifndef CONFIG_PD_RX
 #define CONFIG_PD_RX 600 //unit; Ohm
@@ -23,16 +24,6 @@
 #ifndef CONFIG_PD_ZL
 #define CONFIG_PD_ZL	(3000)
 #endif
-
-//supported event
-enum {
-	PDE_NONE,
-	PDE_DN,
-	PDE_UP,
-	PDE_CLICK,
-	PDE_HOLD,
-	PDE_DRAG,
-};
 
 //for bottom ts chip driver configuration
 extern int pd_dx; //Delta-X limit

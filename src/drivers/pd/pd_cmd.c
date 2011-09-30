@@ -22,8 +22,8 @@ int cmd_pd_get(int argc, char *argv[])
 
 	if( !pdd_get(&sp) )
 		printf("pd(x, y, z): %d %d %d\n", sp.x, sp.y, sp.z);
-	else
-		printf("pd(x, y, z):\n");
+	//else
+		//printf("pd(x, y, z):\n");
 
 	return 1;
 }
