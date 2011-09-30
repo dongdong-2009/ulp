@@ -16,7 +16,7 @@ enum {
 
 //group status
 enum {
-	STATUS_HIDE,
+	STATUS_HIDE = -100,
 	STATUS_GRAYED,
 	STATUS_VISIBLE,
 	STATUS_FOCUSED,
