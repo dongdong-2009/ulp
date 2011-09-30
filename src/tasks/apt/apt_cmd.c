@@ -42,9 +42,9 @@ static int cmd_apt_func(int argc, char *argv[])
 		//for ess simulator
 		if(strcmp(argv[1], "ess") == 0) {
 			sscanf(argv[3], "%d", &temp);
-			if (strcmp(argv[2], "on"))
+			if (strcmp(argv[2], "on") == 0)
 				ess_SetRelayStatus(0x01 << temp, RELAY_ON);
-			if (strcmp(argv[2], "off"))
+			if (strcmp(argv[2], "off") == 0)
 				ess_SetRelayStatus(0x01 << temp, RELAY_OFF);
 			c131_relay_Update();
 			return 0;
@@ -53,9 +53,9 @@ static int cmd_apt_func(int argc, char *argv[])
 		//for loop simulator
 		if(strcmp(argv[1], "loop") == 0) {
 			sscanf(argv[3], "%d", &temp);
-			if (strcmp(argv[2], "on"))
+			if (strcmp(argv[2], "on") == 0)
 				loop_SetRelayStatus(0x01 << temp, RELAY_ON);
-			if (strcmp(argv[2], "off"))
+			if (strcmp(argv[2], "off") == 0)
 				loop_SetRelayStatus(0x01 << temp, RELAY_OFF);
 			c131_relay_Update();
 			return 0;
@@ -64,9 +64,9 @@ static int cmd_apt_func(int argc, char *argv[])
 		//for led simulator
 		if(strcmp(argv[1], "led") == 0) {
 			sscanf(argv[3], "%d", &temp);
-			if (strcmp(argv[2], "on"))
+			if (strcmp(argv[2], "on") == 0)
 				led_SetRelayStatus(0x01 << temp, RELAY_ON);
-			if (strcmp(argv[2], "off"))
+			if (strcmp(argv[2], "off") == 0)
 				led_SetRelayStatus(0x01 << temp, RELAY_OFF);
 			c131_relay_Update();
 			return 0;
@@ -75,9 +75,9 @@ static int cmd_apt_func(int argc, char *argv[])
 		//for switch simulator
 		if(strcmp(argv[1], "switch") == 0) {
 			sscanf(argv[3], "%d", &temp);
-			if (strcmp(argv[2], "on"))
+			if (strcmp(argv[2], "on") == 0)
 				sw_SetRelayStatus(0x01 << temp, RELAY_ON);
-			if (strcmp(argv[2], "off"))
+			if (strcmp(argv[2], "off") == 0)
 				sw_SetRelayStatus(0x01 << temp, RELAY_OFF);
 			c131_relay_Update();
 			return 0;
@@ -127,10 +127,13 @@ static int cmd_apt_func(int argc, char *argv[])
 		//for power off/on
 		if(strcmp(argv[1], "pwr") == 0) {
 			if (strcmp(argv[3], "sdm") == 0) {
-				if (strcmp(argv[2], "on") == 0)
+				if (strcmp(argv[2], "on") == 0) {
 					Enable_SDMPWR();
-				if (strcmp(argv[2], "off") == 0)
+					Enable_LEDPWR();
+				} else if (strcmp(argv[2], "off") == 0) {
 					Disable_SDMPWR();
+					Disable_LEDPWR();
+				}
 			}
 			if (strcmp(argv[3], "led") == 0) {
 				if (strcmp(argv[2], "on") == 0)
@@ -157,10 +160,11 @@ static int cmd_apt_func(int argc, char *argv[])
 				printf("Reading DTC Error! \n");
 			else {
 				printf("Reading DTC Successful! \n");
-				printf("  HB,   LB,   LB,   SODTC\n");
+				printf("HB  , MB  , LB  , SODTC\n");
 				for (i = 0; i < c131_dtc.dtc_len; i++)
-					printf("0x%x, 0x%x, 0x%x, 0x%x \n", c131_dtc.pdtc[i].dtc_hb, c131_dtc.pdtc[i].dtc_mb, \
-													 c131_dtc.pdtc[i].dtc_lb, c131_dtc.pdtc[i].dtc_status);
+					printf("0x%2x, 0x%2x, 0x%2x, 0x%2x \n", \
+					c131_dtc.pdtc[i].dtc_hb, c131_dtc.pdtc[i].dtc_mb, \
+					c131_dtc.pdtc[i].dtc_lb, c131_dtc.pdtc[i].dtc_status);
 			}
 		}
 	}

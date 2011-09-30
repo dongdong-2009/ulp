@@ -109,7 +109,7 @@ static apt_load_t c131_load[NUM_OF_LOAD] __nvm;
 static int c131_current_load __nvm;
 static int num_load;
 
-//for can communication
+//for const can frame which will not change
 static struct can_queue_s c131_ems_3 = {
 	.ms = 10,
 	.msg = {0x11c, 4, {0x00, 0x00, 0x00, 0x00}, 0},
@@ -118,11 +118,6 @@ static struct can_queue_s c131_ems_3 = {
 static struct can_queue_s c131_ems_4 = {
 	.ms = 10,
 	.msg = {0x122, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
-};
-
-static struct can_queue_s c131_abs_1 = {
-	.ms = 10,
-	.msg = {0xb4, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
 static struct can_queue_s c131_abs_2 = {
@@ -135,16 +130,23 @@ static struct can_queue_s c131_abs_3 = {
 	.msg = {0x12c, 4, {0x00, 0x00, 0x00, 0x00}, 0},
 };
 
-static struct can_queue_s c131_sas_1 = {
-	.ms = 10,
-	.msg = {0x96, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
-};
-
 static struct can_queue_s c131_tcu_3 = {
 	.ms = 100,
 	.msg = {0x248, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
+//for static can frame which need change in livecounter and checksum field
+static struct can_queue_s c131_abs_1 = {
+	.ms = 10,
+	.msg = {0xb4, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
+};
+
+static struct can_queue_s c131_sas_1 = {
+	.ms = 10,
+	.msg = {0x96, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
+};
+
+//for diagnosis can msg
 static const can_msg_t req_dtc_msg = {
 	.id = C131_DIAG_REQ_ID,
 	.dlc = 8,
@@ -247,10 +249,10 @@ static void c131_Update(void)
 		status_link = SDM_EXIST;
 	}
 
+	c131_can_SendOtherECUMsg();
+
 	//for sdm testing status machine
 	if (c131_test_status == C131_TEST_ONGOING) {
-		c131_can_SendOtherECUMsg();
-		c131_can_GetAirbagMsg(&msg);
 		//embedded test flow state machine
 		switch (c131_stage_status) {
 			case C131_STAGE1_RELAY:
@@ -315,6 +317,7 @@ static void c131_Update(void)
 				FailLed_On();
 				c131_test_status = C131_TEST_FAIL;
 				Disable_SDMPWR();
+				Disable_LEDPWR();
 				c131_stage_status = C131_STAGE1_RELAY;
 				break;
 			case C131_STAGE_OVER:
@@ -322,6 +325,7 @@ static void c131_Update(void)
 				c131_test_status = C131_TEST_SUCCESSFUL;
 				c131_can_ClearHistoryDTC();
 				Disable_SDMPWR();
+				Disable_LEDPWR();
 				c131_stage_status = C131_STAGE1_RELAY;
 				break;
 			default :
@@ -517,12 +521,10 @@ int apt_GetDiagInfo(void)
 int apt_SelectAPTDiag(int keytype)
 {
 	if (keytype == KEY_ENTER) {
-		Enable_SDMPWR();
 		Enable_LEDPWR();
 		c131_DiagSW();
 		c131_DiagLED();
 		c131_DiagLOOP();
-		Disable_SDMPWR();
 		Disable_LEDPWR();
 		status_diag = DIAGNOSIS_OVER;
 	}
@@ -557,6 +559,7 @@ int apt_SelectAPTTest(int keytype)
 			c131_ConfirmLoad(c131_GetCurrentLoadIndex());
 			c131_relay_Update();
 			Enable_SDMPWR();
+			Enable_LEDPWR();
 		}
 	} else if (keytype == KEY_RESET) {
 		if ((c131_test_status == C131_TEST_FAIL) || (c131_test_status == C131_TEST_SUCCESSFUL))
@@ -771,6 +774,15 @@ static void c131_can_SendOtherECUMsg(void)
 		q = list_entry(pos, can_queue_s, list);
 		if(q -> timer == 0 || time_left(q -> timer) < 0) {
 			q -> timer = time_get(q -> ms);
+			if ((q->msg).id == 0xb4) {
+				(q->msg).data[7] ++;
+				(q->msg).data[7] &= 0x0f;
+				(q->msg).data[0] = (q->msg).data[7];
+			}
+			if ((q->msg).id == 0x96) {
+				(q->msg).data[6] ++;
+				(q->msg).data[0] = (q->msg).data[6];
+			}
 			can_bus -> send(&q -> msg);
 		}
 	}

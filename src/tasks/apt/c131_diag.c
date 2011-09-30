@@ -79,6 +79,7 @@ int c131_DiagSW(void)
 	sw_SetRelayStatus(C131_SW1_C1, RELAY_OFF);
 	sw_SetRelayStatus(C131_SW1_C2, RELAY_ON);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("14MA is %x \n", temp);
@@ -89,6 +90,7 @@ int c131_DiagSW(void)
 
 	sw_SetRelayStatus(C131_SW1_C2, RELAY_OFF);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("6MA is %x \n", temp);
@@ -102,6 +104,7 @@ int c131_DiagSW(void)
 	sw_SetRelayStatus(C131_SW2_C1, RELAY_OFF);
 	sw_SetRelayStatus(C131_SW2_C2, RELAY_ON);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("2K82 is %x \n", temp);
@@ -112,6 +115,7 @@ int c131_DiagSW(void)
 
 	sw_SetRelayStatus(C131_SW2_C2, RELAY_OFF);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("820R is %x \n", temp);
@@ -125,6 +129,7 @@ int c131_DiagSW(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOB, SW3_FBC);
 	sw_SetRelayStatus(C131_SW3, RELAY_ON);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("DSB is %x \n", temp);
@@ -135,6 +140,7 @@ int c131_DiagSW(void)
 	}
 	sw_SetRelayStatus(C131_SW3, RELAY_OFF);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("DSB is %x \n", temp);
@@ -149,6 +155,7 @@ int c131_DiagSW(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOB, SW4_FBC);
 	sw_SetRelayStatus(C131_SW4, RELAY_ON);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("PSB is %x \n", temp);
@@ -159,6 +166,7 @@ int c131_DiagSW(void)
 	}
 	sw_SetRelayStatus(C131_SW4, RELAY_OFF);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("PSB is %x \n", temp);
@@ -173,6 +181,7 @@ int c131_DiagSW(void)
 	sw_SetRelayStatus(C131_SW5_C1, RELAY_OFF);
 	sw_SetRelayStatus(C131_SW5_C2, RELAY_ON);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("900 is %x \n", temp);
@@ -183,6 +192,7 @@ int c131_DiagSW(void)
 
 	sw_SetRelayStatus(C131_SW5_C2, RELAY_OFF);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("220 is %x \n", temp);
@@ -226,9 +236,11 @@ int c131_DiagLOOP(void)
 	for (i = 0; i < 12; i++) {
 		loop_SetRelayStatus(C131_LOOP1 << i, RELAY_OFF);
 		c131_relay_Update();
+		mdelay(5);
 		temp = c131_adc_GetValue();
 		loop_SetRelayStatus(C131_LOOP1 << i, RELAY_ON);
 		c131_relay_Update();
+		mdelay(5);
 #if DIAG_DEBUG
 		printf("loop %x value is %x \n", i+1, temp);
 #endif
@@ -266,6 +278,7 @@ int c131_DiagLED(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOA, LED2_FBC);
 	led_SetRelayStatus(C131_LED2, RELAY_ON);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED2 is %x \n", temp);
@@ -277,6 +290,7 @@ int c131_DiagLED(void)
 
 	led_SetRelayStatus(C131_LED2, RELAY_OFF);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED2 is %x \n", temp);
@@ -289,6 +303,7 @@ int c131_DiagLED(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOA, LED3_FBC);
 	led_SetRelayStatus(C131_LED3, RELAY_ON);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED3 is %x \n", temp);
@@ -300,6 +315,7 @@ int c131_DiagLED(void)
 
 	led_SetRelayStatus(C131_LED3, RELAY_OFF);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED3 is %x \n", temp);
@@ -312,6 +328,7 @@ int c131_DiagLED(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOA, LED5_FBC);
 	led_SetRelayStatus(C131_LED5, RELAY_ON);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED5 is %x \n", temp);
@@ -323,6 +340,7 @@ int c131_DiagLED(void)
 
 	led_SetRelayStatus(C131_LED5, RELAY_OFF);
 	c131_relay_Update();
+	mdelay(5);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED5 is %x \n", temp);

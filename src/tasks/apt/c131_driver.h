@@ -33,12 +33,12 @@ typedef enum {
 #define Disable_LEDEXTPWR()		GPIO_ResetBits(GPIOC, GPIO_Pin_5)
 
 //for sdm power
-#define Enable_SDMPWR()			GPIO_SetBits(GPIOD, GPIO_Pin_13)
-#define Disable_SDMPWR()		GPIO_ResetBits(GPIOD, GPIO_Pin_13)
+#define Enable_SDMPWR()			GPIO_SetBits(GPIOE, GPIO_Pin_7)
+#define Disable_SDMPWR()		GPIO_ResetBits(GPIOE, GPIO_Pin_7)
 
 //for led power
-#define Enable_LEDPWR()			GPIO_SetBits(GPIOE, GPIO_Pin_7)
-#define Disable_LEDPWR()		GPIO_ResetBits(GPIOE, GPIO_Pin_7)
+#define Enable_LEDPWR()			GPIO_SetBits(GPIOD, GPIO_Pin_13)
+#define Disable_LEDPWR()		GPIO_ResetBits(GPIOD, GPIO_Pin_13)
 
 //for sdm ready detect
 #define Get_SDMStatus()			GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_8)
