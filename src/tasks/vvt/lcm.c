@@ -98,7 +98,7 @@ const osd_item_t items_knk[] = {
 
 const osd_item_t items_dio[] = {
 	{0, 6, 11, 1, (int)str_dio, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{11, 6, 4, 1, (int)get_dio, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	{11, 6, 4, 1, (int)get_dio, ITEM_DRAW_HEX, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
 	NULL,
 };
 
