@@ -13,16 +13,23 @@
 #include "encoder.h"
 #include "nvm.h"
 #include <string.h>
+#include "mcp23s17.h"
 
 static mcamos_srv_t lcm_server;
-lcm_dat_t lcm_dat __nvm;
-lcm_cfg_t lcm_cfg = {
+static lcm_dat_t lcm_dat __nvm;
+static lcm_cfg_t lcm_cfg = {
 	0, 8000, /*rpm*/
 	-60, 60, /*cam adv*/
 	0, 5000, /*wss*/
 	0, 5000, /*vss*/
 	0, 100, /*misfire strength*/
 	0, 100, /*knock strength*/
+};
+
+static const mcp23s17_t mcp23s17 = {
+	.bus = &spi2,
+	.idx = SPI_2_NSS,
+	.option = MCP23S17_LOW_SPEED | MCP23017_PORTA_IN | MCP23017_PORTB_IN,
 };
 
 static struct {
@@ -37,6 +44,11 @@ static int get_vss(void) {return lcm_dat.vss;}
 static int get_mfr(void) {return lcm_dat.mfr;}
 static int get_knk(void) {return lcm_dat.knk;}
 static int get_dio(void) {
+	unsigned char mfr, knk;
+	mcp23s17_ReadByte(&mcp23s17, MCP23017_PORTA_IN, &mfr); //port a
+	mcp23s17_ReadByte(&mcp23s17, MCP23017_PORTB_IN, &knk); //port b
+	lcm_dat.dio = knk;
+	lcm_dat.dio = (lcm_dat.dio << 8) | mfr;
 	return lcm_dat.dio;
 }
 
@@ -219,11 +231,11 @@ static void serv_update(void)
 
 void lcm_Init(void)
 {
-
 	static const int keymap[] = {KEY_ENTER, KEY_NONE};
 	int hdlg;
 	if(lcm_dat.crc != 0)
 		memset(&lcm_dat, 0, sizeof(lcm_dat));
+	mcp23s17_Init(&mcp23s17);
 	hdlg = osd_ConstructDialog(&dlg);
 	osd_SetActiveDialog(hdlg);
 	key_SetLocalKeymap(keymap);
