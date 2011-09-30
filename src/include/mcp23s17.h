@@ -30,9 +30,9 @@ typedef struct {
 	int option;
 } mcp23s17_t;
 
-void mcp23s17_Init(mcp23s17_t *chip);
+void mcp23s17_Init(const mcp23s17_t *chip);
 //data sequence like this: GPIOB in high byte, GIIOA in low byte
-int mcp23s17_WriteByte(mcp23s17_t *chip, unsigned char addr, unsigned char data);
-int mcp23s17_ReadByte(mcp23s17_t *chip, unsigned char addr, unsigned char *pdata);
+int mcp23s17_WriteByte(const mcp23s17_t *chip, unsigned char addr, unsigned char data);
+int mcp23s17_ReadByte(const mcp23s17_t *chip, unsigned char addr, unsigned char *pdata);
 
 #endif /*__MCP23S17_H_*/
