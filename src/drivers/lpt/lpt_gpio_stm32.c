@@ -279,6 +279,62 @@ static int lpt_write(int addr, int data)
 	return 0;
 }
 
+static int lpt_writen(int addr, int data, int n)
+{
+	lpt_setaddr(addr);
+	lpt_setdata(data);
+	for(; n > 0; n--) {
+#if CONFIG_LPT_MODE_M68 == 1
+		we_set(L);
+		ndelay(t0);
+		cs_set(H); //enable
+		ndelay(t1);
+		cs_set(L);
+		ndelay(t0);
+#elif CONFIG_LPT_MODE_I80 == 1
+		//cs_set(L);
+		//ndelay(t0);
+		we_set_L();
+		ndelay(t1);
+		we_set_H();
+		//ndelay(t0);
+		//cs_set(H);
+#else
+#error "bus timing mode not defined in .config file!!!"
+#endif
+	}
+	return 0;
+}
+
+static int lpt_writeb(int addr, const void *buf, int n)
+{
+	short *data = (short *) buf;
+	lpt_setaddr(addr);
+	for(;n > 0; n --) {
+#if CONFIG_LPT_MODE_M68 == 1
+		lpt_setdata(*data ++);
+		we_set(L);
+		ndelay(t0);
+		cs_set(H); //enable
+		ndelay(t1);
+		cs_set(L);
+		ndelay(t0);
+#elif CONFIG_LPT_MODE_I80 == 1
+		lpt_setdata(*data ++);
+		//cs_set(L);
+		//ndelay(t0);
+		we_set_L();
+		ndelay(t1);
+		we_set_H();
+		//ndelay(t0);
+		//cs_set(H);
+#else
+#error "bus timing mode not defined in .config file!!!"
+#endif
+	}
+	return 0;
+}
+
 static int lpt_read(int addr)
 {
 	int data;
@@ -328,8 +384,10 @@ static int lpt_read(int addr)
 	return data;
 }
 
-lpt_bus_t lpt = {
+const lpt_bus_t lpt = {
 	.init = lpt_init,
 	.write = lpt_write,
 	.read = lpt_read,
+	.writeb = lpt_writeb,
+	.writen = lpt_writen,
 };
