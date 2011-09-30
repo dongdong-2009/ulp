@@ -11,8 +11,11 @@
 #include "osd/osd.h"
 #include "key.h"
 #include "encoder.h"
+#include "nvm.h"
+#include <string.h>
 
-lcm_dat_t lcm_dat;
+static mcamos_srv_t lcm_server;
+lcm_dat_t lcm_dat __nvm;
 lcm_cfg_t lcm_cfg = {
 	0, 8000, /*rpm*/
 	-60, 60, /*cam adv*/
@@ -163,17 +166,62 @@ static int set_items_value(const osd_command_t *cmd)
 	return 0;
 }
 
+static void serv_init(void)
+{
+	lcm_server.can = &can1;
+	mcamos_srv_init(&lcm_server);
+}
+
+static void serv_update(void)
+{
+	char ret = -1;
+	char *inbox = lcm_server.inbox;
+	char *outbox = lcm_server.outbox + 2;
+
+	mcamos_srv_update(&lcm_server);
+	switch(inbox[0]) {
+	case LCM_CMD_NONE:
+		return;
+	case LCM_CMD_CONFIG:
+		memcpy(&lcm_cfg, inbox + 1, sizeof(lcm_cfg));
+		break;
+	case LCM_CMD_READ:
+		memcpy(outbox, &lcm_dat, sizeof(lcm_dat));
+		break;
+	case LCM_CMD_WRITE:
+		memcpy(&lcm_dat, inbox + 1, sizeof(lcm_dat));
+		break;
+	case LCM_CMD_SAVE:
+		ret = 0;
+		nvm_save();
+		break;
+	default:
+		ret = -1; //unsupported command
+		break;
+	}
+
+	lcm_server.outbox[0] = inbox[0];
+	lcm_server.outbox[1] = ret;
+	lcm_server.inbox[0] = 0; //!!!clear inbox testid indicate cmd ops finished
+}
+
 void lcm_Init(void)
 {
+
 	static const int keymap[] = {KEY_ENTER, KEY_NONE};
-	int hdlg = osd_ConstructDialog(&dlg);
+	int hdlg;
+	if(lcm_dat.crc != 0)
+		memset(&lcm_dat, 0, sizeof(lcm_dat));
+	hdlg = osd_ConstructDialog(&dlg);
 	osd_SetActiveDialog(hdlg);
 	key_SetLocalKeymap(keymap);
 	lcm_flag.focus = 0;
+	serv_init();
 }
 
 void lcm_Update(void)
 {
+	serv_update();
 }
 
 int main(void)

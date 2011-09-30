@@ -27,7 +27,16 @@ typedef struct {
 	short mfr;
 	short knk;
 	short dio; //digtal switch input
+	short crc; //cksum
 } lcm_dat_t;
+
+enum {
+	LCM_CMD_NONE,
+	LCM_CMD_CONFIG, //config limit, inbox detail ref lcm_cfg_t
+	LCM_CMD_READ, //para ref lcm_dat_t
+	LCM_CMD_WRITE, //para ref lcm_dat_t
+	LCM_CMD_SAVE,
+};
 
 #endif /*__VVT_LCM_H_*/
 
