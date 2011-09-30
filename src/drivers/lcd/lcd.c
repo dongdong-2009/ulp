@@ -183,17 +183,25 @@ static int lcd_set_window(struct lcd_s *lcd, int x, int y, int w, int h)
 
 int lcd_bitblt(struct lcd_s *lcd, const void *bits, int x, int y, int w, int h)
 {
-	int i, n, v;
-	int ret = lcd_set_window(lcd, x, y, w, h);;
+	short i, v, n = w * h;
+	int ret = lcd_set_window(lcd, x, y, w, h);
+	static short gram[32*16];
 
-	i = 0;
-	n = w * h;
-	while ( !ret && i < n ) {
-		v = bit_get(i, bits);
-		v = (v != 0) ? lcd -> fgcolor : lcd -> bgcolor;
-		//warnning!!! be carefull of the endianess and rgb format here ...
-		ret = lcd -> dev -> wgram(&v, 1, 0);
-		i ++;
+	if(n <= 32 * 16) {
+		for(i = 0; i < n; i ++) {
+			v = bit_get(i, bits);
+			v = (v != 0) ? lcd -> fgcolor : lcd -> bgcolor;
+			gram[i] = v;
+		}
+
+		ret = lcd ->dev ->wgram(gram, n, 0);
+	}
+	else {
+		for(i = 0; i < n && ret == 0; i ++) {
+			v = bit_get(i, bits);
+			v = (v != 0) ? lcd -> fgcolor : lcd -> bgcolor;
+			ret = lcd ->dev ->wgram(&v, 1, 0);
+		}
 	}
 
 	return ret;

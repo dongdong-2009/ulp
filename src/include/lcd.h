@@ -40,7 +40,7 @@ enum {
 
 struct lcd_cfg_s {
 	int rot;
-	void *bus;
+	const void *bus;
 };
 
 struct lcd_dev_s {
