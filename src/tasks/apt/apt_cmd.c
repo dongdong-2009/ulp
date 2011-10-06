@@ -160,11 +160,15 @@ static int cmd_apt_func(int argc, char *argv[])
 				printf("Reading DTC Error! \n");
 			else {
 				printf("Reading DTC Successful! \n");
-				printf("HB  , MB  , LB  , SODTC\n");
-				for (i = 0; i < c131_dtc.dtc_len; i++)
-					printf("0x%2x, 0x%2x, 0x%2x, 0x%2x \n", \
-					c131_dtc.pdtc[i].dtc_hb, c131_dtc.pdtc[i].dtc_mb, \
-					c131_dtc.pdtc[i].dtc_lb, c131_dtc.pdtc[i].dtc_status);
+				if(c131_dtc.dtc_bExist) {
+					printf("HB  , MB  , LB  , SODTC\n");
+					for (i = 0; i < c131_dtc.dtc_len; i++)
+						printf("0x%2x, 0x%2x, 0x%2x, 0x%2x \n", \
+						c131_dtc.pdtc[i].dtc_hb, c131_dtc.pdtc[i].dtc_mb, \
+						c131_dtc.pdtc[i].dtc_lb, c131_dtc.pdtc[i].dtc_status);
+				} else {
+					printf("No DTC Exist\n");
+				}
 			}
 		}
 	}

@@ -230,9 +230,9 @@ static void c131_Init(void)
 	dtc_index = 0;
 
 	//lowlevel app init
-	c131_CanMSGInit();
 	c131_driver_Init();
 	c131_diag_Init();
+	c131_CanMSGInit();
 
 	//for dtc related varible init
 	c131_dtc.pdtc = dtc_buffer;
@@ -249,7 +249,8 @@ static void c131_Update(void)
 		status_link = SDM_EXIST;
 	}
 
-	c131_can_SendOtherECUMsg();
+	if (Get_SDMPWRStatus())
+		c131_can_SendOtherECUMsg();
 
 	//for sdm testing status machine
 	if (c131_test_status == C131_TEST_ONGOING) {
@@ -737,10 +738,14 @@ static int c131_GetSDMType(int index_load, char *pname)
 
 static void c131_CanMSGInit(void)
 {
+	struct list_head *pos;
+	struct can_queue_s *q;
+	int i = 0;
 	can_cfg_t cfg = CAN_CFG_DEF;
 	cfg.baud = 500000;
 	can_bus = &can1;
 	can_bus -> init(&cfg);
+
 
 	INIT_LIST_HEAD(&c131_ems_3.list);
 	list_add(&c131_ems_3.list, &can_queue);
@@ -762,6 +767,14 @@ static void c131_CanMSGInit(void)
 
 	INIT_LIST_HEAD(&c131_tcu_3.list);
 	list_add(&c131_tcu_3.list, &can_queue);
+
+	list_for_each(pos, &can_queue) {
+		q = list_entry(pos, can_queue_s, list);
+		if(q -> timer == 0 || time_left(q -> timer) < 0) {
+			q -> timer = time_get(0 + i);
+			i += 6;
+		}
+	}
 }
 
 //can related function
@@ -769,10 +782,12 @@ static void c131_can_SendOtherECUMsg(void)
 {
 	struct list_head *pos;
 	struct can_queue_s *q;
+	time_t over_time;
 
 	list_for_each(pos, &can_queue) {
 		q = list_entry(pos, can_queue_s, list);
 		if(q -> timer == 0 || time_left(q -> timer) < 0) {
+			over_time = time_get(10);
 			q -> timer = time_get(q -> ms);
 			if ((q->msg).id == 0xb4) {
 				(q->msg).data[7] ++;
@@ -783,7 +798,10 @@ static void c131_can_SendOtherECUMsg(void)
 				(q->msg).data[6] ++;
 				(q->msg).data[0] = (q->msg).data[6];
 			}
-			can_bus -> send(&q -> msg);
+			while (can_bus -> send(&q -> msg)) {
+				if (time_left(over_time) < 0)
+					return;
+			}
 		}
 	}
 }
