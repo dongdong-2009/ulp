@@ -58,3 +58,4 @@ if [ "$CONFIG_DRIVER_UART2" = "y" ]; then
 fi
 
 bool "add md204l module" CONFIG_DEVICE_MD204L
+bool "add ls1203 module" CONFIG_DEVICE_LS1203

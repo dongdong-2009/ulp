@@ -16,3 +16,4 @@ ifeq ($(CONFIG_CPU_SAM3U),y)
 endif
 
 obj-$(CONFIG_DEVICE_MD204L) += md204l.o
+obj-$(CONFIG_DEVICE_LS1203) += ls1203.o
