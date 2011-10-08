@@ -7,7 +7,7 @@
 
 #include "config.h"
 
-#define RGB565(r, g, b)	((r & 0x1f) | ((g & 0x3f) << 5) | ((b & 0x1f) << 11))
+#define RGB565(r, g, b)	((r >> 3) | ((g >> 2) << 5) | ((b >> 3) << 11))
 #define RGB RGB565
 
 #define WHITE RGB(0xff, 0xff, 0xff)
@@ -18,5 +18,7 @@
 #define YELLOW RGB(0xff, 0xff, 0x00)
 #define PURPLE RGB(0xff, 0x00, 0xff)
 #define CYAN RGB(0x00, 0xff, 0xff)
+#define DARK RGB(0x80, 0x80, 0x80)
+#define GRAY RGB(0xc0, 0xc0, 0xc0)
 
 #endif /*__COLOR_H_*/

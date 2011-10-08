@@ -58,6 +58,13 @@ struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
 #define cs_set(level) GPIO_WriteBit(GPIOB, GPIO_Pin_10, level)
 #define we_set(level) GPIO_WriteBit(GPIOB, GPIO_Pin_1, level)
 #define oe_set(level) GPIO_WriteBit(GPIOB, GPIO_Pin_0, level)
+//fast access mode
+#define cs_set_H() GPIOB->BSRR = GPIO_Pin_10;
+#define cs_set_L() GPIOB->BRR = GPIO_Pin_10;
+#define we_set_H() GPIOB->BSRR = GPIO_Pin_1;
+#define we_set_L() GPIOB->BRR = GPIO_Pin_1;
+#define oe_set_H() GPIOB->BSRR = GPIO_Pin_0;
+#define oe_set_L() GPIOB->BRR = GPIO_Pin_0;
 #endif
 
 #ifdef CONFIG_LPT_PINMAP_ZF32
@@ -185,7 +192,7 @@ static int lpt_init(const struct lpt_cfg_s *cfg)
 		cs_set(L);
 	}
 	else {
-		cs_set(H);
+		cs_set(L); //cs_set(H);
 		we_set(H);
 		oe_set(H);
 
@@ -200,13 +207,17 @@ static int lpt_init(const struct lpt_cfg_s *cfg)
 	return 0;
 }
 
-static int lpt_setaddr(int addr)
+static inline int lpt_setaddr(int addr)
 {
 #ifdef CONFIG_LPT_PINMAP_DEF8
 	GPIO_WriteBit(GPIOC, GPIO_Pin_9, (BitAction) (addr & 1));
 #endif
 #ifdef CONFIG_LPT_PINMAP_DEF16
-	GPIO_WriteBit(GPIOB, GPIO_Pin_5, (BitAction) (addr & 1));
+	//GPIO_WriteBit(GPIOB, GPIO_Pin_5, (BitAction) (addr & 1));
+	if(addr)
+		GPIOB->BSRR = GPIO_Pin_5;
+	else
+		GPIOB->BRR = GPIO_Pin_5;
 #endif
 #ifdef CONFIG_LPT_PINMAP_ZF32
 	GPIO_WriteBit(GPIOC, GPIO_Pin_10, (BitAction) (addr & 1));
@@ -217,13 +228,14 @@ static int lpt_setaddr(int addr)
 	return 0;
 }
 
-static int lpt_setdata(int data)
+static inline int lpt_setdata(int data)
 {
 #ifdef CONFIG_LPT_WIDTH_8BIT
 	GPIO_SetBits(db_bank, 0x00ff & data);
 	GPIO_ResetBits(db_bank, 0x00ff & (~ data));
 #else
-	GPIO_Write(db_bank, data);
+	//GPIO_Write(db_bank, data);
+	db_bank -> ODR = data;
 #endif
 	return 0;
 }
@@ -242,26 +254,83 @@ static int lpt_getdata(void)
 
 static int lpt_write(int addr, int data)
 {
-	if(lpt_cfg.mode == LPT_MODE_M68) {
-		lpt_setaddr(addr);
-		lpt_setdata(data);
+#if CONFIG_LPT_MODE_M68 == 1
+	lpt_setaddr(addr);
+	lpt_setdata(data);
+	we_set(L);
+	ndelay(t0);
+	cs_set(H); //enable
+	ndelay(t1);
+	cs_set(L);
+	ndelay(t0);
+#elif CONFIG_LPT_MODE_I80 == 1
+	lpt_setaddr(addr);
+	lpt_setdata(data);
+	//cs_set(L);
+	//ndelay(t0);
+	we_set_L();
+	ndelay(t1);
+	we_set_H();
+	//ndelay(t0);
+	//cs_set(H);
+#else
+#error "bus timing mode not defined in .config file!!!"
+#endif
+	return 0;
+}
+
+static int lpt_writen(int addr, int data, int n)
+{
+	lpt_setaddr(addr);
+	lpt_setdata(data);
+	for(; n > 0; n--) {
+#if CONFIG_LPT_MODE_M68 == 1
 		we_set(L);
 		ndelay(t0);
 		cs_set(H); //enable
 		ndelay(t1);
 		cs_set(L);
 		ndelay(t0);
+#elif CONFIG_LPT_MODE_I80 == 1
+		//cs_set(L);
+		//ndelay(t0);
+		we_set_L();
+		ndelay(t1);
+		we_set_H();
+		//ndelay(t0);
+		//cs_set(H);
+#else
+#error "bus timing mode not defined in .config file!!!"
+#endif
 	}
-	else {
-		lpt_setaddr(addr);
-		lpt_setdata(data);
+	return 0;
+}
+
+static int lpt_writeb(int addr, const void *buf, int n)
+{
+	short *data = (short *) buf;
+	lpt_setaddr(addr);
+	for(;n > 0; n --) {
+#if CONFIG_LPT_MODE_M68 == 1
+		lpt_setdata(*data ++);
+		we_set(L);
+		ndelay(t0);
+		cs_set(H); //enable
+		ndelay(t1);
 		cs_set(L);
 		ndelay(t0);
-		we_set(L);
+#elif CONFIG_LPT_MODE_I80 == 1
+		lpt_setdata(*data ++);
+		//cs_set(L);
+		//ndelay(t0);
+		we_set_L();
 		ndelay(t1);
-		we_set(H);
-		ndelay(t0);
-		cs_set(H);
+		we_set_H();
+		//ndelay(t0);
+		//cs_set(H);
+#else
+#error "bus timing mode not defined in .config file!!!"
+#endif
 	}
 	return 0;
 }
@@ -281,27 +350,28 @@ static int lpt_read(int addr)
 	lpt_setdata(0xffff); //open drain bus, to avoid pull down
 #endif
 
-	if(lpt_cfg.mode == LPT_MODE_M68) {
-		lpt_setaddr(addr);
-		we_set(H);
-		ndelay(t0);
-		cs_set(H); //enable
-		ndelay(t1);
-		data = lpt_getdata();
-		cs_set(L);
-		ndelay(t0);
-	}
-	else {
-		lpt_setaddr(addr);
-		cs_set(L);
-		ndelay(t0);
-		oe_set(L); //read op
-		ndelay(t1);
-		data = lpt_getdata();
-		oe_set(H);
-		ndelay(t0);
-		cs_set(H);
-	}
+#if CONFIG_LPT_MODE_M68 == 1
+	lpt_setaddr(addr);
+	we_set(H);
+	ndelay(t0);
+	cs_set(H); //enable
+	ndelay(t1);
+	data = lpt_getdata();
+	cs_set(L);
+	ndelay(t0);
+#elif CONFIG_LPT_MODE_I80 == 1
+	lpt_setaddr(addr);
+	//cs_set(L);
+	//ndelay(t0);
+	oe_set_L(); //read op
+	ndelay(t1);
+	data = lpt_getdata();
+	oe_set_H();
+	//ndelay(t0);
+	//cs_set(H);
+#else
+	#error "bus timing mode not defined in .config file!!!"
+#endif
 
 	//gpio input -> output
 #ifdef CONFIG_LPT_DB_PP
@@ -314,8 +384,10 @@ static int lpt_read(int addr)
 	return data;
 }
 
-lpt_bus_t lpt = {
+const lpt_bus_t lpt = {
 	.init = lpt_init,
 	.write = lpt_write,
 	.read = lpt_read,
+	.writeb = lpt_writeb,
+	.writen = lpt_writen,
 };

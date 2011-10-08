@@ -32,6 +32,7 @@ int encoder_SetRange(int min, int max)
 {
 	encoder_v_min = (short) min;
 	encoder_v_max = (short) max;
+	encoder_v = 0;
 	return 0;
 }
 
@@ -47,15 +48,16 @@ static void encoder_Update(void)
 
 		//speed-value regulation
 		speed = (v * 1000) / t;
-		speed = (speed < 0) ? -speed : speed;
-		speed = (speed + encoder_speed) >> 1; //average
+		speed = (speed + encoder_speed) / 2; //average
 		speed = (speed > 999) ? 0 : speed; //too big???
+		speed = (speed < -999) ? 0 : speed; //too big???
 		encoder_speed = (short) speed;
+		speed = (speed < 0) ? -speed : speed;
 
 		ratio = speed;
 		ratio *= (encoder_v_max - encoder_v_min) / 50; //normal encoder range:  10pulse * 5 turn = 50
-		ratio /= (10 * 1000 / 200); //normal speed = 10 pulse / 200mS
-		ratio = (ratio < 1) ? 1 : ratio; //ratio always bigger than 1(takes effect only in fast situation)
+		ratio /= (10 * 1000 / 100); //normal speed = 10 pulse / 200mS
+		ratio = (ratio < 5) ? 1 : ratio; //ratio always bigger than 1(takes effect only in fast situation)
 		encoder_v += (short) (v * ratio);
 
 		//val limitation
@@ -63,7 +65,7 @@ static void encoder_Update(void)
 		encoder_v = (encoder_v < encoder_v_min) ? encoder_v_min : encoder_v;
 	}
 	else {
-		encoder_speed >>= 1;
+		encoder_speed /= 2; //encoder speed attenuation for average purpose
 	}
 }
 

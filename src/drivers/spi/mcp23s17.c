@@ -10,7 +10,7 @@
 #define OPCODE_WRITE	0x40
 #define OPCODE_READ		0x41
 
-void mcp23s17_Init(mcp23s17_t *chip)
+void mcp23s17_Init(const mcp23s17_t *chip)
 {
 	spi_cfg_t cfg = {
 		.cpol = 0,
@@ -18,7 +18,8 @@ void mcp23s17_Init(mcp23s17_t *chip)
 		.bits = 8,
 		.bseq = 1,
 		.freq = 9000000,
-	};
+	};
+
 	if (chip->option & MCP23S17_HIGH_SPEED) {
 		cfg.freq = 9000000;		//9MHz
 	} else {
@@ -45,7 +46,7 @@ void mcp23s17_Init(mcp23s17_t *chip)
 		mcp23s17_WriteByte(chip, ADDR_GPPUB, 0xff);
 	}
 }
-int mcp23s17_WriteByte(mcp23s17_t *chip, unsigned char addr, unsigned char data)
+int mcp23s17_WriteByte(const mcp23s17_t *chip, unsigned char addr, unsigned char data)
 {
 	spi_cs_set(chip->idx, 0);
 	chip->bus->wreg(chip->idx, OPCODE_WRITE);
@@ -56,7 +57,7 @@ void mcp23s17_Init(mcp23s17_t *chip)
 	return 0;
 }
 
-int mcp23s17_ReadByte(mcp23s17_t *chip, unsigned char addr, unsigned char *pdata)
+int mcp23s17_ReadByte(const mcp23s17_t *chip, unsigned char addr, unsigned char *pdata)
 {
 	spi_cs_set(chip->idx, 0);
 	chip->bus->wreg(chip->idx, OPCODE_READ);
@@ -73,7 +74,7 @@ int mcp23s17_ReadByte(mcp23s17_t *chip, unsigned char addr, unsigned char *pdata
 #include <stdlib.h>
 #include <string.h>
 
-static mcp23s17_t mcp23s17 = {
+static const mcp23s17_t mcp23s17 = {
 	.bus = &spi2,
 	.idx = SPI_CS_PD12,
 	.option = MCP23S17_LOW_SPEED | MCP23017_PORTA_OUT | MCP23017_PORTB_OUT,

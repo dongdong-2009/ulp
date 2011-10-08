@@ -15,8 +15,10 @@
 #include "FreeRTOS.h"
 
 static time_t osd_update_always_timer;
+static time_t osd_update_focus_timer;
 
-#define OSD_UPDATE_ALWAYS_MS	50
+#define OSD_UPDATE_ALWAYS_MS	200
+#define OSD_UPDATE_FOCUS_MS	50
 
 void osd_Init(void)
 {
@@ -43,16 +45,26 @@ void osd_Update(void)
 			ret = osd_HandleCommand(event, kgrp->grp->cmds);
 		if(ret)
 			osd_HandleCommand(event, kdlg->dlg->cmds);
+		if(!ret)
+			osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERCOMMAND);
 	}
 	
 	//update always
 	if(time_left(osd_update_always_timer) < 0) {
 		osd_update_always_timer = time_get(OSD_UPDATE_ALWAYS_MS);
-		if(!osd_eng_is_visible(&kgrp->margin)) { //need scroll now
-			osd_HideDialog(kdlg);
-			osd_eng_scroll(kgrp->margin.x1, kgrp->margin.y1);
-		}
 		osd_ShowDialog(kdlg, ITEM_UPDATE_ALWAYS);
+	}
+
+	//update focus
+	if(time_left(osd_update_focus_timer) < 0) {
+		osd_update_focus_timer = time_get(OSD_UPDATE_FOCUS_MS);
+			if(!osd_eng_is_visible(&kgrp->margin)) { //need scroll now
+				osd_HideDialog(kdlg);
+				osd_eng_scroll(kgrp->margin.x1, kgrp->margin.y1);
+				osd_ShowDialog(kdlg, ITEM_UPDATE_INIT);
+			}
+			else
+				osd_ShowDialog(kdlg, ITEM_UPDATE_AFTERFOCUSCHANGE);
 	}
 }
 

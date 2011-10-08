@@ -25,6 +25,8 @@ typedef struct {
 	int (*init)(const struct lpt_cfg_s *cfg);
 	int (*write)(int addr, int val);
 	int (*read)(int addr);
+	int (*writeb)(int addr, const void *buf, int n); //buffer write
+	int (*writen)(int addr, int v, int n); //repeated write the same data
 } lpt_bus_t;
 
 #define LPT_CFG_DEF { \
@@ -33,7 +35,7 @@ typedef struct {
 	.t = CONFIG_LPT_T, \
 }
 
-extern lpt_bus_t lpt;
+extern const lpt_bus_t lpt;
 
 #endif /*__LPT_H_*/
 

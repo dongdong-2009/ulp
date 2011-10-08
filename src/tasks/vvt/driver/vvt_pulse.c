@@ -7,9 +7,9 @@
 #include "ad9833.h"
 #include "md204l.h"
 #include "mcp23017.h"
-#include "vvt/vvt_pulse.h"
+#include "vvt_pulse.h"
 #include <string.h>
-#include "vvt/misfire.h"
+#include "../misfire.h"
 #include <stdio.h>
 
 #define KNOCK_EN	GPIO_Pin_11

@@ -57,17 +57,21 @@ static int ili_ReadData(void)
 }
 
 /*write graphic ram*/
-static int ili_WriteGRAM(const void *src, int n)
+static int ili_WriteGRAM(const void *src, int n, int color)
 {
 	int lsb, msb;
 	short *p = (short *)src;
 
+	lsb = color & 0xff;
+	msb = (color >> 8) & 0xff;
 	while (n) {
-		lsb = *p & 0xff;
-		msb = (*p >> 8) & 0xff;
+		if(p != NULL) {
+			lsb = *p & 0xff;
+			msb = (*p >> 8) & 0xff;
+			p ++;
+		}
 		ili_bus -> write(DAT, msb);
 		ili_bus -> write(DAT, lsb);
-		p ++;
 		n --;
 	}
 

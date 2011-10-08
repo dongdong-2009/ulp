@@ -4,9 +4,16 @@
 # Written by miaofng@2010
 #
 
-bool "enable misfire speed debug output?" CONFIG_VVT_MISFIRE_DEBUG
-int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
-int "vss dds mclk frequency Hz?" CONFIG_DRIVER_VSS_DDS_MCLK 25000000
-int "knock dds mclk frequency Hz?" CONFIG_DRIVER_KNOCK_DDS_MCLK 25000000
-int "max knock sensor out voltage mVpp?" CONFIG_DRIVER_KNOCK_MVPP_MAX 255
+choice 'vvt board select'	" \
+	CORE	CONFIG_VVT_CORE \
+	LCM	CONFIG_VVT_LCM \
+" CORE
+
+if [ "$CONFIG_VVT_CORE" = "y" ]; then
+	bool "enable misfire speed debug output?" CONFIG_VVT_MISFIRE_DEBUG
+	int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
+	int "vss dds mclk frequency Hz?" CONFIG_DRIVER_VSS_DDS_MCLK 25000000
+	int "knock dds mclk frequency Hz?" CONFIG_DRIVER_KNOCK_DDS_MCLK 25000000
+	int "max knock sensor out voltage mVpp?" CONFIG_DRIVER_KNOCK_MVPP_MAX 255
+fi
 
