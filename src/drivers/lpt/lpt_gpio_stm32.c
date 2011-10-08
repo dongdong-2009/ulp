@@ -105,6 +105,13 @@ struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
 #define cs_set(level) GPIO_WriteBit(GPIOD, GPIO_Pin_10, level)
 #define we_set(level) GPIO_WriteBit(GPIOD, GPIO_Pin_9, level)
 #define oe_set(level) GPIO_WriteBit(GPIOD, GPIO_Pin_11, level)
+//fast access mode
+#define cs_set_H() GPIOD->BSRR = GPIO_Pin_10;
+#define cs_set_L() GPIOD->BRR = GPIO_Pin_10;
+#define we_set_H() GPIOD->BSRR = GPIO_Pin_9;
+#define we_set_L() GPIOD->BRR = GPIO_Pin_9;
+#define oe_set_H() GPIOD->BSRR = GPIO_Pin_11;
+#define oe_set_L() GPIOD->BRR = GPIO_Pin_11;
 #endif
 
 #define ndelay(ns) do { \

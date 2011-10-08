@@ -57,7 +57,7 @@ int jhd204a_Init(const struct lcd_cfg_s *cfg)
 	//lpt port init
 	struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
 	lpt_cfg.mode = LPT_MODE_M68;
-	lcd_bus = cfg -> bus;
+	lcd_bus = (lpt_bus_t *)cfg -> bus;
 	lcd_bus->init(&lpt_cfg);
 
 	mdelay(15);
