@@ -4,7 +4,7 @@
 #include "chips/hfps.h"
 #include "chips/phdh.h"
 
-#define CND_PERIOD	15 //unit: miniutes
+#define CND_PERIOD	15//unit: miniutes
 
 #define TESTID_PHDHTST	0x06
 #define TESTID_VSEPTST	0x07
@@ -38,11 +38,15 @@ static char mailbox[32];
 //base model types declaration
 enum {
 	BM_28314340,
+        BM_28325231,
+        BM_28323237,
 };
 
 //base model number to id maps
 const struct nest_map_s bmr_map[] = {
 	{"28314340", BM_28314340},
+        {"28325231", BM_28325231},
+        {"28323237", BM_28323237},
 	END_OF_MAP,
 };
 
@@ -222,6 +226,12 @@ static void FaultTest(void)
 	switch(bmr) {
 	case BM_28314340:
         break;
+        case BM_28325231:
+          vsep_mask("PCH13");
+        break;
+        case BM_28323237:
+          vsep_mask("PCH13");
+        break;
 	default:
 		break;
 	}
@@ -277,6 +287,10 @@ static void CyclingTest(void)
 	switch(bmr) {
 	case BM_28314340:
 		break;
+        case BM_28325231:
+        break;
+        case BM_28323237:
+        break;
 	default:
 		break;
 	}
