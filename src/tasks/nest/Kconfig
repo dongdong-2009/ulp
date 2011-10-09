@@ -14,6 +14,7 @@ choice 'nest project select'	" \
 	HCU_GAC		CONFIG_NEST_HCU_GAC \
 	IGBT_BURN	CONFIG_NEST_IGBT_BURN \
 	TESTFIXTURE	CONFIG_NEST_TESTFIXTURE \
+	FIXTURE		CONFIG_NEST_FIXTURE \
 " MT92
 
 #nest type description:
