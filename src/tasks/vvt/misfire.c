@@ -7,10 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "mcao.h"
-#include "driver/vvt_pulse.h"
-
-
-//global
 
 //private
 static short misfire_speed; //unit: Hz, 1~32768hz(rpm)

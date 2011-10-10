@@ -1,21 +1,48 @@
 /*
- * 	miaofng@2010 initial version
+ * miaofng@2010 initial version
+ * David@2010 initial version
  */
 #ifndef __VVT_H_
 #define __VVT_H_
-
-#include "misfire.h"
 #include "led.h"
+
+#define WSS_MAX_RPM				20000
+#define VSS_MAX_RPM				10000
+#define KNOCK_MAX_FRQ			20000	//20k
+#define NE58X_MAX_RPM			5000
+#define MISFIRE_MAX_STRENGTH	0x8000;
+
+typedef enum {
+KS1 = 0,
+KS2,
+KS3,
+KS4,
+NR_OF_KS
+} knock_ch_t;
+
+typedef enum {
+NE58X = 0,
+CAM1X,
+CAM4X_IN,
+CAM4X_EXT,
+PSS_CH_NR
+} pss_ch_t;
+
+#define GPIO_MISFIRE_PATTERN	(GPIO_Pin_All & 0x003f)
 
 /*shared with command shell*/
 extern short vvt_gear_advance; //0~10
-extern int vvt_knock_pos;
+extern short vvt_knock_pos;
 extern short vvt_knock_width;
 extern short vvt_knock_strength; //unit: mV
-extern int vvt_knock_pattern; //...D C B A
+extern short vvt_knock_pattern; //...D C B A
 
 #define vvt_Start() do{ pss_SetSpeed(misfire_GetSpeed(0)); pss_Enable(1);led_flash(LED_GREEN);led_flash(LED_RED);} while(0)
 #define vvt_Stop() do{pss_Enable(0);led_on(LED_RED);led_off(LED_GREEN);} while(0)
+
+//val ? [min, max]
+#define IS_IN_RANGE(val, min, max) \
+	(((val) >= (min)) && ((val) <= (max)))
 
 void vvt_Init(void);
 void vvt_Update(void);
