@@ -210,6 +210,12 @@ void can_flush(void)
 	CAN_CancelTransmit(CAN1, 2);
 	CAN_FIFORelease(CAN1, CAN_FIFO0);
 	CAN_FIFORelease(CAN1, CAN_FIFO1);
+
+#if ENABLE_CAN_INT
+	circle_header = 0;
+	circle_tailer = 0;
+	circle_number = 0;
+#endif
 }
 
 #if ENABLE_CAN_INT
