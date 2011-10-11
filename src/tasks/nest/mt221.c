@@ -1003,6 +1003,9 @@ CyclingTest
 *.24Nov08	 fzwf47	> Initial release.
 *.
 END DESCRIPTION ***************************************************************/
+#define MT221SS_SEQ_ADDR		(0X100007UL)
+#define MT221SS_SEQ_NUM_SIZE			(1)
+
 void CyclingTest(void)
 {
 	ERROR_CODE result;
@@ -1013,6 +1016,15 @@ void CyclingTest(void)
 
 	if(fail()) return;
 	message("#Output Cycling Test Start... \n");
+	if(mtype.mt221ss == 1){
+		char temp;
+		result = Read_Memory(MT221SS_SEQ_ADDR, &temp, MT221SS_SEQ_NUM_SIZE);
+		if( result != E_OK ) ERROR_RETURN(SN_FAIL, "Get Sequency Number");
+		if(temp != '0'){
+            message("#Output Cycling Test Pass Due To the seq num is not 0...\n#seq  num is %c .... \n",temp);
+			return;
+		}
+	}
 
 	fbcnt = 0; //fault bytes error counter
 	tpcnt = 0; //tach pulse error counter
@@ -1401,6 +1413,8 @@ void main(void)
 	NestPowerOff();
 	nest_message("\nPower Conditioning - MT22.1\n");
 	nest_message("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
+	nest_message("nest ID : MT22.1SS-%03d\n",(*nest_info_get()).id_base);
+
 
 	while(1){
 		TestStart();
