@@ -25,7 +25,7 @@ struct burn_data_s {
 };
 
 enum {
-	BURN_CMD_CONFIG = 1,
+	BURN_CMD_CONFIG = 1, //CMD + 's' + (ushort)vpm_ratio_cal + (ushort)ipm_ratio_cal
 	BURN_CMD_READ,
 };
 

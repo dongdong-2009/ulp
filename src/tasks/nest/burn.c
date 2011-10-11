@@ -50,8 +50,10 @@ static unsigned short vpm_data[VPM_FIFO_N];
 static unsigned short ipm_data[IPM_FIFO_N];
 static short vpm_data_n = 0;
 static short ipm_data_n = 0;
-static int vpm_ratio __nvm; //vp(v) = vp(digit) * 256 / ratio
-static int ipm_ratio __nvm; //ip(mA) = ip(digit) * 256 / ratio
+static int vpm_ratio_cal __nvm; //[1/4096 - 255]
+static int ipm_ratio_cal __nvm; //[1/4096 - 255]
+static int vpm_ratio; //vp(v) = vp(digit) * 256 / ratio
+static int ipm_ratio; //ip(mA) = ip(digit) * 256 / ratio
 
 static unsigned short mos_delay_clks __nvm;
 static unsigned short mos_close_clks __nvm;
@@ -193,15 +195,17 @@ int cmd_igbt_func(int argc, char *argv[])
 {
 	if(argc == 4) {
 		if(!strcmp(argv[1], "vp")) {
-			int v = atoi(argv[2]);
-			int d = atoi(argv[3]);
-			vpm_ratio = (d << 8) / v;
+			int ve = atoi(argv[2]); //expect
+			int vr = atoi(argv[3]); //real
+			vpm_ratio_cal = (ve << 12) / vr;
+			vpm_ratio = (vpm_ratio_def * vpm_ratio_cal) >> 12;
 			return 0;
 		}
 		if(!strcmp(argv[1], "ip")) {
-			int mA = atoi(argv[2]);
-			int d = atoi(argv[3]);
-			ipm_ratio = (d << 8) / mA;
+			int ie = atoi(argv[2]); //expect
+			int ir = atoi(argv[3]); //real
+			ipm_ratio_cal = (ie << 12) / ir;
+			ipm_ratio = (ipm_ratio_def * ipm_ratio_cal) >> 12;
 			return 0;
 		}
 	}
@@ -213,12 +217,14 @@ int cmd_igbt_func(int argc, char *argv[])
 		}
 
 		if(!strcmp(argv[1], "vp")) {
-			vpm_ratio = atoi(argv[2]);
+			vpm_ratio_cal = atoi(argv[2]);
+			vpm_ratio = (vpm_ratio_def * vpm_ratio_cal) >> 12;
 			return 0;
 		}
 
 		if(!strcmp(argv[1], "ip")) {
-			ipm_ratio = atoi(argv[2]);
+			ipm_ratio_cal = atoi(argv[2]);
+			ipm_ratio = (ipm_ratio_def * ipm_ratio_cal) >> 12;
 			return 0;
 		}
 
@@ -282,10 +288,10 @@ int cmd_igbt_func(int argc, char *argv[])
 		"igbt id xx		set mcamos server can id, such as 0x5e0/2/4/6\n"
 		"igbt ical		current calibration mode\n"
 		"igbt debug vp/ip/vi	disp trape waveform/triangle waveform/peak VI waveform\n"
-		"igbt vp ratio		vp(v) = D(vp)*256/ratio\n"
-		"igbt vp V Digi		V applied voltage, Digi: converted value\n"
-		"igbt ip ratio		ip(mA) = D(ip)*256/ratio\n"
-		"igbt ip mA Digi		mA applied current, Digi: converted value\n"
+		"igbt vp ratio		(vm * ratio) >> 12 = ve\n"
+		"igbt vp ve vm		vexpect vmeasure, unit: V\n"
+		"igbt ip ratio		(im * ratio) >> 12 = ie\n"
+		"igbt ip ie im		iexpect imeasure, unit: mA\n"
 		"igbt save		save the config value\n"
 	);
 
@@ -293,8 +299,8 @@ int cmd_igbt_func(int argc, char *argv[])
 	printf("burn_wp = %d\n", mos_delay_clks - 25);
 	printf("burn_ms = %d\n", burn_ms);
 	printf("burn_id = 0x%x\n", burn_id);
-	printf("vpm_ratio = %d\n", vpm_ratio);
-	printf("ipm_ratio = %d\n", ipm_ratio);
+	printf("vpm_ratio_cal = %d\n", vpm_ratio);
+	printf("ipm_ratio_cal = %d\n", ipm_ratio);
 	return 0;
 }
 
@@ -782,10 +788,30 @@ void com_Update(void)
 	char ret = 0;
 	char *inbox = burn_server.inbox;
 	char *outbox = burn_server.outbox + 2;
+	unsigned short value;
 
 	mcamos_srv_update(&burn_server);
 	switch(inbox[0]) {
 	case BURN_CMD_CONFIG:
+		memcpy(inbox + 2, &value, sizeof(short));
+		vpm_ratio_cal = value;
+		memcpy(inbox + 4, &value, sizeof(short));
+		ipm_ratio_cal = value;
+
+		//init glvar
+		filter_init(&burn_filter_vp);
+		filter_init(&burn_filter_ip);
+		burn_state = BURN_INIT;
+		memset(&burn_data, 0, sizeof(burn_data));
+		burn_data.ip_min = 0xffff;
+		burn_data.vp_min = 0xffff;
+		vpm_ratio = (vpm_ratio_def * vpm_ratio_cal) >> 12;
+		ipm_ratio = (ipm_ratio_def * ipm_ratio_cal) >> 12;
+
+		//save?
+		if(inbox[1] == 's') {
+			nvm_save();
+		}
 		break;
 
 	case BURN_CMD_READ:
@@ -815,13 +841,16 @@ void burn_Init()
 		mos_delay_clks  = (unsigned short) (mos_delay_us_def * 36); //unit: 1/36 us
 		mos_close_clks  = (unsigned short) (mos_close_us_def * 36); //unit: 1/36 us
 		burn_ms = T;
-		vpm_ratio = vpm_ratio_def;
-		ipm_ratio = ipm_ratio_def;
+		vpm_ratio_cal = 1 << 12;
+		ipm_ratio_cal = 1 << 12;
 		nvm_save();
 	}
 
-	vpm_ratio = (vpm_ratio > 0) ? vpm_ratio : vpm_ratio_def;
-	ipm_ratio = (ipm_ratio > 0) ? ipm_ratio : ipm_ratio_def;
+	vpm_ratio_cal = (vpm_ratio_cal > 0) ? vpm_ratio_cal : 1 << 12;
+	ipm_ratio_cal = (ipm_ratio_cal > 0) ? ipm_ratio_cal : 1 << 12;
+
+	vpm_ratio = (vpm_ratio_cal * vpm_ratio_def) >> 12;
+	ipm_ratio = (ipm_ratio_cal * ipm_ratio_def) >> 12;
 
 	pmm_Init();
 	mos_Init();
