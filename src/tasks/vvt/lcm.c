@@ -64,7 +64,7 @@ const char str_wss[] = "WSS";
 const char str_vss[] = "VSS";
 const char str_mfr[] = "MISFIRE";
 const char str_knk[] = "KNOCK AMPL";
-const char str_knf[] = "KNOCK FREQ";
+const char str_knf[] = "KNOCK Hz";
 const char str_knp[] = "KNOCK POS";
 const char str_knw[] = "KNOCK WIDTH";
 const char str_dio[] = "SW STATUS";
@@ -106,8 +106,8 @@ const osd_item_t items_knk[] = {
 };
 
 const osd_item_t items_knf[] = {
-	{0, 6, 11, 1, (int)str_knf, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{11, 6, 4, 1, (int)get_knf, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{0, 6, 10, 1, (int)str_knf, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{10, 6, 5, 1, (int)get_knf, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
@@ -144,9 +144,9 @@ const osd_group_t grps[] = {
 	{.items = items_vss, .cmds = cmds_items, .order = 3, .option = 0},
 	{.items = items_mfr, .cmds = cmds_items, .order = 4, .option = 0},
 	{.items = items_knk, .cmds = cmds_items, .order = 5, .option = 0},
-	{.items = items_knf, .cmds = cmds_items, .order = 5, .option = 0},
-	{.items = items_knp, .cmds = cmds_items, .order = 5, .option = 0},
-	{.items = items_knw, .cmds = cmds_items, .order = 5, .option = 0},
+	{.items = items_knf, .cmds = cmds_items, .order = 6, .option = 0},
+	{.items = items_knp, .cmds = cmds_items, .order = 7, .option = 0},
+	{.items = items_knw, .cmds = cmds_items, .order = 8, .option = 0},
 	{.items = items_dio, .cmds = cmds_items, .order = STATUS_GRAYED, .option = 0},
 	NULL,
 };
