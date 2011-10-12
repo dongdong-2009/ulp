@@ -299,8 +299,8 @@ int cmd_igbt_func(int argc, char *argv[])
 	printf("burn_wp = %d\n", mos_delay_clks - 25);
 	printf("burn_ms = %d\n", burn_ms);
 	printf("burn_id = 0x%x\n", burn_id);
-	printf("vpm_ratio_cal = %d\n", vpm_ratio);
-	printf("ipm_ratio_cal = %d\n", ipm_ratio);
+	printf("vpm_ratio_cal = %d\n", vpm_ratio_cal);
+	printf("ipm_ratio_cal = %d\n", ipm_ratio_cal);
 	return 0;
 }
 
@@ -793,9 +793,9 @@ void com_Update(void)
 	mcamos_srv_update(&burn_server);
 	switch(inbox[0]) {
 	case BURN_CMD_CONFIG:
-		memcpy(inbox + 2, &value, sizeof(short));
+		memcpy(&value, inbox + 2, sizeof(short));
 		vpm_ratio_cal = value;
-		memcpy(inbox + 4, &value, sizeof(short));
+		memcpy(&value, inbox + 4, sizeof(short));
 		ipm_ratio_cal = value;
 
 		//init glvar
