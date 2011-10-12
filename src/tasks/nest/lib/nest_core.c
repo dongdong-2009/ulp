@@ -12,7 +12,7 @@
 #include "nvm.h"
 
 static int nest_flag_ignore __nvm;
-static struct nest_info_s nest_info;
+static struct nest_info_s nest_info __nvm;
 
 int nest_init(void)
 {
@@ -123,6 +123,7 @@ static int cmd_nest_func(int argc, char *argv[])
 		"nest save				save settings to nvm\n"
 		"nest log				print log message\n"
 		"nest ignore psv bmr rly pkt all non		ignore some event for debug\n"
+		"nest id				set nest id eg.(001)\n"
 	};
 
 	if(argc > 1) {
@@ -185,6 +186,18 @@ static int cmd_nest_func(int argc, char *argv[])
 				nest_message("|\n");
 				return 0;
 			}
+		}
+		if(!strcmp(argv[1], "id")) {
+			for(int i=2;i<argc;i++){
+				int len = strlen(argv[i]);
+				if(len>3 || len == 0)
+					break;
+				else
+					nest_info.id_base = atoi(argv[i]);
+					//strcpy(nest_info.id_base,argv[i]);
+			}
+			nest_message("nest id %03d \n",nest_info.id_base);
+			return 0;
 		}
 	}
 
