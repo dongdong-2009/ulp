@@ -24,6 +24,9 @@ static lcm_cfg_t lcm_cfg = {
 	0, 5000, /*vss*/
 	0, 100, /*misfire strength*/
 	0, 100, /*knock strength*/
+	0, 20000, /*knock frequency*/
+	-50, 45, /*knock window position*/
+	10, 80, /*knock window width*/
 };
 
 static const mcp23s17_t mcp23s17 = {
@@ -43,6 +46,9 @@ static int get_wss(void) {return lcm_dat.wss;}
 static int get_vss(void) {return lcm_dat.vss;}
 static int get_mfr(void) {return lcm_dat.mfr;}
 static int get_knk(void) {return lcm_dat.knk;}
+static int get_knf(void) {return lcm_dat.knf;}
+static int get_knp(void) {return lcm_dat.knp;}
+static int get_knw(void) {return lcm_dat.knw;}
 static int get_dio(void) {
 	unsigned char mfr, knk;
 	mcp23s17_ReadByte(&mcp23s17, MCP23017_PORTA_IN, &mfr); //port a
@@ -57,7 +63,10 @@ const char str_cam[] = "CAM ADV";
 const char str_wss[] = "WSS";
 const char str_vss[] = "VSS";
 const char str_mfr[] = "MISFIRE";
-const char str_knk[] = "KNOCK";
+const char str_knk[] = "KNOCK AMPL";
+const char str_knf[] = "KNOCK FREQ";
+const char str_knp[] = "KNOCK POS";
+const char str_knw[] = "KNOCK WIDTH";
 const char str_dio[] = "SW STATUS";
 
 const osd_item_t items_rpm[] = {
@@ -96,9 +105,27 @@ const osd_item_t items_knk[] = {
 	NULL,
 };
 
+const osd_item_t items_knf[] = {
+	{0, 6, 11, 1, (int)str_knf, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{11, 6, 4, 1, (int)get_knf, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	NULL,
+};
+
+const osd_item_t items_knp[] = {
+	{0, 7, 11, 1, (int)str_knp, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{11, 7, 4, 1, (int)get_knp, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	NULL,
+};
+
+const osd_item_t items_knw[] = {
+	{0, 8, 11, 1, (int)str_knw, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{11, 8, 4, 1, (int)get_knw, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	NULL,
+};
+
 const osd_item_t items_dio[] = {
-	{0, 6, 11, 1, (int)str_dio, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{11, 6, 4, 1, (int)get_dio, ITEM_DRAW_HEX, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	{0, 9, 11, 1, (int)str_dio, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{11, 9, 4, 1, (int)get_dio, ITEM_DRAW_HEX, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
 	NULL,
 };
 
@@ -117,6 +144,9 @@ const osd_group_t grps[] = {
 	{.items = items_vss, .cmds = cmds_items, .order = 3, .option = 0},
 	{.items = items_mfr, .cmds = cmds_items, .order = 4, .option = 0},
 	{.items = items_knk, .cmds = cmds_items, .order = 5, .option = 0},
+	{.items = items_knf, .cmds = cmds_items, .order = 5, .option = 0},
+	{.items = items_knp, .cmds = cmds_items, .order = 5, .option = 0},
+	{.items = items_knw, .cmds = cmds_items, .order = 5, .option = 0},
 	{.items = items_dio, .cmds = cmds_items, .order = STATUS_GRAYED, .option = 0},
 	NULL,
 };

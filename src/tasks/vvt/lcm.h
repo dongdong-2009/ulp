@@ -17,15 +17,25 @@ typedef struct {
 	short mfr_max;
 	short knk_min; //knock strength
 	short knk_max;
+	short knf_min; //knock frequency
+	short knf_max;
+	short knp_min; //knock position
+	short knp_max;
+	short knw_min; //knock width
+	short knw_max;
 } lcm_cfg_t;
 
 typedef struct {
 	short rpm;
-	short cam;
-	short wss;
-	short vss;
-	short mfr;
-	short knk;
+	short cam; //fire advance angle
+	short wss; //wheel speed
+	short vss; //vehicle speed
+	short mfr; //misfire strength
+	short knk; //knock strength
+	short knf; //knock freq
+	short knp; //knock postion
+	short knw; //knock width
+
 	short dio; //digtal switch input
 	short crc; //cksum
 } lcm_dat_t;
