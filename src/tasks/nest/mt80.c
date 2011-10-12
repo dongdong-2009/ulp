@@ -404,16 +404,6 @@ void TestStart(void)
 	nest_wait_plug_in();
 	nest_power_on();
 
-	//cyc ign, necessary???
-	if(!nest_ignore(RLY)) {
-		for(int cnt = 0; cnt < 75; cnt ++) {
-			RELAY_IGN_SET(0);
-			nest_mdelay(100);
-			RELAY_IGN_SET(1);
-			nest_mdelay(100);
-		}
-	}
-
 	//get dut info through can bus
 	nest_can_sel(DW_CAN);
 	ccp_Init(&can1, 500000);
@@ -462,6 +452,16 @@ void TestStart(void)
 		if((mfg_data.psv & 0x02) == 0) {
 			nest_error_set(PSV_FAIL, "PSV");
 			return;
+		}
+	}
+
+	//cyc ign, necessary???
+	if(!nest_ignore(RLY)) {
+		for(int cnt = 0; cnt < 75; cnt ++) {
+			RELAY_IGN_SET(0);
+			nest_mdelay(100);
+			RELAY_IGN_SET(1);
+			nest_mdelay(100);
 		}
 	}
 }

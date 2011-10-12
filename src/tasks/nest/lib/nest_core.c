@@ -20,7 +20,9 @@ int nest_init(void)
 	cncb_init();
 	nest_message_init();
 	if(nest_flag_ignore == -1)
-		nest_flag_ignore = PKT;
+		nest_flag_ignore = 0;
+	nest_message("$nest_id = %d\n", nest_info.id_base);
+	nest_message("$nest_ignore = 0x%04x\n", nest_flag_ignore);
 	return 0;
 }
 

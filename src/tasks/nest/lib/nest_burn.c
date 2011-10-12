@@ -26,8 +26,14 @@ static int burn_vl __nvm;
 static int burn_il __nvm;
 static int burn_log = 0;
 static char burn_flag;
+static char burn_flag_cal;
 static time_t burn_timer;
 static char burn_fail_counter;
+static struct {
+	int ch;
+	int vp; //V
+	int ip; //mA
+} burn_cal_para;
 
 static int burn_wait(struct mcamos_s *m, int timeout)
 {
@@ -71,7 +77,7 @@ int burn_init(void)
 
 		if(fail) {
 			nest_power_reboot();
-			nest_message("warnning: burn board not response, reboot...\n");
+			nest_message("warnning: burn board %d not response, reboot...\n", ch);
 		}
 		else break;
 	} while(try > 0);
@@ -92,19 +98,25 @@ int burn_mask(int ch)
 	return 0;
 }
 
-int burn_config(int ch, const struct burn_data_s *config)
+int burn_config(int ch, unsigned short vpm_ratio, unsigned short ipm_ratio, int save)
 {
 	int ret;
-	char cmd = BURN_CMD_CONFIG;
+	char mailbox[6];
 	struct mcamos_s m;
 	m.can = &can1;
 	m.baud = 500000;
 	m.id_cmd = 0x5e0 + (ch << 1);
 	m.id_dat = m.id_cmd + 1;
 
+	mailbox[0] = BURN_CMD_CONFIG;
+	mailbox[1] = (save) ? 's' : 0;
+	memcpy(mailbox + 2, &vpm_ratio, sizeof(vpm_ratio));
+	memcpy(mailbox + 4, &ipm_ratio, sizeof(ipm_ratio));
+
 	mcamos_init_ex(&m);
-	mcamos_dnload(m.can, BURN_INBOX_ADDR + 1, (char *) config, sizeof(struct burn_data_s ), 10);
-	mcamos_dnload(m.can, BURN_INBOX_ADDR, &cmd, 1, 10);
+	mcamos_dnload(m.can, BURN_INBOX_ADDR, mailbox, sizeof(mailbox), 10);
+	if(save)
+		mdelay(500);
 	ret = burn_wait(&m, 10);
 	mcamos_init_ex(NULL); //restore!!! it's dangerious here
 	return ret;
@@ -151,10 +163,93 @@ static void burn_disp(const struct burn_data_s *burn_data)
 	nest_message("%d %d %d\n", wp, fire, lost);
 }
 
+static int burn_calibrate(void)
+{
+	int ret, ch, vp, ip, vpm_ratio, ipm_ratio;
+	struct burn_data_s burn_data;
+	time_t timer;
+
+	for(ch = BURN_CH_COILA; ch <= BURN_CH_COILD; ch ++) {
+		if(!(burn_cal_para.ch & (1 << ch))) {
+			continue;
+		}
+
+		//preset vpm/ipm_ratio_cal = 1
+		ret = burn_config(ch, 1 << 12, 1 << 12, 1);
+		if(ret) {
+			nest_message("burn_config preset fail(ch = %d)!!!\n", ch);
+			break;
+		}
+
+		timer = time_get(60000);
+		while(1) {
+			//get burn_data and display
+			ret = burn_read(ch, &burn_data);
+			if(ret) {
+				nest_message("burn board channel %d not response\n", ch);
+				ret = -1;
+				break;
+			}
+
+			nest_message("%d ", ch);
+			burn_disp(&burn_data);
+
+			if(burn_data.lost > 10) {
+				nest_message("burn board channel %d sync lost too much(%d)\n", ch, burn_data.lost);
+				ret = -2;
+				break;
+			}
+
+			if(burn_data.wp > BURN_WL_DEF) {
+				nest_message("burn board channel %d wp(=%dnS) higher than threshold(=%dnS)\n", ch, burn_data.wp, BURN_WL_DEF);
+				ret = -3;
+				break;
+			}
+
+			if(burn_data.fire > 1000) { //1000 * 20mS = 20S
+				//ok, got the data what we want
+				ret = 0;
+				break;
+			}
+			else {
+				if(time_left(timer) < 0) {
+						nest_message("burn board channel %d not fire\n", ch);
+						ret = -6;
+						break;
+				}
+			}
+		}
+
+		if(ret)
+			break;
+
+		//to calculate the ratio
+		vp = (burn_data.vp_min + burn_data.vp_max) >> 1;
+		ip = (burn_data.ip_min + burn_data.ip_max) >> 1;
+		vpm_ratio = (burn_cal_para.vp << 12) / vp;
+		ipm_ratio = (burn_cal_para.ip << 12) / ip;
+		nest_message("burn cal %d: vpm_ratio_cal = %d, ipm_ratio_cal = %d\n", ch, vpm_ratio, ipm_ratio);
+
+		//write the calibrate data back
+		ret = burn_config(ch, (unsigned short)vpm_ratio, (unsigned short)ipm_ratio, 1);
+		if(ret) {
+			nest_message("burn_config calibrate fail(ch = %d)!!!\n", ch);
+			break;
+		}
+	}
+
+	burn_flag_cal = 0;
+	return ret;
+}
+
 int burn_verify(unsigned short *vp, unsigned short *ip)
 {
 	int ret, ch;
 	struct burn_data_s burn_data;
+
+	if(burn_flag_cal) {
+		return burn_calibrate();
+	}
 
 	//ignore igbt burn test?
 	if(nest_ignore(PKT))
@@ -228,10 +323,24 @@ static int cmd_burn_func(int argc, char *argv[])
 		"burn log 0|1|2|3|all|none		print ch 0/1/2/3/all log message\n"
 		"burn vl 410				vp low threshold\n"
 		"burn il 11000				ip high threshold\n"
+		"burn cal ch vp(V) ip(mA)		calibration, ch=0,1-2,3,all.. \n"
 		"burn save\n"
 	};
 
 	if(argc >= 2) {
+		if(!strcmp(argv[1], "cal")) {
+			if(argc == 5) {
+				burn_cal_para.ch = cmd_pattern_get(argv[2]);
+				burn_cal_para.vp = atoi(argv[3]);
+				burn_cal_para.ip = atoi(argv[4]);
+				burn_flag_cal = 1;
+			}
+			else {
+				printf("%s", usage);
+			}
+			return 0;
+		}
+
 		if(!strcmp(argv[1], "log")) {
 			for(int i = 2; i < argc; i ++) {
 				int log = -1;
