@@ -99,16 +99,77 @@ void __cmd_preprocess(struct cmd_list_s *clst)
 
 static int __cmd_parse(char *cmdline, int len, char **argv, int n)
 {
-	int i, argc, flag;
+	int i, argc, flag, mode_func, mode_str;
 
 	//parse the Command Line
 	argc = 0;
-	for(flag = i = 0; i < len; i ++) {
-		if(cmdline[i] == ' ' || cmdline[i] == 0) {
+	for(mode_func = mode_str = flag = i = 0; i < len; i ++) {
+		switch(cmdline[i]) {
+		case ' ':
+		case '	':
+		case 0:
+			if(mode_str)
+				continue;
 			cmdline[i] = 0;
 			flag = 0;
+			continue;
+
+		case '(':
+			if(mode_str)
+				continue;
+			if(argc == 1) {
+				flag = 0;
+				mode_func = 1;
+				cmdline[i] = 0;
+				continue;
+			}
+			else break;
+
+		case ',':
+			if(mode_str)
+				continue;
+			if(mode_func == 1) { //function mode
+				flag = 0;
+				cmdline[i] = 0;
+				continue;
+			}
+			else break;
+
+		case ')':
+			if(mode_str)
+				continue;
+			if(mode_func == 1) { //function mode
+				flag = 0;
+				cmdline[i] = 0;
+				i = len; //jump out
+				continue;
+			}
+			else break;
+
+		case '\'':
+		case '"':
+			if(mode_str && mode_str == cmdline[i]) {
+				mode_str = 0;
+				flag = 0;
+				cmdline[i] = 0;
+				continue;
+			}
+			else if(mode_str == 0) {
+				mode_str = cmdline[i];
+				cmdline[i] = 0;
+				if(i + 1 < len) {
+					flag = 0;
+					i ++;
+				}
+				break;
+			}
+			continue;
+
+		default:
+			break;
 		}
-		else if(flag == 0) { //new argv
+
+		if(flag == 0) { //new argv
 			if(argc < n && argv != NULL) {
 				argv[argc] = cmdline + i;
 				argc ++;
