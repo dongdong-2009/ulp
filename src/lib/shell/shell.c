@@ -89,6 +89,8 @@ int shell_register(const struct console_s *console)
 	//new shell init
 	console_select(shell -> console);
 	cmd_queue_init(&shell -> cmd_queue);
+	setbuf(stdout, 0);
+	setbuf(stderr, 0);
 	putchar(0x1b); /*clear screen*/
 	putchar('c');
 	printf("%s\n", CONFIG_BLDC_BANNER);
