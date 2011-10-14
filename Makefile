@@ -55,7 +55,7 @@ PARSER = tkparse.exe
 
 export PARSER
 
-xconfig: $(PARSER)
+xconfig: $(PARSER) iar_script
 	@$(TKSCRIPTS_DIR)/$(PARSER) src/Kconfig > main.tk
 	@cat $(TKSCRIPTS_DIR)/header.tk main.tk $(TKSCRIPTS_DIR)/tail.tk > lconfig.tk
 	@chmod a+x lconfig.tk
@@ -71,6 +71,11 @@ xconfig: $(PARSER)
 			cp .config $(AUTOCONFIG_PROJ_FILE);	\
 		fi \
 	fi
+
+iar_script:
+	@cp projects/ulp/ulp.ewd projects/bldc/bldc.ewd
+	@cp projects/ulp/ulp.ewp projects/bldc/bldc.ewp
+	@cp projects/ulp/ulp.eww projects/bldc/bldc.eww
 
 $(PARSER):
 	@make -s -C $(TKSCRIPTS_DIR) $@
