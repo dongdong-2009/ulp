@@ -77,11 +77,6 @@ static char indicator_pwr;
 static char sdm_pwr;
 static char led_pwr;
 
-static const char str_simulator[] = "Simulator";
-static const char str_normal[] = "Normal   ";
-static char apt_mode;
-static char indicator_mode;
-
 static const char str_sdmon[] = "SDM  On ";
 static const char str_sdmoff[] = "SDM  Off";
 static char status_link = 0;
@@ -221,8 +216,6 @@ static void c131_Init(void)
 	indicator_pwr = 0;
 	sdm_pwr = 0;
 	led_pwr = 0;
-	apt_mode = APT_MODE_NORMAL;
-	indicator_mode = APT_MODE_NORMAL;
 	status_link = 0;
 	status_diag = DIAGNOSIS_NOTYET;
 	c131_test_status = C131_TEST_NOTYET;
@@ -233,6 +226,7 @@ static void c131_Init(void)
 	c131_driver_Init();
 	c131_diag_Init();
 	c131_CanMSGInit();
+	Enable_LEDPWR();
 
 	//for dtc related varible init
 	c131_dtc.pdtc = dtc_buffer;
@@ -318,7 +312,7 @@ static void c131_Update(void)
 				FailLed_On();
 				c131_test_status = C131_TEST_FAIL;
 				Disable_SDMPWR();
-				Disable_LEDPWR();
+				//Disable_LEDPWR();
 				c131_stage_status = C131_STAGE1_RELAY;
 				break;
 			case C131_STAGE_OVER:
@@ -326,7 +320,7 @@ static void c131_Update(void)
 				c131_test_status = C131_TEST_SUCCESSFUL;
 				c131_can_ClearHistoryDTC();
 				Disable_SDMPWR();
-				Disable_LEDPWR();
+				//Disable_LEDPWR();
 				c131_stage_status = C131_STAGE1_RELAY;
 				break;
 			default :
@@ -467,41 +461,6 @@ int apt_SelectPWR(int keytype)
 	return 0;
 }
 
-int apt_GetAPTModeName(void)
-{
-	if (apt_mode == APT_MODE_NORMAL)
-		return (int)str_normal;
-	else
-		return (int)str_simulator;
-}
-
-
-int apt_GetMode(void)
-{
-	return apt_mode;
-}
-
-int apt_GetAPTModeIndicator(void)
-{
-	if (indicator_mode == apt_mode)
-		return (int)&selected;
-	else
-		return (int)&unselected;
-}
-
-int apt_SelectAPTMode(int keytype)
-{
-	if (keytype == KEY_LEFT) {
-		apt_mode = APT_MODE_NORMAL;
-	} else if(keytype == KEY_RIGHT) {
-		apt_mode = APT_MODE_SIMULATOR;
-	} else if(keytype == KEY_ENTER) {
-		indicator_mode = apt_mode;
-	}
-
-	return 0;
-}
-
 int apt_GetLinkInfo(void)
 {
 	if (status_link == SDM_UNEXIST)
@@ -522,11 +481,11 @@ int apt_GetDiagInfo(void)
 int apt_SelectAPTDiag(int keytype)
 {
 	if (keytype == KEY_ENTER) {
-		Enable_LEDPWR();
+		//Enable_LEDPWR();
 		c131_DiagSW();
-		c131_DiagLED();
+		//c131_DiagLED();
 		c131_DiagLOOP();
-		Disable_LEDPWR();
+		//Disable_LEDPWR();
 		status_diag = DIAGNOSIS_OVER;
 	}
 
@@ -551,7 +510,7 @@ int apt_GetTestInfo(void)
 	return (int)"ERROR";
 }
 
-int apt_SelectAPTTest(int keytype)
+int apt_SelectSDMTest(int keytype)
 {
 	if ((keytype == KEY_ENTER)) {// && (status_link == SDM_EXIST)){
 		if (c131_test_status == C131_TEST_NOTYET) {
@@ -560,7 +519,6 @@ int apt_SelectAPTTest(int keytype)
 			c131_ConfirmLoad(c131_GetCurrentLoadIndex());
 			c131_relay_Update();
 			Enable_SDMPWR();
-			Enable_LEDPWR();
 		}
 	} else if (keytype == KEY_RESET) {
 		if ((c131_test_status == C131_TEST_FAIL) || (c131_test_status == C131_TEST_SUCCESSFUL))
@@ -583,7 +541,7 @@ int apt_GetDTCInfo(void)
 	}
 }
 
-int apt_SelectAPTDTC(int keytype)
+int apt_SelectSDMDTC(int keytype)
 {
 	if (keytype == KEY_LEFT){
 		dtc_index --;
