@@ -21,7 +21,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
-#include "stm32_eth.h"
 #include "motor/motor.h"
 #include "sys/system.h"
 #include "sys/task.h"
@@ -645,6 +644,10 @@ void USBWakeUp_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
+#if (CONFIG_LIB_LWIP == 1) && (CONFIG_MAC_STM32 == 1)
+#include "stm32_eth.h"
+#endif
+
 void ETH_IRQHandler(void)
 {
 #if (CONFIG_LIB_LWIP == 1) && (CONFIG_MAC_STM32 == 1)
