@@ -1421,7 +1421,7 @@ void main(void)
 		RAMTest();
 		RAMDnld();
 		CyclingTest();
-		RAMTest();
+		//RAMTest();
 		TestStop();
 	}
 } // main
