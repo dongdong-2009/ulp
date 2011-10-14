@@ -1,4 +1,4 @@
-ifeq ($(CONFIG_NEST_FIXTURE),n)
+ifneq ($(CONFIG_NEST_FIXTURE),y)
 obj-y += lib/
 endif
 obj-$(CONFIG_NEST_MT92) += mt92.o
