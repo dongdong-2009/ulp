@@ -8,7 +8,7 @@
 #include <sys/sys.h>
 #include <shell/cmd.h>
 #include "debug.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "nvm.h"
 
 static int nest_flag_ignore __nvm;

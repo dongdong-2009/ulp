@@ -10,7 +10,7 @@
 	miaofng@2010 initial version
 */
 
-#include "time.h"
+#include "ulp_time.h"
 #include "lcd.h"
 #include "driver.h"
 #include "lpt.h"

@@ -5,7 +5,7 @@
 
 #include "config.h"
 #include "stm32f10x.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "cncb.h"
 #include "nest_message.h"
 #include "nest_core.h"

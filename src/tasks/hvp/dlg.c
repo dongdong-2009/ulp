@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include "time.h"
+#include "ulp_time.h"
 #include "hvp.h"
 
 #define __DEBUG_TIME

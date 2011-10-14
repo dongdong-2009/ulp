@@ -5,7 +5,7 @@
 #include "TypesPlus.h"
 #include "com_mcamOS.h"
 
-#include "time.h"
+#include "ulp_time.h"
 
 /*time*/
 #define NOW() nest_time_get(0)

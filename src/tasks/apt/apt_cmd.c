@@ -6,7 +6,7 @@
 #include "stm32f10x.h"
 #include "shell/cmd.h"
 #include "sys/task.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "c131_driver.h"
 #include "c131_diag.h"
 #include "c131.h"

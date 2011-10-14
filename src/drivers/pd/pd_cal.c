@@ -23,7 +23,7 @@
 #include "lcd.h"
 #include "pd_linear.h"
 #include "sys/sys.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "nvm.h"
 
 extern pdl_t pd_pdl;

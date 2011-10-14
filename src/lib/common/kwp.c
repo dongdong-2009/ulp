@@ -10,7 +10,7 @@
 #include "sys/sys.h"
 #include "queue.h"
 #include "task.h"
-#include "time.h"
+#include "ulp_time.h"
 
 #define __DEBUG
 #define __DEBUG_FRAME

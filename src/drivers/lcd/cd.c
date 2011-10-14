@@ -9,7 +9,7 @@
 #include "driver.h"
 #include "lcd.h"
 #include "uart.h"
-#include "time.h"
+#include "ulp_time.h"
 
 enum {
 	MODE_IL0 = '0',

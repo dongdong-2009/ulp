@@ -6,7 +6,7 @@
 #include "cncb.h"
 #include "nest_light.h"
 #include "nest_core.h"
-#include "time.h"
+#include "ulp_time.h"
 
 static time_t nest_timer_toggle = 0;
 

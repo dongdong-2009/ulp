@@ -8,7 +8,7 @@
 #include "c131_diag.h"
 #include "c131_driver.h"
 #include "lcd.h"
-#include "time.h"
+#include "ulp_time.h"
 
 //ADC Port define
 #define CH_DIAG_ADC		ADC_Channel_11

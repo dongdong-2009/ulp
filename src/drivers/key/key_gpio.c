@@ -4,7 +4,7 @@
 
 #include "key.h"
 #include "driver.h"
-#include "time.h"
+#include "ulp_time.h"
 
 #define NOKEY 0xff
 #define KEY_UPDATE_MS (10)

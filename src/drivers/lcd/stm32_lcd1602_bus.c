@@ -6,7 +6,7 @@
 #include "driver.h"
 #include "lcd.h"
 #include "lcd1602.h"
-#include "time.h"
+#include "ulp_time.h"
 #include <string.h>
 
 #define CONFIG_LCD_BUS_WIDTH	8

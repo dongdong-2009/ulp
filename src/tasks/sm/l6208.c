@@ -3,7 +3,7 @@
 */
 
 #include "l6208.h"
-#include "time.h"
+#include "ulp_time.h"
 #include <string.h>
 
 void l6208_Init(void)
