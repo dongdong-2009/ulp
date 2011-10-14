@@ -34,5 +34,7 @@ obj-y += $(LUA_FOLDER)/lstrlib.o
 obj-y += $(LUA_FOLDER)/loadlib.o
 obj-y += $(LUA_FOLDER)/linit.o
 
+obj-y += lua_cmd.o
+
 #include path
 inc-y += $(LUA_FOLDER)/
