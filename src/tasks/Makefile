@@ -8,3 +8,4 @@ obj-$(CONFIG_TASK_NEST) += nest/
 obj-$(CONFIG_TASK_MISC) += misc/
 obj-$(CONFIG_TASK_APT) += apt/
 obj-$(CONFIG_TASK_SSS) += sss/
+obj-$(CONFIG_TASK_PDI) += pdi/

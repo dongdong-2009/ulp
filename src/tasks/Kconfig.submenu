@@ -59,3 +59,10 @@ if [ "$CONFIG_TASK_SSS" = "y" ]; then
 		source src/tasks/sss/Kconfig
 	endmenu
 fi
+
+if [ "$CONFIG_TASK_PDI" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'pdi'
+		source src/tasks/pdi/Kconfig
+	endmenu
+fi
