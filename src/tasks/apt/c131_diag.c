@@ -256,9 +256,9 @@ int c131_DiagLOOP(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOB, LOOP_FBC);
 
 	//shift the all loop relays to DIAG status
-	loop_SetRelayStatus(0x0fff, RELAY_ON);
+	loop_SetRelayStatus(0x7fff, RELAY_ON);
 	c131_relay_Update();
-
+	mdelay(100);
 	//relay set
 	loop_SetRelayStatus(C131_LOOP, RELAY_ON);
 	for (i = 0; i < 15; i++) {
@@ -282,7 +282,7 @@ int c131_DiagLOOP(void)
 	}
 
 	//go to default status
-	loop_SetRelayStatus(C131_LOOP | 0x0fff, RELAY_OFF);
+	loop_SetRelayStatus(0x7fff, RELAY_OFF);
 	c131_relay_Update();
 
 	//shut down all feedback channel
