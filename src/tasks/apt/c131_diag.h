@@ -16,29 +16,29 @@
 
 //define diagnosis limitation
 //0.95V = 0x0614
-#define LOOP_HIGH_LIMIT		0x0680
-#define LOOP_LOW_LIMIT		0x0560
+#define LOOP_HIGH_LIMIT		0x0fff
+#define LOOP_LOW_LIMIT		0x0000
 
 //6MA -> 0x3d7
 //14MA -> 0x8f5
-#define SW1_6MA_HIGH_LIMIT	0x03ff
-#define SW1_6MA_LOW_LIMIT	0x03bb
+#define SW1_6MA_HIGH_LIMIT	0x0480
+#define SW1_6MA_LOW_LIMIT	0x0320
 #define SW1_14MA_HIGH_LIMIT	0x0980
-#define SW1_14MA_LOW_LIMIT	0x0880
+#define SW1_14MA_LOW_LIMIT	0x0800
 
-//820 -> 0x79e
-//2k82 -> 0xc1e
-#define SW2_820_HIGH_LIMIT	0x07ff
-#define SW2_820_LOW_LIMIT	0x0700
-#define SW2_2K82_HIGH_LIMIT	0x0c80
-#define SW2_2K82_LOW_LIMIT	0x0b80
+//820 -> 0x6ee
+//2k82 -> 0xf44
+#define SW2_820_HIGH_LIMIT	0x0780
+#define SW2_820_LOW_LIMIT	0x0600
+#define SW2_2K82_HIGH_LIMIT	0x0fff
+#define SW2_2K82_LOW_LIMIT	0x0f00
 
-//220 -> 0x7bc
-//900 -> 0xcb2
-#define SW5_900_HIGH_LIMIT	0x0cff
-#define SW5_900_LOW_LIMIT	0x0c80
-#define SW5_220_HIGH_LIMIT	0x07ff
-#define SW5_220_LOW_LIMIT	0x0780
+//220 -> 0x5dd
+//900 -> 0xe92
+#define SW5_900_HIGH_LIMIT	0x0f80
+#define SW5_900_LOW_LIMIT	0x0e00
+#define SW5_220_HIGH_LIMIT	0x0680
+#define SW5_220_LOW_LIMIT	0x0500
 
 //220 -> 0x7bc
 //900 -> 0xcb2
@@ -49,5 +49,7 @@ void c131_diag_Init(void);
 int c131_DiagSW(void);
 int c131_DiagLED(void);
 int c131_DiagLOOP(void);
+int c131_GetDiagLoop(int * *pdata, int * pdata_len);
+int c131_GetDiagSwitch(int * *pdata, int * pdata_len);
 
 #endif /*__C131_DIAG_H_*/

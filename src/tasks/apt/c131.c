@@ -18,7 +18,8 @@
 
 typedef enum {
 	DIAGNOSIS_NOTYET,
-	DIAGNOSIS_OVER,
+	DIAGNOSIS_FAILED,
+	DIAGNOSIS_SUCCESSFUL,
 }c131_diagnosis_t;
 
 typedef enum {
@@ -77,16 +78,17 @@ static char indicator_pwr;
 static char sdm_pwr;
 static char led_pwr;
 
-static const char str_sdmon[] = "SDM  On ";
-static const char str_sdmoff[] = "SDM  Off";
+static const char str_sdmon[]  = "SDM Con   ";
+static const char str_sdmoff[] = "SDM Discon";
 static char status_link = 0;
 
-static const char str_startenter[] = "Start -> Enter";
-static const char str_diagover[] = "Diagnose  Over";
+static const char str_startenter[]     = "Start -> Enter ";
+static const char str_diagfailed[]     = "Diag Failed    ";
+static const char str_diagsuccessful[] = "Diag Successful";
 static char status_diag;
 
-static const char str_testongoing[] = "Test  Ongoing  ";
-static const char str_testfailed[] = "Test   Failed  ";
+static const char str_testongoing[]    = "Test  Ongoing  ";
+static const char str_testfailed[]     = "Test   Failed  ";
 static const char str_testsuccessful[] = "Test Successful";
 static int c131_test_status;
 static int c131_stage_status;
@@ -186,7 +188,6 @@ static void c131_Init(void)
 	int hdlg;
 
 	//init config which has been confirmed
-	nvm_init();
 	c131_current_load = 0;
 	memset(name_temp, 0xff, 16);
 	for (i = 0; i < NUM_OF_LOAD; i++) {
@@ -207,7 +208,7 @@ static void c131_Init(void)
 	//for dlg support members init
 	c131_index_load = 0;
 	if (num_load == 0)
-		strcpy(sdmtype_ram, "No Invalid Type");
+		strcpy(sdmtype_ram, "No Invalid Cfg ");
 	else {
 		while(c131_GetSDMType(c131_index_load, sdmtype_ram))
 			c131_index_load ++;
@@ -380,7 +381,7 @@ int apt_GetSDMTypeSelect(void)
 int apt_SelectSDMType(int keytype)
 {
 	if (num_load == 0) {
-		strcpy(sdmtype_ram, "No Invalid Type");
+		strcpy(sdmtype_ram, "No Invalid Cfg ");
 		return 0;
 	}
 
@@ -471,22 +472,30 @@ int apt_GetLinkInfo(void)
 
 int apt_GetDiagInfo(void)
 {
-	if (status_diag == DIAGNOSIS_NOTYET)
+	switch (status_diag) {
+	case DIAGNOSIS_NOTYET:
 		return (int)str_startenter;
-	else
-		return (int)str_diagover;
+	case DIAGNOSIS_FAILED:
+		return (int)str_diagfailed;
+	case DIAGNOSIS_SUCCESSFUL:
+		return (int)str_diagsuccessful;
+	default :
+		break;
+	}
 
+	return 0;
 }
 
 int apt_SelectAPTDiag(int keytype)
 {
+	int ret = 0;
 	if (keytype == KEY_ENTER) {
-		//Enable_LEDPWR();
-		c131_DiagSW();
-		//c131_DiagLED();
-		c131_DiagLOOP();
-		//Disable_LEDPWR();
-		status_diag = DIAGNOSIS_OVER;
+		ret = c131_DiagSW();
+		ret += c131_DiagLOOP();
+		if (ret)
+			status_diag = DIAGNOSIS_FAILED;
+		else
+			status_diag = DIAGNOSIS_SUCCESSFUL;
 	}
 
 	return 0;
