@@ -227,7 +227,16 @@ static void c131_Init(void)
 	c131_driver_Init();
 	c131_diag_Init();
 	c131_CanMSGInit();
+
+	//for led pwr and states init
 	Enable_LEDPWR();
+	led_SetRelayStatus(C131_LED1_C1, RELAY_ON);
+	led_SetRelayStatus(C131_LED1_C2, RELAY_ON);
+	led_SetRelayStatus(C131_LED2, RELAY_ON);
+	led_SetRelayStatus(C131_LED3, RELAY_ON);
+	led_SetRelayStatus(C131_LED4_C2, RELAY_ON);
+	led_SetRelayStatus(C131_LED5, RELAY_ON);
+	c131_relay_Update();
 
 	//for dtc related varible init
 	c131_dtc.pdtc = dtc_buffer;
@@ -313,15 +322,12 @@ static void c131_Update(void)
 				FailLed_On();
 				c131_test_status = C131_TEST_FAIL;
 				Disable_SDMPWR();
-				//Disable_LEDPWR();
 				c131_stage_status = C131_STAGE1_RELAY;
 				break;
 			case C131_STAGE_OVER:
 				FailLed_Off();
 				c131_test_status = C131_TEST_SUCCESSFUL;
-				c131_can_ClearHistoryDTC();
 				Disable_SDMPWR();
-				//Disable_LEDPWR();
 				c131_stage_status = C131_STAGE1_RELAY;
 				break;
 			default :
@@ -530,8 +536,19 @@ int apt_SelectSDMTest(int keytype)
 			Enable_SDMPWR();
 		}
 	} else if (keytype == KEY_RESET) {
-		if ((c131_test_status == C131_TEST_FAIL) || (c131_test_status == C131_TEST_SUCCESSFUL))
+		if ((c131_test_status == C131_TEST_FAIL) || (c131_test_status == C131_TEST_SUCCESSFUL)) {
 			c131_test_status = C131_TEST_NOTYET;
+			FailLed_Off();
+			//for led pwr and states init
+			Enable_LEDPWR();
+			led_SetRelayStatus(C131_LED1_C1, RELAY_ON);
+			led_SetRelayStatus(C131_LED1_C2, RELAY_ON);
+			led_SetRelayStatus(C131_LED2, RELAY_ON);
+			led_SetRelayStatus(C131_LED3, RELAY_ON);
+			led_SetRelayStatus(C131_LED4_C2, RELAY_ON);
+			led_SetRelayStatus(C131_LED5, RELAY_ON);
+			c131_relay_Update();
+		}
 	}
 
 	return 0;
