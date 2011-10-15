@@ -8,21 +8,8 @@
 #include <stddef.h>
 #include <config.h>
 
-#if CONFIG_CPU_STM32 == 1
-#if CONFIG_STM32F10X_LD == 1
-#define FLASH_PAGE_SZ 1024
-#define FLASH_PAGE_NR 32
-#elif CONFIG_STM32F10X_MD == 1
-#define FLASH_PAGE_SZ 1024
-#define FLASH_PAGE_NR 128
-#elif CONFIG_STM32F10X_HD == 1
-#define FLASH_PAGE_SZ 2048
-#define FLASH_PAGE_NR 256
-#elif CONFIG_STM32F10X_CL == 1
-#define FLASH_PAGE_SZ 2048
-#define FLASH_PAGE_NR 128
-#endif
-#endif
+#define FLASH_PAGE_SZ	(2048)
+#define FLASH_PAGE_NR	((*(unsigned short *)0x1ffff7e0) >> 1)
 
 //erase n-pages of flash sectors, which is given by address of dest(must be PAGE_SIZE aligned)
 int flash_Erase(void *dest, size_t n);
