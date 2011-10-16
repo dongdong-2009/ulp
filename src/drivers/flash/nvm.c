@@ -40,9 +40,10 @@ int nvm_init(void)
 	//rom 1 -> ram, always read & erase rom 1 in case of "rom1 not null!!!"
 	flash_Read(&magic, src, 4);
 	flash_Read(&sz_nvm, src + 4, 4);
-	flash_Read(dst, src + 8, sz_ram);
 
 	if(magic == NVM_MAGIC && sz_nvm == sz_ram) {
+		flash_Read(dst, src + 8, sz_ram);
+
 		//rom1 data is ok, rom1 -> rom 2
 		flash_Erase(bak, pages);
 		flash_Write(bak + 4, &sz_nvm, 4);
