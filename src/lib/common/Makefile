@@ -7,3 +7,4 @@ obj-$(CONFIG_COMMON_KERMIT) += kermit.o
 #linux
 obj-y += sort.o
 obj-y += circbuf.o
+obj-y += crc16.o
