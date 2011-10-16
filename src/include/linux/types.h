@@ -31,14 +31,6 @@ typedef __kernel_old_gid_t	old_gid_t;
 typedef __kernel_loff_t		loff_t;
 #endif
 
-/*
- * The following typedefs are also protected by individual ifdefs for
- * historical reasons:
- */
-#ifndef _SIZE_T
-#define _SIZE_T
-#endif
-
 #ifndef _SSIZE_T
 #define _SSIZE_T
 #endif

@@ -105,3 +105,36 @@ cyg_crc16(unsigned char *buf, int len)
     }
     return cksum;
 }
+
+#include "shell/cmd.h"
+#include <string.h>
+
+int cmd_crc16_func(int argc, char *argv[])
+{
+	int i, v;
+	unsigned char buf[16];
+	for(i = 0; (i < argc - 1) && (i < 16); i ++) {
+		if(!strncmp(argv[i+1], "0x", 2)) {
+			sscanf(argv[i+1], "0x%x", &v);
+		}
+		else {
+			sscanf(argv[i+1], "%d", &v);
+		}
+
+		buf[i] = v & 0xff;
+		printf("0x%02x ", v & 0xff);
+	}
+
+	if(i > 0) {
+		v = cyg_crc16(buf, i);
+		printf("%04x\n", v & 0xffff);
+	}
+	else {
+		printf("usage:\n"
+		"crc16 arg1 arg2 arg3 ...\n");
+	}
+	return 0;
+}
+
+const cmd_t cmd_crc16 = {"crc16", cmd_crc16_func, "crc16 algo"};
+DECLARE_SHELL_CMD(cmd_crc16)
