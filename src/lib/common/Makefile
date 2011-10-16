@@ -8,3 +8,5 @@ obj-$(CONFIG_COMMON_KERMIT) += kermit.o
 obj-y += sort.o
 obj-y += circbuf.o
 obj-y += crc16.o
+obj-y += crc32.o
+obj-y += posix_crc.o

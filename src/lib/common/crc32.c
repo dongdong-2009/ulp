@@ -162,3 +162,36 @@ cyg_ether_crc32(unsigned char *s, int len)
 {
   return cyg_ether_crc32_accumulate(0,s,len);
 }
+
+#include "shell/cmd.h"
+#include <string.h>
+
+int cmd_crc32_func(int argc, char *argv[])
+{
+	int i, v;
+	unsigned char buf[16];
+	for(i = 0; (i < argc - 1) && (i < 16); i ++) {
+		if(!strncmp(argv[i+1], "0x", 2)) {
+			sscanf(argv[i+1], "0x%x", &v);
+		}
+		else {
+			sscanf(argv[i+1], "%d", &v);
+		}
+
+		buf[i] = v & 0xff;
+		printf("0x%02x ", v & 0xff);
+	}
+
+	if(i > 0) {
+		v = cyg_crc32(buf, i);
+		printf("%04x\n", v & 0xffff);
+	}
+	else {
+		printf("usage:\n"
+		"crc32 arg1 arg2 arg3 ...\n");
+	}
+	return 0;
+}
+
+const cmd_t cmd_crc32 = {"crc32", cmd_crc32_func, "crc32 algo"};
+DECLARE_SHELL_CMD(cmd_crc32)
