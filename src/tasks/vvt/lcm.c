@@ -223,6 +223,8 @@ static int set_items_value(const osd_command_t *cmd)
 static void serv_init(void)
 {
 	lcm_server.can = &can1;
+	lcm_server.id_cmd = MCAMOS_MSG_CMD_ID;
+	lcm_server.id_dat = MCAMOS_MSG_DAT_ID;
 	mcamos_srv_init(&lcm_server);
 }
 
