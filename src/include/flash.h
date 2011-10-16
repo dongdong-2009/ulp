@@ -8,8 +8,13 @@
 #include <stddef.h>
 #include <config.h>
 
-#define FLASH_PAGE_SZ	(2048)
-#define FLASH_PAGE_NR	((*(unsigned short *)0x1ffff7e0) >> 1)
+#if CONFIG_CPU_STM32 == 1
+	#define FLASH_PAGE_SZ	(2048)
+	#define FLASH_PAGE_NR	((*(unsigned short *)0x1ffff7e0) >> 1)
+	#define FLASH_ADDR(page)	(0x08000000 + (page << 11))
+#else
+	#error "flash driver not available!!!"
+#endif
 
 //erase n-pages of flash sectors, which is given by address of dest(must be PAGE_SIZE aligned)
 int flash_Erase(void *dest, size_t n);
