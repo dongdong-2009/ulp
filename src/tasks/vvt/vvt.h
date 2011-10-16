@@ -28,16 +28,7 @@ CAM4X_EXT,
 PSS_CH_NR
 } pss_ch_t;
 
-#define GPIO_MISFIRE_PATTERN	(GPIO_Pin_All & 0x003f)
-
-/*shared with command shell*/
-extern short vvt_gear_advance; //0~10
-extern short vvt_knock_pos;
-extern short vvt_knock_width;
-extern short vvt_knock_strength; //unit: mV
-extern short vvt_knock_pattern; //...D C B A
-
-#define vvt_Start() do{ pss_SetSpeed(misfire_GetSpeed(0)); pss_Enable(1);led_flash(LED_GREEN);led_flash(LED_RED);} while(0)
+#define vvt_Start() do{ pss_SetSpeed(misfire_GetSpeed(0)); pss_Enable(1);led_on(LED_RED);} while(0)
 #define vvt_Stop() do{pss_Enable(0);led_on(LED_RED);led_off(LED_GREEN);} while(0)
 
 //val ? [min, max]
