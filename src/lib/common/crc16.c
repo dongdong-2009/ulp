@@ -1,63 +1,59 @@
-/*
- *==========================================================================
- *
- *      crc16.c
- *
- *      16 bit CRC with polynomial x^16+x^12+x^5+1
- *
- *==========================================================================
- *####ECOSGPLCOPYRIGHTBEGIN####
- * -------------------------------------------
- * This file is part of eCos, the Embedded Configurable Operating System.
- * Copyright (C) 1998, 1999, 2000, 2001, 2002 Red Hat, Inc.
- * Copyright (C) 2002 Gary Thomas
- *
- * eCos is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 or (at your option) any later version.
- *
- * eCos is distributed in the hope that it will be useful, but WITHOUT ANY
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with eCos; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
- * As a special exception, if other files instantiate templates or use macros
- * or inline functions from this file, or you compile this file and link it
- * with other works to produce a work based on this file, this file does not
- * by itself cause the resulting work to be covered by the GNU General Public
- * License. However the source code for this file must still be made available
- * in accordance with section (3) of the GNU General Public License.
- *
- * This exception does not invalidate any other reasons why a work based on
- * this file might be covered by the GNU General Public License.
- *
- * Alternative licenses for eCos may be arranged by contacting Red Hat, Inc.
- * at http: *sources.redhat.com/ecos/ecos-license/
- * -------------------------------------------
- *####ECOSGPLCOPYRIGHTEND####
- *==========================================================================
- *#####DESCRIPTIONBEGIN####
- *
- * Author(s):    gthomas
- * Contributors: gthomas,asl
- * Date:         2001-01-31
- * Purpose:
- * Description:
- *
- * This code is part of eCos (tm).
- *
- *####DESCRIPTIONEND####
- *
- *==========================================================================
- */
+//==========================================================================
+//
+//      crc16.c
+//
+//      16 bit CRC with polynomial x^16+x^12+x^5+1
+//
+//==========================================================================
+// ####ECOSGPLCOPYRIGHTBEGIN####
+// -------------------------------------------
+// This file is part of eCos, the Embedded Configurable Operating System.
+// Copyright (C) 1998, 1999, 2000, 2001, 2002, 2009 Free Software Foundation, Inc.
+//
+// eCos is free software; you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free
+// Software Foundation; either version 2 or (at your option) any later
+// version.
+//
+// eCos is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+// for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with eCos; if not, write to the Free Software Foundation, Inc.,
+// 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+//
+// As a special exception, if other files instantiate templates or use
+// macros or inline functions from this file, or you compile this file
+// and link it with other works to produce a work based on this file,
+// this file does not by itself cause the resulting work to be covered by
+// the GNU General Public License. However the source code for this file
+// must still be made available in accordance with section (3) of the GNU
+// General Public License v2.
+//
+// This exception does not invalidate any other reasons why a work based
+// on this file might be covered by the GNU General Public License.
+// -------------------------------------------
+// ####ECOSGPLCOPYRIGHTEND####
+//==========================================================================
+//#####DESCRIPTIONBEGIN####
+//
+// Author(s):    gthomas
+// Contributors: gthomas,asl
+// Date:         2001-01-31
+// Purpose:
+// Description:
+//
+// This code is part of eCos (tm).
+//
+//####DESCRIPTIONEND####
+//
+//==========================================================================
 
 #include "crc.h"
 
-/* Table of CRC constants - implements x^16+x^12+x^5+1 */
+// Table of CRC constants - implements x^16+x^12+x^5+1
 static const uint16_t crc16_tab[] = {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
     0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
@@ -96,14 +92,18 @@ static const uint16_t crc16_tab[] = {
 uint16_t
 cyg_crc16(unsigned char *buf, int len)
 {
-    int i;
-    uint16_t cksum;
+    return cyg_crc16_accumulate(0, buf, len);
+}
 
-    cksum = 0;
+uint16_t
+cyg_crc16_accumulate(uint16_t crc16val, unsigned char *buf, int len)
+{
+    int i;
+
     for (i = 0;  i < len;  i++) {
-	cksum = crc16_tab[((cksum>>8) ^ *buf++) & 0xFF] ^ (cksum << 8);
+        crc16val = crc16_tab[((crc16val>>8) ^ *buf++) & 0xFF] ^ (crc16val << 8);
     }
-    return cksum;
+    return crc16val;
 }
 
 #include "shell/cmd.h"
