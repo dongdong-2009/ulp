@@ -1,6 +1,6 @@
 /*
  * 	2011 initial version
- * Author: peng.guo david
+ * Author: david
  */
 
 #include "config.h"
@@ -18,63 +18,61 @@ void ls1203_Init(ls1203_t *chip)
 
 }
 
-int ls1203_Read(ls1203_t *chip, unsigned char *pdata)
+int ls1203_Read(ls1203_t *chip, char *pdata)
 {
-
+	for (int i=0;i<chip->data_len;i++) {
+		if (chip->bus->poll() == 1) {
+			pdata[i] == chip->bus->getchar();
+			if (i == chip->data_len - 1 && chip->bus->poll() == 0)
+				return 1;
+		}
+		return 0;
+	}
+	return 0;
 }
 
-#if 0
+#if 1
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-static md204l_t dbg_hid_md204l = {
+static ls1203_t pdi_ls1203 = {
 	.bus = &uart2,
-	.station = 0x01,
+	.data_len = 19,
+	.dead_time = 20,
 };
 
 
-static int cmd_md204l_func(int argc, char *argv[])
+static int cmd_ls1203_func(int argc, char *argv[])
 {
-	short temp = 0;
-	int addr;
+	char *barcode;
 
 	const char *usage = { \
 		" usage:\n" \
-		" md204l init,md204l debug \n" \
-		" md204l write regaddr value, regaddr:0-127,value:16bits \n" \
-		" md204l read regaddr, regaddr:0-127,value:16bits \n" \
+		" ls1203 init,ls1203 debug \n" \
+		" ls1203 read,scan barcode \n" \
 	};
 
-	if(argc < 2) {
+	if(argc == 1) {
 		printf(usage);
 		return 0;
 	}
 
 	if (argv[1][0] == 'i') {
-		md204l_Init(&dbg_hid_md204l);
+		ls1203_Init(&pdi_ls1203);
 		printf("init ok \n");
 	}
 
-	if (argv[1][0] == 'w') {
-		addr = atoi(argv[2]);
-		temp = atoi(argv[3]);
-		if (md204l_Write(&dbg_hid_md204l, addr, &temp, 1))
-			printf("Write error\n");
-		else
-			printf("Write sucessfully\n");
-	}
 	if (argv[1][0] == 'r') {
-		temp = 0;
-		addr = atoi(argv[2]);
-		if (md204l_Read(&dbg_hid_md204l, addr, &temp, 1))
-			printf("Read error!\n");
-		else
-			printf("data is: %d\n\r",temp);
+		if (ls1203_Read(&pdi_ls1203, barcode))
+			printf("%s\r", barcode);
+		//else
+			//printf("the length of the barcode is not right");
+                return 1;
 	}
 
 	return 0;
 }
-const cmd_t cmd_md204l = {"md204l", cmd_md204l_func, "md204l cmd"};
-DECLARE_SHELL_CMD(cmd_md204l)
+const cmd_t cmd_ls1203 = {"ls1203", cmd_ls1203_func, "ls1203 cmd"};
+DECLARE_SHELL_CMD(cmd_ls1203)
 #endif
