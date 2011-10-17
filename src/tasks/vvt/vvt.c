@@ -88,9 +88,6 @@ void vvt_Init(void)
 	};
 
 	mcamos_init_ex(&lcm);
-	lowlevel_Init();
-	dds_Init();
-	misfire_Init();
 
 	//wait for lcm initialized
 	mdelay(500);
@@ -144,11 +141,17 @@ void vvt_Init(void)
 
 #if 0
 		knock_pattern = (cfg_data.dio >> 8); //...D C B A
-		misfire_pattern = cfg_data.dio & 0x00ff;
+		misfire_pattern = cfg_data.dio & 0x003f;
 #endif
 	}
 
+	dds_Init();
+	lowlevel_Init();
+	misfire_Init();
+
 	misfire_SetSpeed(ne58x_freq_value? ne58x_freq_value : 1);
+	misfire_ConfigStrength(misfire_value);
+	misfire_ConfigPattern(misfire_pattern);
 	wss_SetFreq(wss_freq_value);
 	vss_SetFreq(vss_freq_value);
 	knock_SetFreq(knock_freq_value);
@@ -160,17 +163,21 @@ void vvt_Update(void)
 	//update lcm input
 	if (vvt_GetConfigData() == 0) {
 		//mcamos communication indicator
-		led_inv(LED_GREEN);
+		led_inv(LED_RED);
 
 		//frequence init
 		if (wss_freq_value != cfg_data.wss)
 			wss_SetFreq(cfg_data.wss);
-		if (wss_freq_value != cfg_data.vss)
+		if (vss_freq_value != cfg_data.vss)
 			vss_SetFreq(cfg_data.vss);
-		if (wss_freq_value != cfg_data.knk)
-			knock_SetFreq(cfg_data.knk);
+		if (knock_freq_value != cfg_data.knf)
+			knock_SetFreq(cfg_data.knf);
 		if (ne58x_freq_value != cfg_data.rpm)
 			misfire_SetSpeed(cfg_data.rpm ? cfg_data.rpm : 1);
+		if (misfire_value != cfg_data.mfr)
+			misfire_ConfigStrength(misfire_value);
+		// if (misfire_pattern != (cfg_data.dio & 0x003f))
+			// misfire_ConfigPattern(misfire_pattern);
 
 		//for frequence varible
 		ne58x_freq_value = cfg_data.rpm;
@@ -187,7 +194,7 @@ void vvt_Update(void)
 		knock_strength = cfg_data.knk; //unit: mV
 
 #if 0
-		misfire_pattern = cfg_data.dio & 0x00ff;
+		misfire_pattern = cfg_data.dio & 0x003f;
 		knock_pattern = (cfg_data.dio >> 8); //...D C B A
 #endif
 	}
