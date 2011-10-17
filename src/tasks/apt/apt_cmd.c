@@ -17,72 +17,19 @@ static c131_dtc_t c131_dtc;
 
 static int cmd_apt_func(int argc, char *argv[])
 {
-	int temp;
-	int i;
+	int temp, i, data_len;
+	int * pdata;
 
 	const char * usage = { \
 		" usage:\n" \
-		" apt ess on/off nESS, config nESS on/off \n" \
-		" apt loop on/off nLOOP, config nLOOP on/off \n" \
-		" apt led on/off nLED, config nLED on/off \n" \
-		" apt switch on/off nSWITCH, config nSWITCH on/off \n" \
 		" apt pwr on/off sdm/led,  config sdm/led power on/off \n" \
 		" apt add load_name b0 b1 ... b7,  add new config \n" \
 		" apt set load_name b0 b1 ... b7,  set current config \n" \
-		" apt clr dtc, clear the product DTC information \n" \
-		" apt read dtc, read the product DTC information \n" \
+		" apt clr/read dtc, clear the product DTC information \n" \
+		" apt diag loop/switch, get diagnose data \n" \
 	};
 
-	// if (apt_GetMode() == C131_MODE_NORMAL){
-		// printf("In normal mode\n");
-		// return 0;
-	// }
-
 	if (argc > 1) {
-		//for ess simulator
-		if(strcmp(argv[1], "ess") == 0) {
-			sscanf(argv[3], "%d", &temp);
-			if (strcmp(argv[2], "on") == 0)
-				ess_SetRelayStatus(0x01 << temp, RELAY_ON);
-			if (strcmp(argv[2], "off") == 0)
-				ess_SetRelayStatus(0x01 << temp, RELAY_OFF);
-			c131_relay_Update();
-			return 0;
-		}
-
-		//for loop simulator
-		if(strcmp(argv[1], "loop") == 0) {
-			sscanf(argv[3], "%d", &temp);
-			if (strcmp(argv[2], "on") == 0)
-				loop_SetRelayStatus(0x01 << temp, RELAY_ON);
-			if (strcmp(argv[2], "off") == 0)
-				loop_SetRelayStatus(0x01 << temp, RELAY_OFF);
-			c131_relay_Update();
-			return 0;
-		}
-
-		//for led simulator
-		if(strcmp(argv[1], "led") == 0) {
-			sscanf(argv[3], "%d", &temp);
-			if (strcmp(argv[2], "on") == 0)
-				led_SetRelayStatus(0x01 << temp, RELAY_ON);
-			if (strcmp(argv[2], "off") == 0)
-				led_SetRelayStatus(0x01 << temp, RELAY_OFF);
-			c131_relay_Update();
-			return 0;
-		}
-
-		//for switch simulator
-		if(strcmp(argv[1], "switch") == 0) {
-			sscanf(argv[3], "%d", &temp);
-			if (strcmp(argv[2], "on") == 0)
-				sw_SetRelayStatus(0x01 << temp, RELAY_ON);
-			if (strcmp(argv[2], "off") == 0)
-				sw_SetRelayStatus(0x01 << temp, RELAY_OFF);
-			c131_relay_Update();
-			return 0;
-		}
-
 		//add new load for apt
 		if(strcmp(argv[1], "add") == 0) {
 			if (argc < 11) {
@@ -107,7 +54,7 @@ static int cmd_apt_func(int argc, char *argv[])
 		}
 
 		//set load for apt
-		if(strcmp(argv[1], "set") == 0) {
+		if (strcmp(argv[1], "set") == 0) {
 			if (argc < 11) {
 				printf("Lack of parameters!\n");
 				return 0;
@@ -125,7 +72,7 @@ static int cmd_apt_func(int argc, char *argv[])
 		}
 
 		//for power off/on
-		if(strcmp(argv[1], "pwr") == 0) {
+		if (strcmp(argv[1], "pwr") == 0) {
 			if (strcmp(argv[3], "sdm") == 0) {
 				if (strcmp(argv[2], "on") == 0) {
 					Enable_SDMPWR();
@@ -144,31 +91,57 @@ static int cmd_apt_func(int argc, char *argv[])
 			return 0;
 		}
 
-		//for clearing dtc
-		if(strcmp(argv[1], "clr") == 0) {
-			if (c131_can_ClearHistoryDTC())
-				printf("Clear DTC Error! \n");
-			else
-				printf("Clear DTC Successful! \n");
+		//for reading & clearing dtc
+		if (strcmp(argv[2], "dtc") == 0) {
+			if(strcmp(argv[1], "read") == 0) {
+				//for dtc related varible init
+				c131_dtc.pdtc = dtc_buffer;
+				if (c131_can_GetDTC(&c131_dtc))
+					printf("Reading DTC Error! \n");
+				else {
+					printf("Reading DTC Successful! \n");
+					if(c131_dtc.dtc_bExist) {
+						printf("HB  , MB  , LB  , SODTC\n");
+						for (i = 0; i < c131_dtc.dtc_len; i++)
+							printf("0x%2x, 0x%2x, 0x%2x, 0x%2x \n", \
+							c131_dtc.pdtc[i].dtc_hb, c131_dtc.pdtc[i].dtc_mb, \
+							c131_dtc.pdtc[i].dtc_lb, c131_dtc.pdtc[i].dtc_status);
+					} else {
+						printf("No DTC Exist\n");
+					}
+				}
+			} 
+
+			if(strcmp(argv[1], "clr") == 0) {
+				if (c131_can_ClearHistoryDTC())
+					printf("Clear DTC Error! \n");
+				else
+					printf("Clear DTC Successful! \n");
+			}
 		}
 
-		//for reading dtc
-		if(strcmp(argv[1], "read") == 0) {
-			//for dtc related varible init
-			c131_dtc.pdtc = dtc_buffer;
-			if (c131_can_GetDTC(&c131_dtc))
-				printf("Reading DTC Error! \n");
-			else {
-				printf("Reading DTC Successful! \n");
-				if(c131_dtc.dtc_bExist) {
-					printf("HB  , MB  , LB  , SODTC\n");
-					for (i = 0; i < c131_dtc.dtc_len; i++)
-						printf("0x%2x, 0x%2x, 0x%2x, 0x%2x \n", \
-						c131_dtc.pdtc[i].dtc_hb, c131_dtc.pdtc[i].dtc_mb, \
-						c131_dtc.pdtc[i].dtc_lb, c131_dtc.pdtc[i].dtc_status);
-				} else {
-					printf("No DTC Exist\n");
+		//for geting diagnosis data
+		if (strcmp(argv[1], "diag") == 0) {
+			if (strcmp(argv[2], "loop") == 0){
+				c131_GetDiagLoop(&pdata, &data_len);
+				for (i = 0; i < data_len; i++) {
+					printf("Loop%d resistance is %d (mohm)\n", i, pdata[i]);
 				}
+			}
+
+			if (strcmp(argv[2], "switch") == 0) {
+				c131_GetDiagSwitch(&pdata, &data_len);
+				//for switch1
+				printf("sw1 stage1 is :%d (mA)\n", pdata[0]);
+				printf("sw1 stage2 is :%d (mA)\n", pdata[1]);
+				printf("sw2 stage1 is :%d (ohm)\n", pdata[2]);
+				printf("sw2 stage2 is :%d (ohm)\n", pdata[3]);
+				printf("sw3 stage1 is :%d (ohm)\n", pdata[4]);
+				printf("sw3 stage2 is :%d (ohm)\n", pdata[5]);
+				printf("sw4 stage1 is :%d (ohm)\n", pdata[6]);
+				printf("sw4 stage2 is :%d (ohm)\n", pdata[7]);
+				printf("sw5 stage1 is :%d (ohm)\n", pdata[8]);
+				printf("sw5 stage2 is :%d (ohm)\n", pdata[9]);
 			}
 		}
 	}
@@ -180,5 +153,5 @@ static int cmd_apt_func(int argc, char *argv[])
 
 	return 0;
 }
-const cmd_t cmd_apt = {"apt", cmd_apt_func, "APT board cmd"};
+const cmd_t cmd_apt = {"apt", cmd_apt_func, "apt box cmd"};
 DECLARE_SHELL_CMD(cmd_apt)

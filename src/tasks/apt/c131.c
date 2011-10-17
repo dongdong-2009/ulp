@@ -18,7 +18,8 @@
 
 typedef enum {
 	DIAGNOSIS_NOTYET,
-	DIAGNOSIS_OVER,
+	DIAGNOSIS_FAILED,
+	DIAGNOSIS_SUCCESSFUL,
 }c131_diagnosis_t;
 
 typedef enum {
@@ -77,21 +78,17 @@ static char indicator_pwr;
 static char sdm_pwr;
 static char led_pwr;
 
-static const char str_simulator[] = "Simulator";
-static const char str_normal[] = "Normal   ";
-static char apt_mode;
-static char indicator_mode;
-
-static const char str_sdmon[] = "SDM  On ";
-static const char str_sdmoff[] = "SDM  Off";
+static const char str_sdmon[]  = "SDM Con   ";
+static const char str_sdmoff[] = "SDM Discon";
 static char status_link = 0;
 
-static const char str_startenter[] = "Start -> Enter";
-static const char str_diagover[] = "Diagnose  Over";
+static const char str_startenter[]     = "Start -> Enter ";
+static const char str_diagfailed[]     = "Diag Failed    ";
+static const char str_diagsuccessful[] = "Diag Successful";
 static char status_diag;
 
-static const char str_testongoing[] = "Test  Ongoing  ";
-static const char str_testfailed[] = "Test   Failed  ";
+static const char str_testongoing[]    = "Test  Ongoing  ";
+static const char str_testfailed[]     = "Test   Failed  ";
 static const char str_testsuccessful[] = "Test Successful";
 static int c131_test_status;
 static int c131_stage_status;
@@ -191,7 +188,6 @@ static void c131_Init(void)
 	int hdlg;
 
 	//init config which has been confirmed
-	nvm_init();
 	c131_current_load = 0;
 	memset(name_temp, 0xff, 16);
 	for (i = 0; i < NUM_OF_LOAD; i++) {
@@ -212,7 +208,7 @@ static void c131_Init(void)
 	//for dlg support members init
 	c131_index_load = 0;
 	if (num_load == 0)
-		strcpy(sdmtype_ram, "No Invalid Type");
+		strcpy(sdmtype_ram, "No Invalid Cfg ");
 	else {
 		while(c131_GetSDMType(c131_index_load, sdmtype_ram))
 			c131_index_load ++;
@@ -221,8 +217,6 @@ static void c131_Init(void)
 	indicator_pwr = 0;
 	sdm_pwr = 0;
 	led_pwr = 0;
-	apt_mode = APT_MODE_NORMAL;
-	indicator_mode = APT_MODE_NORMAL;
 	status_link = 0;
 	status_diag = DIAGNOSIS_NOTYET;
 	c131_test_status = C131_TEST_NOTYET;
@@ -233,6 +227,16 @@ static void c131_Init(void)
 	c131_driver_Init();
 	c131_diag_Init();
 	c131_CanMSGInit();
+
+	//for led pwr and states init
+	Enable_LEDPWR();
+	led_SetRelayStatus(C131_LED1_C1, RELAY_ON);
+	led_SetRelayStatus(C131_LED1_C2, RELAY_ON);
+	led_SetRelayStatus(C131_LED2, RELAY_ON);
+	led_SetRelayStatus(C131_LED3, RELAY_ON);
+	led_SetRelayStatus(C131_LED4_C2, RELAY_ON);
+	led_SetRelayStatus(C131_LED5, RELAY_ON);
+	c131_relay_Update();
 
 	//for dtc related varible init
 	c131_dtc.pdtc = dtc_buffer;
@@ -318,15 +322,12 @@ static void c131_Update(void)
 				FailLed_On();
 				c131_test_status = C131_TEST_FAIL;
 				Disable_SDMPWR();
-				Disable_LEDPWR();
 				c131_stage_status = C131_STAGE1_RELAY;
 				break;
 			case C131_STAGE_OVER:
 				FailLed_Off();
 				c131_test_status = C131_TEST_SUCCESSFUL;
-				c131_can_ClearHistoryDTC();
 				Disable_SDMPWR();
-				Disable_LEDPWR();
 				c131_stage_status = C131_STAGE1_RELAY;
 				break;
 			default :
@@ -386,7 +387,7 @@ int apt_GetSDMTypeSelect(void)
 int apt_SelectSDMType(int keytype)
 {
 	if (num_load == 0) {
-		strcpy(sdmtype_ram, "No Invalid Type");
+		strcpy(sdmtype_ram, "No Invalid Cfg ");
 		return 0;
 	}
 
@@ -467,41 +468,6 @@ int apt_SelectPWR(int keytype)
 	return 0;
 }
 
-int apt_GetAPTModeName(void)
-{
-	if (apt_mode == APT_MODE_NORMAL)
-		return (int)str_normal;
-	else
-		return (int)str_simulator;
-}
-
-
-int apt_GetMode(void)
-{
-	return apt_mode;
-}
-
-int apt_GetAPTModeIndicator(void)
-{
-	if (indicator_mode == apt_mode)
-		return (int)&selected;
-	else
-		return (int)&unselected;
-}
-
-int apt_SelectAPTMode(int keytype)
-{
-	if (keytype == KEY_LEFT) {
-		apt_mode = APT_MODE_NORMAL;
-	} else if(keytype == KEY_RIGHT) {
-		apt_mode = APT_MODE_SIMULATOR;
-	} else if(keytype == KEY_ENTER) {
-		indicator_mode = apt_mode;
-	}
-
-	return 0;
-}
-
 int apt_GetLinkInfo(void)
 {
 	if (status_link == SDM_UNEXIST)
@@ -512,22 +478,30 @@ int apt_GetLinkInfo(void)
 
 int apt_GetDiagInfo(void)
 {
-	if (status_diag == DIAGNOSIS_NOTYET)
+	switch (status_diag) {
+	case DIAGNOSIS_NOTYET:
 		return (int)str_startenter;
-	else
-		return (int)str_diagover;
+	case DIAGNOSIS_FAILED:
+		return (int)str_diagfailed;
+	case DIAGNOSIS_SUCCESSFUL:
+		return (int)str_diagsuccessful;
+	default :
+		break;
+	}
 
+	return 0;
 }
 
 int apt_SelectAPTDiag(int keytype)
 {
+	int ret = 0;
 	if (keytype == KEY_ENTER) {
-		Enable_LEDPWR();
-		c131_DiagSW();
-		c131_DiagLED();
-		c131_DiagLOOP();
-		Disable_LEDPWR();
-		status_diag = DIAGNOSIS_OVER;
+		ret = c131_DiagSW();
+		ret += c131_DiagLOOP();
+		if (ret)
+			status_diag = DIAGNOSIS_FAILED;
+		else
+			status_diag = DIAGNOSIS_SUCCESSFUL;
 	}
 
 	return 0;
@@ -551,7 +525,7 @@ int apt_GetTestInfo(void)
 	return (int)"ERROR";
 }
 
-int apt_SelectAPTTest(int keytype)
+int apt_SelectSDMTest(int keytype)
 {
 	if ((keytype == KEY_ENTER)) {// && (status_link == SDM_EXIST)){
 		if (c131_test_status == C131_TEST_NOTYET) {
@@ -560,11 +534,21 @@ int apt_SelectAPTTest(int keytype)
 			c131_ConfirmLoad(c131_GetCurrentLoadIndex());
 			c131_relay_Update();
 			Enable_SDMPWR();
-			Enable_LEDPWR();
 		}
 	} else if (keytype == KEY_RESET) {
-		if ((c131_test_status == C131_TEST_FAIL) || (c131_test_status == C131_TEST_SUCCESSFUL))
+		if ((c131_test_status == C131_TEST_FAIL) || (c131_test_status == C131_TEST_SUCCESSFUL)) {
 			c131_test_status = C131_TEST_NOTYET;
+			FailLed_Off();
+			//for led pwr and states init
+			Enable_LEDPWR();
+			led_SetRelayStatus(C131_LED1_C1, RELAY_ON);
+			led_SetRelayStatus(C131_LED1_C2, RELAY_ON);
+			led_SetRelayStatus(C131_LED2, RELAY_ON);
+			led_SetRelayStatus(C131_LED3, RELAY_ON);
+			led_SetRelayStatus(C131_LED4_C2, RELAY_ON);
+			led_SetRelayStatus(C131_LED5, RELAY_ON);
+			c131_relay_Update();
+		}
 	}
 
 	return 0;
@@ -583,7 +567,7 @@ int apt_GetDTCInfo(void)
 	}
 }
 
-int apt_SelectAPTDTC(int keytype)
+int apt_SelectSDMDTC(int keytype)
 {
 	if (keytype == KEY_LEFT){
 		dtc_index --;
