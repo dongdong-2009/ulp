@@ -50,7 +50,7 @@ static int get_knf(void) {return lcm_dat.knf;}
 static int get_knp(void) {return lcm_dat.knp;}
 static int get_knw(void) {return lcm_dat.knw;}
 static int get_dio(void) {
-	unsigned char mfr, knk;
+	unsigned char mfr = 0, knk = 0;
 	mcp23s17_ReadByte(&mcp23s17, MCP23017_PORTA_IN, &mfr); //port a
 	mcp23s17_ReadByte(&mcp23s17, MCP23017_PORTB_IN, &knk); //port b
 	lcm_dat.dio = knk;

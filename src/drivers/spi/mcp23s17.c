@@ -23,7 +23,7 @@ void mcp23s17_Init(const mcp23s17_t *chip)
 	if (chip->option & MCP23S17_HIGH_SPEED) {
 		cfg.freq = 9000000;		//9MHz
 	} else {
-		cfg.freq = 500000;		//500KHz
+		cfg.freq = 10000;		//500KHz
 	}
 	chip->bus->init(&cfg);
 
@@ -74,10 +74,14 @@ int mcp23s17_ReadByte(const mcp23s17_t *chip, unsigned char addr, unsigned char 
 #include <stdlib.h>
 #include <string.h>
 
-static const mcp23s17_t mcp23s17 = {
+static mcp23s17_t mcp23s17 = {
 	.bus = &spi2,
+#if CONFIG_TASK_APTC131
 	.idx = SPI_CS_PD12,
-	.option = MCP23S17_LOW_SPEED | MCP23017_PORTA_OUT | MCP23017_PORTB_OUT,
+#endif
+#if CONFIG_VVT_LCM
+	.idx = SPI_2_NSS,
+#endif
 };
 
 static int cmd_mcp23s17_func(int argc, char *argv[])
@@ -87,14 +91,19 @@ static int cmd_mcp23s17_func(int argc, char *argv[])
 
 	const char * usage = { \
 		" usage:\n" \
-		" mcp23s17 init, chip init \n" \
-		" mcp23s17 write addr value, write reg \n" \
-		" mcp23s17 read addr, read reg\n" \
-		" mcp23s17 read repeat addr, repeat read reg\n" \
+		" 23s17 init in/out, chip init in_type or out_type\n" \
+		" 23s17 write addr value, write reg \n" \
+		" 23s17 read addr, read reg\n" \
+		" 23s17 read repeat addr, repeat read reg\n" \
 	};
 
 	if (argc > 1) {
 		if (argv[1][0] == 'i') {
+			if (argv[2][0] == 'i') {
+				mcp23s17.option = MCP23S17_LOW_SPEED | MCP23017_PORTA_IN | MCP23017_PORTB_IN;
+			} else {
+				mcp23s17.option = MCP23S17_LOW_SPEED | MCP23017_PORTA_OUT | MCP23017_PORTB_OUT;
+			}
 			mcp23s17_Init(&mcp23s17);
 		}
 
@@ -125,6 +134,6 @@ static int cmd_mcp23s17_func(int argc, char *argv[])
 
 	return 0;
 }
-const cmd_t cmd_mcp23s17 = {"mcp23s17", cmd_mcp23s17_func, "mcp23s17 cmd"};
+const cmd_t cmd_mcp23s17 = {"23s17", cmd_mcp23s17_func, "mcp23s17 cmd"};
 DECLARE_SHELL_CMD(cmd_mcp23s17)
 #endif
