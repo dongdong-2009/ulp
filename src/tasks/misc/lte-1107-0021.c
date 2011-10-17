@@ -1,6 +1,6 @@
 #include "config.h"
 #include "debug.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "stm32f10x_gpio.h"
 #include "sys/task.h"
 #include "74hct595.h"

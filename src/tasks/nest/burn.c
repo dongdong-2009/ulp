@@ -8,7 +8,7 @@ there are 4 hardware modules in total:
 */
 #include "config.h"
 #include "debug.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "nvm.h"
 #include "sys/task.h"
 #include "sys/sys.h"

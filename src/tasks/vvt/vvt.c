@@ -8,7 +8,7 @@
 #include "config.h"
 #include "sys/task.h"
 #include "misfire.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "priv/mcamos.h"
 #include "lcm.h"
 #include "ad9833.h"

@@ -7,7 +7,7 @@
 #include "config.h"
 #include "stm32f10x.h"
 #include "key.h"
-#include "time.h"
+#include "ulp_time.h"
 #include <stddef.h>
 
 #define DIGIT_ENTRY_TIMEOUT	1000 /*unit: mS*/

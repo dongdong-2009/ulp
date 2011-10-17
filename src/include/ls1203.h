@@ -7,7 +7,7 @@
 #define __LS1203_H
 
 #include "stm32f10x.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "uart.h"
 
 typedef struct {

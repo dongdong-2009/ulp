@@ -1,8 +1,8 @@
 /* time.h
  * 	miaofng@2009 initial version
  */
-#ifndef __TIME_H_
-#define __TIME_H_
+#ifndef __ULP_TIME_H_
+#define __ULP_TIME_H_
 
 typedef unsigned int time_t;
 
@@ -15,4 +15,4 @@ void udelay(int us);
 void mdelay(int ms);
 void sdelay(int ss);
 
-#endif /*__TIME_H_*/
+#endif /*__ULP_TIME_H_*/

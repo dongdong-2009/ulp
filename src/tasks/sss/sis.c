@@ -3,7 +3,7 @@
  */
 #include "config.h"
 #include "debug.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "sys/task.h"
 #include "nvm.h"
 #include "sis.h"

@@ -12,7 +12,7 @@
 */
 
 #include "ascii8x16.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "lcd.h"
 #include "driver.h"
 #include <string.h>

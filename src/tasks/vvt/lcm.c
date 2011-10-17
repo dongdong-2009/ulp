@@ -4,7 +4,7 @@
 
 #include "config.h"
 #include "debug.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "sys/task.h"
 #include "priv/mcamos.h"
 #include "lcm.h"

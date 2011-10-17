@@ -11,7 +11,7 @@
 
 #include "ethernetif.h"
 #include <stdio.h>
-#include "time.h"
+#include "ulp_time.h"
 #include "sys/task.h"
 
 #define SYSTEMTICK_PERIOD_MS  50

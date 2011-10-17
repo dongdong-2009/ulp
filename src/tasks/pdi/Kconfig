@@ -1,0 +1,10 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2011
+#
+
+choice 'autoliv pdi type selection'	" \
+	SDM10_11	CONFIG_PDI_SDM10 \
+	DM_DMA		CONFIG_PDI_DM \
+" SDM10_11

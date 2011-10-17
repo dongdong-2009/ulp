@@ -4,7 +4,7 @@
 #ifndef __CMD_H_
 #define __CMD_H_
 
-#include "time.h"
+#include "ulp_time.h"
 #include <stdio.h>
 #include <linux/list.h>
 

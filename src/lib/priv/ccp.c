@@ -25,7 +25,7 @@
 #include "err.h"
 #include "priv/ccp.h"
 #include "can.h"
-#include "time.h"
+#include "ulp_time.h"
 #include <string.h>
 #include "debug.h"
 
