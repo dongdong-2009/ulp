@@ -4,3 +4,9 @@
  */
 #include "config.h"
 #include "ulp_time.h"
+
+
+
+//int pdisdm10_can_init()
+//{
+//}
