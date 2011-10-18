@@ -195,7 +195,7 @@ static int file_save(void)
 	cfg->crc = cyg_crc32((unsigned char *)cfg, FSZ);
 
 	//flash write
-	flash_Erase((void *)tar, align(FSZ, FLASH_PAGE_SZ));
+	flash_Erase(tar, align(FSZ, FLASH_PAGE_SZ));
 	flash_Write(tar, cfg, FSZ);
 
 	//free memory
@@ -265,11 +265,26 @@ static int cmd_file_func(int argc, char *argv[])
 	}
 
 	if(argc == 2 && !strcmp(argv[1], "list")) {
-		ret = -1;
+		const struct pdi_cfg_s *cfg;
+		for(int i = 0; i < FNR; i ++) {
+			cfg = (const struct pdi_cfg_s *) pdi_file[i];
+			if(cfg->flag & 0x01 == 0) {
+				printf("file %03d:	%s;\n", i, cfg->name);
+			}
+		}
+		ret = 0;
 	}
 
 	if(argc == 3 && !strcmp(argv[1], "rm")) {
-		ret = -1;
+		const struct pdi_cfg_s *cfg = pdi_cfg_get(argv[2]);
+		if(cfg == NULL) { //not found
+			pdi_ecode = - PDI_ERR_CFG_NOT_FOUND;
+			ret = pdi_ecode;
+		}
+		else {
+			flash_Erase(cfg, align(FSZ, FLASH_PAGE_SZ));
+			ret = 0;
+		}
 	}
 
 	if(ret == 0) {
@@ -287,7 +302,7 @@ DECLARE_SHELL_CMD(cmd_file)
 
 static int cmd_verify_func(int argc, char *argv[])
 {
-	int v, ret;
+	int v, ret = -1;
 	struct pdi_rule_s rule;
 	const char *usage = {
 		"add limit settings to config file, usage:\n"
@@ -335,7 +350,7 @@ DECLARE_SHELL_CMD(cmd_verify)
 
 static int cmd_relay_func(int argc, char *argv[])
 {
-	int relay, value, ret;
+	int relay, value, ret = -1;
 	const char *usage = {
 		"add relay settings to config file, usage:\n"
 		"relay s00 on\n"
