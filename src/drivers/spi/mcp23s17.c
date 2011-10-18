@@ -74,28 +74,35 @@ int mcp23s17_ReadByte(const mcp23s17_t *chip, unsigned char addr, unsigned char 
 #include <stdlib.h>
 #include <string.h>
 
-static const mcp23s17_t mcp23s17 = {
+static mcp23s17_t mcp23s17 = {
 	.bus = &spi2,
+#if CONFIG_TASK_APTC131
 	.idx = SPI_CS_PD12,
 	.option = MCP23S17_LOW_SPEED | MCP23017_PORTA_OUT | MCP23017_PORTB_OUT,
+#endif
+#if CONFIG_VVT_LCM
+	.idx = SPI_2_NSS,
+	.option = MCP23S17_LOW_SPEED | MCP23017_PORTA_IN | MCP23017_PORTB_IN,
+#endif
 };
 
 static int cmd_mcp23s17_func(int argc, char *argv[])
 {
 	unsigned int temp = 0;
-	unsigned int addr;
+	static unsigned int addr;
 
 	const char * usage = { \
 		" usage:\n" \
-		" mcp23s17 init, chip init \n" \
-		" mcp23s17 write addr value, write reg \n" \
-		" mcp23s17 read addr, read reg\n" \
-		" mcp23s17 read repeat addr, repeat read reg\n" \
+		" 23s17 init , chip init\n" \
+		" 23s17 write addr value, write addr(hex) value(hex) \n" \
+		" 23s17 read addr, read reg addr(hex)\n" \
+		" 23s17 read repeat addr, repeat read reg(hex)\n" \
 	};
 
 	if (argc > 1) {
 		if (argv[1][0] == 'i') {
 			mcp23s17_Init(&mcp23s17);
+			printf("mcp23s17 init successful!\n");
 		}
 
 		if (argv[1][0] == 'w') {
@@ -107,12 +114,11 @@ static int cmd_mcp23s17_func(int argc, char *argv[])
 		if (argv[1][0] == 'r' && argc == 3) {
 			sscanf(argv[2], "%x", &addr);
 			mcp23s17_ReadByte(&mcp23s17, addr, (unsigned char *)&temp);
-			printf("%c = 0x%x\n",(unsigned char)temp, (unsigned char)temp);
+			printf("addr 0x%x = 0x%x\n",(unsigned char)addr, (unsigned char)temp);
 		}
 	}
 
 	if (argc == 0 || argv[2][0] == 'r') {
-		//sscanf(argv[3], "%x", &addr);
 		mcp23s17_ReadByte(&mcp23s17, addr, (unsigned char *)&temp);
 		printf("0x%x\n", (unsigned char)temp);
 		return 1;
@@ -125,6 +131,6 @@ static int cmd_mcp23s17_func(int argc, char *argv[])
 
 	return 0;
 }
-const cmd_t cmd_mcp23s17 = {"mcp23s17", cmd_mcp23s17_func, "mcp23s17 cmd"};
+const cmd_t cmd_mcp23s17 = {"23s17", cmd_mcp23s17_func, "mcp23s17 cmd"};
 DECLARE_SHELL_CMD(cmd_mcp23s17)
 #endif
