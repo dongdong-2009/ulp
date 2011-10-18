@@ -32,6 +32,11 @@ int nvm_init(void)
 
 	dst = __section_begin(".nvm.ram");
 	sz_ram = (int)__section_end(".nvm.ram") - (int)__section_begin(".nvm.ram");
+	if(sz_ram == 0) { //no nvm var is used
+		nvm_flag_null = 0;
+		return 0;
+	}
+
 	sz_ram = align(sz_ram, 4);
 	pages = align(sz_ram, FLASH_PAGE_SZ) / FLASH_PAGE_SZ;
 	src = (char *)FLASH_ADDR(FLASH_PAGE_NR - pages); //rom 1
@@ -84,6 +89,8 @@ int nvm_save(void)
 
 	src = __section_begin(".nvm.ram");
 	sz_ram = (int)__section_end(".nvm.ram") - (int)__section_begin(".nvm.ram");
+	if(sz_ram == 0)
+		return 0;
 	sz_ram = align(sz_ram, 4);
 	pages = align(sz_ram, FLASH_PAGE_SZ) / FLASH_PAGE_SZ;
 	dest = (char *)FLASH_ADDR(FLASH_PAGE_NR - pages); //rom 1
