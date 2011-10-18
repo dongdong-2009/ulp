@@ -148,7 +148,7 @@ static char *pdi_str = NULL;
 static int file_open(const char *name)
 {
 	struct pdi_cfg_s *cfg;
-	pdi_buf = sys_malloc(FSZ);
+	pdi_buf = (pdi_buf == NULL) ? sys_malloc(FSZ) : pdi_buf;
 	if(pdi_buf == NULL) {
 		pdi_ecode = - PDI_ERR_NO_MEM;
 		return pdi_ecode;
