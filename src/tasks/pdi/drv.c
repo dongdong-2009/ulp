@@ -1,6 +1,6 @@
 /*
  *	miaofng@2011 initial version
- *	Divid peng.guo@2011 add content for PDI_SDM10
+ *	David peng.guo@2011 add content for PDI_SDM10
  */
 #include "config.h"
 #include "ulp_time.h"

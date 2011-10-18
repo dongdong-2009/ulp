@@ -1,6 +1,6 @@
 /*
  *	miaofng@2011 initial version
- *	Divid peng.guo@2011 add content for PDI_SDM10
+ *	David peng.guo@2011 add content for PDI_SDM10
  */
 #include "config.h"
 #include "sys/task.h"
@@ -11,16 +11,11 @@
 #include "cfg.h"
 #include "can.h"
 
-/*enum pdi_rule_type {
-	PDI_RULE_DID,
-	PDI_RULE_DPID,
-};*/
-
 static time_t pdi_loop_timer;
 static char pdi_barcode[19];
 static char pdi_cfg_name[9];
-//static pdi_rule_s pdi_cfg_file;
-//static can_bus_t pdi_can_bus = can1;
+const struct pdi_rule_s* pdi_cfg;
+const can_bus_t* pdi_can_bus = &can1;
 
 static int cfg_filename(char *pdi_code , char *pdi_cfg_name)
 {
@@ -31,7 +26,7 @@ static int cfg_filename(char *pdi_code , char *pdi_cfg_name)
 
 static int pdi_check(const struct pdi_rule_s *sr)
 {
-	
+
 }
 
 static void pdi_init(void)
@@ -55,7 +50,7 @@ static void pdi_init(void)
 	mbi5025_EnableOE(&pdi_mbi5025);
 	ls1203_Init(&pdi_ls1203);
 	pdi_swcan_mode();
-	//pdi_can_bus->inti(&pdi_can);
+	pdi_can_bus->init(&pdi_can);
 }
 
 /*static void pdi_update(void)
