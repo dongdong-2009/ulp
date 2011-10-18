@@ -1384,7 +1384,9 @@ void dump_tk_script( struct kconfig * scfg )
 	case token_tristate:
 	    if ( ! vartable[cfg->nameindex].global_written )
 	    {
-		printf( "set %s 0\n", vartable[cfg->nameindex].name );
+		//printf( "set %s 0\n", vartable[cfg->nameindex].name );
+		char c = (cfg->value != NULL) ? cfg->value[0] : '0';
+		printf( "set %s %s\n", vartable[cfg->nameindex].name, (c == '1' || c == 'y' || c == 'Y') ? "1" : "0" );
 		vartable[cfg->nameindex].global_written = 1;
 	    }
 	    break;

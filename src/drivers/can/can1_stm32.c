@@ -7,7 +7,7 @@
 #include "can.h"
 #include "stm32f10x.h"
 #include <string.h>
-#include "time.h"
+#include "ulp_time.h"
 #include "stm32f10x_it.h"
 
 #if CONFIG_CAN1_RF_SZ > 0

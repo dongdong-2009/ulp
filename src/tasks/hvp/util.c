@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "sys/sys.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "hvp.h"
 
 #include "ff.h"

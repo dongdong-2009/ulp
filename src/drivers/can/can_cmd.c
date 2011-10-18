@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "can.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "linux/list.h"
 #include "sys/sys.h"
 

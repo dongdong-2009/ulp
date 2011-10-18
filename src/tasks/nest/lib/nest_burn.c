@@ -9,7 +9,7 @@
 #include "nest_message.h"
 #include "nest_burn.h"
 #include "priv/mcamos.h"
-#include "time.h"
+#include "ulp_time.h"
 #include <stdlib.h>
 #include "shell/cmd.h"
 #include "nvm.h"

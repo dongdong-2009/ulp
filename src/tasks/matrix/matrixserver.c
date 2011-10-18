@@ -5,7 +5,7 @@
 #include "eth_demo/tcpserver.h"
 #include "lwip/tcp.h"
 #include "spi.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "stm32f10x.h"
 #include "stm32f10x_gpio.h"
 #include "matrix.h"

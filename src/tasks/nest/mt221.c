@@ -1332,7 +1332,7 @@ void TestStop(void)
 
 	//write psv
 	if(pass()) {
-		psv_save = psv = ((0<<7)|nest_info_get() -> id_base)&0xff;
+		psv_save = psv = (0<<7)|((nest_info_get() -> id_base) & 0x7f);
 		result = Write_Memory(PSV_CND_ADDR, &psv, 1);
 		if( result != E_OK ) ERROR(PSV_FAIL, "Write PSV");
 	}
@@ -1421,7 +1421,7 @@ void main(void)
 		RAMTest();
 		RAMDnld();
 		CyclingTest();
-		RAMTest();
+		//RAMTest();
 		TestStop();
 	}
 } // main

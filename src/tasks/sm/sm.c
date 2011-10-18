@@ -10,7 +10,7 @@
 #include "flash.h"
 #include "smctrl.h"
 #include "key.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "stdio.h"
 #include "led.h"
 #include "sys/task.h"

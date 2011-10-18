@@ -18,6 +18,7 @@ if [ "$CONFIG_LWIP_APP" = "y" ]; then
 fi
 
 bool "enable APT application" CONFIG_TASK_APT
+bool "autoliv pdi project" CONFIG_TASK_PDI
 bool "misc applications?" CONFIG_TASK_MISC
 
 mainmenu_option next_comment

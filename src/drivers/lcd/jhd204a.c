@@ -5,7 +5,7 @@
 #include "driver.h"
 #include "lcd.h"
 #include "jhd204a.h"
-#include "time.h"
+#include "ulp_time.h"
 #include <string.h>
 #include "lpt.h"
 

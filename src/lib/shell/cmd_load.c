@@ -16,7 +16,7 @@
 #include "common/circbuf.h"
 #include "flash.h"
 #include <stdio.h>
-#include "time.h"
+#include "ulp_time.h"
 
 #define TIMEOUT (6000) //mS
 

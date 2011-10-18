@@ -11,7 +11,7 @@
 #include "lwip/dhcp.h"
 #include "ethernetif.h"
 #include <stdio.h>
-#include "time.h"
+#include "ulp_time.h"
 #include "sys/task.h"
 
 //this function is global and will be called by lwip_lib.c
