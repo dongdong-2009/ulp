@@ -1,6 +1,6 @@
 /*
  * 	2011 initial version
- * Author: peng.guo david
+ * Author: david peng.guo
  */
 
 #include "config.h"
@@ -52,7 +52,7 @@ static char pdi_barcode[19];
 
 static int cmd_ls1203_func(int argc, char *argv[])
 {
-	
+
 
 	const char *usage = { \
 		" usage:\n" \
