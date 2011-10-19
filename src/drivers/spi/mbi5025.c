@@ -33,7 +33,7 @@ void mbi5025_WriteBytes(mbi5025_t *chip, unsigned char * pdata, int len)
 	spi_cs_set(chip->load_pin, 0);
 	for (i = 0; i < len; i++)
 		chip->bus->wreg(chip->idx, *(pdata++));
-	spi_cs_set(chip->load_pin, 1);	
+	spi_cs_set(chip->load_pin, 1);
 }
 
 void mbi5025_EnableLoad(mbi5025_t *chip)
