@@ -11,7 +11,7 @@
 #define PAGE_SIZE (FLASH_PAGE_SZ)
 #define PAGE_MASK (PAGE_SIZE - 1)
 
-int flash_Erase(void *dest, size_t n)
+int flash_Erase(const void *dest, size_t n)
 {
 	int i, idest = (int)dest;
 
@@ -33,7 +33,7 @@ int flash_Erase(void *dest, size_t n)
 	return i;
 }
 
-int flash_Write(void *dest, const void *src, size_t n)
+int flash_Write(const void *dest, const void *src, size_t n)
 {
 	const int *psrc;
 	int i, idest;
