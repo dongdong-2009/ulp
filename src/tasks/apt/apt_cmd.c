@@ -2,6 +2,7 @@
  * david@2011 initial version
  */
 #include <string.h>
+#include <stdlib.h>
 #include "config.h"
 #include "stm32f10x.h"
 #include "shell/cmd.h"
@@ -77,9 +78,11 @@ static int cmd_apt_func(int argc, char *argv[])
 				if (strcmp(argv[2], "on") == 0) {
 					Enable_SDMPWR();
 					Enable_LEDPWR();
+					printf("Power On\n");
 				} else if (strcmp(argv[2], "off") == 0) {
 					Disable_SDMPWR();
 					Disable_LEDPWR();
+					printf("Power Off\n");
 				}
 			}
 			if (strcmp(argv[3], "led") == 0) {
@@ -110,7 +113,7 @@ static int cmd_apt_func(int argc, char *argv[])
 						printf("No DTC Exist\n");
 					}
 				}
-			} 
+			}
 
 			if(strcmp(argv[1], "clr") == 0) {
 				if (c131_can_ClearHistoryDTC())
