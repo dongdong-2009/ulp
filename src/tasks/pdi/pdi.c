@@ -11,8 +11,7 @@
 #include "cfg.h"
 #include "can.h"
 
-static time_t pdi_loop_timer;
-const struct pdi_cfg_s* pdi_cfg;
+//static time_t pdi_loop_timer;
 const can_bus_t* pdi_can_bus = &can1;
 
 static mbi5025_t pdi_mbi5025 = {
@@ -65,38 +64,37 @@ static int pdi_pass_action()
 
 static int pdi_check(const struct pdi_cfg_s *sr)
 {
-	pdi_rule_s* pdi_cfg_rule;
-	can_msg_t pdi_send_msg,pdi_recv_msg;
+	const struct pdi_rule_s* pdi_cfg_rule;
+	can_msg_t pdi_send_msg;
+	can_msg_t pdi_recv_msg;
 	//relay
+	power_on();
 	for(int i = 0;i < sr->nr_of_rules;i++) {
-		pdi_cfg_rule = pdi_rule_get(&sr,i);
+		pdi_cfg_rule = pdi_rule_get(sr,i);
 		if(&pdi_cfg_rule == NULL) {
 			return 1;
 		}
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_DID:
-			pdi_send_msg = {
-				.id = 247,
+			pdi_send_msg = { //
+				.id = 0x247,
 				.dlc = 3,
-				.data = {0x02,0x1A,pdi_cfg_rule->para},
+				.data = {0x02,0x1A,pdi_cfg_rule->para}
 			};
-			break;
 		case PDI_RULE_DPID:
-			pdi_send_msg = {
-				.id = 247,
+			pdi_send_msg = { //
+				.id = 0x247,
 				.dlc = 4,
-				.data = {0x03,0xAA,0x01,pdi_cfg_rule->para},
+				.data = {0x03,0xAA,0x01,pdi_cfg_rule->para}
 			};
-			break;
 		case PDI_RULE_UNDEF:
 			return 1;
-			break;
 		}
 		pdi_can_bus->send(&pdi_send_msg);
 		time_t over_time = time_get(50);
 		while(over_time)
 			if(pdi_can_bus->recv(&pdi_recv_msg))
-				if(pdi_verify(&pdi_cfg_rule,&pdi_recv_msg->data) == 0)
+				if(pdi_verify(pdi_cfg_rule,pdi_recv_msg.data) == 0)
 					i++;
 				else return 1;
 			else return 1;
@@ -119,6 +117,7 @@ static void pdi_init(void)
 
 static void pdi_update(void)
 {
+	const struct pdi_cfg_s* pdi_cfg_file;
 	char bcode[19];
 	if(check_start() == 1) {
 		while(1) {
@@ -129,10 +128,10 @@ static void pdi_update(void)
 				if(target_on() == 1) {
 					pdi_cfg_file = pdi_cfg_get(bcode);
 					if(pdi_check(pdi_cfg_file) == 0)
-						pass_action();
+						pdi_pass_action();
 				}
 				else {
-					fail_action();
+					pdi_fail_action();
 					continue;
 				}
 			}

@@ -17,8 +17,16 @@
 #define target				(1<<7)
 #define swcan_mode0			(1<<10)
 #define swcan_mode1			(1<<11)
+#define IGN_on				(1<<13)
+#define battary_on			(1<<15)
 
 //static time_t check_fail_beep;
+int power_on()
+{
+	GPIOE->ODR |= IGN_on;
+	GPIOE->ODR |= battary_on;
+	return 0;
+}
 
 int pin_init()
 {

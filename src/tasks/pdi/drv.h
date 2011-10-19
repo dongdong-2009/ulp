@@ -13,6 +13,6 @@ int counter_fail_add();
 int counter_total_add();
 int target_on();
 int pdi_swcan_mode();
-
+int power_on();
 
 #endif
