@@ -25,7 +25,6 @@
 #define FNR 64 //64 files
 #endif
 
-/*1 file takes up 1 sector*/
 static int pdi_ecode = PDI_OK;
 
 static int align(int value, int page_size)
@@ -358,7 +357,7 @@ static int cmd_verify_func(int argc, char *argv[])
 	if(argc == 6) {
 		rule.type = PDI_RULE_UNDEF;
 		rule.type = (!strcmp(argv[1], "DID")) ? PDI_RULE_DID : rule.type;
-		rule.type = (!strcmp(argv[1], "DPID")) ? PDI_RULE_DID : rule.type;
+		rule.type = (!strcmp(argv[1], "DPID")) ? PDI_RULE_DPID : rule.type;
 
 		sscanf(argv[2], "%x", &v);
 		rule.para = v & 0xff;
