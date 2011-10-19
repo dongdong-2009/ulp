@@ -11,6 +11,7 @@
 #include <string.h>
 #include "debug.h"
 #include "cfg.h"
+#include "nvm.h"
 
 #ifdef CONFIG_PDI_FILE_SZ
 #define FSZ CONFIG_PDI_FILE_SZ
@@ -25,8 +26,6 @@
 #endif
 
 /*1 file takes up 1 sector*/
-#pragma data_alignment=FLASH_PAGE_SZ
-static const unsigned char pdi_file[FNR][FSZ];
 static int pdi_ecode = PDI_OK;
 
 static int align(int value, int page_size)
@@ -53,6 +52,20 @@ static int pdi_match(const char *d, const char *e, int n)
 	return (i != n);
 }
 
+/* locate pid_file*/
+static const void* pdi_file(int index)
+{
+	unsigned sz_ram, ram_pages, cfg_pages, cfg;
+
+	assert(index < FNR);
+	sz_ram = (int)__section_end(".nvm.ram") - (int)__section_begin(".nvm.ram");
+	sz_ram = align(sz_ram, 4);
+	ram_pages = align(sz_ram + 8, FLASH_PAGE_SZ) / FLASH_PAGE_SZ;
+	cfg_pages = align(FSZ, FLASH_PAGE_SZ) / FLASH_PAGE_SZ;
+	cfg = FLASH_ADDR(FLASH_PAGE_NR - ram_pages - ram_pages - cfg_pages * FNR);
+	return (const void *)(cfg + FSZ * index);
+}
+
 //get the configuration by serial number, return NULL -> fail
 const struct pdi_cfg_s* pdi_cfg_get(const char *sn)
 {
@@ -60,27 +73,28 @@ const struct pdi_cfg_s* pdi_cfg_get(const char *sn)
 	const struct pdi_cfg_s *cfg;
 
 	while(1) {
-		cfg = (const struct pdi_cfg_s *) pdi_file[i];
-		i ++;
 		if(i >= FNR) { //not found
 			pdi_ecode = - PDI_ERR_CFG_NOT_FOUND;
 			return NULL;
 		}
 
+		cfg = pdi_file(i);
+                i ++;
 		if(sn != NULL) {
-			if(cfg->flag & 0x01 == 0 && !strcmp(sn, cfg->name)) {
-				break;
+			if((cfg->flag & 0x01) == 0 && cfg->nr_of_rules > 0) {
+				if(!strcmp(sn, cfg->name))
+					break;
 			}
 		}
 		else { //sn == NULL
-			if(cfg->flag & 0x01) {
+			if((cfg->flag & 0x01) == 1 || cfg->nr_of_rules <= 0) {
 				return cfg;
 			}
 		}
 	}
 
 	//found, to do data integrate check
-	if(cyg_crc16((unsigned char *) cfg + sizeof(cfg->crc), FSZ - sizeof(cfg->crc)) != cfg->crc) {
+	if(cyg_crc32((unsigned char *)cfg + sizeof(cfg->crc), FSZ - sizeof(cfg->crc)) != cfg->crc) {
 		pdi_ecode = - PDI_ERR_CFG_DAMAGED;
 		return NULL;
 	}
@@ -167,7 +181,7 @@ static int file_open(const char *name)
 static int file_save(void)
 {
 	struct pdi_cfg_s *cfg = (struct pdi_cfg_s *)pdi_buf;
-	struct pdi_rule_s *rule = (struct pdi_rule_s *) ((int)cfg + sizeof(struct pdi_cfg_s));
+	struct pdi_rule_s *rule = (struct pdi_rule_s *) (cfg + 1);
 	const void *tar;
 	int i, offset;
 
@@ -192,10 +206,10 @@ static int file_save(void)
 	}
 
 	//calculate crc
-	cfg->crc = cyg_crc32((unsigned char *)cfg, FSZ);
+	cfg->crc = cyg_crc32((unsigned char *)cfg + sizeof(cfg->crc), FSZ - sizeof(cfg->crc));
 
 	//flash write
-	flash_Erase(tar, align(FSZ, FLASH_PAGE_SZ));
+	flash_Erase(tar, align(FSZ, FLASH_PAGE_SZ)/FLASH_PAGE_SZ);
 	flash_Write(tar, cfg, FSZ);
 
 	//free memory
@@ -208,7 +222,7 @@ static int file_save(void)
 static int file_rule_add(const struct pdi_rule_s *rule, const char *expect)
 {
 	struct pdi_cfg_s *cfg = (struct pdi_cfg_s *)pdi_buf;
-	struct pdi_rule_s *tar = (struct pdi_rule_s *) ((int)cfg + sizeof(struct pdi_cfg_s));
+	struct pdi_rule_s *tar = (struct pdi_rule_s *) (cfg + 1);
 
 	if(pdi_buf == NULL) {
 		pdi_ecode = - PDI_ERR_OP_NO_ALLOWED;
@@ -218,7 +232,7 @@ static int file_rule_add(const struct pdi_rule_s *rule, const char *expect)
 	pdi_str -= strlen(expect) + 1;
 	strcpy(pdi_str, expect);
 	tar += cfg->nr_of_rules;
-	if((char *)(tar + 1) < pdi_str) {
+	if((char *)(tar + 1) > pdi_str) {
 		pdi_ecode = - PDI_ERR_CFG_FILE_TOO_BIG;
 		return pdi_ecode;
 	}
@@ -267,12 +281,43 @@ static int cmd_file_func(int argc, char *argv[])
 	if(argc == 2 && !strcmp(argv[1], "list")) {
 		const struct pdi_cfg_s *cfg;
 		for(int i = 0; i < FNR; i ++) {
-			cfg = (const struct pdi_cfg_s *) pdi_file[i];
-			if(cfg->flag & 0x01 == 0) {
+			cfg = pdi_file(i);
+			if((cfg->flag & 0x01) == 0 && cfg->nr_of_rules > 0) {
 				printf("file %03d:	%s;\n", i, cfg->name);
 			}
 		}
 		ret = 0;
+	}
+
+	if(argc == 3 && !strcmp(argv[1], "list")) {
+		const struct pdi_cfg_s *cfg = pdi_cfg_get(argv[2]);
+		const struct pdi_rule_s *rule;
+		if(cfg == NULL) {
+			pdi_ecode = - PDI_ERR_CFG_NOT_FOUND;
+			ret = pdi_ecode;
+		}
+		else { //print detail
+			for(int i = 0; i < 32; i ++) {
+				if(cfg->relay & (1 << i))
+					printf("relay S%02d %s\n", i, "on");
+			}
+			for(int i = 0; i < cfg->nr_of_rules; i ++) {
+				rule = pdi_rule_get(cfg, i);
+				printf("verify ");
+				if(rule->type == PDI_RULE_DID) printf("DID ");
+				if(rule->type == PDI_RULE_DPID) printf("DPID ");
+
+				printf("%02X ", rule->para);
+
+				if(rule->echo_type == PDI_ECHO_HEX) printf("HEX ");
+				if(rule->echo_type == PDI_ECHO_HEX2DEC) printf("HEX2DEC ");
+				if(rule->echo_type == PDI_ECHO_ASCII) printf("ASCII ");
+
+				printf("%d ", rule->echo_size);
+				printf("%s\n", rule->echo_expect);
+			}
+			ret = 0;
+		}
 	}
 
 	if(argc == 3 && !strcmp(argv[1], "rm")) {
@@ -282,7 +327,7 @@ static int cmd_file_func(int argc, char *argv[])
 			ret = pdi_ecode;
 		}
 		else {
-			flash_Erase(cfg, align(FSZ, FLASH_PAGE_SZ));
+			flash_Erase(cfg, align(FSZ, FLASH_PAGE_SZ)/FLASH_PAGE_SZ);
 			ret = 0;
 		}
 	}
@@ -310,7 +355,7 @@ static int cmd_verify_func(int argc, char *argv[])
 		"verify DPID 28 HEX 7 000000000000000000 //explation, optional\n"
 	};
 
-	if((argc == 6) && (!strcmp(argv[1], "verify"))) {
+	if(argc == 6) {
 		rule.type = PDI_RULE_UNDEF;
 		rule.type = (!strcmp(argv[1], "DID")) ? PDI_RULE_DID : rule.type;
 		rule.type = (!strcmp(argv[1], "DPID")) ? PDI_RULE_DID : rule.type;
@@ -357,7 +402,7 @@ static int cmd_relay_func(int argc, char *argv[])
 		"relay s01 off\n"
 	};
 
-	if(argc == 3 && !strcmp(argv[1], "relay")) {
+	if(argc == 3) {
 		relay = atoi(argv[1] + 1);
 		value = (!strcmp(argv[2], "on")) ? 1 : 0;
 		ret = file_relay_add(value << relay, 1 << relay);
