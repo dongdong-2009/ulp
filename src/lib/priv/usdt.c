@@ -10,20 +10,20 @@
 #include "ulp_time.h"
 #include "sys/sys.h"
 
+#ifdef CONFIG_TASK_APTC131
 static const can_msg_t req_flow_msg = {
 	.id = 0x7a2,
 	.dlc = 8,
 	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
+#endif
 
 static const can_bus_t *can_bus;
 
-int usdt_Init(void)
+int usdt_Init(can_cfg_t * cfg)
 {
-	can_cfg_t cfg = CAN_CFG_DEF;
-	cfg.baud = 500000;
 	can_bus = &can1;
-	can_bus -> init(&cfg);
+	can_bus -> init(cfg);
 
 	return 0;
 }
@@ -43,9 +43,30 @@ int usdt_GetDiagFirstFrame(can_msg_t *pReq, can_filter_t *pResFilter, can_msg_t 
 
 	if (pResFilter == NULL)
 		pResFilter = &filter;
+	can_bus -> filt(pResFilter, 1);
 #endif
 
-	can_bus -> filt(pResFilter, 1);
+#ifdef CONFIG_PDI_SDM10
+	can_filter_t filter[] = {
+		{
+			.id = 0x547,
+			.mask = 0xffff,
+			.flag = 0,
+		},
+		{
+			.id = 0x647,
+			.mask = 0xffff,
+			.flag = 0,
+		},
+	};
+
+	if (pResFilter == NULL)
+		pResFilter = filter;
+
+	can_bus -> filt(pResFilter, 2);
+#endif
+
+
 	can_bus -> flush();
 	can_bus -> send(pReq);						//send request
 
@@ -109,16 +130,18 @@ int cmd_usdt_func(int argc, char *argv[])
 {
 	int i, msg_len;
 	can_msg_t msg_req, msg_res, *pRes;
+	can_cfg_t cfg = CAN_CFG_DEF;
 
 
 	const char * usage = { \
 		" usage:\n" \
-		" usdt init, init the usdt layer\n" \
+		" usdt init baud, init the usdt layer\n" \
 		" usdt req can_id b0 ... b7, send usdt diag request\n"
 	};
 
 	if (argv[1][0] == 'i') {
-		usdt_Init();
+		sscanf(argv[2], "%d", &cfg.baud); //baud
+		usdt_Init(&cfg);
 		printf("Init Ok!\n");
 	}
 
