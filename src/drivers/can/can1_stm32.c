@@ -168,27 +168,34 @@ int can_filt(can_filter_t *filter, int n)
 	short id0, id1, msk0, msk1;
 	CAN_FilterInitTypeDef  CAN_FilterInitStructure;
 
-	for(i = 0, j = 0; i < n; j ++) {
-		id0 = filter[i].id << 5;
-		msk0 = filter[i].mask << 5;
-		i ++;
-
-		id1 = (i < n) ? filter[i].id << 5 : 0x0000;
-		msk1 = (i < n) ? filter[i].mask << 5 : 0xffff;
-		i ++;
-
-		/* CAN filter init */
-		CAN_FilterInitStructure.CAN_FilterNumber = j;
-		CAN_FilterInitStructure.CAN_FilterMode = CAN_FilterMode_IdMask; //default id mask mode
-		CAN_FilterInitStructure.CAN_FilterScale = CAN_FilterScale_16bit; //default id 16bit
-		CAN_FilterInitStructure.CAN_FilterIdHigh = id0;
-		CAN_FilterInitStructure.CAN_FilterIdLow = id1;
-		CAN_FilterInitStructure.CAN_FilterMaskIdHigh = msk0;
-		CAN_FilterInitStructure.CAN_FilterMaskIdLow = msk1;
-		CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0 ; //default fifo use 0
-		CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
+	if ((n == 0) || (filter == NULL)) {
 		CAN_FilterInit(&CAN_FilterInitStructure);
+		CAN_FilterInitStructure.CAN_FilterActivation = DISABLE;
+		CAN_FilterInit(&CAN_FilterInitStructure);
+	} else {
+		for(i = 0, j = 0; i < n; j ++) {
+			id0 = filter[i].id << 5;
+			msk0 = filter[i].mask << 5;
+			i ++;
+
+			id1 = (i < n) ? filter[i].id << 5 : 0x0000;
+			msk1 = (i < n) ? filter[i].mask << 5 : 0xffff;
+			i ++;
+
+			/* CAN filter init */
+			CAN_FilterInitStructure.CAN_FilterNumber = j;
+			CAN_FilterInitStructure.CAN_FilterMode = CAN_FilterMode_IdMask; //default id mask mode
+			CAN_FilterInitStructure.CAN_FilterScale = CAN_FilterScale_16bit; //default id 16bit
+			CAN_FilterInitStructure.CAN_FilterIdHigh = id0;
+			CAN_FilterInitStructure.CAN_FilterIdLow = id1;
+			CAN_FilterInitStructure.CAN_FilterMaskIdHigh = msk0;
+			CAN_FilterInitStructure.CAN_FilterMaskIdLow = msk1;
+			CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0 ; //default fifo use 0
+			CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
+			CAN_FilterInit(&CAN_FilterInitStructure);
+		}
 	}
+
 	return ret;
 }
 
