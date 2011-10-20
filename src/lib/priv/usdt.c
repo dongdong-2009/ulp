@@ -77,10 +77,8 @@ int usdt_GetDiagFirstFrame(can_msg_t *pReq, can_filter_t *pResFilter, can_msg_t 
 		if (time_left(over_time) < 0)
 			return -1;
 		if (can_bus -> recv(pRes) == 0) {
-			if (pRes -> data[0]>>4 == 0) {
+			if (pRes -> data[0]>>4 == 0)
 				mf_flag = 0;
-				return 1;
-			}
 			else
 				mf_flag = 1;
 			break;
@@ -95,10 +93,12 @@ int usdt_GetDiagFirstFrame(can_msg_t *pReq, can_filter_t *pResFilter, can_msg_t 
 		if ((data_len - 6) % 7)					//add the last frame
 			num_frame ++;
 		num_frame ++;							//add the first frame
-		return num_frame;
+	} else {
+		can_bus -> filt(NULL, 0);				//close the filter
+		num_frame = 1;
 	}
 
-	return 0;
+	return num_frame;
 }
 
 /*start a commnication process, send request and receive the response*/
@@ -119,6 +119,8 @@ int usdc_GetDiagLeftFrame(can_msg_t *pRes, int msg_len)
 			over_time = time_get(50);
 		}
 	} while(i < msg_len);
+
+	can_bus -> filt(NULL, 0);				//close the filter
 
 	return 0;
 }
