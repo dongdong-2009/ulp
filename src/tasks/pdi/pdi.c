@@ -5,11 +5,12 @@
 #include "config.h"
 #include "sys/task.h"
 #include "ulp_time.h"
+#include "can.h"
 #include "drv.h"
-#include "mbi5025.h"
+#include "Mbi5025.h"
 #include "ls1203.h"
 #include "cfg.h"
-#include "can.h"
+#include "pdi.h"
 
 //static time_t pdi_loop_timer;
 const can_bus_t* pdi_can_bus = &can1;
@@ -67,7 +68,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	const struct pdi_rule_s* pdi_cfg_rule;
 	can_msg_t pdi_send_msg;
 	can_msg_t pdi_recv_msg;
-	//relay
+	mbi5025_WriteBytes(&pdi_mbi5025, (unsigned char*)sr->relay, 32);
 	power_on();
 	for(int i = 0;i < sr->nr_of_rules;i++) {
 		pdi_cfg_rule = pdi_rule_get(sr,i);
@@ -76,17 +77,20 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_DID:
-			pdi_send_msg = { //
-				.id = 0x247,
-				.dlc = 3,
-				.data = {0x02,0x1A,pdi_cfg_rule->para}
-			};
+			pdi_send_msg.id = 247;
+			pdi_send_msg.dlc = 3;
+			pdi_send_msg.data[0] = 0x02;
+			pdi_send_msg.data[1] = 0x1A;
+			pdi_send_msg.data[2] = pdi_cfg_rule->para;
+			break;
 		case PDI_RULE_DPID:
-			pdi_send_msg = { //
-				.id = 0x247,
-				.dlc = 4,
-				.data = {0x03,0xAA,0x01,pdi_cfg_rule->para}
-			};
+			pdi_send_msg.id = 247;
+			pdi_send_msg.dlc = 4;
+			pdi_send_msg.data[0] = 0x03;
+			pdi_send_msg.data[1] = 0xAA;
+			pdi_send_msg.data[2] = 0x01;
+			pdi_send_msg.data[3] = pdi_cfg_rule->para;
+			break;
 		case PDI_RULE_UNDEF:
 			return 1;
 		}
@@ -121,11 +125,15 @@ static void pdi_update(void)
 	char bcode[19];
 	if(check_start() == 1) {
 		while(1) {
+			led_fail_on();
+			led_pass_on();
 			if(ls1203_Read(&pdi_ls1203,bcode) == 0) {
 				bcode[9] = '\0';
-				led_fail_off();
-				led_pass_off();
 				if(target_on() == 1) {
+					power_on();
+					pdi_mdelay(10000);
+					led_fail_off();
+					led_pass_off();
 					pdi_cfg_file = pdi_cfg_get(bcode);
 					if(pdi_check(pdi_cfg_file) == 0)
 						pdi_pass_action();
