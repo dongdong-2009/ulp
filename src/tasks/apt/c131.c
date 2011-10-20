@@ -180,6 +180,7 @@ static void c131_CanMSGInit(void);
 static void c131_can_SendOtherECUMsg(void);
 static int c131_can_StartDiagnosis(void);
 static int c131_can_GetAirbagMsg(can_msg_t *pmsg);
+static void c131_Tim2Init(void);
 
 static void c131_Init(void)
 {
@@ -227,6 +228,7 @@ static void c131_Init(void)
 	c131_driver_Init();
 	c131_diag_Init();
 	c131_CanMSGInit();
+	c131_Tim2Init();
 
 	//for led pwr and states init
 	Enable_LEDPWR();
@@ -253,8 +255,8 @@ static void c131_Update(void)
 		status_link = SDM_EXIST;
 	}
 
-	if (Get_SDMPWRStatus())
-		c131_can_SendOtherECUMsg();
+	// if (Get_SDMPWRStatus())
+		// c131_can_SendOtherECUMsg();
 
 	//for sdm testing status machine
 	if (c131_test_status == C131_TEST_ONGOING) {
@@ -679,6 +681,44 @@ void main(void)
 	}
 }
 
+void TIM2_IRQHandler(void)
+{
+	if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET) {
+		TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+		if (Get_SDMPWRStatus())
+			c131_can_SendOtherECUMsg();
+		// printf("%d \n", time_get(0));
+	}
+}
+
+//init tim2 interrupt config, 5ms interval
+static void c131_Tim2Init(void)
+{
+	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+	NVIC_InitTypeDef NVIC_InitStructure;
+
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+	/* Time base configuration */
+	TIM_TimeBaseStructure.TIM_Period = 500;		//5ms interrupt
+	TIM_TimeBaseStructure.TIM_Prescaler = 720 - 1;
+	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+	/* TIM IT enable */
+	TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
+	/* TIM2 enable counter */
+	TIM_Cmd(TIM2, ENABLE);
+	TIM_ClearFlag(TIM2, TIM_FLAG_Update);
+
+	/* Enable the TIM2 gloabal Interrupt */
+	NVIC_InitStructure.NVIC_IRQChannel = TIM2_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+
+	NVIC_Init(&NVIC_InitStructure);
+}
+
 //local functions
 static int c131_GetLoad(apt_load_t ** pload, int index_load)
 {
@@ -722,9 +762,9 @@ static int c131_GetSDMType(int index_load, char *pname)
 
 static void c131_CanMSGInit(void)
 {
-	struct list_head *pos;
-	struct can_queue_s *q;
-	int i = 0;
+	// struct list_head *pos;
+	// struct can_queue_s *q;
+	// int i = 0;
 	can_cfg_t cfg = CAN_CFG_DEF;
 	cfg.baud = 500000;
 	can_bus = &can1;
@@ -752,13 +792,12 @@ static void c131_CanMSGInit(void)
 	INIT_LIST_HEAD(&c131_tcu_3.list);
 	list_add(&c131_tcu_3.list, &can_queue);
 
-	list_for_each(pos, &can_queue) {
-		q = list_entry(pos, can_queue_s, list);
-		if(q -> timer == 0 || time_left(q -> timer) < 0) {
-			q -> timer = time_get(0 + i);
-			i += 6;
-		}
-	}
+	// list_for_each(pos, &can_queue) {
+		// q = list_entry(pos, can_queue_s, list);
+		// if(q -> timer == 0 || time_left(q -> timer) < 0) {
+			// q -> timer = time_get(0);
+		// }
+	// }
 }
 
 //can related function

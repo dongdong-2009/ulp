@@ -140,7 +140,7 @@ void vvt_Init(void)
 #endif
 
 #if 0
-		knock_pattern = (cfg_data.dio >> 8); //...D C B A
+		knock_pattern = (cfg_data.dio >> 8) & 0x003f; //...D C B A
 		misfire_pattern = cfg_data.dio & 0x003f;
 #endif
 	}
@@ -195,7 +195,7 @@ void vvt_Update(void)
 
 #if 0
 		misfire_pattern = cfg_data.dio & 0x003f;
-		knock_pattern = (cfg_data.dio >> 8); //...D C B A
+		knock_pattern = (cfg_data.dio >> 8) & 0x003f; //...D C B A
 #endif
 	}
 }

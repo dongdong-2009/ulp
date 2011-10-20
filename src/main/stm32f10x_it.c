@@ -474,7 +474,7 @@ void TIM1_CC_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void TIM2_IRQHandler(void)
+__weak void TIM2_IRQHandler(void)
 {
 }
 
