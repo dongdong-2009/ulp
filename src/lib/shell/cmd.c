@@ -197,11 +197,11 @@ enum {
 static int __cmd_exec(struct cmd_list_s *clst, int flag)
 {
 	int argc, ret;
-	char *argv[16], **_argv = argv;
+	char *argv[CONFIG_SHELL_NR_PARA_MAX], **_argv = argv;
 	cmd_t *cmd;
 
 	ret = 0;
-	argc = __cmd_parse(clst -> cmdline, clst -> len, argv, 16);
+	argc = __cmd_parse(clst -> cmdline, clst -> len, argv, CONFIG_SHELL_NR_PARA_MAX);
 	if(argc > 0) {
 		cmd = __name2cmd(argv[0]);
 		if(cmd != NULL) {
