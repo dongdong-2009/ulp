@@ -28,7 +28,7 @@ static ls1203_t pdi_ls1203 = {
 		.dead_time = 20,
 };
 
-static int pdi_mdelay(int ms)
+int pdi_mdelay(int ms)
 {
 	int left;
 	time_t deadline = time_get(ms);
@@ -117,6 +117,7 @@ static void pdi_init(void)
 	ls1203_Init(&pdi_ls1203);
 	pdi_swcan_mode();
 	pdi_can_bus->init(&pdi_can);
+	pdi_swcan_mode();
 }
 
 static void pdi_update(void)
@@ -157,5 +158,6 @@ int main(void)
 		pdi_loop_timer = time_get(0);
 #endif
 		pdi_update();
+                ulp_update();
 	}
 }

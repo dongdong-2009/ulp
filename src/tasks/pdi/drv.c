@@ -34,12 +34,12 @@ int pin_init()
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_4|GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_10|GPIO_Pin_11;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3|GPIO_Pin_7|GPIO_Pin_10|GPIO_Pin_11;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3|GPIO_Pin_7;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
@@ -115,8 +115,8 @@ int target_on()
 
 int pdi_swcan_mode()
 {
-	GPIOE->IDR |= swcan_mode0;
-	GPIOE->IDR |= swcan_mode1;
+	GPIOE->ODR |= swcan_mode0;
+	GPIOE->ODR |= swcan_mode1;
 	return 0;
 }
 
