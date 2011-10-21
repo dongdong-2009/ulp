@@ -177,25 +177,25 @@ int cmd_usdt_func(int argc, char *argv[])
 		//get the input can msg
 		req_len = (argc - 3) >> 3;
 		msg_req[0].dlc = argc - 3;
-		if (msg_req[0].dlc > 8) {
-			msg_req[0].dlc = 8;
-			msg_req[1].dlc = msg_req[0].dlc - 8;
-			msg_req[1].flag = 0;
-		}
-		msg_req[0].flag = 0;
 		if (argc > 3) {
 			sscanf(argv[2], "%x", &msg_req[0].id); //id
-			msg_req[1].id = msg_req[0].id;
 		}
-		else 
-			return 0;
-		for(i = 0; i < msg_req[0].dlc; i ++) {
-				sscanf(argv[11 + i], "%x", (int *)&msg_req[0].data[i]);
-		}
+		msg_req[0].flag = 0;
 
-		for(i = 0; i < msg_req[1].dlc; i ++) {
-			sscanf(argv[3 + i], "%x", (int *)&msg_req[1].data[i]);
-		}
+		if (req_len  == 1) {
+			for(i = 0; i < msg_req[0].dlc; i ++)
+				sscanf(argv[3 + i], "%x", (int *)&msg_req[0].data[i]);
+		} else if (req_len > 1) {
+			msg_req[1].id = msg_req[0].id;
+			msg_req[1].dlc = msg_req[0].dlc - 8;
+			msg_req[1].flag = 0;
+			msg_req[0].dlc = 8;
+			for(i = 0; i < msg_req[0].dlc; i ++)
+				sscanf(argv[3 + i], "%x", (int *)&msg_req[0].data[i]);
+			for(i = 0; i < msg_req[1].dlc; i ++)
+				sscanf(argv[11 + i], "%x", (int *)&msg_req[1].data[i]);
+		} else
+			return 0;
 
 		//get the diagnostic info
 		msg_len = usdt_GetDiagFirstFrame(msg_req, req_len, NULL, &msg_res);
