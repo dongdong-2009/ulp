@@ -28,10 +28,9 @@ static const can_msg_t req_flow_msg = {
 
 static const can_bus_t *can_bus;
 
-int usdt_Init(can_cfg_t * cfg)
+int usdt_Init(can_bus_t const *pcan)
 {
-	can_bus = &can1;
-	can_bus -> init(cfg);
+	can_bus = pcan;
 
 	return 0;
 }
@@ -93,7 +92,6 @@ int usdt_GetDiagFirstFrame(can_msg_t *pReq,  int req_len, can_filter_t *pResFilt
 	}
 	else
 		return -1;
-
 
 	//recv reponse
 	over_time = time_get(50);
@@ -157,18 +155,15 @@ int cmd_usdt_func(int argc, char *argv[])
 {
 	int i, msg_len, req_len;
 	can_msg_t msg_req[2], msg_res, *pRes;
-	can_cfg_t cfg = CAN_CFG_DEF;
-
 
 	const char * usage = { \
 		" usage:\n" \
-		" usdt init baud, init the usdt layer\n" \
+		" usdt init, init the usdt with can_bus\n" \
 		" usdt req can_id b0 ... b7, send usdt diag request\n"
 	};
 
 	if (argv[1][0] == 'i') {
-		sscanf(argv[2], "%d", &cfg.baud); //baud
-		usdt_Init(&cfg);
+		usdt_Init(&can1);
 		printf("Init Ok!\n");
 	}
 
@@ -178,7 +173,7 @@ int cmd_usdt_func(int argc, char *argv[])
 		req_len = (argc - 3) >> 3;
 		msg_req[0].dlc = argc - 3;
 		if (argc > 3) {
-			sscanf(argv[2], "%x", &msg_req[0].id); //id
+			sscanf(argv[2], "%x", &msg_req[0].id);		//id
 		}
 		msg_req[0].flag = 0;
 
@@ -199,8 +194,6 @@ int cmd_usdt_func(int argc, char *argv[])
 
 		//get the diagnostic info
 		msg_len = usdt_GetDiagFirstFrame(msg_req, req_len, NULL, &msg_res);
-		// can_msg_print((can_msg_t const *)&msg_res, "\n");
-		// printf("can frame length : %d\n", msg_len);
 		if (msg_len > 1) {
 			pRes = (can_msg_t *) sys_malloc(msg_len * sizeof(can_msg_t));
 			if (pRes == NULL) {
