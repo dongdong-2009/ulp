@@ -23,7 +23,7 @@ static int cmd_apt_func(int argc, char *argv[])
 
 	const char * usage = { \
 		" usage:\n" \
-		" apt pwr on/off sdm/led,  config sdm/led power on/off \n" \
+		" apt pwr on/off sdm,  config sdm power on/off \n" \
 		" apt add load_name b0 b1 ... b7,  add new config \n" \
 		" apt set load_name b0 b1 ... b7,  set current config \n" \
 		" apt clr/read dtc, clear the product DTC information \n" \
@@ -81,15 +81,9 @@ static int cmd_apt_func(int argc, char *argv[])
 					printf("Power On\n");
 				} else if (strcmp(argv[2], "off") == 0) {
 					Disable_SDMPWR();
-					Disable_LEDPWR();
+					// Disable_LEDPWR();
 					printf("Power Off\n");
 				}
-			}
-			if (strcmp(argv[3], "led") == 0) {
-				if (strcmp(argv[2], "on") == 0)
-					Enable_LEDPWR();
-				if (strcmp(argv[2], "off") == 0)
-					Disable_LEDPWR();
 			}
 			return 0;
 		}
@@ -99,7 +93,7 @@ static int cmd_apt_func(int argc, char *argv[])
 			if(strcmp(argv[1], "read") == 0) {
 				//for dtc related varible init
 				c131_dtc.pdtc = dtc_buffer;
-				if (c131_can_GetDTC(&c131_dtc))
+				if (c131_GetDTC(&c131_dtc))
 					printf("Reading DTC Error! \n");
 				else {
 					printf("Reading DTC Successful! \n");
@@ -116,7 +110,7 @@ static int cmd_apt_func(int argc, char *argv[])
 			}
 
 			if(strcmp(argv[1], "clr") == 0) {
-				if (c131_can_ClearHistoryDTC())
+				if (c131_ClearHistoryDTC())
 					printf("Clear DTC Error! \n");
 				else
 					printf("Clear DTC Successful! \n");
@@ -128,7 +122,8 @@ static int cmd_apt_func(int argc, char *argv[])
 			if (strcmp(argv[2], "loop") == 0){
 				c131_GetDiagLoop(&pdata, &data_len);
 				for (i = 0; i < data_len; i++) {
-					printf("Loop%d resistance is %d (mohm)\n", i, pdata[i]);
+					// printf("Loop%d resistance is %d (mohm)\n", i, pdata[i]);
+					printf("Loop%d resistance is %d (mohm)\n", i, pdata[i] - 1000);
 				}
 			}
 

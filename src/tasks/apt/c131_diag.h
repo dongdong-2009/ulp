@@ -16,8 +16,8 @@
 
 //define diagnosis limitation
 //0.95V = 0x0614
-#define LOOP_HIGH_LIMIT		0x0fff
-#define LOOP_LOW_LIMIT		0x0000
+#define LOOP_HIGH_LIMIT		0x0c00
+#define LOOP_LOW_LIMIT		0x0400
 
 //6MA -> 0x3d7
 //14MA -> 0x8f5
