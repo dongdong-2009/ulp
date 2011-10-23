@@ -73,7 +73,7 @@ int c131_DiagSW(void)
 	if (apt_lcd->type == LCD_TYPE_CHAR){
 		lcd_get_font(apt_lcd, &w, &h);
 	}
-	lcd_puts(apt_lcd, 5 * w, 2 * h, "Diagnose SW   ");
+	lcd_puts(apt_lcd, 5 * w, 2 * h, "Diagnose SW    ");
 	mdelay(500);
 #endif
 
@@ -248,7 +248,7 @@ int c131_DiagLOOP(void)
 	if (apt_lcd->type == LCD_TYPE_CHAR){
 		lcd_get_font(apt_lcd, &w, &h);
 	}
-	lcd_puts(apt_lcd, 5 * w, 2 * h, "Diagnose LOOP ");
+	lcd_puts(apt_lcd, 5 * w, 2 * h, "Diagnose LOOP  ");
 	mdelay(500);
 #endif
 
