@@ -540,7 +540,12 @@ class Glade_main(gtk.Window):
             f.write(time.strftime('%Y-%m-%d  %H:%M:%S',time.localtime(time.time()))+"\n\n")
             for n in eeprom:
                 self.COM.send("usdt req 7A2 " + n[0])
-                f.write("Request: "+ n[0] +"\n")
+                if len(n[0]) > 25:
+                    f.write("Request: "+ n[0][0:23] +"\n")
+                    f.write("         "+ n[0][24:] +"\n")
+                    f.write("         "+ "30 00 00 00 00 00 00 00\n")
+                else :
+                    f.write("Request: "+ n[0] +"\n")
                 self.COM.read()
                 self.COM.send("\r")
                 f.write("Response:")
