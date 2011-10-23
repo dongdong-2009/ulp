@@ -86,10 +86,6 @@ try:
 except:
     sys.exit(1)
 
-
-#def dec_com:
-   
-    
 class Glade_main(gtk.Window):
     def __init__(self):
         #global conf   
@@ -183,9 +179,7 @@ class Glade_main(gtk.Window):
         self.combobox_sw1.set_model(liststore_sw1)
         self.combobox_sw1.set_active(0)
         self.combobox_sw1.connect("changed",self.sw1combobox_change)
-        
 
-                       
         self.combobox_sw2 = self.builder.get_object("combo_sw2")
         self.combobox_sw2.pack_start(cell_sw1)
         self.combobox_sw2.add_attribute(cell_sw1, 'text', 0)
@@ -244,7 +238,6 @@ class Glade_main(gtk.Window):
         self.button_filechooser.connect("file-set",self.filechooser_clicked)
         #self.radio_exte = self.builder.get_object("radio_exte")
         #self.radio_inst = self.builder.get_object("radio_inst")
-        
 
         self.COM = apt_serial.ComThread(0,9600)
         self.image_lamp1 = self.builder.get_object("image_lamp1")
@@ -422,7 +415,7 @@ class Glade_main(gtk.Window):
         column = gtk.TreeViewColumn("Item", rendererText, text=0) 
         column.set_sort_column_id(0)     
         treeView.append_column(column) 
-         
+
         rendererText = gtk.CellRendererText() 
         column = gtk.TreeViewColumn("Value", rendererText, text=1) 
         column.set_sort_column_id(1) 
@@ -434,12 +427,33 @@ class Glade_main(gtk.Window):
         elif self.button_sdmpwr.get_label() == "ON":
             self.display_error(self.error_dialog,"Please turn on the sdm pwr!")
         else:
-            #model = widget.get_model()
-            #text = model[row][0]+", "+model[row][1] +" !"
-            #print row
-            if len(row) == 1 or row[0] == 4:
+            if len(row) == 1 or row[0] == 5:
                 return
             string ="datalog"+str(row[0])+"[row[1]][2]"
+            if row[0] == 4:
+                # self.COM.send("usdt req 7a2 03 19 2 9 0 0 0 0")
+                self.COM.send("apt read dtc")
+                self.COM.read()
+                self.COM.send("\r")
+                str_temp = self.COM.read()
+                string = ''
+                while str_temp != '':
+                    string += str_temp
+                    str_temp = self.COM.read()
+                spit_list = string.splitlines()
+                string = ''
+                for act in spit_list:
+                    spit__list = act.split()
+                    length = len(spit__list)
+                    if(length > 2 and spit__list[0] != "bldc#" and spit__list[0] != "Reading"):
+                        string += act
+                        string += "\n"
+                    else:
+                        continue
+                dtc_infor[0] = string
+                self.store.set(self.dtc ,1,string)
+                return
+                
             self.COM.send("usdt req 7A2 03 22 " + eval(string) + " 00 00 00 00")
             string = self.COM.read()   ##Filter out the echo letter
             self.COM.send("\r")
@@ -468,40 +482,19 @@ class Glade_main(gtk.Window):
             temp = "self."+ temp
             temp_str ="self.store.set("+ temp +",1," + "datalog" + str(row[0])+"[row[1]][1])" 
             exec(temp_str)
-           
+
     def buttonget_sdm_diag_clicked(self,widget):
         if self.COM.get_option()==False:
             self.display_error(self.error_dialog,"Please make sure the serial is opened!")
         elif self.button_sdmpwr.get_label() == "ON":
             self.display_error(self.error_dialog,"Please turn on the sdm pwr!")
         else:
-            self.COM.send("apt read dtc")
-            self.COM.read()
-            self.COM.send("\r")
-            str_temp = self.COM.read()
-            string = ''
-            while str_temp != '':
-                string += str_temp
-                str_temp = self.COM.read()
-            spit_list = string.splitlines()
-            string = ''
-            for act in spit_list:
-                spit__list = act.split()
-                length = len(spit__list)
-                if(length > 2 and spit__list[0] != "bldc#" and spit__list[0] != "Reading"):
-                    string += act
-                    string += "\n"
-                else:
-                    continue                
-            dtc_infor = string
-            self.store.set(self.dtc ,1,string)
-            
-            for n in range(4):
+            for n in range(5):
                 str_temp = "datalog" + str(n)
                 for m in range(len(eval(str_temp))):
                     row = [n,m]
                     self.on_activated(self.treeview,row,None)
-            
+                    print "ssssssssssssssssssssssssss"
 
     def buttonget_apt_diag_clicked(self,widget):
         if self.COM.get_option()==False:
@@ -826,12 +819,6 @@ class Glade_main(gtk.Window):
         if widget.get_label() == "ON":
             self.image_sdm.set_from_pixbuf(self.sdm_on)
             widget.set_label("OFF")
-            #self.COM.send("apt pwr on sdm \r")
-            #self.COM.read()
-            self.COM.send("can init \r")
-            print self.COM.read()
-            self.COM.send("usdt init \r")
-            print self.COM.read()
             value = "on"
         else:
             self.image_sdm.set_from_pixbuf(self.sdm_off)
@@ -1517,30 +1504,7 @@ class Glade_main(gtk.Window):
         #self.radio_exte.set_sensitive(value)
         #self.radio_inst.set_sensitive(value)
         self.button_send.set_sensitive(value)
-        '''
-        for n in range(5):
-            string = "self."+ name + str(n+1)+".set_sensitive(" + str(value)+")"
-            #print string
-            eval(string)
-        name = "button_sq"
-        for n in range(12):
-            string = "self."+ name + str(n+1)+".set_sensitive(" + str(value)+")"
-            #print string
-            eval(string)
-        name = "button_ess"
-        for n in range(6):
-            string = "self."+ name + str(n+1)+".set_sensitive(" + str(value)+")"
-            eval(string)
-        name = "button_sw"
-        for n in range(5):
-            string = "self."+ name + str(n+1)+".set_sensitive(" + str(value)+")"
-            eval(string)
-        string = "self.button_send.set_sensitive("+str(value)+")"
-        eval(string)
-        string = "self.button_sdmpwr.set_sensitive("+str(value)+")"
-        eval(string)
-        '''
-        
+
     def set_configure(self,conf):
         for n in range(12):
             string = "buttonsq"
@@ -1655,7 +1619,7 @@ class Glade_main(gtk.Window):
                         f.write("\n")
                     else:
                         f.write(act[1]+"\n")
-            f.write["DTC \n"+ dtc_infor]            
+            f.write("DTC \n"+ dtc_infor[0])            
             f.close()    
 
 
