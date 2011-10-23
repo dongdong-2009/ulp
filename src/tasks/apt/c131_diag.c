@@ -82,27 +82,27 @@ int c131_DiagSW(void)
 	sw_SetRelayStatus(C131_SW1_C1, RELAY_OFF);
 	sw_SetRelayStatus(C131_SW1_C2, RELAY_ON);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("14mA is :%x\n", temp);
 #endif
 	diag_switch[0] = temp;
 	diag_switch[0] = ((diag_switch[0] * 2500) >> 12) / 100;
-	if ((temp <= SW1_14MA_LOW_LIMIT) || (temp >= SW1_14MA_HIGH_LIMIT)){
+	if ((temp < SW1_14MA_LOW_LIMIT) || (temp > SW1_14MA_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
 	}
 
 	sw_SetRelayStatus(C131_SW1_C2, RELAY_OFF);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("6mA is :%x\n", temp);
 #endif
 	diag_switch[1] = temp;
 	diag_switch[1] = ((diag_switch[1] * 2500) >> 12) / 100;
-	if ((temp <= SW1_6MA_LOW_LIMIT) || (temp >= SW1_6MA_HIGH_LIMIT)){
+	if ((temp < SW1_6MA_LOW_LIMIT) || (temp > SW1_6MA_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
 	}
 
@@ -111,27 +111,27 @@ int c131_DiagSW(void)
 	sw_SetRelayStatus(C131_SW2_C1, RELAY_OFF);
 	sw_SetRelayStatus(C131_SW2_C2, RELAY_ON);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("2K82 is :%x\n", temp);
 #endif
 	diag_switch[2] = temp;
 	diag_switch[2] = (3000 * ((temp * 2500) >> 12)) / (5000 - ((temp * 2500) >> 12));
-	if ((temp <= SW2_2K82_LOW_LIMIT) || (temp >= SW2_2K82_HIGH_LIMIT)){
+	if ((temp < SW2_2K82_LOW_LIMIT) || (temp > SW2_2K82_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
 	}
 
 	sw_SetRelayStatus(C131_SW2_C2, RELAY_OFF);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("820R is :%x\n", temp);
 #endif
 	diag_switch[3] = temp;
 	diag_switch[3] = (3000 * ((temp * 2500) >> 12)) / (5000 - ((temp * 2500) >> 12));
-	if ((temp <= SW2_820_LOW_LIMIT) || (temp >= SW2_820_HIGH_LIMIT)){
+	if ((temp < SW2_820_LOW_LIMIT) || (temp > SW2_820_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
 	}
 
@@ -140,7 +140,7 @@ int c131_DiagSW(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOB, SW3_FBC);
 	sw_SetRelayStatus(C131_SW3, RELAY_ON);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("DSB is :%x\n", temp);
@@ -154,7 +154,7 @@ int c131_DiagSW(void)
 	}
 	sw_SetRelayStatus(C131_SW3, RELAY_OFF);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("DSB is :%x\n", temp);
@@ -172,7 +172,7 @@ int c131_DiagSW(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOB, SW4_FBC);
 	sw_SetRelayStatus(C131_SW4, RELAY_ON);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("PSB is :%x\n", temp);
@@ -186,7 +186,7 @@ int c131_DiagSW(void)
 	}
 	sw_SetRelayStatus(C131_SW4, RELAY_OFF);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("PSB is :%x\n", temp);
@@ -204,27 +204,27 @@ int c131_DiagSW(void)
 	sw_SetRelayStatus(C131_SW5_C1, RELAY_OFF);
 	sw_SetRelayStatus(C131_SW5_C2, RELAY_ON);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("900 is :%x\n", temp);
 #endif
 	diag_switch[8] = temp;
 	diag_switch[8] = (1000 * ((temp * 2500) >> 12)) / (5000 - ((temp * 2500) >> 12));
-	if ((temp <= SW5_900_LOW_LIMIT) || (temp >= SW5_900_HIGH_LIMIT)){
+	if ((temp < SW5_900_LOW_LIMIT) || (temp > SW5_900_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
 	}
 
 	sw_SetRelayStatus(C131_SW5_C2, RELAY_OFF);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("220 is :%x\n", temp);
 #endif
 	diag_switch[9] = temp;
 	diag_switch[9] = (1000 * ((temp * 2500) >> 12)) / (5000 - ((temp * 2500) >> 12));
-	if ((temp <= SW5_220_LOW_LIMIT) || (temp >= SW5_220_HIGH_LIMIT)){
+	if ((temp < SW5_220_LOW_LIMIT) || (temp > SW5_220_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
 	}
 
@@ -258,7 +258,7 @@ int c131_DiagLOOP(void)
 	//shift the all loop relays to DIAG status
 	loop_SetRelayStatus(0x7fff, RELAY_ON);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	//relay set
 	loop_SetRelayStatus(C131_LOOP, RELAY_ON);
 	for (i = 0; i < 15; i++) {
@@ -266,11 +266,11 @@ int c131_DiagLOOP(void)
 			continue;
 		loop_SetRelayStatus(C131_LOOP1 << i, RELAY_OFF);
 		c131_relay_Update();
-		mdelay(100);
+		mdelay(200);
 		temp = c131_adc_GetValue();
 		loop_SetRelayStatus(C131_LOOP1 << i, RELAY_ON);
 		c131_relay_Update();
-		mdelay(100);
+		mdelay(200);
 #if DIAG_DEBUG
 		printf("loop %x value is %x \n", i+1, temp);
 #endif
@@ -310,7 +310,7 @@ int c131_DiagLED(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOA, LED2_FBC);
 	led_SetRelayStatus(C131_LED2, RELAY_ON);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED2 is %x \n", temp);
@@ -322,7 +322,7 @@ int c131_DiagLED(void)
 
 	led_SetRelayStatus(C131_LED2, RELAY_OFF);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED2 is %x \n", temp);
@@ -335,7 +335,7 @@ int c131_DiagLED(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOA, LED3_FBC);
 	led_SetRelayStatus(C131_LED3, RELAY_ON);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED3 is %x \n", temp);
@@ -347,7 +347,7 @@ int c131_DiagLED(void)
 
 	led_SetRelayStatus(C131_LED3, RELAY_OFF);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED3 is %x \n", temp);
@@ -360,7 +360,7 @@ int c131_DiagLED(void)
 	mcp23s17_WriteByte(&mcp23s17, ADDR_GPIOA, LED5_FBC);
 	led_SetRelayStatus(C131_LED5, RELAY_ON);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED5 is %x \n", temp);
@@ -372,7 +372,7 @@ int c131_DiagLED(void)
 
 	led_SetRelayStatus(C131_LED5, RELAY_OFF);
 	c131_relay_Update();
-	mdelay(100);
+	mdelay(200);
 	temp = c131_adc_GetValue();
 #if DIAG_DEBUG
 	printf("LED5 is %x \n", temp);
@@ -439,12 +439,15 @@ static void c131_adc_Init(void)
 
 static int c131_adc_GetValue(void)
 {
-	int value;
-	//start sample
-	ADC_SoftwareStartConvCmd(ADC2, ENABLE);
-	//wait till adc convert over
-	while(!ADC_GetFlagStatus(ADC2, ADC_FLAG_EOC));
-	value = ADC_GetConversionValue(ADC2);
-	value &= 0x0fff;
+	int value = 0, i;
+
+	for (i = 0; i < 8; i++) {
+		ADC_SoftwareStartConvCmd(ADC2, ENABLE);				//start sample
+		while(!ADC_GetFlagStatus(ADC2, ADC_FLAG_EOC));		//wait till adc convert over
+		value += ADC_GetConversionValue(ADC2) & 0x0fff;
+	}
+
+	value >>= 3;
+
 	return value;
 }
