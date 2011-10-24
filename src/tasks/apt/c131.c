@@ -82,7 +82,7 @@ static int c131_test_status;
 static const char str_nodtcinfo[] = "No   DTC   Info ";
 static char dtc_info[16];
 static char dtc_index;
-static dtc_t dtc_buffer[32];
+static dtc_t dtc_buffer[64];
 static c131_dtc_t c131_dtc;
 
 //for load config variant nvm
@@ -146,11 +146,11 @@ static const can_msg_t req_start_msg = {
 	.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
 
-static const can_msg_t req_flow_msg = {
-	.id = C131_DIAG_REQ_ID,
-	.dlc = 8,
-	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-};
+// static const can_msg_t req_flow_msg = {
+	// .id = C131_DIAG_REQ_ID,
+	// .dlc = 8,
+	// .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+// };
 
 static LIST_HEAD(can_queue);
 static const can_bus_t *can_bus;
@@ -539,69 +539,56 @@ int c131_ClearHistoryDTC(void)
 
 int c131_GetDTC(c131_dtc_t *pc131_dtc)
 {
-	can_msg_t msg;
-	time_t over_time;
-	int num_frame;
-	int i = 0;
-	int data_len;
+	can_msg_t msg_res, *pRes;
+	int i = 0, data_len, msg_len;
 	unsigned char *p;
 
 	p = (unsigned char *)(pc131_dtc->pdtc);
 	c131_StartDiagnosis();
 
-	//send dtc request
-	can_bus -> send(&req_dtc_msg);
+	msg_len = usdt_GetDiagFirstFrame(&req_dtc_msg, 1, NULL, &msg_res);
 
-	//recv reponse
-	over_time = time_get(50);
-	while (time_left(over_time)) {
-		if (!can_bus -> recv(&msg) && (msg.id == 0x7c2)) {
-			can_msg_print(&msg, "\n");
-			//single frame
-			if (msg.data[0]>>4 == 0) {
-				if (msg.data[1] == 0x59) {
-					pc131_dtc->dtc_bExist = 0;
-					pc131_dtc->dtc_bPositive = 1;
-				} else {
-					pc131_dtc->dtc_bPositive = 0;
-				}
-				return 0;
-			} else {
-			//multi frames
-				pc131_dtc->dtc_bExist = 1;
-				pc131_dtc->dtc_bPositive = 1;
-				//calculate the number of can frames and dtc
-				data_len = msg.data[0] & 0x0f;
-				data_len <<= 8;
-				data_len |= msg.data[1];
-				num_frame = (data_len - 6)/7;
-				if ((data_len - 6) % 7)
-					num_frame ++;
-				pc131_dtc->dtc_len = (data_len - 3) / 4;
-				memcpy(p, msg.data + 5, 3);
-				p += 3;
+	if (msg_len > 1) {
+		pRes = (can_msg_t *) sys_malloc(msg_len * sizeof(can_msg_t));
+		if (pRes == NULL)
+			return 1;
+		*pRes = msg_res;
+		if(usdt_GetDiagLeftFrame(pRes, msg_len))
+			return 1;
 
-				//send flow control msgstrncpy
-				can_bus -> send(&req_flow_msg);
-				over_time = time_get(50);
-				while (time_left(over_time) && (i < num_frame)) {
-					if (!can_bus -> recv(&msg) && (msg.id == 0x7c2)) {
-						can_msg_print(&msg, "\n");
-						if (i < num_frame) {
-							memcpy(p, msg.data + 1, 7);
-							p += 7;
-						}
-						i ++;
-						if (i == num_frame)
-							return 0;
-						over_time = time_get(50);
-					}
-				}
-			}
+		//multi frames
+		pc131_dtc->dtc_bExist = 1;
+		pc131_dtc->dtc_bPositive = 1;
+		data_len = msg_res.data[0] & 0x0f;		//calculate the number of can frames and dtc
+		data_len <<= 8;
+		data_len |= msg_res.data[1];
+		pc131_dtc->dtc_len = (data_len - 3) / 4;
+		memcpy(p, msg_res.data + 5, 3);
+		p += 3;
+		for (i = 1; i < msg_len; i++) {
+			memcpy(p, ((pRes + i)->data) + 1, 7);
+			p += 7;
 		}
-	}
+		sys_free(pRes);
+	} else if (msg_len == 1) {
+		if (msg_res.data[1] == 0x59)
+			pc131_dtc->dtc_bPositive = 1;
+		else {
+			pc131_dtc->dtc_bPositive = 0;
+			return 1;
+		}
+		//single frame
+		if (msg_res.data[0] == 7) {
+			pc131_dtc->dtc_bExist = 1;
+			pc131_dtc->dtc_len = 1;
+			memcpy(p, msg_res.data + 4, 4);
+		} else
+			pc131_dtc->dtc_bExist = 0;
+		return 0;
+	} else if (msg_len < 0)
+		return 1;
 
-	return 1;
+	return 0;
 }
 
 void main(void)
