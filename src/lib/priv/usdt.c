@@ -36,7 +36,7 @@ int usdt_Init(can_bus_t const *pcan)
 }
 
 //return the length of can frame, -1 means wrong
-int usdt_GetDiagFirstFrame(can_msg_t *pReq,  int req_len, can_filter_t *pResFilter, can_msg_t *pRes)
+int usdt_GetDiagFirstFrame(can_msg_t const *pReq,  int req_len, can_filter_t *pResFilter, can_msg_t *pRes)
 {
 	time_t over_time;
 	int num_frame, data_len, i, mf_flag = 0;
@@ -125,7 +125,7 @@ int usdt_GetDiagFirstFrame(can_msg_t *pReq,  int req_len, can_filter_t *pResFilt
 }
 
 /*start a commnication process, send request and receive the response*/
-int usdc_GetDiagLeftFrame(can_msg_t *pRes, int msg_len)
+int usdt_GetDiagLeftFrame(can_msg_t *pRes, int msg_len)
 {
 	time_t over_time;
 	int i;
@@ -201,7 +201,7 @@ int cmd_usdt_func(int argc, char *argv[])
 				return 0;
 			}
 			*pRes = msg_res;
-			if(usdc_GetDiagLeftFrame(pRes, msg_len))
+			if(usdt_GetDiagLeftFrame(pRes, msg_len))
 				printf("Get Diag Info Error!\n");
 			else {
 				for (i = 0; i < msg_len; i++)
