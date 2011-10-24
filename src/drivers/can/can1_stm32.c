@@ -169,8 +169,16 @@ int can_filt(can_filter_t *filter, int n)
 	CAN_FilterInitTypeDef  CAN_FilterInitStructure;
 
 	if ((n == 0) || (filter == NULL)) {
-		CAN_FilterInit(&CAN_FilterInitStructure);
-		CAN_FilterInitStructure.CAN_FilterActivation = DISABLE;
+			/* CAN filter init */
+		CAN_FilterInitStructure.CAN_FilterNumber = 0;
+		CAN_FilterInitStructure.CAN_FilterMode = CAN_FilterMode_IdMask; //default id mask mode
+		CAN_FilterInitStructure.CAN_FilterScale = CAN_FilterScale_16bit; //default id 16bit
+		CAN_FilterInitStructure.CAN_FilterIdHigh = 0x0;
+		CAN_FilterInitStructure.CAN_FilterIdLow = 0x0;
+		CAN_FilterInitStructure.CAN_FilterMaskIdHigh = 0x0;
+		CAN_FilterInitStructure.CAN_FilterMaskIdLow = 0x0;
+		CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0 ; //default fifo use 0
+		CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
 		CAN_FilterInit(&CAN_FilterInitStructure);
 	} else {
 		for(i = 0, j = 0; i < n; j ++) {
