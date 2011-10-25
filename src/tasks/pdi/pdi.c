@@ -2,6 +2,7 @@
  *	miaofng@2011 initial version
  *	David peng.guo@2011 add content for PDI_SDM10
  */
+#include <string.h>
 #include "config.h"
 #include "sys/task.h"
 #include "ulp_time.h"
@@ -11,22 +12,33 @@
 #include "ls1203.h"
 #include "cfg.h"
 #include "pdi.h"
+#include "usdt.h"
 
-//static time_t pdi_loop_timer;
-const can_bus_t* pdi_can_bus = &can1;
+//local varibles;
+static const can_bus_t* pdi_can_bus = &can1;
+static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
+static char pdi_data_buf[32];
 
-static mbi5025_t pdi_mbi5025 = {
+static const mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
 		.idx = SPI_CS_DUMMY,
 		.load_pin = SPI_CS_PC3,
 		.oe_pin = SPI_CS_PC4,
 };
 
-static ls1203_t pdi_ls1203 = {
+static const ls1203_t pdi_ls1203 = {
 		.bus = &uart2,
 		.data_len = 19,
 		.dead_time = 20,
 };
+
+//local functions
+static int pdi_check(const struct pdi_cfg_s *);
+static int pdi_mdelay(int );
+static int pdi_pass_action();
+static int pdi_fail_action();
+static int pdi_GetDID(char did, char *data);
+static int pdi_GetDPID(char dpid, char *data);
 
 int pdi_mdelay(int ms)
 {
@@ -63,55 +75,104 @@ static int pdi_pass_action()
 	return 0;
 }
 
+static int pdi_GetDID(char did, char *data)
+{
+	can_msg_t msg_res, pdi_send_msg = {0x247, 8, {0x02, 0x1a, 0, 0, 0, 0, 0, 0}, 0};
+	int i = 0, data_len, msg_len;
+	unsigned char *p;
+
+	pdi_send_msg.data[2] = did;
+	msg_len = usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res);
+	if (msg_len > 1) {
+		pdi_msg_buf[0] = msg_res;
+		if(usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len))
+			return 1;
+	}
+
+	//pick up the data
+	if (msg_len == 1) {
+		if (msg_res.data[1] == 0x5a) {
+			memcpy(data, (msg_res.data + 3), msg_res.data[0] - 2);
+			return 0;
+		} else {
+			return 1;
+		}
+	} else if (msg_len > 1) {
+		memcpy(data, (msg_res.data + 4), 4);
+		data += 4;
+		for (i = 1; i < msg_len; i++) {
+			memcpy(data, (pdi_msg_buf + i)->data + 1, 7);
+			data += 7;
+		}
+		return 0;
+	} else
+		return -1;
+
+	return -1;
+}
+
+
+static int pdi_GetDPID(char dpid, char *data)
+{
+	can_msg_t pdi_recv_msg;
+	can_msg_t pdi_send_msg = {0x247, 8, {0x03, 0xaa, 0x01, 0, 0, 0, 0, 0}, 0};
+	time_t over_time;
+
+	pdi_send_msg.data[3] = dpid;
+	pdi_can_bus->send(&pdi_send_msg);
+	over_time = time_get(100);
+	do {
+		if (time_left(over_time) < 0)
+			return 1;
+		if (pdi_can_bus(&pdi_recv_msg) == 0) {
+			if (pdi_recv_msg.data[0] == dpid)
+				break;
+			else
+				return 1;
+		}
+	} while(1);
+
+	memcpy(data, (pdi_recv_msg.data + 1), 7);
+	return 0;
+}
+
 int pdi_check(const struct pdi_cfg_s *sr)
 {
+	int i;
 	const struct pdi_rule_s* pdi_cfg_rule;
-	can_msg_t pdi_send_msg;
-	can_msg_t pdi_recv_msg;
-	mbi5025_WriteBytes(&pdi_mbi5025, (unsigned char*)sr->relay, 32);
+
+
+	mbi5025_WriteBytes(&pdi_mbi5025, (unsigned char*)sr->relay, 4);
 	power_on();
 	pdi_mdelay(10000);
 	led_fail_off();
 	led_pass_off();
-	for(int i = 0;i < sr->nr_of_rules;i++) {
+	for(i = 0; i < sr->nr_of_rules; i++) {
 		pdi_cfg_rule = pdi_rule_get(sr,i);
-		if(&pdi_cfg_rule == NULL) {
+		if (&pdi_cfg_rule == NULL)
 			return 1;
-		}
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_DID:
-			pdi_send_msg.id = 247;
-			pdi_send_msg.dlc = 3;
-			pdi_send_msg.data[0] = 0x02;
-			pdi_send_msg.data[1] = 0x1A;
-			pdi_send_msg.data[2] = pdi_cfg_rule->para;
+			pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf);
 			break;
 		case PDI_RULE_DPID:
-			pdi_send_msg.id = 247;
-			pdi_send_msg.dlc = 4;
-			pdi_send_msg.data[0] = 0x03;
-			pdi_send_msg.data[1] = 0xAA;
-			pdi_send_msg.data[2] = 0x01;
-			pdi_send_msg.data[3] = pdi_cfg_rule->para;
+			pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf);
 			break;
 		case PDI_RULE_UNDEF:
 			return 1;
 		}
-		pdi_can_bus->send(&pdi_send_msg);
-		time_t over_time = time_get(50);
-		while(over_time)
-			if(pdi_can_bus->recv(&pdi_recv_msg))
-				if(pdi_verify(pdi_cfg_rule,pdi_recv_msg.data) == 0)
-					i++;
-				else return 1;
-			else return 1;
+
+		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0)
+			return 0;
+		else
+			return 1;
 	}
 	return 0;
 }
 
 void pdi_Init(void)
 {
-	can_cfg_t pdi_can = {
+	can_cfg_t cfg_pdi_can = {
 		.baud = 33330,
 	};
 
@@ -120,7 +181,8 @@ void pdi_Init(void)
 	mbi5025_EnableOE(&pdi_mbi5025);
 	ls1203_Init(&pdi_ls1203);
 	pdi_swcan_mode();
-	pdi_can_bus->init(&pdi_can);
+	pdi_can_bus->init(&cfg_pdi_can);
+	usdt_Init(pdi_can_bus);
 }
 
 void pdi_update(void)
