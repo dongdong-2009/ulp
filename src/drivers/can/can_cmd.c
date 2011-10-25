@@ -317,7 +317,7 @@ static int cmd_can_func(int argc, char *argv[])
 						else
 							printf("R%03x ", msg.id);
 						for(x = 0; x < msg.dlc; x ++) {
-							printf("%02x ", msg.data[x]&0xff);
+							printf("%02x ", msg.data[x] & 0xff);
 						}
 						printf("\n");
 					}
