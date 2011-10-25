@@ -41,7 +41,7 @@ struct pdi_cfg_s {
 
 	//public
 	const char *name;
-	unsigned nr_of_rules;
+	int nr_of_rules;
 	unsigned relay;
 };
 

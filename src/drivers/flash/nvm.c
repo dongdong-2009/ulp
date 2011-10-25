@@ -38,7 +38,7 @@ int nvm_init(void)
 	}
 
 	sz_ram = align(sz_ram, 4);
-	pages = align(sz_ram, FLASH_PAGE_SZ) / FLASH_PAGE_SZ;
+	pages = align(sz_ram + 8, FLASH_PAGE_SZ) / FLASH_PAGE_SZ;
 	src = (char *)FLASH_ADDR(FLASH_PAGE_NR - pages); //rom 1
 	bak = (char *)FLASH_ADDR(FLASH_PAGE_NR - pages - pages); // rom 2
 
@@ -92,7 +92,7 @@ int nvm_save(void)
 	if(sz_ram == 0)
 		return 0;
 	sz_ram = align(sz_ram, 4);
-	pages = align(sz_ram, FLASH_PAGE_SZ) / FLASH_PAGE_SZ;
+	pages = align(sz_ram + 8, FLASH_PAGE_SZ) / FLASH_PAGE_SZ;
 	dest = (char *)FLASH_ADDR(FLASH_PAGE_NR - pages); //rom 1
 	bak = (char *)FLASH_ADDR(FLASH_PAGE_NR - pages - pages); // rom 2
 

@@ -184,7 +184,7 @@ int cmd_crc32_func(int argc, char *argv[])
 
 	if(i > 0) {
 		v = cyg_crc32(buf, i);
-		printf("%04x\n", v & 0xffff);
+		printf("%08x\n", v & 0xffff);
 	}
 	else {
 		printf("usage:\n"
