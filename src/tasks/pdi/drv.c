@@ -6,7 +6,6 @@
 #include "ulp_time.h"
 #include "drv.h"
 #include "stm32f10x.h"
-#include "pdi.h"
 
 #define Beep_on				(1<<2)
 #define LED_red_on			(1<<0)
@@ -93,7 +92,7 @@ int check_start()
 int counter_fail_add()
 {
 	GPIOE->ODR |= counter_fail;
-	pdi_mdelay(5);
+	udelay(5);
 	GPIOE->ODR &= ~counter_fail;
 	return 0;
 }
@@ -101,7 +100,7 @@ int counter_fail_add()
 int counter_total_add()
 {
 	GPIOE->ODR |= counter_total;
-	pdi_mdelay(5);
+	udelay(5);
 	GPIOE->ODR &= ~counter_total;
 	return 0;
 }

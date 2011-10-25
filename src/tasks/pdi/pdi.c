@@ -63,13 +63,16 @@ static int pdi_pass_action()
 	return 0;
 }
 
-static int pdi_check(const struct pdi_cfg_s *sr)
+int pdi_check(const struct pdi_cfg_s *sr)
 {
 	const struct pdi_rule_s* pdi_cfg_rule;
 	can_msg_t pdi_send_msg;
 	can_msg_t pdi_recv_msg;
 	mbi5025_WriteBytes(&pdi_mbi5025, (unsigned char*)sr->relay, 32);
 	power_on();
+	pdi_mdelay(10000);
+	led_fail_off();
+	led_pass_off();
 	for(int i = 0;i < sr->nr_of_rules;i++) {
 		pdi_cfg_rule = pdi_rule_get(sr,i);
 		if(&pdi_cfg_rule == NULL) {
@@ -106,7 +109,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
-static void pdi_init(void)
+void pdi_init(void)
 {
 	pin_init();
 	can_cfg_t pdi_can = {
@@ -120,7 +123,7 @@ static void pdi_init(void)
 	pdi_swcan_mode();
 }
 
-static void pdi_update(void)
+void pdi_update(void)
 {
 	const struct pdi_cfg_s* pdi_cfg_file;
 	char bcode[19];
@@ -131,10 +134,7 @@ static void pdi_update(void)
 			if(ls1203_Read(&pdi_ls1203,bcode) == 0) {
 				bcode[9] = '\0';
 				if(target_on() == 1) {
-					power_on();
-					pdi_mdelay(10000);
-					led_fail_off();
-					led_pass_off();
+//					power_on();
 					pdi_cfg_file = pdi_cfg_get(bcode);
 					if(pdi_check(pdi_cfg_file) == 0)
 						pdi_pass_action();
