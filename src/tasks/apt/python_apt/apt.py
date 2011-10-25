@@ -45,7 +45,8 @@ datalog3 = [["Vehicle Status Data Information","********","FD 80"],["Event Data 
 
 datalog4 = [["switch","********"],["loop","********"]]
 
-eeprom = [["02 10 03 00 00 00 00 00"],["02 27 01 00 00 00 00 00"],["04 27 02 00 00 00 00 00"],\
+eeprom = [["02 10 02 00 00 00 00 00"],["02 27 01 00 00 00 00 00"],["04 27 02 c0 82 00 00 00"],\
+          ["02 10 03 00 00 00 00 00"],["02 27 01 00 00 00 00 00"],["04 27 02 c0 82 00 00 00"],\
           ["10 0A 23 44 00 EE 00 00 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 00 FC 21 00 00 00 FC 00 00 00"],\
           ["10 0A 23 44 00 EE 01 F8 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 02 F4 21 00 00 00 FC 00 00 00"],\
           ["10 0A 23 44 00 EE 03 F0 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 04 EC 21 00 00 00 FC 00 00 00"],\
@@ -55,6 +56,7 @@ eeprom = [["02 10 03 00 00 00 00 00"],["02 27 01 00 00 00 00 00"],["04 27 02 00 
           ["10 0A 23 44 00 EE 0B D0 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 0C CC 21 00 00 00 FC 00 00 00"],\
           ["10 0A 23 44 00 EE 0D C8 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 0E C4 21 00 00 00 FC 00 00 00"],\
           ["10 0A 23 44 00 EE 0F C0 21 00 00 00 FC 00 00 00"]]
+          ["10 0A 23 44 00 EE 00 00 21 00 00 00 FC 00 00 00"]]
 
 dtc_infor = [""]
 
@@ -88,8 +90,6 @@ except:
 
 class Glade_main(gtk.Window):
     def __init__(self):
-        #global conf   
-        #main_dir = os.path.dirname(__file__)
         main_dir = "./"
         glade_file = os.path.join(main_dir, "apt_main.glade")
         self.config_file = os.path.join(main_dir, "apt_config.ini")
@@ -109,7 +109,6 @@ class Glade_main(gtk.Window):
         self.messagedialog = self.builder.get_object("messagedialog")
         self.menu_quit = self.builder.get_object("menuitem_quit")
         self.statusbar = self.builder.get_object("statusbar")
-        #self.statusbar.push(1,"ssssssssss")
         
         self.scan=scan.scan()
         self.combobox_com=self.builder.get_object("combo_com")
@@ -128,9 +127,6 @@ class Glade_main(gtk.Window):
         cell_baud = gtk.CellRendererText()
         self.combobox_baud.pack_start(cell_baud)
         self.combobox_baud.add_attribute(cell_baud, 'text', 0)
-        #self.combobox_baud.set_wrap_width(-1)
-        #for n in range(50):
-         #   liststore.append(['Ite %d'%n])
         liststore_baud.append(["2400"])
         liststore_baud.append(["4800"])
         liststore_baud.append(["9600"])
@@ -140,17 +136,9 @@ class Glade_main(gtk.Window):
         self.combobox_baud.set_active(4)
         self.combobox_baud.set_sensitive(False)
 
-        #self.combox_filetype = self.builder.get_object("combox_filetype")
         liststore_filetype=gtk.ListStore(str)
         cell_filetype = gtk.CellRendererText()
-        #self.combox_filetype.pack_start(cell_filetype)
-        #self.combox_filetype.add_attribute(cell_filetype, 'text', 0)
-        #liststore_filetype.append(["Configure type(*.ini)"])
-        #liststore_filetype.append(["All type"])
-        #self.combox_filetype.set_model(liststore_filetype)
-        #self.combox_filetype.set_active(0)
-        #self.combox_filetype.connect("changed",self.combox_filetypeclicked)
-        
+
         self.combobox_led1 = self.builder.get_object("combo_led1")
         liststore_led1 = gtk.ListStore(str)
         cell_led1 = gtk.CellRendererText()
@@ -236,8 +224,6 @@ class Glade_main(gtk.Window):
         self.widget_save.add_filter(filt2)
         
         self.button_filechooser.connect("file-set",self.filechooser_clicked)
-        #self.radio_exte = self.builder.get_object("radio_exte")
-        #self.radio_inst = self.builder.get_object("radio_inst")
 
         self.COM = apt_serial.ComThread(0,9600)
         self.image_lamp1 = self.builder.get_object("image_lamp1")
@@ -324,8 +310,7 @@ class Glade_main(gtk.Window):
         self.sdm_off = gtk.gdk.pixbuf_new_from_file("sdm_off.png")
         self.switch_on = gtk.gdk.pixbuf_new_from_file("switch_on.png")
         self.switch_off = gtk.gdk.pixbuf_new_from_file("switch_off.png")
-        #self.image_lamp.set_from_pixbuf(self.led_off)
-          
+
         self.windows.connect("destroy",gtk.main_quit)
         self.menu_quit.connect("activate",gtk.main_quit)
         self.help_about.connect("activate",self.on_about_dialog)
@@ -371,8 +356,6 @@ class Glade_main(gtk.Window):
         self.button_get_eeprom.connect("clicked",self.button_get_eeprom_clicked)
         self.button_clr_dtc.connect("clicked",self.buttonclr_dtc_clicked,"Are you sure clear DTC? ","Clear DTC")
         self.button_save_diag.connect("clicked",self.buttonsave_clicked,"diag")
-        #self.radio_exte.connect("pressed", self.radio_ledpwr_exte)
-        #self.radio_inst.connect("pressed", self.radio_ledpwr_inst)
         self.set_widget(False)
         self.set_configure(conf)
         gtk.Window.maximize(self.windows)
@@ -494,7 +477,6 @@ class Glade_main(gtk.Window):
                 for m in range(len(eval(str_temp))):
                     row = [n,m]
                     self.on_activated(self.treeview,row,None)
-                    print "ssssssssssssssssssssssssss"
 
     def buttonget_apt_diag_clicked(self,widget):
         if self.COM.get_option()==False:
@@ -523,7 +505,6 @@ class Glade_main(gtk.Window):
                         continue                
                 datalog4[n][1]= string
                 self.store.set(self.diagnosis ,n,string)
-    
 
     def button_get_eeprom_clicked(self,widget):
         if self.COM.get_option()==False:
@@ -546,6 +527,7 @@ class Glade_main(gtk.Window):
                     f.write("         "+ "30 00 00 00 00 00 00 00\n")
                 else :
                     f.write("Request: "+ n[0] +"\n")
+                    print n[0]
                 self.COM.read()
                 self.COM.send("\r")
                 f.write("Response:")
@@ -566,8 +548,6 @@ class Glade_main(gtk.Window):
                 f.write("\n\n")
                 f.close
         print "in the eeprom presswed"
-
-
 
     def buttonclr_dtc_clicked(self,widget,text,title):
         if self.COM.get_option()==False:
@@ -672,7 +652,6 @@ class Glade_main(gtk.Window):
                 tmp_data[4] = tmp_data[4] | (0x01 << n)
             i=i+3
         print "%x" %(tmp_data[4]) 
-        #conf['led_pwr'] = self.config.get("pwr", "led_pwr")  #it is not belong the config 
         conf['sw1'] = self.config.get("sw", "sw1")
         conf['sw2'] = self.config.get("sw", "sw2")
         conf['sw3'] = self.config.get("sw", "sw3")
@@ -696,16 +675,6 @@ class Glade_main(gtk.Window):
             self.config_file = widget.get_filename()  #include the pathname
             self.load_conf(self.config_file,conf)
         widget.hide()
-        
-    '''
-    def combox_filetypeclicked(self, widget):
-        #string = widget.get_active()
-        if widget.get_active()==0:
-            print "0"
-        elif widget.get_active()==1:
-            print "1"         
-        #print "success:",string
-    '''
 
     def filechooser_clicked(self, widget):
         file_name = widget.get_filename()
@@ -726,7 +695,6 @@ class Glade_main(gtk.Window):
                 if self.COM.start():
                     widget.set_sensitive(False)
                     self.combobox_com.set_sensitive(False)   
-                    #self.combobox_baud.set_sensitive(False) #because we do not hope client can choose the baud rate
                     self.disconnect_but.set_sensitive(True)
                     self.set_widget(True)
                     self.image_status.set_from_pixbuf(self.connect_on)
@@ -748,36 +716,10 @@ class Glade_main(gtk.Window):
         widget.set_sensitive(False)
         self.set_widget(False)
         self.combobox_com.set_sensitive(True)
-        #self.combobox_baud.set_sensitive(True) #because we do not hope client can choose the baud rate
         self.connect_but.set_sensitive(True)
         self.image_status.set_from_pixbuf(self.connect_off)
         self.label.set_label("COM is "+'''\n Baud is''')
 
-    '''
-    def buttonget_info_clicked(self,widget):
-        self.send(tmp_data,"set")
-        print "in the button get info clicked !"
-        pass
-
-
-
-    def radio_ledpwr_inst(self,widget):
-        print "inst was toggled %s" % ( ("ON", "OFF")[widget.get_active()])
-        self.send_pwr("led","off")
-    
-    def radio_ledpwr_exte(self,widget):
-        print "exte was toggled %s" % ( ("ON", "OFF")[widget.get_active()])
-        self.send_pwr("led","on")
-
-    def radio_ledpwr(self,value):
-        if (value == "inst"):
-            self.radio_inst.set_active(True)
-        elif (value == "exte"):
-            self.radio_exte.set_active(True)
-        else:
-            pass
-    '''
-        
     def buttonsend_clicked(self, widget):
         response = self.send_dialog.run()
         self.send_dialog.hide()
@@ -805,7 +747,6 @@ class Glade_main(gtk.Window):
                 pass
             self.send(tmp_data,"add")
 
-        
     def buttonsave_clicked(self, widget, sort):
         response = self.dialog_save.run()
         if response == gtk.RESPONSE_ACCEPT:
@@ -818,7 +759,6 @@ class Glade_main(gtk.Window):
         self.dialog_save.hide()
         print "in save button  clicked "
 
-
     def buttonsdmpwr_clicked(self,widget):
         value = ""
         if widget.get_label() == "ON":
@@ -830,7 +770,6 @@ class Glade_main(gtk.Window):
             widget.set_label("ON")
             value = "off"
         self.send_pwr("sdm",value)
-
 
     def buttonsq1_clicked(self,widget,value):
         if(value == None):         
@@ -853,8 +792,7 @@ class Glade_main(gtk.Window):
             widget.set_label("   Open   ")
         else:
             pass
-                            
-        
+
     def buttonsq2_clicked(self,widget,value):
         if(value == None):         
             if widget.get_label() == "   Open   ":
@@ -1097,7 +1035,6 @@ class Glade_main(gtk.Window):
         else:
             pass
 
-
     def buttonsq11b_clicked(self,widget,value):
         if(value == None):         
             if widget.get_label() == "   Open   ":
@@ -1119,7 +1056,6 @@ class Glade_main(gtk.Window):
             widget.set_label("   Open   ")
         else:
             pass
-
 
     def buttonsq12b_clicked(self,widget,value):
         if(value == None):         
@@ -1534,23 +1470,14 @@ class Glade_main(gtk.Window):
         ##self.radio_ledpwr(conf['led_pwr'])
         self.led1combobox_change(self.combobox_led1 ,conf['led1_a'])
         self.led4combobox_change(self.combobox_led4 ,conf['led4_a'])
-            
 
-    
         """
             if conf['loop'+str(n+1)] == "off":
                 eval(string(self,widget))
             elif conf['loop'] == "on":
                 self.combobox_led1.set_active(1)
         """
-        '''
-        if conf['led_pwr'] == "Inst":
-            self.radio_inst.set_active(True)
-        elif conf['led_pwr'] == "Extern":
-            self.radio_exte.set_active(True)
-        '''
 
-        
     def save_configure(self,conf,filename):
         if os.path.exists(filename):                #dudge the file is  or not cun  zai
             print filename
@@ -1610,9 +1537,6 @@ class Glade_main(gtk.Window):
 
 
     def save_sdm_diag(self,filename):
-        #if os.path.exists(filename):                #dudge the file is  or not exit
-         #   print filename
-        #else:
             f=open(filename,'w')
             f.write("###  EEPROM DATA LOG  ###\n")
             f.write(time.strftime('%Y-%m-%d  %H:%M:%S',time.localtime(time.time()))+"\n\n")
@@ -1626,8 +1550,6 @@ class Glade_main(gtk.Window):
                         f.write(act[1]+"\n")
             f.write("DTC \n"+ dtc_infor[0])            
             f.close()    
-
-
 
     def sw1combobox_change(self,widget):
         print widget.get_active_text()
@@ -1700,7 +1622,6 @@ class Glade_main(gtk.Window):
         if self.COM.get_option()==False:
             self.display_error(self.error_dialog,"Please make sure  the serial is opened!","Error","serial")
         elif self.COM.get_option()==True:
-            #if(style == "set"):
                 for n in range(8):
                     temp = data[n] & 0x0f
                     if(temp > 9 ):
@@ -1716,22 +1637,17 @@ class Glade_main(gtk.Window):
                     if (style == "add" and n == 1):
                         self.COM.send(config_stream[1])
                         string_temp = string_temp + config_stream[1] + " "
-                        #print "%s" %(config_stream[1])
                     else:
                         self.COM.send(send_stream[n])
                         string_temp = string_temp + send_stream[n] + " "
-                        #print "%s" %(send_stream[n])
                     self.COM.send(" ")
                 for n in range(8):
                     self.COM.send(chr(send_stream[2*n+4]))
-                    #print "%c" %(chr(send_stream[2*n+4]))
                     self.COM.send(chr(send_stream[2*n+3]))
-                    #print "%c" %(chr(send_stream[2*n+3]))
                     string_temp = string_temp + chr(send_stream[2*n+4]) + chr(send_stream[2*n+3]) + " "
                     self.COM.send(" ")
                 self.COM.send("\r")
                 print string_temp
-                #print "send succeed!"
     
     def send_pwr(self,style,value):
             send_pwr_stream[2] = value
@@ -1741,9 +1657,7 @@ class Glade_main(gtk.Window):
                 self.COM.send(" ")
             self.COM.send("\r")
             print "send succeed!!!!!!!!!!!!!!!"
-                
-        
+
 if __name__== "__main__":
     frm=Glade_main()
     gtk.main()
-    
