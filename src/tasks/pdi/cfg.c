@@ -43,8 +43,8 @@ static int pdi_match(const char *d, const char *e, int n)
 	assert(d != NULL);
 	assert(e != NULL);
 
-	for(i = 0; i < n && *d != '\0' && *e != '\0'; i ++) {
-		if( *e != '*' && *e == *d)
+	for(i = 0; (i < n) && (*d != '\0') && (*e != '\0'); i ++) {
+		if((e[i] != '*') && (e[i] != d[i]))
 			break;
 	}
 
@@ -131,7 +131,7 @@ int pdi_verify(const struct pdi_rule_s *rule, const void *echo)
 		memset(echo_text, '\0', n);
 		for(i = 0; i < rule->echo_size; i ++) {
 			v = *((unsigned char *) echo + i);
-			sprintf(&echo_text[i << 1], "%02x", v & 0xff);
+			sprintf(&echo_text[i << 1], "%02X", v & 0xff);
 		}
 		ret = pdi_match(echo_text, rule->echo_expect, n);
 		sys_free(echo_text);
