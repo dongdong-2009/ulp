@@ -9,6 +9,7 @@
 #include "can.h"
 #include "ulp_time.h"
 #include "sys/sys.h"
+#include "shell/cmd.h"
 
 #ifdef CONFIG_TASK_APTC131
 static const can_msg_t req_flow_msg = {
@@ -132,14 +133,14 @@ int usdt_GetDiagLeftFrame(can_msg_t *pRes, int msg_len)
 
 	/* receive the left can frame */
 	can_bus -> send(&req_flow_msg);			//send flow control
-	over_time = time_get(50);
+	over_time = time_get(100);
 	i = 1;
 	do {
 		if (time_left(over_time) < 0)
 			return -1;
 		if (can_bus -> recv((can_msg_t *)(pRes + i)) == 0) {
 			i ++;
-			over_time = time_get(50);
+			over_time = time_get(100);
 		}
 	} while(i < msg_len);
 
@@ -149,7 +150,6 @@ int usdt_GetDiagLeftFrame(can_msg_t *pRes, int msg_len)
 }
 
 #if 1
-#include "shell/cmd.h"
 
 int cmd_usdt_func(int argc, char *argv[])
 {
