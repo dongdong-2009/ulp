@@ -109,18 +109,18 @@ int pdi_check(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
-void pdi_init(void)
+void pdi_Init(void)
 {
-	pin_init();
 	can_cfg_t pdi_can = {
 		.baud = 33330,
 	};
+
+	drv_Init();
 	mbi5025_Init(&pdi_mbi5025);
 	mbi5025_EnableOE(&pdi_mbi5025);
 	ls1203_Init(&pdi_ls1203);
 	pdi_swcan_mode();
 	pdi_can_bus->init(&pdi_can);
-	pdi_swcan_mode();
 }
 
 void pdi_update(void)

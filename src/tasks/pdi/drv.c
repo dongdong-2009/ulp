@@ -27,7 +27,7 @@ int power_on()
 	return 0;
 }
 
-int pin_init()
+int drv_Init()
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
