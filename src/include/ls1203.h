@@ -17,6 +17,6 @@ typedef struct {
 } ls1203_t;
 
 void ls1203_Init(ls1203_t *chip);
-int ls1203_Read(ls1203_t *chip, unsigned char *pdata);
+int ls1203_Read(ls1203_t *chip, char *pdata);
 
 #endif /* __LS1203_H */

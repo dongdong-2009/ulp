@@ -33,12 +33,12 @@ void can_msg_print(const can_msg_t *msg, char *str)
 	for( i = 0; i < msg -> dlc; i ++) {
 		h = (msg -> data[i] & 0xf0) >> 4;;
 		l = msg -> data[i] & 0x0f;
-		
+
 		h = (h <= 9) ? ('0' + h) : ('a' + h - 10);
 		l = (l <= 9) ? ('0' + l) : ('a' + l - 10);
 		printf("%c%c ", h, l);
 	}
-	
+
 	if(str)
 		printf("%s", str);
 }
@@ -50,19 +50,19 @@ int can_queue_add(int ms, can_msg_t *msg)
 {
 	struct list_head *pos;
 	struct can_queue_s *new, *q = NULL;
-	
+
 	//prepare new queue unit
 	new = sys_malloc(sizeof(struct can_queue_s));
 	if(new == NULL) {
 		printf("error: out of memory!\n");
 		return 0;
 	}
-	
+
 	new -> timer = 0;
 	new -> ms = ms;
 	memcpy(&new -> msg, msg, sizeof(can_msg_t));
 	INIT_LIST_HEAD(&new -> list);
-	
+
 	//check current queue, find the id?
 	list_for_each(pos, &can_queue) {
 		q = list_entry(pos, can_queue_s, list);
@@ -72,7 +72,7 @@ int can_queue_add(int ms, can_msg_t *msg)
 			return 0;
 		}
 	}
-	
+
 	list_add(&new -> list, &can_queue);
 	return 0;
 }
@@ -98,7 +98,7 @@ void can_queue_print(void)
 {
 	struct list_head *pos;
 	struct can_queue_s *q;
-	
+
 	printf("queue list:\n");
 	list_for_each(pos, &can_queue) {
 		q = list_entry(pos, can_queue_s, list);
@@ -116,7 +116,7 @@ void can_queue_clear(void)
 		q = list_entry(pos, can_queue_s, list);
 		sys_free(q);
 	}
-	
+
 	INIT_LIST_HEAD(&can_queue);
 }
 
@@ -132,7 +132,7 @@ int can_queue_run(void)
 		q = list_entry(pos, can_queue_s, list);
 		if(q -> timer == 0 || time_left(q -> timer) < 0) {
 			q -> timer = time_get(q -> ms);
-			
+
 			//send the msg now
 			printf("%06dms ", (int)((time_get(0) - timer)*1000/CONFIG_TICK_HZ));
 			if(can_bus -> send(&q -> msg)) {
@@ -143,7 +143,7 @@ int can_queue_run(void)
 			}
 		}
 	}
-	
+
 	return 1;
 }
 #endif
@@ -163,14 +163,14 @@ static const can_msg_t msg3 = {
 void can_bpclr(void)
 {
 	can_msg_t msg;
-	
+
 	//1st message
 	can_msg_print(&msg1, "\n");
 	if (can_bus -> send(&msg1)) {
 		printf("can send fail\n");
 		return;
 	}
-	
+
 	while (1) {
 		if(!can_bus -> recv(&msg) && (msg.id == 0x7a7)) {
 			can_msg_print(&msg, "\n");
@@ -179,14 +179,14 @@ void can_bpclr(void)
 			}
 		}
 	}
-	
+
 	//2nd message
 	can_msg_print(&msg2, "\n");
 	if (can_bus -> send(&msg2)) {
 		printf("can send fail\n");
 		return;
 	}
-	
+
 	while (1) {
 		if(!can_bus -> recv(&msg) && (msg.id == 0x7a7)) {
 			can_msg_print(&msg, "\n");
@@ -195,14 +195,14 @@ void can_bpclr(void)
 			}
 		}
 	}
-	
+
 	//3rd message
 	can_msg_print(&msg3, "\n");
 	if (can_bus -> send(&msg3)) {
 		printf("can send fail\n");
 		return;
 	}
-	
+
 	while (1) {
 		if(!can_bus -> recv(&msg) && (msg.id == 0x7a7)) {
 			can_msg_print(&msg, "\n");
@@ -211,7 +211,7 @@ void can_bpclr(void)
 			}
 		}
 	}
-	
+
 	printf("clear over\n");
 	return;
 }
@@ -266,7 +266,7 @@ static int cmd_can_func(int argc, char *argv[])
 			if(argc >= 5) {
 				cfg.silent = 1;
 			}
-			
+
 			can_bus = NULL;
 #ifdef CONFIG_DRIVER_CAN0
 			//default to can1
@@ -296,7 +296,7 @@ static int cmd_can_func(int argc, char *argv[])
 
 			if (argc > 3)
 				sscanf(argv[2], "%x", &msg.id); //id
-			else 
+			else
 				return 0;
 
 			for(x = 0; x < msg.dlc; x ++) {
@@ -310,7 +310,7 @@ static int cmd_can_func(int argc, char *argv[])
 				while (time_left(send_overtime)) {
 					if (!can_bus -> recv(&msg)) {
 						printf("%06dms ", (int)((time_get(0) - timer)*1000/CONFIG_TICK_HZ));
-						
+
 						//printf can frame
 						if(msg.flag & CAN_FLAG_EXT)
 							printf("R%08x ", msg.id);
@@ -323,7 +323,7 @@ static int cmd_can_func(int argc, char *argv[])
 					}
 				}
 			}
-			
+
 			return 0;
 		}
 
@@ -335,7 +335,7 @@ static int cmd_can_func(int argc, char *argv[])
 			}
 
 			msg.dlc = argc - 4;
-			if(msg.dlc > 8) { 
+			if(msg.dlc > 8) {
 				msg.dlc = 8;
 				printf("warnning: msg is too long!!!\n");
 			}

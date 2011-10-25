@@ -1,9 +1,28 @@
 #ifndef __PDI_CFG_H_
 #define __PDI_CFG_H_
 
+enum {
+	PDI_OK,
+	PDI_ERR_CFG_NOT_FOUND,
+	PDI_ERR_CFG_DAMAGED,
+	PDI_ERR_IN_PARA, /*function input para incorrect*/
+	PDI_ERR_NO_MEM,
+	PDI_ERR_OP_NO_ALLOWED,
+	PDI_ERR_TOO_MANY_FILES,
+	PDI_ERR_CFG_FILE_TOO_BIG,
+};
+
 enum pdi_rule_type {
 	PDI_RULE_DID,
 	PDI_RULE_DPID,
+	PDI_RULE_UNDEF,
+};
+
+enum pdi_echo_type {
+	PDI_ECHO_HEX,
+	PDI_ECHO_HEX2DEC,
+	PDI_ECHO_ASCII,
+	PDI_ECHO_UNDEF,
 };
 
 struct pdi_rule_s { /*8 bytes per rule*/
@@ -17,12 +36,13 @@ struct pdi_rule_s { /*8 bytes per rule*/
 };
 
 struct pdi_cfg_s {
-	const char *name;
-	unsigned int nr_of_rules;
+	unsigned crc;
+	unsigned flag; //bit 0 => 1 empty
 
-	//private
-	unsigned int crc;
-	const struct pdi_rule_s *first;
+	//public
+	const char *name;
+	unsigned nr_of_rules;
+	unsigned relay;
 };
 
 //get the configuration by serial number, return NULL -> fail
