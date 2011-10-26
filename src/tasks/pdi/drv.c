@@ -27,7 +27,7 @@ int power_on()
 	return 0;
 }
 
-int drv_Init()
+int pdi_drv_Init()
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 

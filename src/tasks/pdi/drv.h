@@ -1,7 +1,7 @@
 #ifndef __PDI_DRV_H_
 #define __PDI_DRV_H_
 
-int drv_Init();
+int pdi_drv_Init();
 int led_fail_on();
 int led_fail_off();
 int led_pass_on();
