@@ -65,5 +65,5 @@ int apt_SelectSDMDTC(int keytype);
 int c131_ClearHistoryDTC(void);
 int c131_GetDTC(c131_dtc_t *pc131_dtc);
 int c131_GetDiagInfo(can_msg_t *pReq, can_msg_t *pRes, int * plen);
-int c131_GetEEPROMInfo(can_msg_t *pReq, can_msg_t *pRes, int * plen);
+int c131_GetEEPROMInfo(can_msg_t *pReq, can_msg_t *pRes, char data_len, int *plen);
 #endif /*__C131_H_*/

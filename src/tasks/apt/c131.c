@@ -634,7 +634,7 @@ int c131_GetDiagInfo(can_msg_t *pReq, can_msg_t *pRes, int *plen)
 	return 0;
 }
 
-int c131_GetEEPROMInfo(can_msg_t *pReq, can_msg_t *pRes, int *plen)
+int c131_GetEEPROMInfo(can_msg_t *pReq, can_msg_t *pRes, char data_len, int *plen)
 {
 	can_msg_t msg_res, msg_req[2];
 	int msg_len, result = 0;
@@ -649,6 +649,7 @@ int c131_GetEEPROMInfo(can_msg_t *pReq, can_msg_t *pRes, int *plen)
 
 	msg_req[0] = *pReq;
 	msg_req[1] = eeprom4_msg;
+	msg_req[1].data[4] = data_len;
 
 	if (usdt_GetDiagFirstFrame(msg_req, 2, NULL, &msg_res, &msg_len))
 		return 1;
