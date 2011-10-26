@@ -157,7 +157,6 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		case PDI_RULE_UNDEF:
 			return 1;
 		}
-
 		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0)
 			continue;
 		else
