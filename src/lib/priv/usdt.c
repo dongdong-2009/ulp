@@ -89,9 +89,26 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq,  int req_len, can_filter_t *pR
 		for (i = 1; i < req_len; i++) {
 			can_bus -> send(pReq + i);
 		}
-	}
-	else
+	} else {
 		return -1;
+	}
+
+#ifdef CONFIG_TASK_APTC131
+	if (req_len > 1) {
+		over_time = time_get(50);
+		//remove the "03 7f 23 78 0 0 0 0" useless msg
+		do {
+			if (time_left(over_time) < 0)
+				return -1;
+			if (can_bus -> recv(pRes) == 0) {
+				if(pRes->data[3] == 0x7f)
+					return -1;
+				else
+					break;
+			}
+		} while(1);
+	}
+#endif
 
 	//recv reponse
 	over_time = time_get(50);
