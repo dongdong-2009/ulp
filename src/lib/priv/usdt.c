@@ -96,7 +96,7 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq,  int req_len, can_filter_t *pR
 
 #ifdef CONFIG_TASK_APTC131
 	if (req_len > 1) {
-		over_time = time_get(50);
+		over_time = time_get(200);
 		//remove the "03 7f 23 78 0 0 0 0" useless msg
 		do {
 			if (time_left(over_time) < 0)
@@ -112,7 +112,7 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq,  int req_len, can_filter_t *pR
 #endif
 
 	//recv reponse
-	over_time = time_get(50);
+	over_time = time_get(200);
 	//get the first frame
 	do {
 		if (time_left(over_time) < 0)
@@ -129,7 +129,7 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq,  int req_len, can_filter_t *pR
 	if (mf_flag) {
 		data_len = pRes -> data[0] & 0x0f;
 		data_len <<= 8;
-		data_len |= pRes -> data[1];
+		data_len |= (unsigned char)pRes -> data[1];
 		num_frame = (data_len - 6)/7;			//remove the first frame
 		if ((data_len - 6) % 7)					//add the last frame
 			num_frame ++;
