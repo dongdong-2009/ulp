@@ -175,7 +175,7 @@ int usdt_GetDiagLeftFrame(can_msg_t *pRes, int msg_len)
 
 int cmd_usdt_func(int argc, char *argv[])
 {
-	int i, msg_len, req_len;
+	int i, msg_len = 0, req_len = 0;
 	can_msg_t msg_req[2], msg_res, *pRes;
 
 	const char * usage = { \
@@ -199,7 +199,7 @@ int cmd_usdt_func(int argc, char *argv[])
 		}
 		msg_req[0].flag = 0;
 
-		if (req_len  == 1) {
+		if (req_len == 1) {
 			for(i = 0; i < msg_req[0].dlc; i ++)
 				sscanf(argv[3 + i], "%x", (int *)&msg_req[0].data[i]);
 		} else if (req_len > 1) {
@@ -215,8 +215,10 @@ int cmd_usdt_func(int argc, char *argv[])
 			return 0;
 
 		//get the diagnostic info
-		if (usdt_GetDiagFirstFrame(msg_req, req_len, NULL, &msg_res, &msg_len))
+		if (usdt_GetDiagFirstFrame(msg_req, req_len, NULL, &msg_res, &msg_len)) {
 			printf("Get Diag Info Error!\n");
+			return 0;
+		}
 		if (msg_len > 1) {
 			pRes = (can_msg_t *) sys_malloc(msg_len * sizeof(can_msg_t));
 			if (pRes == NULL) {
