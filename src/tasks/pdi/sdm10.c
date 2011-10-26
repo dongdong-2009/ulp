@@ -58,7 +58,6 @@ static int pdi_fail_action()
 {
 	led_fail_on();
 	counter_fail_add();
-	counter_total_add();
 	beep_on();
 	pdi_mdelay(3000);
 	beep_off();
@@ -69,7 +68,7 @@ static int pdi_pass_action()
 {
 	led_pass_on();
 	beep_on();
-	counter_total_add();
+	counter_pass_add();
 	pdi_mdelay(1000);
 	beep_off();
 	return 0;
@@ -141,7 +140,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 
 	mbi5025_WriteBytes(&pdi_mbi5025, (unsigned char*)sr->relay, 4);
 	power_on();
-	pdi_mdelay(10000);
+	pdi_mdelay(100);
 	led_fail_off();
 	led_pass_off();
 	for(i = 0; i < sr->nr_of_rules; i++) {
@@ -160,7 +159,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 
 		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0)
-			return 0;
+			continue;
 		else
 			return 1;
 	}

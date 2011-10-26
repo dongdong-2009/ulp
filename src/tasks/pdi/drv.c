@@ -97,7 +97,7 @@ int counter_fail_add()
 	return 0;
 }
 
-int counter_total_add()
+int counter_pass_add()
 {
 	GPIOE->ODR |= counter_total;
 	udelay(5);
