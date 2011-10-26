@@ -10,7 +10,11 @@
 #include <stddef.h>
 
 int usdt_Init(can_bus_t const *pcan);
-int usdt_GetDiagFirstFrame(can_msg_t const *pReq, int req_len, can_filter_t const *pResFilter, can_msg_t *pRes);
+
+/*pResFilter: in apt and pdi project,this value can be set to NULL*/
+int usdt_GetDiagFirstFrame(can_msg_t const *pReq, int req_len, can_filter_t const *pResFilter, can_msg_t *pRes, int *p_msg_len);
+
+/*msg_len: get from usdt_GetDiagFirstFrame function*/
 int usdt_GetDiagLeftFrame(can_msg_t *pRes, int msg_len);
 
 #endif /*__USDT_H_*/

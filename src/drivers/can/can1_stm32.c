@@ -162,7 +162,7 @@ int can_recv(can_msg_t *msg)
 #endif
 }
 
-int can_filt(can_filter_t *filter, int n)
+int can_filt(can_filter_t const *filter, int n)
 {
 	int i, j, ret = 0;
 	short id0, id1, msk0, msk1;

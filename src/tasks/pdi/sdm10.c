@@ -81,7 +81,8 @@ static int pdi_GetDID(char did, char *data)
 	int i = 0, msg_len;
 
 	pdi_send_msg.data[2] = did;
-	msg_len = usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res);
+	if (usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res, &msg_len))
+		return 1;
 	if (msg_len > 1) {
 		pdi_msg_buf[0] = msg_res;
 		if(usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len))
@@ -90,12 +91,10 @@ static int pdi_GetDID(char did, char *data)
 
 	//pick up the data
 	if (msg_len == 1) {
-		if (msg_res.data[1] == 0x5a) {
+		if (msg_res.data[1] == 0x5a)
 			memcpy(data, (msg_res.data + 3), msg_res.data[0] - 2);
-			return 0;
-		} else {
+		else
 			return 1;
-		}
 	} else if (msg_len > 1) {
 		memcpy(data, (msg_res.data + 4), 4);
 		data += 4;
@@ -103,9 +102,9 @@ static int pdi_GetDID(char did, char *data)
 			memcpy(data, (pdi_msg_buf + i)->data + 1, 7);
 			data += 7;
 		}
-		return 0;
-	} else
-		return -1;
+	}
+
+	return 0;
 }
 
 
