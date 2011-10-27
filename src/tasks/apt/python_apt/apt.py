@@ -533,8 +533,13 @@ class Glade_main(gtk.Window):
                 spit_list = string.splitlines()
                 string = ''
                 for act in spit_list:
-                    if act != "bldc# ":
-                        string += act + '\n'
+                    spit__list = act.split()
+                    length = len(spit__list)
+                    if length > 1:
+                        string += act
+                        string += "\n"
+                    else:
+                        continue
                 f.write(string)
                 f.write("\n\n")
                 f.close
