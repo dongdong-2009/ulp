@@ -1,4 +1,24 @@
 #!/user/bin/env python
+#import cairo
+import ConfigParser
+import sys
+import os
+import apt_serial
+import gobject
+import scan
+import time
+
+try:
+    import pygtk
+    pygtk.require("2.0")
+except:
+    pass
+
+try:
+    import gtk
+    import gtk.glade
+except:
+    sys.exit(1)
 
 conf = {"loop1":"on","loop2":"on","loop3":"on","loop4":"on","loop5":"on","loop6":"on",\
         "loop7":"on","loop8":"on","loop9":"on","loop10":"on","loop11":"on","loop12":"on","loop11b":"on","loop12b":"on",\
@@ -45,17 +65,15 @@ datalog3 = [["Vehicle Status Data Information","********","FD 80"],["Event Data 
 
 datalog4 = [["switch","********"],["loop","********"]]
 
-eeprom = [["02 10 02 00 00 00 00 00"],["02 27 01 00 00 00 00 00"],["04 27 02 c0 82 00 00 00"],\
-          ["02 10 03 00 00 00 00 00"],["02 27 01 00 00 00 00 00"],["04 27 02 c0 82 00 00 00"],\
-          ["10 0A 23 44 00 EE 00 00 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 00 FC 21 00 00 00 FC 00 00 00"],\
-          ["10 0A 23 44 00 EE 01 F8 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 02 F4 21 00 00 00 FC 00 00 00"],\
-          ["10 0A 23 44 00 EE 03 F0 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 04 EC 21 00 00 00 FC 00 00 00"],\
-          ["10 0A 23 44 00 EE 05 E8 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 06 E4 21 00 00 00 FC 00 00 00"],\
-          ["10 0A 23 44 00 EE 07 E0 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 08 DC 21 00 00 00 FC 00 00 00"],\
-          ["10 0A 23 44 00 EE 09 D8 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 0A D4 21 00 00 00 FC 00 00 00"],\
-          ["10 0A 23 44 00 EE 0B D0 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 0C CC 21 00 00 00 FC 00 00 00"],\
-          ["10 0A 23 44 00 EE 0D C8 21 00 00 00 FC 00 00 00"],["10 0A 23 44 00 EE 0E C4 21 00 00 00 FC 00 00 00"],\
-          ["10 0A 23 44 00 EE 0F C0 21 00 00 00 FC 00 00 00"]]
+eeprom = [["FC 7A2 10 0A 23 44 00 EE 00 00"],["FC 7A2 10 0A 23 44 00 EE 00 FC"],\
+          ["FC 7A2 10 0A 23 44 00 EE 01 F8"],["FC 7A2 10 0A 23 44 00 EE 02 F4"],\
+          ["FC 7A2 10 0A 23 44 00 EE 03 F0"],["FC 7A2 10 0A 23 44 00 EE 04 EC"],\
+          ["FC 7A2 10 0A 23 44 00 EE 05 E8"],["FC 7A2 10 0A 23 44 00 EE 06 E4"],\
+          ["FC 7A2 10 0A 23 44 00 EE 07 E0"],["FC 7A2 10 0A 23 44 00 EE 08 DC"],\
+          ["FC 7A2 10 0A 23 44 00 EE 09 D8"],["FC 7A2 10 0A 23 44 00 EE 0A D4"],\
+          ["FC 7A2 10 0A 23 44 00 EE 0B D0"],["FC 7A2 10 0A 23 44 00 EE 0C CC"],\
+          ["FC 7A2 10 0A 23 44 00 EE 0D C8"],["FC 7A2 10 0A 23 44 00 EE 0E C4"],\
+          ["40 7A2 10 0A 23 44 00 EE 0F C0"]]
 
 dtc_infor = [""]
 
@@ -65,27 +83,6 @@ tmp_data = [0xff,0xef,0xff,0xff,0xff,0xff,0x75,0xff]
 send_stream = [set_stream[0],set_stream[1],"c131","f","f","e","f",  "f","f","f","f",   "f","f","f","f",   "7","5","f","f"]  #apt + add + name + byte(0-7)
 pwr_stream = "apt","pwr"
 send_pwr_stream = [pwr_stream[0],pwr_stream[1],"off","led"]
-
-#import cairo
-import ConfigParser
-import sys
-import os
-import apt_serial
-import gobject
-import scan
-import time
-
-try:
-    import pygtk
-    pygtk.require("2.0")
-except:
-    pass
-
-try:
-    import gtk
-    import gtk.glade
-except:
-    sys.exit(1)
 
 class Glade_main(gtk.Window):
     def __init__(self):
@@ -405,15 +402,14 @@ class Glade_main(gtk.Window):
         
     def on_activated(self,widget,row,col):
         if self.COM.get_option()==False:
-            self.display_error(self.error_dialog,"Please make sure the serial is opened!")
+            self.display_error(self.error_dialog,"Please Open Serial Port!")
         elif self.button_sdmpwr.get_label() == "ON":
-            self.display_error(self.error_dialog,"Please turn on the sdm pwr!")
+            self.display_error(self.error_dialog,"Please Turn On SDM Power!")
         else:
             if len(row) == 1 or row[0] == 5:
                 return
             string ="datalog"+str(row[0])+"[row[1]][2]"
             if row[0] == 4:
-                # self.COM.send("usdt req 7a2 03 19 2 9 0 0 0 0")
                 self.COM.send("apt read dtc")
                 self.COM.read()
                 self.COM.send("\r")
@@ -435,8 +431,8 @@ class Glade_main(gtk.Window):
                 dtc_infor[0] = string
                 self.store.set(self.dtc ,1,string)
                 return
-                
-            self.COM.send("usdt req 7A2 03 22 " + eval(string) + " 00 00 00 00")
+
+            self.COM.send("apt req 7A2 03 22 " + eval(string) + " 00 00 00 00")
             string = self.COM.read()   ##Filter out the echo letter
             self.COM.send("\r")
             #print string
@@ -444,16 +440,16 @@ class Glade_main(gtk.Window):
             str_temp = self.COM.read()  
             while str_temp != '':
                 string += str_temp
-                str_temp = self.COM.read()    
+                str_temp = self.COM.read()
             spit_list = string.splitlines()
             str_temp = ''
             #print spit_list
             for act in spit_list:
                 spit__list = act.split()
                 length = len(spit__list)
-                if(length > 2 and spit__list[2] == "000007C2"):
+                if(length > 2 and spit__list[2] == "7C2"):
                     print act
-                    str_temp += act[14:]
+                    str_temp += act
                     str_temp += "\n"
                 else:
                     continue
@@ -467,9 +463,9 @@ class Glade_main(gtk.Window):
 
     def buttonget_sdm_diag_clicked(self,widget):
         if self.COM.get_option()==False:
-            self.display_error(self.error_dialog,"Please make sure the serial is opened!")
+            self.display_error(self.error_dialog,"Please Open Serial Port!")
         elif self.button_sdmpwr.get_label() == "ON":
-            self.display_error(self.error_dialog,"Please turn on the sdm pwr!")
+            self.display_error(self.error_dialog,"Please Turn On SDM Power!")
         else:
             for n in range(5):
                 str_temp = "datalog" + str(n)
@@ -479,9 +475,9 @@ class Glade_main(gtk.Window):
 
     def buttonget_apt_diag_clicked(self,widget):
         if self.COM.get_option()==False:
-            self.display_error(self.error_dialog,"Please make sure the serial is opened!")
+            self.display_error(self.error_dialog,"Please Open Serial Port!")
         elif self.button_sdmpwr.get_label() == "ON":
-            self.display_error(self.error_dialog,"Please turn on the sdm pwr!")
+            self.display_error(self.error_dialog,"Please Turn On SDM Power!")
         else:
             for n,value in enumerate(datalog4):
                 self.COM.send("apt diag "+ value[0])
@@ -507,9 +503,9 @@ class Glade_main(gtk.Window):
 
     def button_get_eeprom_clicked(self,widget):
         if self.COM.get_option()==False:
-            self.display_error(self.error_dialog,"Please make sure the serial is opened!")
+            self.display_error(self.error_dialog,"Please Open Serial Port!")
         elif self.button_sdmpwr.get_label() == "ON":
-            self.display_error(self.error_dialog,"Please turn on the sdm pwr!")
+            self.display_error(self.error_dialog,"Please Turn On SDM Power!")
         else:
             response = self.dialog_save.run()
             self.dialog_save.hide()
@@ -519,18 +515,17 @@ class Glade_main(gtk.Window):
             f.write("###  EEPROM DATA LOG  ###\n")
             f.write(time.strftime('%Y-%m-%d  %H:%M:%S',time.localtime(time.time()))+"\n\n")
             for n in eeprom:
-                self.COM.send("usdt req 7A2 " + n[0])
-                if len(n[0]) > 25:
-                    f.write("Request: "+ n[0][0:23] +"\n")
-                    f.write("         "+ n[0][24:] +"\n")
-                    f.write("         "+ "30 00 00 00 00 00 00 00\n")
-                else :
-                    f.write("Request: "+ n[0] +"\n")
-                    print n[0]
+                self.COM.send("apt eeprom " + n[0])
+                f.write("Request:\n")
+                f.write("ID = "+ n[0][3:] +"\n")
+                f.write("ID = 7A2 21 00 00 00 "+ n[0][0:3] +"00 00 00\n")
+                f.write("ID = 7A2 30 00 00 00 00 00 00 00\n")
+
                 self.COM.read()
                 self.COM.send("\r")
-                f.write("Response:")
+                f.write("Response:\n")
                 string = ''
+                time.sleep(2)
                 str_temp = self.COM.read()
                 while str_temp != '':
                     string += str_temp
@@ -538,15 +533,11 @@ class Glade_main(gtk.Window):
                 spit_list = string.splitlines()
                 string = ''
                 for act in spit_list:
-                    spit__list = act.split()
-                    length = len(spit__list)
-                    if(length > 2 and spit__list[2] == "000007C2"):
-                        f.write(act[14:])
-                    else:
-                        continue    
+                    if act != "bldc# ":
+                        string += act + '\n'
+                f.write(string)
                 f.write("\n\n")
                 f.close
-        print "in the eeprom presswed"
 
     def buttonclr_dtc_clicked(self,widget,text,title):
         if self.COM.get_option()==False:

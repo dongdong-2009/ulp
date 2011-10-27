@@ -21,7 +21,7 @@ class ComThread:
         self.l_serial = serial.Serial()
         self.l_serial.port = self.port
         self.l_serial.baudrate = self.baudrate
-        self.l_serial.timeout = 0.2   #read time out 
+        self.l_serial.timeout = 0.5   #read time out 
         self.l_serial.open()
         if self.l_serial.isOpen():
             self.alive = True
