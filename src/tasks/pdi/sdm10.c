@@ -12,6 +12,7 @@
 #include "ls1203.h"
 #include "cfg.h"
 #include "priv/usdt.h"
+#include "debug.h"
 
 //local varibles;
 static const can_bus_t* pdi_can_bus = &can1;
@@ -56,20 +57,22 @@ int pdi_mdelay(int ms)
 
 static int pdi_fail_action()
 {
+	led_pass_off();
 	led_fail_on();
 	counter_fail_add();
 	beep_on();
-	pdi_mdelay(3000);
+	pdi_mdelay(1000);
 	beep_off();
 	return 0;
 }
 
 static int pdi_pass_action()
 {
+	led_fail_off();
 	led_pass_on();
 	beep_on();
 	counter_pass_add();
-	pdi_mdelay(1000);
+	pdi_mdelay(300);
 	beep_off();
 	return 0;
 }
@@ -145,8 +148,10 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	led_pass_off();
 	for(i = 0; i < sr->nr_of_rules; i++) {
 		pdi_cfg_rule = pdi_rule_get(sr,i);
-		if (&pdi_cfg_rule == NULL)
+		if (&pdi_cfg_rule == NULL) {
+			printf("##START##EC-no this rule##END##\n");
 			return 1;
+		}
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_DID:
 			pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf);
@@ -185,12 +190,27 @@ void pdi_update(void)
 	const struct pdi_cfg_s* pdi_cfg_file;
 	char bcode[19];
 	if(ls1203_Read(&pdi_ls1203,bcode) == 0) {
+		printf("##START##SB-");
+		printf(bcode);
+		printf("##END##\n");
 		bcode[9] = '\0';
 		pdi_cfg_file = pdi_cfg_get(bcode);
-		if(pdi_check(pdi_cfg_file) == 0)
-			pdi_pass_action();
-		else
+		if(pdi_cfg_file == NULL) {
 			pdi_fail_action();
+			printf("##START##EC-no this config file##END##\n");
+		}
+		else {
+			if(target_on() == 1) {
+				if(pdi_check(pdi_cfg_file) == 0)
+					pdi_pass_action();
+				else
+					pdi_fail_action();
+			}
+			else {
+				pdi_fail_action();
+				printf("##START##EC-target is not on right position##END##\n");
+			}
+		}
 	}
 }
 

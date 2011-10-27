@@ -11,8 +11,8 @@
 #define LED_red_on			(1<<0)
 #define LED_green_on		(1<<1)
 #define Start				(1<<3)
-#define counter_fail		(1<<4)
-#define counter_total		(1<<5)
+#define counter_pass		(1<<4)
+#define counter_fail		(1<<5)
 #define target				(1<<7)
 #define swcan_mode0			(1<<10)
 #define swcan_mode1			(1<<11)
@@ -89,25 +89,25 @@ int check_start()
 	else return 0;
 }
 
-int counter_fail_add()
+int counter_pass_add()
 {
-	GPIOE->ODR |= counter_fail;
-	udelay(5);
-	GPIOE->ODR &= ~counter_fail;
+	GPIOE->ODR |= counter_pass;
+	mdelay(30);
+	GPIOE->ODR &= ~counter_pass;
 	return 0;
 }
 
-int counter_pass_add()
+int counter_fail_add()
 {
-	GPIOE->ODR |= counter_total;
-	udelay(5);
-	GPIOE->ODR &= ~counter_total;
+	GPIOE->ODR |= counter_fail;
+	mdelay(30);
+	GPIOE->ODR &= ~counter_fail;
 	return 0;
 }
 
 int target_on()
 {
-	if(GPIOE->IDR & target == 0)
+	if((GPIOE->IDR & target) == 0)
 		return 1;
 	else return 0;
 }
