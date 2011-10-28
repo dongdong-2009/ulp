@@ -29,8 +29,8 @@ static int cmd_apt_func(int argc, char *argv[])
 		" apt set load_name b0 b1 ... b7,  set current config \n" \
 		" apt clr/read dtc, clear the product DTC information \n" \
 		" apt diag loop/switch, get diagnose data \n" \
-		" apt req diag/eeprom dlen id b0..b7, send diag/eeprom request with data len" \
-		" for diag dlen = 0, for eeprom dlen = 0xfc or 0x40\n" \
+		" apt req id b0..b7, send diag request" \
+		" apt eeprom dlen id b0..b7, send eeprom request with data len" \
 	};
 
 	if (argc > 1) {
@@ -148,32 +148,40 @@ static int cmd_apt_func(int argc, char *argv[])
 
 		/*for diagnostic and eeprom information*/
 		if (strcmp(argv[1], "req") == 0) {
-			msg_req.dlc = argc - 5;
+			msg_req.dlc = argc - 3;
 			if (msg_req.dlc != 8)
 				return 0;
-			sscanf(argv[4], "%x", &msg_req.id);		//id
+			sscanf(argv[2], "%x", &msg_req.id);		//id
 			msg_req.flag = 0;
 			for(i = 0; i < msg_req.dlc; i ++)
-				sscanf(argv[5 + i], "%x", (int *)&msg_req.data[i]);
-			sscanf(argv[3], "%x", &data_len);		//id
+				sscanf(argv[3 + i], "%x", (int *)&msg_req.data[i]);
 
-			if (strcmp(argv[2], "diag") == 0) {
-				if (c131_GetDiagInfo(&msg_req, apt_msg_buf, &msg_len))
-					printf("##ERROR##\n");
-				else {
-					printf("##OK##\n");
-					for (i = 0; i < msg_len; i++)
-						can_msg_print(apt_msg_buf + i, "\n");
-				}
+			if (c131_GetDiagInfo(&msg_req, apt_msg_buf, &msg_len))
+				printf("##ERROR##\n");
+			else {
+				printf("##OK##\n");
+				for (i = 0; i < msg_len; i++)
+					can_msg_print(apt_msg_buf + i, "\n");
 			}
-			if (strcmp(argv[2], "eeprom") == 0) {
-				if (c131_GetEEPROMInfo(&msg_req, apt_msg_buf, (char)data_len, &msg_len))
-					printf("##ERROR##\n");
-				else {
-					printf("##OK##\n");
-					for (i = 0; i < msg_len; i++)
-						can_msg_print(apt_msg_buf + i, "\n");
-				}
+		}
+
+		/*for eeprom information*/
+		if (strcmp(argv[1], "eeprom") == 0) {
+			msg_req.dlc = argc - 4;
+			if (msg_req.dlc != 8)
+				return 0;
+			sscanf(argv[3], "%x", &msg_req.id);		//id
+			msg_req.flag = 0;
+			for(i = 0; i < msg_req.dlc; i ++)
+				sscanf(argv[4 + i], "%x", (int *)&msg_req.data[i]);
+			sscanf(argv[2], "%2x", &data_len);		//id
+
+			if (c131_GetEEPROMInfo(&msg_req, apt_msg_buf, (char)data_len, &msg_len))
+				printf("##ERROR##\n");
+			else {
+				printf("##OK##\n");
+				for (i = 0; i < msg_len; i++)
+					can_msg_print(apt_msg_buf + i, "\n");
 			}
 		}
 	}
