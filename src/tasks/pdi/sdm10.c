@@ -72,7 +72,7 @@ static int pdi_pass_action()
 	led_pass_on();
 	beep_on();
 	counter_pass_add();
-	pdi_mdelay(300);
+	pdi_mdelay(50);
 	beep_off();
 	return 0;
 }
@@ -140,8 +140,15 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	int i;
 	const struct pdi_rule_s* pdi_cfg_rule;
 
-
-	mbi5025_WriteBytes(&pdi_mbi5025, (unsigned char*)sr->relay, 4);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	char *o=(char *)&(sr->relay);
+	mbi5025_WriteByte(&pdi_mbi5025, *(o+3));
+	mbi5025_WriteByte(&pdi_mbi5025, *(o+2));
+	mbi5025_WriteByte(&pdi_mbi5025, *(o+1));
+	mbi5025_WriteByte(&pdi_mbi5025, *(o+0));
 	power_on();
 	pdi_mdelay(100);
 	led_fail_off();
