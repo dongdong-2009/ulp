@@ -313,6 +313,10 @@ static int cmd_file_func(int argc, char *argv[])
 				if(cfg->relay & (1 << i))
 					printf("relay S%02d %s\n", i, "on");
 			}
+			for(int i = 0; i < 32; i ++) {
+				if(cfg->relay_ex & (1 << i))
+					printf("relay S%02d %s\n", i+32, "on");
+			}
 			for(int i = 0; i < cfg->nr_of_rules; i ++) {
 				rule = pdi_rule_get(cfg, i);
 				printf("verify ");
