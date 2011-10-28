@@ -72,7 +72,7 @@ eeprom = [["FC 7A2 10 0A 23 44 00 EE 00 00"],["FC 7A2 10 0A 23 44 00 EE 00 FC"],
 		  ["FC 7A2 10 0A 23 44 00 EE 09 D8"],["FC 7A2 10 0A 23 44 00 EE 0A D4"],\
 		  ["FC 7A2 10 0A 23 44 00 EE 0B D0"],["FC 7A2 10 0A 23 44 00 EE 0C CC"],\
 		  ["FC 7A2 10 0A 23 44 00 EE 0D C8"],["FC 7A2 10 0A 23 44 00 EE 0E C4"],\
-		  ["FC 7A2 10 0A 23 44 00 EE 0F C0"]]
+		  ["40 7A2 10 0A 23 44 00 EE 0F C0"]]
 
 dtc_infor = [""]
 
@@ -533,7 +533,8 @@ class Glade_main(gtk.Window):
 						string += str_temp
 						str_temp = self.COM.read()
 					spit_list = string.splitlines()
-					if spit_list[0] == "##ERROR##":
+					length = len(spit_list)
+					if length < 8:
 						print "#ERROR#"
 						test_number -= 1
 						time.sleep(1)
