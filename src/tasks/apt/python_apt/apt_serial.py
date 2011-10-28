@@ -42,7 +42,7 @@ class ComThread:
             try:
                 data = ''
                 n = self.l_serial.inWaiting()
-                print "Receive %d bytes" %n
+                # print "Receive %d bytes" %n
                 if n:
                     data = data + self.l_serial.read(n)
                     #for i in xrange(len(data)):
