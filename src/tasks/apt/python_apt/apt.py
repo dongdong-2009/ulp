@@ -407,11 +407,13 @@ class Glade_main(gtk.Window):
 		else:
 			if len(row) == 1 or row[0] == 5:
 				return
+			test_number = 5	#times to try get the sdm diag data
 			string ="datalog"+str(row[0])+"[row[1]][2]"
 			if row[0] == 4:
 				self.COM.send("apt read dtc")
 				self.COM.read()
 				self.COM.send("\r")
+				time.sleep(0.3)
 				str_temp = self.COM.read()
 				string = ''
 				while str_temp != '':
@@ -432,11 +434,11 @@ class Glade_main(gtk.Window):
 				return
 
 			self.COM.send("apt req 7A2 03 22 " + eval(string) + " 00 00 00 00")
-			string = self.COM.read()   ##Filter out the echo letter
+			self.COM.read()
 			self.COM.send("\r")
-			#print string
-			str_temp = ''
+			time.sleep(0.3)
 			str_temp = self.COM.read()  
+			string = ''
 			while str_temp != '':
 				string += str_temp
 				str_temp = self.COM.read()
@@ -446,14 +448,13 @@ class Glade_main(gtk.Window):
 				spit__list = act.split()
 				length = len(spit__list)
 				if(length > 2 and spit__list[2] == "7C2"):
-					print act
 					str_temp += act
 					str_temp += "\n"
 				else:
 					continue
 			temp_str = "datalog"+str(row[0])+"[row[1]][1]" + " = " + '''"""'''+str_temp + '''"""'''
 			exec(temp_str)
-			temp_str = "temp = datalog"+str(row[0])+'''[row[1]][0].replace(" ","")'''  ##temp is a name of temporary variable
+			temp_str = "temp = datalog"+str(row[0])+'''[row[1]][0].replace(" ","")'''
 			exec(temp_str)
 			temp = "self."+ temp
 			temp_str ="self.store.set("+ temp +",1," + "datalog" + str(row[0])+"[row[1]][1])" 
