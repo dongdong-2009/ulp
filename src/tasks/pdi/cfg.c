@@ -242,8 +242,9 @@ static int file_rule_add(const struct pdi_rule_s *rule, const char *expect)
 	return 0;
 }
 
-static int file_relay_add(int relay, int mask)
+static int file_relay_add(int relay, int on)
 {
+	unsigned mask, value;
 	struct pdi_cfg_s *cfg = (struct pdi_cfg_s *)pdi_buf;
 
 	if(pdi_buf == NULL) {
@@ -251,8 +252,20 @@ static int file_relay_add(int relay, int mask)
 		return pdi_ecode;
 	}
 
-	cfg->relay |= relay & mask;
-	cfg->relay &= relay | (~mask);
+	if(relay < 32) { //relay
+		mask = 1 << relay;
+		value = (on) ? (1 << relay) : 0;
+		cfg->relay &= (~mask);
+		cfg->relay |= value;
+	}
+	else { //relay_ex
+		relay -= 32;
+		mask = 1 << relay;
+		value = (on) ? (1 << relay) : 0;
+		cfg->relay_ex &= (~mask);
+		cfg->relay_ex |= value;
+	}
+
 	return 0;
 }
 
@@ -404,7 +417,7 @@ static int cmd_relay_func(int argc, char *argv[])
 	if(argc == 3) {
 		relay = atoi(argv[1] + 1);
 		value = (!strcmp(argv[2], "on")) ? 1 : 0;
-		ret = file_relay_add(value << relay, 1 << relay);
+		ret = file_relay_add(relay, value);
 	}
 
 	if(ret == 0) {
