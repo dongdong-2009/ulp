@@ -65,13 +65,13 @@ datalog3 = [["Vehicle Status Data Information","********","FD 80"],["Event Data 
 datalog4 = [["switch","********"],["loop","********"]]
 
 eeprom = [["FC 7A2 10 0A 23 44 00 EE 00 00"],["FC 7A2 10 0A 23 44 00 EE 00 FC"],\
-		  # ["FC 7A2 10 0A 23 44 00 EE 01 F8"],["FC 7A2 10 0A 23 44 00 EE 02 F4"],\
-		  # ["FC 7A2 10 0A 23 44 00 EE 03 F0"],["FC 7A2 10 0A 23 44 00 EE 04 EC"],\
-		  # ["FC 7A2 10 0A 23 44 00 EE 05 E8"],["FC 7A2 10 0A 23 44 00 EE 06 E4"],\
-		  # ["FC 7A2 10 0A 23 44 00 EE 07 E0"],["FC 7A2 10 0A 23 44 00 EE 08 DC"],\
-		  # ["FC 7A2 10 0A 23 44 00 EE 09 D8"],["FC 7A2 10 0A 23 44 00 EE 0A D4"],\
-		  # ["FC 7A2 10 0A 23 44 00 EE 0B D0"],["FC 7A2 10 0A 23 44 00 EE 0C CC"],\
-		  # ["FC 7A2 10 0A 23 44 00 EE 0D C8"],["FC 7A2 10 0A 23 44 00 EE 0E C4"],\
+		  ["FC 7A2 10 0A 23 44 00 EE 01 F8"],["FC 7A2 10 0A 23 44 00 EE 02 F4"],\
+		  ["FC 7A2 10 0A 23 44 00 EE 03 F0"],["FC 7A2 10 0A 23 44 00 EE 04 EC"],\
+		  ["FC 7A2 10 0A 23 44 00 EE 05 E8"],["FC 7A2 10 0A 23 44 00 EE 06 E4"],\
+		  ["FC 7A2 10 0A 23 44 00 EE 07 E0"],["FC 7A2 10 0A 23 44 00 EE 08 DC"],\
+		  ["FC 7A2 10 0A 23 44 00 EE 09 D8"],["FC 7A2 10 0A 23 44 00 EE 0A D4"],\
+		  ["FC 7A2 10 0A 23 44 00 EE 0B D0"],["FC 7A2 10 0A 23 44 00 EE 0C CC"],\
+		  ["FC 7A2 10 0A 23 44 00 EE 0D C8"],["FC 7A2 10 0A 23 44 00 EE 0E C4"],\
 		  ["FC 7A2 10 0A 23 44 00 EE 0F C0"]]
 
 dtc_infor = [""]
@@ -422,7 +422,7 @@ class Glade_main(gtk.Window):
 				for act in spit_list:
 					spit__list = act.split()
 					length = len(spit__list)
-					if(length > 2 and spit__list[0] != "bldc#" and spit__list[0] != "Reading"):
+					if(length > 2):
 						string += act
 						string += "\n"
 					else:
@@ -442,7 +442,6 @@ class Glade_main(gtk.Window):
 				str_temp = self.COM.read()
 			spit_list = string.splitlines()
 			str_temp = ''
-			#print spit_list
 			for act in spit_list:
 				spit__list = act.split()
 				length = len(spit__list)
@@ -496,7 +495,7 @@ class Glade_main(gtk.Window):
 						string += act
 						string += "\n"
 					else:
-						continue                
+						continue
 				datalog4[n][1]= string
 				self.store.set(self.diagnosis ,n,string)
 
@@ -519,7 +518,7 @@ class Glade_main(gtk.Window):
 				f.write("ID = 7A2 21 00 00 00 "+ n[0][0:3] +"00 00 00\n")
 				f.write("ID = 7A2 30 00 00 00 00 00 00 00\n")
 
-				test_number = 3
+				test_number = 5	#times to try get the eeprom data
 				file_string = 'Response:\n'
 				while True:
 					self.COM.send("apt eeprom " + n[0])
@@ -533,9 +532,7 @@ class Glade_main(gtk.Window):
 						string += str_temp
 						str_temp = self.COM.read()
 					spit_list = string.splitlines()
-					str_len = len(spit_list)
-					print str_len
-					if str_len == 1:
+					if spit_list[0] == "##ERROR##":
 						print "#ERROR#"
 						test_number -= 1
 						time.sleep(1)
@@ -557,9 +554,9 @@ class Glade_main(gtk.Window):
 
 	def buttonclr_dtc_clicked(self,widget,text,title):
 		if self.COM.get_option()==False:
-			self.display_error(self.error_dialog,"Please make sure the serial is opened!")
+			self.display_error(self.error_dialog,"Please Open Serial Port!")
 		elif self.button_sdmpwr.get_label() == "ON":
-			self.display_error(self.error_dialog,"Please turn on the sdm pwr!")
+			self.display_error(self.error_dialog,"Please Turn On SDM Power!")
 		else:
 			self.messagedialog.set_title(title)
 			self.messagedialog.set_markup(text)
@@ -570,7 +567,7 @@ class Glade_main(gtk.Window):
 				self.COM.read()
 				self.COM.send("\r")
 				string = self.COM.read()
-				result = string.find("Successful!")
+				result = string.find("##OK##")
 				print result
 				if result != -1 :
 					self.display_error(self.error_dialog,"Clear DTC successful !","Clear successful!")
@@ -590,7 +587,7 @@ class Glade_main(gtk.Window):
 			self.error_dialog.run()
 			self.error_dialog.hide()
 		elif scope == "serial":
-			self.statusbar.push(0,"Serial ports can not be connected!")
+			self.statusbar.push(0,"Serial port is not connected!")
 		
 	def load_conf(self,file_name,conf):
 		self.config.read(file_name)     #read configure file
@@ -1259,8 +1256,7 @@ class Glade_main(gtk.Window):
 			self.image_lamp2.set_from_pixbuf(self.led_off)
 			widget.set_label("    ON    ")
 		else:
-			pass                
-
+			pass
 
 	def buttonlamp3_clicked(self,widget,value):
 		if(value == None):
@@ -1282,9 +1278,8 @@ class Glade_main(gtk.Window):
 			self.image_lamp3.set_from_pixbuf(self.led_off)
 			widget.set_label("    ON    ")
 		else:
-			pass                
+			pass
 
-			
 	def buttonlamp4_clicked(self,widget,value):
 		if(value == None):
 			if widget.get_label() == "    ON    ":
@@ -1305,8 +1300,7 @@ class Glade_main(gtk.Window):
 			self.image_lamp4.set_from_pixbuf(self.led_off)
 			widget.set_label("    ON    ")
 		else:
-			pass                
-
+			pass
 
 	def buttonlamp5_clicked(self,widget,value):
 		if(value == None):
@@ -1328,7 +1322,7 @@ class Glade_main(gtk.Window):
 			self.image_lamp5.set_from_pixbuf(self.led_off)
 			widget.set_label("    ON    ")
 		else:
-			pass                
+			pass
 
 	def buttonsw1_clicked(self,widget,value):
 		if(value == None):         
@@ -1489,7 +1483,7 @@ class Glade_main(gtk.Window):
 			print filename
 		else:
 			f=open(filename,'w')            
-			f.write("###  EEPROM DATA LOG  ###\n")
+			f.write("###  CONFIG DATA LOG  ###\n")
 			f.write(time.strftime('%Y-%m-%d  %H:%M:%S',time.localtime(time.time()))+"\n\n")
 			f.write("[loop]\n")
 			for n in range(12):
@@ -1541,21 +1535,20 @@ class Glade_main(gtk.Window):
 		self.config.set("sw","sw5",conf['sw5'])
 		self.config.write(open(filename,"r+"))
 
-
 	def save_sdm_diag(self,filename):
-			f=open(filename,'w')
-			f.write("###  EEPROM DATA LOG  ###\n")
-			f.write(time.strftime('%Y-%m-%d  %H:%M:%S',time.localtime(time.time()))+"\n\n")
-			for n in range(4):
-				str_temp = "datalog" + str(n)
-				for act in eval(str_temp):
-					f.write("["+act[0]+"]\n")
-					if act[1] == "********":
-						f.write("\n")
-					else:
-						f.write(act[1]+"\n")
-			f.write("DTC \n"+ dtc_infor[0])            
-			f.close()    
+		f=open(filename,'w')
+		f.write("###  SDM DATA LOG  ###\n")
+		f.write(time.strftime('%Y-%m-%d  %H:%M:%S',time.localtime(time.time()))+"\n\n")
+		for n in range(4):
+			str_temp = "datalog" + str(n)
+			for act in eval(str_temp):
+				f.write("["+act[0]+"]\n")
+				if act[1] == "********":
+					f.write("\n")
+				else:
+					f.write(act[1]+"\n")
+		f.write("[DTC]\n"+ dtc_infor[0])            
+		f.close()
 
 	def sw1combobox_change(self,widget):
 		print widget.get_active_text()
@@ -1566,7 +1559,7 @@ class Glade_main(gtk.Window):
 		else:
 			pass
 		self.send(tmp_data,"set")
-		
+
 	def sw2combobox_change(self,widget):
 		print widget.get_active_text()
 		if widget.get_active()==0:
@@ -1604,7 +1597,6 @@ class Glade_main(gtk.Window):
 			widget.set_active(1)
 		else:
 			pass
-
 
 	def led4combobox_change(self,widget,value):
 		if (value == None):
