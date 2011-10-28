@@ -160,10 +160,12 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_DID:
-			pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf);
+			if (pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf))
+				return 1;
 			break;
 		case PDI_RULE_DPID:
-			pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf);
+			if (pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf))
+				return 1;
 			break;
 		case PDI_RULE_UNDEF:
 			return 1;
@@ -204,15 +206,13 @@ void pdi_update(void)
 		if(pdi_cfg_file == NULL) {
 			pdi_fail_action();
 			printf("##START##EC-no this config file##END##\n");
-		}
-		else {
+		} else {
 			if(target_on() == 1) {
 				if(pdi_check(pdi_cfg_file) == 0)
 					pdi_pass_action();
 				else
 					pdi_fail_action();
-			}
-			else {
+			} else {
 				pdi_fail_action();
 				printf("##START##EC-target is not on right position##END##\n");
 			}
