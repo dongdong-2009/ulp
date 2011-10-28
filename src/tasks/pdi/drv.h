@@ -10,7 +10,7 @@ int beep_on();
 int beep_off();
 int check_start();
 int counter_fail_add();
-int counter_total_add();
+int counter_pass_add();
 int target_on();
 int pdi_swcan_mode();
 int power_on();
