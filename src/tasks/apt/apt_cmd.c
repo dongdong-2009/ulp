@@ -30,7 +30,7 @@ static int cmd_apt_func(int argc, char *argv[])
 		" apt clr/read dtc, clear the product DTC information \n" \
 		" apt diag loop/switch, get diagnose data \n" \
 		" apt req id b0..b7, send diag request" \
-		" apt eeprom dlen id b0..b7, send eeprom request with data len" \
+		" apt eeprom dlen id b0..b7, send eeprom request with data len\n" \
 	};
 
 	if (argc > 1) {
