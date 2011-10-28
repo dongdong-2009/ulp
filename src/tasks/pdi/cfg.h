@@ -43,6 +43,7 @@ struct pdi_cfg_s {
 	const char *name;
 	int nr_of_rules;
 	unsigned relay;
+	unsigned relay_ex;
 };
 
 //get the configuration by serial number, return NULL -> fail
