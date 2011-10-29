@@ -95,6 +95,7 @@ class Glade_main(gtk.Window):
 		self.about_dialog = self.builder.get_object("about_dialog")
 		self.help_about = self.builder.get_object("help_about")
 		self.error_dialog = self.builder.get_object("error_dialog")
+		self.ok_dialog = self.builder.get_object("ok_dialog")
 		self.send_dialog = self.builder.get_object("dialog_send")
 		self.filechooser_dialog = self.builder.get_object("filechooser_dialog")
 		self.dialog_save = self.builder.get_object("dialog_save")
@@ -104,7 +105,7 @@ class Glade_main(gtk.Window):
 		self.messagedialog = self.builder.get_object("messagedialog")
 		self.menu_quit = self.builder.get_object("menuitem_quit")
 		self.statusbar = self.builder.get_object("statusbar")
-		
+
 		self.scan=scan.scan()
 		self.combobox_com=self.builder.get_object("combo_com")
 		liststore_com = gtk.ListStore(str)
@@ -471,6 +472,7 @@ class Glade_main(gtk.Window):
 				for m in range(len(eval(str_temp))):
 					row = [n,m]
 					self.on_activated(self.treeview,row,None)
+			self.display_ok(self.ok_dialog,"Get SDM Diag Over!")
 
 	def buttonget_apt_diag_clicked(self,widget):
 		if self.COM.get_option()==False:
@@ -499,6 +501,7 @@ class Glade_main(gtk.Window):
 						continue
 				datalog4[n][1]= string
 				self.store.set(self.diagnosis ,n,string)
+			self.display_ok(self.ok_dialog,"Get APT Diag Over!")
 
 	def button_get_eeprom_clicked(self,widget):
 		if self.COM.get_option()==False:
@@ -552,6 +555,7 @@ class Glade_main(gtk.Window):
 				f.write(file_string)
 				f.write("\n\n")
 			print "Reading EEPROM OK!"
+			self.display_ok(self.ok_dialog,"Save EEPROM Over!")
 			f.close
 
 	def buttonclr_dtc_clicked(self,widget,text,title):
@@ -572,9 +576,9 @@ class Glade_main(gtk.Window):
 				result = string.find("##OK##")
 				print result
 				if result != -1 :
-					self.display_error(self.error_dialog,"Clear DTC successful !","Clear successful!")
+					self.display_ok(self.ok_dialog,"Clear Successful!")
 				else :
-					self.display_error(self.error_dialog,"Clear DTC failed !","Clear failed")
+					self.display_error(self.error_dialog,"Clear DTC failed !","Clear Failed")
 			elif response == gtk.RESPONSE_NO:
 				pass
 
@@ -590,7 +594,13 @@ class Glade_main(gtk.Window):
 			self.error_dialog.hide()
 		elif scope == "serial":
 			self.statusbar.push(0,"Serial port is not connected!")
-		
+
+	def display_ok(self, widget,text,title = "OK",scope = None):
+		self.ok_dialog.set_title(title)
+		self.ok_dialog.set_markup(text)
+		self.ok_dialog.run()
+		self.ok_dialog.hide()
+
 	def load_conf(self,file_name,conf):
 		self.config.read(file_name)     #read configure file
 		conf['loop1'] = self.config.get("loop", "loop1")
@@ -711,7 +721,6 @@ class Glade_main(gtk.Window):
 			except Exception,se:
 				self.COM.stop()
 				self.display_error(self.error_dialog,"Can not open the "+ self.combobox_com.get_active_text()+" :Access denied!")
-			
 
 	def disconnect_clicked(self,widget):
 		try:
@@ -1549,7 +1558,8 @@ class Glade_main(gtk.Window):
 					f.write("\n")
 				else:
 					f.write(act[1]+"\n")
-		f.write("[DTC]\n"+ dtc_infor[0])            
+		f.write("[DTC]\n"+ dtc_infor[0])
+		self.display_ok(self.ok_dialog,"Save SDM Diag Over!")
 		f.close()
 
 	def sw1combobox_change(self,widget):
