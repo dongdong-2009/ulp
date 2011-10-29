@@ -136,7 +136,7 @@ static int pdi_GetDPID(char dpid, char *data)
 
 static int pdi_check(const struct pdi_cfg_s *sr)
 {
-	int i;
+	int i, try_times;
 	const struct pdi_rule_s* pdi_cfg_rule;
 
 	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
@@ -153,6 +153,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	led_fail_off();
 	led_pass_off();
 	for(i = 0; i < sr->nr_of_rules; i++) {
+		try_times = 5;
 		pdi_cfg_rule = pdi_rule_get(sr,i);
 		if (&pdi_cfg_rule == NULL) {
 			printf("##START##EC-no this rule##END##\n");
@@ -160,12 +161,18 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_DID:
-			if (pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf))
-				return 1;
+			while (pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf)) {
+				try_times --;
+				if (try_times <= 0)
+					return 1;
+			}
 			break;
 		case PDI_RULE_DPID:
-			if (pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf))
-				return 1;
+			while (pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf)) {
+				try_times --;
+				if (try_times <= 0)
+					return 1;
+			}
 			break;
 		case PDI_RULE_UNDEF:
 			return 1;
