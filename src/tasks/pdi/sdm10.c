@@ -40,6 +40,7 @@ static int pdi_fail_action();
 static int pdi_GetDID(char did, char *data);
 static int pdi_GetDPID(char dpid, char *data);
 static int pdi_check(const struct pdi_cfg_s *sr);
+static int target_noton_action();
 
 int pdi_mdelay(int ms)
 {
@@ -73,6 +74,16 @@ static int pdi_pass_action()
 	beep_on();
 	counter_pass_add();
 	pdi_mdelay(50);
+	beep_off();
+	return 0;
+}
+
+static int target_noton_action()
+{
+	led_pass_off();
+	led_fail_on();
+	beep_on();
+	pdi_mdelay(1000);
 	beep_off();
 	return 0;
 }
@@ -169,10 +180,19 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		case PDI_RULE_UNDEF:
 			return 1;
 		}
-		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0)
+		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0) {
+			if(i == 0) {
+				printf("##START##RB-");
+				printf(pdi_data_buf);
+				printf("##END##\n");
+			}
 			continue;
-		else
+		} else {
+			printf("##START##EC- $");
+			printf("%X",(char *)pdi_cfg_rule->para);
+			printf("##END##\n");
 			return 1;
+		}
 	}
 	return 0;
 }
@@ -207,16 +227,16 @@ void pdi_update(void)
 			printf("##START##EC-no this config file##END##\n");
 		}
 		else {
-			if(target_on() == 1) {
+			//if(target_on() == 1) {
 				if(pdi_check(pdi_cfg_file) == 0)
 					pdi_pass_action();
 				else
 					pdi_fail_action();
-			}
-			else {
-				pdi_fail_action();
-				printf("##START##EC-target is not on right position##END##\n");
-			}
+			//}
+			//else {
+			//	target_noton_action();
+				//printf("##START##EC-target is not on right position##END##\n");
+			//}
 		}
 	}
 }
