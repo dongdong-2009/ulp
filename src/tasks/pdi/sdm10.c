@@ -1,6 +1,6 @@
 /*
  *	miaofng@2011 initial version
- *	David peng.guo@2011 add content for PDI_SDM10
+ *	David peng.guo@2011 add contents for PDI_SDM10
  */
 #include <string.h>
 #include "config.h"
@@ -64,27 +64,41 @@ static int pdi_fail_action()
 	beep_on();
 	pdi_mdelay(1000);
 	beep_off();
-	power_off();
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	return 0;
-}
-
-static int pdi_pass_action()
-{
-	led_fail_off();
-	led_pass_on();
+	pdi_mdelay(200);
 	beep_on();
-	counter_pass_add();
-	pdi_mdelay(50);
+	pdi_mdelay(1000);
 	beep_off();
 	power_off();
 	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
 	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
 	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
 	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	start_botton_off();
+	return 0;
+}
+
+static int pdi_pass_action()
+{
+	char temp[3];
+	for(int j = 90; j <= 100; j++) {
+		pdi_mdelay(50);
+		printf("##START##STATUS-");
+		sprintf(temp,"%d",j);
+		printf("%s",temp);
+		printf("##END##\n");
+	}
+	led_fail_off();
+	led_pass_on();
+	beep_on();
+	counter_pass_add();
+	pdi_mdelay(100);
+	beep_off();
+	power_off();
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	start_botton_off();
 	return 0;
 }
 
@@ -93,12 +107,21 @@ static int target_noton_action()
 	led_pass_off();
 	led_fail_on();
 	beep_on();
-	pdi_mdelay(1000);
+	pdi_mdelay(200);
+	beep_off();
+	pdi_mdelay(100);
+	beep_on();
+	pdi_mdelay(200);
+	beep_off();
+	pdi_mdelay(100);
+	beep_on();
+	pdi_mdelay(200);
 	beep_off();
 	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
 	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
 	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
 	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	start_botton_off();
 	return 0;
 }
 
@@ -162,15 +185,22 @@ static int pdi_GetDPID(char dpid, char *data)
 static int pdi_check(const struct pdi_cfg_s *sr)
 {
 	int i, try_times;
+	char temp[2];
 	const struct pdi_rule_s* pdi_cfg_rule;
-
 	char *o=(char *)&(sr->relay);
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+3));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+2));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+1));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+0));
 	power_on();
-	pdi_mdelay(6000);
+//	pdi_mdelay(6000);
+	for(int k = 0; k < 90; k++) {
+		pdi_mdelay(70);
+		printf("##START##STATUS-");
+		sprintf(temp,"%d",k);
+		printf("%s",temp);
+		printf("##END##\n");
+	}
 	led_fail_off();
 	led_pass_off();
 	for(i = 0; i < sr->nr_of_rules; i++) {
@@ -235,8 +265,11 @@ void pdi_update(void)
 	const struct pdi_cfg_s* pdi_cfg_file;
 	char bcode[19];
 	if(ls1203_Read(&pdi_ls1203,bcode) == 0) {
+		start_botton_on();
+		led_pass_off();
+		led_fail_off();
 		printf("##START##SB-");
-		printf(bcode);
+		printf(bcode,"\0");
 		printf("##END##\n");
 		bcode[9] = '\0';
 		pdi_cfg_file = pdi_cfg_get(bcode);

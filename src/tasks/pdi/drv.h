@@ -15,5 +15,7 @@ int target_on();
 int pdi_swcan_mode();
 int power_on();
 int power_off();
+int start_botton_on();
+int start_botton_off();
 
 #endif

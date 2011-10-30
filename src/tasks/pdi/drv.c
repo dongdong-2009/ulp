@@ -10,7 +10,6 @@
 #define Beep_on				(1<<2)
 #define LED_red_on			(1<<0)
 #define LED_green_on		(1<<1)
-#define Start				(1<<3)
 #define counter_pass		(1<<4)
 #define counter_fail		(1<<5)
 #define target				(1<<7)
@@ -18,6 +17,7 @@
 #define swcan_mode1			(1<<11)
 #define IGN_on				(1<<13)
 #define battary_on			(1<<15)
+#define start_botton		(1<<3)
 
 //static time_t check_fail_beep;
 int power_on()
@@ -29,7 +29,7 @@ int power_on()
 
 int power_off()
 {
-	GPIOE-> &= ~IGN_on;
+	GPIOE->ODR &= ~IGN_on;
 	GPIOE->ODR &= ~battary_on;
 	return 0;
 }
@@ -40,12 +40,12 @@ int pdi_drv_Init()
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_10|GPIO_Pin_11|GPIO_Pin_13|GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_3|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_10|GPIO_Pin_11|GPIO_Pin_13|GPIO_Pin_15;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3|GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
@@ -89,13 +89,6 @@ int beep_off()
 	return 0;
 }
 
-int check_start()
-{
-	if(GPIOE->IDR & Start == 0)
-		return 1;
-	else return 0;
-}
-
 int counter_pass_add()
 {
 	GPIOE->ODR |= counter_pass;
@@ -126,4 +119,14 @@ int pdi_swcan_mode()
 	return 0;
 }
 
+int start_botton_on()
+{
+	GPIOE->ODR |= start_botton;
+	return 0;
+}
 
+int start_botton_off()
+{
+	GPIOE->ODR &= ~start_botton;
+	return 0;
+}
