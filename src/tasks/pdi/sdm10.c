@@ -64,6 +64,11 @@ static int pdi_fail_action()
 	beep_on();
 	pdi_mdelay(1000);
 	beep_off();
+	power_off();
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
 	return 0;
 }
 
@@ -75,6 +80,11 @@ static int pdi_pass_action()
 	counter_pass_add();
 	pdi_mdelay(50);
 	beep_off();
+	power_off();
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
 	return 0;
 }
 
@@ -85,6 +95,10 @@ static int target_noton_action()
 	beep_on();
 	pdi_mdelay(1000);
 	beep_off();
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
+	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
 	return 0;
 }
 
@@ -94,7 +108,8 @@ static int pdi_GetDID(char did, char *data)
 	int i = 0, msg_len;
 
 	pdi_send_msg.data[2] = did;
-	msg_len = usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res);
+	if (usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res, &msg_len))
+		return 1;
 	if (msg_len > 1) {
 		pdi_msg_buf[0] = msg_res;
 		if(usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len))
@@ -103,12 +118,10 @@ static int pdi_GetDID(char did, char *data)
 
 	//pick up the data
 	if (msg_len == 1) {
-		if (msg_res.data[1] == 0x5a) {
+		if (msg_res.data[1] == 0x5a)
 			memcpy(data, (msg_res.data + 3), msg_res.data[0] - 2);
-			return 0;
-		} else {
+		else
 			return 1;
-		}
 	} else if (msg_len > 1) {
 		memcpy(data, (msg_res.data + 4), 4);
 		data += 4;
@@ -116,9 +129,9 @@ static int pdi_GetDID(char did, char *data)
 			memcpy(data, (pdi_msg_buf + i)->data + 1, 7);
 			data += 7;
 		}
-		return 0;
-	} else
-		return -1;
+	}
+
+	return 0;
 }
 
 
@@ -148,23 +161,20 @@ static int pdi_GetDPID(char dpid, char *data)
 
 static int pdi_check(const struct pdi_cfg_s *sr)
 {
-	int i;
+	int i, try_times;
 	const struct pdi_rule_s* pdi_cfg_rule;
 
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
 	char *o=(char *)&(sr->relay);
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+3));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+2));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+1));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+0));
 	power_on();
-	pdi_mdelay(100);
+	pdi_mdelay(6000);
 	led_fail_off();
 	led_pass_off();
 	for(i = 0; i < sr->nr_of_rules; i++) {
+		try_times = 5;
 		pdi_cfg_rule = pdi_rule_get(sr,i);
 		if (&pdi_cfg_rule == NULL) {
 			printf("##START##EC-no this rule##END##\n");
@@ -172,10 +182,18 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_DID:
-			pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf);
+			while (pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf)) {
+				try_times --;
+				if (try_times <= 0)
+					return 1;
+			}
 			break;
 		case PDI_RULE_DPID:
-			pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf);
+			while (pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf)) {
+				try_times --;
+				if (try_times <= 0)
+					return 1;
+			}
 			break;
 		case PDI_RULE_UNDEF:
 			return 1;
@@ -225,18 +243,16 @@ void pdi_update(void)
 		if(pdi_cfg_file == NULL) {
 			pdi_fail_action();
 			printf("##START##EC-no this config file##END##\n");
-		}
-		else {
-			//if(target_on() == 1) {
+		} else {
+			if(target_on() == 1) {
 				if(pdi_check(pdi_cfg_file) == 0)
 					pdi_pass_action();
 				else
 					pdi_fail_action();
-			//}
-			//else {
-			//	target_noton_action();
-				//printf("##START##EC-target is not on right position##END##\n");
-			//}
+			} else {
+				target_noton_action();
+				printf("##START##EC-target is not on right position##END##\n");
+			}
 		}
 	}
 }

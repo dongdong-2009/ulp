@@ -27,6 +27,13 @@ int power_on()
 	return 0;
 }
 
+int power_off()
+{
+	GPIOE-> &= ~IGN_on;
+	GPIOE->ODR &= ~battary_on;
+	return 0;
+}
+
 int pdi_drv_Init()
 {
 	GPIO_InitTypeDef GPIO_InitStructure;

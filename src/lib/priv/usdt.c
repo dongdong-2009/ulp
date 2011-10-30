@@ -10,6 +10,7 @@
 #include "ulp_time.h"
 #include "sys/sys.h"
 #include "shell/cmd.h"
+#include "debug.h"
 
 #ifdef CONFIG_TASK_APTC131
 static const can_msg_t req_flow_msg = {
@@ -37,7 +38,7 @@ int usdt_Init(can_bus_t const *pcan)
 }
 
 //return the length of can frame, -1 means wrong
-int usdt_GetDiagFirstFrame(can_msg_t const *pReq,  int req_len, can_filter_t *pResFilter, can_msg_t *pRes)
+int usdt_GetDiagFirstFrame(can_msg_t const *pReq, int req_len, can_filter_t const *pResFilter, can_msg_t *pRes, int *p_msg_len)
 {
 	time_t over_time;
 	int num_frame, data_len, i, mf_flag = 0;
@@ -74,32 +75,49 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq,  int req_len, can_filter_t *pR
 	can_bus -> filt(pResFilter, 2);
 #endif
 
+	assert(pReq);
+	assert(pRes);
+
 	can_bus -> flush();
 	if(req_len == 1)
 		can_bus -> send(pReq);						//send request
 	else if (req_len > 1) {
 		can_bus -> send(pReq);
-		//get the flow control msg reponse
-		over_time = time_get(50);
+		over_time = time_get(50);					//get the flow control msg reponse
 		do {
 			if (time_left(over_time) < 0)
-				return -1;
+				return 1;
 			if (can_bus -> recv(pRes) == 0)
 				break;
 		} while(1);
 		for (i = 1; i < req_len; i++) {
 			can_bus -> send(pReq + i);
 		}
+	} else {
+		return 1;
 	}
-	else
-		return -1;
 
-	//recv reponse
-	over_time = time_get(50);
-	//get the first frame
+#ifdef CONFIG_TASK_APTC131
+	if (req_len > 1) {								//remove the "03 7f 23 78 0 0 0 0" useless msg
+		over_time = time_get(200);
+		do {
+			if (time_left(over_time) < 0)
+				return 1;
+			if (can_bus -> recv(pRes) == 0) {
+				if(pRes->data[3] == 0x7f)
+					return 1;
+				else
+					break;
+			}
+		} while(1);
+	}
+#endif
+
+	//recv reponse, get the first frame
+	over_time = time_get(200);
 	do {
 		if (time_left(over_time) < 0)
-			return -1;
+			return 1;
 		if (can_bus -> recv(pRes) == 0) {
 			if (pRes -> data[0]>>4 == 0)
 				mf_flag = 0;
@@ -112,7 +130,7 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq,  int req_len, can_filter_t *pR
 	if (mf_flag) {
 		data_len = pRes -> data[0] & 0x0f;
 		data_len <<= 8;
-		data_len |= pRes -> data[1];
+		data_len |= (unsigned char)pRes -> data[1];
 		num_frame = (data_len - 6)/7;			//remove the first frame
 		if ((data_len - 6) % 7)					//add the last frame
 			num_frame ++;
@@ -122,7 +140,9 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq,  int req_len, can_filter_t *pR
 		num_frame = 1;
 	}
 
-	return num_frame;
+	*p_msg_len = num_frame;
+
+	return 0;
 }
 
 /*start a commnication process, send request and receive the response*/
@@ -130,6 +150,8 @@ int usdt_GetDiagLeftFrame(can_msg_t *pRes, int msg_len)
 {
 	time_t over_time;
 	int i;
+
+	assert(pRes);
 
 	/* receive the left can frame */
 	can_bus -> send(&req_flow_msg);			//send flow control
@@ -153,7 +175,7 @@ int usdt_GetDiagLeftFrame(can_msg_t *pRes, int msg_len)
 
 int cmd_usdt_func(int argc, char *argv[])
 {
-	int i, msg_len, req_len;
+	int i, msg_len = 0, req_len = 0;
 	can_msg_t msg_req[2], msg_res, *pRes;
 
 	const char * usage = { \
@@ -177,7 +199,7 @@ int cmd_usdt_func(int argc, char *argv[])
 		}
 		msg_req[0].flag = 0;
 
-		if (req_len  == 1) {
+		if (req_len == 1) {
 			for(i = 0; i < msg_req[0].dlc; i ++)
 				sscanf(argv[3 + i], "%x", (int *)&msg_req[0].data[i]);
 		} else if (req_len > 1) {
@@ -193,7 +215,10 @@ int cmd_usdt_func(int argc, char *argv[])
 			return 0;
 
 		//get the diagnostic info
-		msg_len = usdt_GetDiagFirstFrame(msg_req, req_len, NULL, &msg_res);
+		if (usdt_GetDiagFirstFrame(msg_req, req_len, NULL, &msg_res, &msg_len)) {
+			printf("Get Diag Info Error!\n");
+			return 0;
+		}
 		if (msg_len > 1) {
 			pRes = (can_msg_t *) sys_malloc(msg_len * sizeof(can_msg_t));
 			if (pRes == NULL) {
@@ -212,8 +237,7 @@ int cmd_usdt_func(int argc, char *argv[])
 		} else if (msg_len == 1) {
 			can_msg_print(&msg_res, "\n");
 			printf("Get Diag Info Successful\n");
-		} else
-			printf("Get Diag Info Error!\n");
+		}
 	}
 
 	if(argc < 2) {

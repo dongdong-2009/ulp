@@ -146,6 +146,29 @@ static const can_msg_t req_start_msg = {
 	.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
 
+static const can_msg_t eeprom1_msg = {
+	.id = C131_DIAG_REQ_ID,
+	.dlc = 8,
+	.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+
+static const can_msg_t eeprom2_msg = {
+	.id = C131_DIAG_REQ_ID,
+	.dlc = 8,
+	.data = {0x02, 0x27, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+
+static can_msg_t eeprom3_msg = {
+	.id = C131_DIAG_REQ_ID,
+	.dlc = 8,
+	.data = {0x04, 0x27, 0x02, 0xff, 0xff, 0x00, 0x00, 0x00},
+};
+
+static const can_msg_t eeprom4_msg = {
+	.id = C131_DIAG_REQ_ID,
+	.dlc = 8,
+	.data = {0x21, 0x00, 0x00, 0x00, 0xfc, 0x00, 0x00, 0x00},
+};
 // static const can_msg_t req_flow_msg = {
 	// .id = C131_DIAG_REQ_ID,
 	// .dlc = 8,
@@ -546,7 +569,8 @@ int c131_GetDTC(c131_dtc_t *pc131_dtc)
 	p = (unsigned char *)(pc131_dtc->pdtc);
 	c131_StartDiagnosis();
 
-	msg_len = usdt_GetDiagFirstFrame(&req_dtc_msg, 1, NULL, &msg_res);
+	if (usdt_GetDiagFirstFrame(&req_dtc_msg, 1, NULL, &msg_res, &msg_len))
+		return 1;
 
 	if (msg_len > 1) {
 		pRes = (can_msg_t *) sys_malloc(msg_len * sizeof(can_msg_t));
@@ -585,8 +609,59 @@ int c131_GetDTC(c131_dtc_t *pc131_dtc)
 		} else
 			pc131_dtc->dtc_bExist = 0;
 		return 0;
-	} else if (msg_len < 0)
+	}
+
+	return 0;
+}
+
+int c131_GetDiagInfo(can_msg_t *pReq, can_msg_t *pRes, int *plen)
+{
+	can_msg_t msg_res;
+	int msg_len;
+
+	if (usdt_GetDiagFirstFrame(pReq, 1, NULL, &msg_res, &msg_len))
 		return 1;
+	if (msg_len > 1) {
+		*pRes = msg_res;
+		if(usdt_GetDiagLeftFrame(pRes, msg_len))
+			return 1;
+		*plen = msg_len;
+	} else if (msg_len == 1) {
+		*pRes = msg_res;
+		*plen = msg_len;
+	}
+
+	return 0;
+}
+
+int c131_GetEEPROMInfo(can_msg_t *pReq, can_msg_t *pRes, char data_len, int *plen)
+{
+	can_msg_t msg_res, msg_req[2];
+	int msg_len, result = 0;
+
+	result = usdt_GetDiagFirstFrame(&eeprom1_msg, 1, NULL, &msg_res, &msg_len);
+	result += usdt_GetDiagFirstFrame(&eeprom2_msg, 1, NULL, &msg_res, &msg_len);
+	eeprom3_msg.data[3] = ~msg_res.data[3];
+	eeprom3_msg.data[4] = ~msg_res.data[4];
+	result += usdt_GetDiagFirstFrame(&eeprom3_msg, 1, NULL, &msg_res, &msg_len);
+	if (result)
+		return 1;
+
+	msg_req[0] = *pReq;
+	msg_req[1] = eeprom4_msg;
+	msg_req[1].data[4] = data_len;
+
+	if (usdt_GetDiagFirstFrame(msg_req, 2, NULL, &msg_res, &msg_len))
+		return 1;
+	if (msg_len > 1) {
+		*pRes = msg_res;
+		if(usdt_GetDiagLeftFrame(pRes, msg_len))
+			return 1;
+		*plen = msg_len;
+	} else if (msg_len == 1) {
+		*pRes = msg_res;
+		*plen = msg_len;
+	}
 
 	return 0;
 }

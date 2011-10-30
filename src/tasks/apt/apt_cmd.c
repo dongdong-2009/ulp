@@ -15,11 +15,12 @@
 static apt_load_t newload;
 static dtc_t dtc_buffer[32];
 static c131_dtc_t c131_dtc;
+static can_msg_t apt_msg_buf[64];		//for multi frame buffer
 
 static int cmd_apt_func(int argc, char *argv[])
 {
-	int temp, i, data_len;
-	int * pdata;
+	int temp, i, data_len, msg_len, * pdata;
+	can_msg_t msg_req;
 
 	const char * usage = { \
 		" usage:\n" \
@@ -28,17 +29,19 @@ static int cmd_apt_func(int argc, char *argv[])
 		" apt set load_name b0 b1 ... b7,  set current config \n" \
 		" apt clr/read dtc, clear the product DTC information \n" \
 		" apt diag loop/switch, get diagnose data \n" \
+		" apt req id b0..b7, send diag request" \
+		" apt eeprom dlen id b0..b7, send eeprom request with data len\n" \
 	};
 
 	if (argc > 1) {
 		//add new load for apt
 		if(strcmp(argv[1], "add") == 0) {
 			if (argc < 11) {
-				printf("Lack of parameters!\n");
+				printf("##ERROR##\n");
 				return 0;
 			}
 			if (strlen(argv[2]) >= 16) {
-				printf("The name is too long!\n");
+				printf("##ERROR##\n");
 				return 0;
 			}
 			strcpy(newload.load_name, argv[2]);
@@ -47,9 +50,9 @@ static int cmd_apt_func(int argc, char *argv[])
 				newload.load_ram[i] = (unsigned char)temp;
 			}
 			if (apt_AddLoad(&newload) == 0) {
-				printf("Add new load successfully!\n");
+				printf("##OK##\n");
 			} else {
-				printf("Add new load unsuccessfully!\n");
+				printf("##ERROR##\n");
 				return 0;
 			}
 		}
@@ -57,11 +60,11 @@ static int cmd_apt_func(int argc, char *argv[])
 		//set load for apt
 		if (strcmp(argv[1], "set") == 0) {
 			if (argc < 11) {
-				printf("Lack of parameters!\n");
+				printf("##ERROR##\n");
 				return 0;
 			}
 			if (strlen(argv[2]) >= 16) {
-				printf("The name is too long!\n");
+				printf("##ERROR##\n");
 				return 0;
 			}
 			strcpy(newload.load_name, argv[2]);
@@ -78,11 +81,11 @@ static int cmd_apt_func(int argc, char *argv[])
 				if (strcmp(argv[2], "on") == 0) {
 					Enable_SDMPWR();
 					Enable_LEDPWR();
-					printf("Power On\n");
+					printf("##OK##\n");
 				} else if (strcmp(argv[2], "off") == 0) {
 					Disable_SDMPWR();
 					// Disable_LEDPWR();
-					printf("Power Off\n");
+					printf("##OK##\n");
 				}
 			}
 			return 0;
@@ -94,9 +97,9 @@ static int cmd_apt_func(int argc, char *argv[])
 				//for dtc related varible init
 				c131_dtc.pdtc = dtc_buffer;
 				if (c131_GetDTC(&c131_dtc))
-					printf("Reading DTC Error! \n");
+					printf("##ERROR##\n");
 				else {
-					printf("Reading DTC Successful! \n");
+					printf("##OK##\n");
 					if(c131_dtc.dtc_bExist) {
 						printf("HB  , MB  , LB  , SODTC\n");
 						for (i = 0; i < c131_dtc.dtc_len; i++)
@@ -111,9 +114,9 @@ static int cmd_apt_func(int argc, char *argv[])
 
 			if(strcmp(argv[1], "clr") == 0) {
 				if (c131_ClearHistoryDTC())
-					printf("Clear DTC Error! \n");
+					printf("##ERROR##\n");
 				else
-					printf("Clear DTC Successful! \n");
+					printf("##OK##\n");
 			}
 		}
 
@@ -140,6 +143,45 @@ static int cmd_apt_func(int argc, char *argv[])
 				printf("sw4 stage2 is :%d (ohm)\n", pdata[7]);
 				printf("sw5 stage1 is :%d (ohm)\n", pdata[8]);
 				printf("sw5 stage2 is :%d (ohm)\n", pdata[9]);
+			}
+		}
+
+		/*for diagnostic and eeprom information*/
+		if (strcmp(argv[1], "req") == 0) {
+			msg_req.dlc = argc - 3;
+			if (msg_req.dlc != 8)
+				return 0;
+			sscanf(argv[2], "%x", &msg_req.id);		//id
+			msg_req.flag = 0;
+			for(i = 0; i < msg_req.dlc; i ++)
+				sscanf(argv[3 + i], "%x", (int *)&msg_req.data[i]);
+
+			if (c131_GetDiagInfo(&msg_req, apt_msg_buf, &msg_len))
+				printf("##ERROR##\n");
+			else {
+				printf("##OK##\n");
+				for (i = 0; i < msg_len; i++)
+					can_msg_print(apt_msg_buf + i, "\n");
+			}
+		}
+
+		/*for eeprom information*/
+		if (strcmp(argv[1], "eeprom") == 0) {
+			msg_req.dlc = argc - 4;
+			if (msg_req.dlc != 8)
+				return 0;
+			sscanf(argv[3], "%x", &msg_req.id);		//id
+			msg_req.flag = 0;
+			for(i = 0; i < msg_req.dlc; i ++)
+				sscanf(argv[4 + i], "%x", (int *)&msg_req.data[i]);
+			sscanf(argv[2], "%2x", &data_len);		//id
+
+			if (c131_GetEEPROMInfo(&msg_req, apt_msg_buf, (char)data_len, &msg_len))
+				printf("##ERROR##\n");
+			else {
+				printf("##OK##\n");
+				for (i = 0; i < msg_len; i++)
+					can_msg_print(apt_msg_buf + i, "\n");
 			}
 		}
 	}

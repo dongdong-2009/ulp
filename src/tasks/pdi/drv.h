@@ -14,5 +14,6 @@ int counter_pass_add();
 int target_on();
 int pdi_swcan_mode();
 int power_on();
+int power_off();
 
 #endif

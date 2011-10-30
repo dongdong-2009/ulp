@@ -21,7 +21,7 @@ class ComThread:
         self.l_serial = serial.Serial()
         self.l_serial.port = self.port
         self.l_serial.baudrate = self.baudrate
-        self.l_serial.timeout = 0.2   #read time out 
+        self.l_serial.timeout = 0.5   #read time out 
         self.l_serial.open()
         if self.l_serial.isOpen():
             self.alive = True
@@ -42,33 +42,8 @@ class ComThread:
             try:
                 data = ''
                 n = self.l_serial.inWaiting()
-                print "Receive %d bytes" %n
                 if n:
                     data = data + self.l_serial.read(n)
-                    #for i in xrange(len(data)):
-                     #   print '%s'  % data[i]
             except Exception,ex:
                 print str(ex)
         return data
-            
-
-if __name__ == '__main__':
-    rt = ComThread(3,115200)
-    #rt.set_option(11,115200)
-    try:
-        if rt.start():
-            while True:
-                pass
-            rt.stop()
-        else:
-            pass        
-    except Exception,se:
-        print 'sssssssss'
-        print str(se)
-
-
-    if rt.alive:
-        rt.stop()
-    print ''
-    print 'End OK .'
-    del rt

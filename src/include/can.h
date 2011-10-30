@@ -39,7 +39,7 @@ typedef struct {
 	int (*init)(const can_cfg_t *cfg);
 	int (*send)(const can_msg_t *msg); //non block, check -> ?busy ret -> send
 	int (*recv)(can_msg_t *msg); //non block, check -> ?empty ret-> recv
-	int (*filt)(can_filter_t *filter, int n);
+	int (*filt)(can_filter_t const *filter, int n);
 	void (*flush)(void); //flush tx & rx
 } can_bus_t;
 

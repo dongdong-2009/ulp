@@ -29,7 +29,11 @@ void can_msg_print(const can_msg_t *msg, char *str)
 {
 	int i;
 	char h, l;
-	printf("ID = %08X ", msg -> id);
+
+	if (msg->flag)
+		printf("ID = %08X ", msg -> id);
+	else
+		printf("ID = %03X ", msg -> id);
 	for( i = 0; i < msg -> dlc; i ++) {
 		h = (msg -> data[i] & 0xf0) >> 4;;
 		l = msg -> data[i] & 0x0f;
