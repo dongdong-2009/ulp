@@ -158,6 +158,27 @@ static int pdi_GetDID(char did, char *data)
 	return 0;
 }
 
+static int DTC_Clear()
+{
+	can_msg_t msg_res, pdi_send_msg = {0x247, 8, {0x01, 0x04, 0, 0, 0, 0, 0, 0}, 0};
+	int i = 0, msg_len;
+
+	if (usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res, &msg_len))
+		return 1;
+	if (msg_len > 1) {
+		pdi_msg_buf[0] = msg_res;
+		if(usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len))
+			return 1;
+	}
+
+	//pick up the data
+	if (msg_len == 1) {
+		if (msg_res.data[1] == 0x44)
+			printf("clear DTC success");
+		else printf("clear fail");
+	}
+	return 0;
+}
 
 static int pdi_GetDPID(char dpid, char *data)
 {
