@@ -19,6 +19,7 @@
 static const can_bus_t* pdi_can_bus = &can1;
 static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
 static char pdi_data_buf[32];
+static char pdi_fault_buf[128];
 
 static mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
@@ -41,6 +42,7 @@ static int pdi_fail_action();
 static int pdi_GetDID(char did, char *data);
 static int pdi_GetDPID(char dpid, char *data);
 static int pdi_check(const struct pdi_cfg_s *sr);
+static int pdi_GetFault(char *data, int * pnum_fault);
 static int target_noton_action();
 
 int pdi_mdelay(int ms)
@@ -158,6 +160,25 @@ static int pdi_GetDID(char did, char *data)
 	return 0;
 }
 
+static int pdi_GetFault(char *data, int * pnum_fault)
+{
+	int i = 0, result = 0;
+	if (pdi_GetDID(0x71, data))
+		return 1;
+
+	memset(data + 90, 0x00, 38);
+
+	for (i = 0; i < 90; i += 3) {
+		if (data[i] | data[i+1] | data [i + 2])
+			result ++;
+	}
+
+	* pnum_fault = result;
+
+	return 0;
+}
+
+
 
 static int pdi_GetDPID(char dpid, char *data)
 {
@@ -237,7 +258,13 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 			}
 			continue;
 		} else {
-			printf("##START##EC- $");
+			printf("##START##EC-");
+			if (pdi_cfg_rule->type == PDI_RULE_DID)
+				printf("DID: $");
+			else if (pdi_cfg_rule->type == PDI_RULE_DPID)
+				printf("DPID: $");
+			else
+				printf("UNDEF: $");
 			printf("%X",(char *)pdi_cfg_rule->para);
 			printf("##END##\n");
 			return 1;
@@ -301,26 +328,42 @@ int main(void)
 	}
 }
 
-static int cmd_ECU_func(int argc, char *argv[])
+static int cmd_pdi_func(int argc, char *argv[])
 {
+	int num_fault, i;
+
 	const char *usage = {
-		"ECU power control, usage:\n"
-		"ECU on\n"
-		"ECU off\n"
+		"pdi power control, usage:\n"
+		"pdi on\n"
+		"pdi off\n"
+		"pdi fault"
 	};
+
+	if (argc < 2) {
+		printf("%s", usage);
+		return 0;
+	}
+
 	if(argc == 2) {
 		if(argv[1][1] == 'n') {
 			power_on();
-			return 1;
 		}
 		if(argv[1][1] == 'f') {
 			power_off();
-			return 1;
+		}
+		if(argv[1][0] == 'f') {
+			if (pdi_GetFault(pdi_fault_buf, &num_fault))
+				printf("##ERROR##\n");
+			else {
+				printf("##OK##\n");
+				for (i = 0; i < num_fault; i++)
+					printf("0x%x, 0x%x, 0x%x\n", pdi_fault_buf[i], pdi_fault_buf[i+1], pdi_fault_buf[i+2]);
+			}
 		}
 	}
-	else printf("%s", usage);
+
 	return 0;
 }
 
-const cmd_t cmd_ECU = {"ECU", cmd_ECU_func, "ECU cmd i/f"};
-DECLARE_SHELL_CMD(cmd_ECU)
+const cmd_t cmd_pdi = {"pdi", cmd_pdi_func, "pdi cmd i/f"};
+DECLARE_SHELL_CMD(cmd_pdi)
