@@ -379,7 +379,7 @@ static int cmd_pdi_func(int argc, char *argv[])
 				printf("##OK##\n");
 				printf("num of fault is: %d\n", num_fault);
 				for (i = 0; i < num_fault*3; i += 3)
-					printf("0x%2x, 0x%2x, 0x%2x\n", pdi_fault_buf[i], pdi_fault_buf[i+1], pdi_fault_buf[i+2]);
+					printf("0x%2x, 0x%2x, 0x%2x\n", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
 			}
 		}
 	}
