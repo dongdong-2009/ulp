@@ -336,7 +336,7 @@ static int cmd_pdi_func(int argc, char *argv[])
 		"pdi power control, usage:\n"
 		"pdi on\n"
 		"pdi off\n"
-		"pdi fault"
+		"pdi fault\n"
 	};
 
 	if (argc < 2) {
@@ -356,8 +356,9 @@ static int cmd_pdi_func(int argc, char *argv[])
 				printf("##ERROR##\n");
 			else {
 				printf("##OK##\n");
-				for (i = 0; i < num_fault; i++)
-					printf("0x%x, 0x%x, 0x%x\n", pdi_fault_buf[i], pdi_fault_buf[i+1], pdi_fault_buf[i+2]);
+				printf("num of fault is: %d\n", num_fault);
+				for (i = 0; i < num_fault*3; i += 3)
+					printf("0x%2x, 0x%2x, 0x%2x\n", pdi_fault_buf[i], pdi_fault_buf[i+1], pdi_fault_buf[i+2]);
 			}
 		}
 	}
