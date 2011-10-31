@@ -13,6 +13,7 @@
 #include "cfg.h"
 #include "priv/usdt.h"
 #include "debug.h"
+#include "shell/cmd.h"
 
 //local varibles;
 static const can_bus_t* pdi_can_bus = &can1;
@@ -299,3 +300,27 @@ int main(void)
 		ulp_update();
 	}
 }
+
+static int cmd_ECU_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"ECU power control, usage:\n"
+		"ECU on\n"
+		"ECU off\n"
+	};
+	if(argc == 2) {
+		if(argv[1][1] == 'n') {
+			power_on();
+			return 1;
+		}
+		if(argv[1][1] == 'f') {
+			power_off();
+			return 1;
+		}
+	}
+	else printf("%s", usage);
+	return 0;
+}
+
+const cmd_t cmd_ECU = {"ECU", cmd_ECU_func, "ECU cmd i/f"};
+DECLARE_SHELL_CMD(cmd_ECU)
