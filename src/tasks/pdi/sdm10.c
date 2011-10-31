@@ -44,6 +44,7 @@ static int pdi_GetDPID(char dpid, char *data);
 static int pdi_check(const struct pdi_cfg_s *sr);
 static int pdi_GetFault(char *data, int * pnum_fault);
 static int target_noton_action();
+static int DTC_Clear();
 
 int pdi_mdelay(int ms)
 {
@@ -160,6 +161,28 @@ static int pdi_GetDID(char did, char *data)
 	return 0;
 }
 
+static int DTC_Clear()
+{
+	can_msg_t msg_res, pdi_send_msg = {0x247, 8, {0x01, 0x04, 0, 0, 0, 0, 0, 0}, 0};
+	int msg_len;
+
+	if (usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res, &msg_len))
+		return 1;
+	if (msg_len > 1) {
+		pdi_msg_buf[0] = msg_res;
+		if(usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len))
+			return 1;
+	}
+
+	//pick up the data
+	if (msg_len == 1) {
+		if (msg_res.data[1] == 0x44)
+			printf("clear DTC success");
+		else printf("clear fail");
+	}
+	return 0;
+}
+
 static int pdi_GetFault(char *data, int * pnum_fault)
 {
 	int i = 0, result = 0;
@@ -177,8 +200,6 @@ static int pdi_GetFault(char *data, int * pnum_fault)
 
 	return 0;
 }
-
-
 
 static int pdi_GetDPID(char dpid, char *data)
 {
