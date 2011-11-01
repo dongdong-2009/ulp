@@ -4,7 +4,11 @@
 #ifndef __LED_H_
 #define __LED_H_
 
+#ifdef CONFIG_LED_UPDATE_MS
+#define LED_FLASH_PERIOD	CONFIG_LED_UPDATE_MS
+#else
 #define LED_FLASH_PERIOD	1000 /*unit ms*/
+#endif
 
 typedef enum {
 	LED_GREEN = 0,
