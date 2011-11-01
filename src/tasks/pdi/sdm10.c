@@ -36,29 +36,14 @@ static ls1203_t pdi_ls1203 = {
 
 //local functions
 static int pdi_check(const struct pdi_cfg_s *);
-static int pdi_mdelay(int );
 static int pdi_pass_action();
 static int pdi_fail_action();
 static int pdi_GetDID(char did, char *data);
 static int pdi_GetDPID(char dpid, char *data);
-static int pdi_check(const struct pdi_cfg_s *sr);
 static int pdi_GetFault(char *data, int * pnum_fault);
 static int target_noton_action();
 static int DTC_Clear();
-
-int pdi_mdelay(int ms)
-{
-	int left;
-	time_t deadline = time_get(ms);
-	do {
-		left = time_left(deadline);
-		if(left >= 10) { //system update period is expected less than 10ms
-			ulp_update();
-		}
-	} while(left > 0);
-
-	return 0;
-}
+void pdi_process();
 
 static int pdi_fail_action()
 {
@@ -66,18 +51,9 @@ static int pdi_fail_action()
 	led_fail_on();
 	counter_fail_add();
 	beep_on();
-	pdi_mdelay(1000);
-	beep_off();
-	pdi_mdelay(200);
-	beep_on();
-	pdi_mdelay(1000);
+	pdi_mdelay(3000);
 	beep_off();
 	power_off();
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	start_botton_off();
 	return 0;
 }
 
@@ -95,37 +71,38 @@ static int pdi_pass_action()
 	led_pass_on();
 	beep_on();
 	counter_pass_add();
-	pdi_mdelay(100);
+	pdi_mdelay(1000);
+	beep_off();
+	pdi_mdelay(200);
+	beep_on();
+	pdi_mdelay(1000);
 	beep_off();
 	power_off();
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	start_botton_off();
 	return 0;
 }
 
 static int target_noton_action()
 {
-	led_pass_off();
+	led_pass_on();
 	led_fail_on();
-	beep_on();
-	pdi_mdelay(200);
-	beep_off();
-	pdi_mdelay(100);
-	beep_on();
-	pdi_mdelay(200);
-	beep_off();
-	pdi_mdelay(100);
-	beep_on();
-	pdi_mdelay(200);
-	beep_off();
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	mbi5025_WriteByte(&pdi_mbi5025, 0x00);
-	start_botton_off();
+	for(int i = 0; i < 4; i++) {
+		beep_on();
+		led_pass_on();
+		led_fail_on();
+		pdi_mdelay(200);
+		beep_off();
+		led_pass_off();
+		led_fail_off();
+		pdi_mdelay(100);
+	}
+	for(int k = 0; k < 4; k++) {
+		led_pass_on();
+		led_fail_on();
+		pdi_mdelay(200);
+		led_pass_off();
+		led_fail_off();
+		pdi_mdelay(100);
+	}
 	return 0;
 }
 
@@ -163,23 +140,22 @@ static int pdi_GetDID(char did, char *data)
 
 static int DTC_Clear()
 {
-	can_msg_t msg_res, pdi_send_msg = {0x247, 8, {0x01, 0x04, 0, 0, 0, 0, 0, 0}, 0};
-	int msg_len;
+	can_msg_t pdi_recv_msg;
+	can_msg_t pdi_send_msg = {0x247, 8, {0x01, 0x04, 0, 0, 0, 0, 0, 0}, 0};
+	time_t over_time;
 
-	if (usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res, &msg_len))
-		return 1;
-	if (msg_len > 1) {
-		pdi_msg_buf[0] = msg_res;
-		if(usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len))
+	pdi_can_bus->send(&pdi_send_msg);
+	over_time = time_get(100);
+	do {
+		if (time_left(over_time) < 0)
 			return 1;
-	}
-
-	//pick up the data
-	if (msg_len == 1) {
-		if (msg_res.data[1] == 0x44)
-			printf("clear DTC success");
-		else printf("clear fail");
-	}
+		if (pdi_can_bus->recv(&pdi_recv_msg) == 0) {
+			if (pdi_recv_msg.data[1] == 0x44)
+				break;
+			else
+				return 1;
+		}
+	} while(1);
 	return 0;
 }
 
@@ -309,14 +285,19 @@ void pdi_init(void)
 	usdt_Init(pdi_can_bus);
 }
 
-void pdi_update(void)
+void pdi_process(void)
 {
+	int num_fault;
 	const struct pdi_cfg_s* pdi_cfg_file;
-	char bcode[19];
-	if(ls1203_Read(&pdi_ls1203,bcode) == 0) {
+	char bcode[20];
+	if(target_on() == 1)
 		start_botton_on();
+	else start_botton_off();
+	if(ls1203_Read(&pdi_ls1203,bcode) == 0) {
+		start_botton_off();
 		led_pass_off();
 		led_fail_off();
+		bcode[19] = '\0';
 		printf("##START##SB-");
 		printf(bcode,"\0");
 		printf("##END##\n");
@@ -327,24 +308,37 @@ void pdi_update(void)
 			printf("##START##EC-no this config file##END##\n");
 		} else {
 			if(target_on() == 1) {
-				if(pdi_check(pdi_cfg_file) == 0)
-					pdi_pass_action();
-				else
+				if(pdi_check(pdi_cfg_file) == 0) {
+					if(pdi_GetFault(pdi_fault_buf, &num_fault))
+						printf("##START##EC-read DTC error##END##\n");
+					else if(num_fault == 0)
+						pdi_pass_action();
+					else {
+						printf("##START##EC-");
+						printf("num of fault is: %d*", num_fault);
+						for (int i = 0; i < num_fault*3; i += 3)
+							printf("0x%2x, 0x%2x, 0x%2x*", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
+						printf("##END##\n");
+						pdi_fail_action();
+					}
+				} else
 					pdi_fail_action();
 			} else {
 				target_noton_action();
-				printf("##START##EC-target is not on right position##END##\n");
+				printf("##START##EC-target is not on the right position##END##\n");
 			}
 		}
 	}
 }
 
+
 int main(void)
 {
 	ulp_init();
 	pdi_init();
+	init_OK();
 	while(1) {
-		pdi_update();
+		pdi_process();
 		ulp_update();
 	}
 }
@@ -358,6 +352,7 @@ static int cmd_pdi_func(int argc, char *argv[])
 		"pdi on\n"
 		"pdi off\n"
 		"pdi fault\n"
+		"pdi clear\n"
 	};
 
 	if (argc < 2) {
@@ -381,6 +376,10 @@ static int cmd_pdi_func(int argc, char *argv[])
 				for (i = 0; i < num_fault*3; i += 3)
 					printf("0x%2x, 0x%2x, 0x%2x\n", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
 			}
+		}
+		if(argv[1][0] == 'c') {
+			DTC_Clear();
+			printf("##OK##\n");
 		}
 	}
 

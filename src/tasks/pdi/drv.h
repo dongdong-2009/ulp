@@ -17,5 +17,7 @@ int power_on();
 int power_off();
 int start_botton_on();
 int start_botton_off();
+int init_OK();
+int pdi_mdelay(int );
 
 #endif

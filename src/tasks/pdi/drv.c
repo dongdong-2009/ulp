@@ -6,6 +6,7 @@
 #include "ulp_time.h"
 #include "drv.h"
 #include "stm32f10x.h"
+#include "sys/task.h"
 
 #define Beep_on				(1<<2)
 #define LED_red_on			(1<<0)
@@ -20,6 +21,21 @@
 #define start_botton		(1<<3)
 
 //static time_t check_fail_beep;
+
+int pdi_mdelay(int ms)
+{
+	int left;
+	time_t deadline = time_get(ms);
+	do {
+		left = time_left(deadline);
+		if(left >= 10) { //system update period is expected less than 10ms
+			ulp_update();
+		}
+	} while(left > 0);
+
+	return 0;
+}
+
 int power_on()
 {
 	GPIOE->ODR |= IGN_on;
@@ -92,7 +108,7 @@ int beep_off()
 int counter_pass_add()
 {
 	GPIOE->ODR |= counter_pass;
-	mdelay(30);
+	pdi_mdelay(30);
 	GPIOE->ODR &= ~counter_pass;
 	return 0;
 }
@@ -100,7 +116,7 @@ int counter_pass_add()
 int counter_fail_add()
 {
 	GPIOE->ODR |= counter_fail;
-	mdelay(30);
+	pdi_mdelay(30);
 	GPIOE->ODR &= ~counter_fail;
 	return 0;
 }
@@ -128,5 +144,26 @@ int start_botton_on()
 int start_botton_off()
 {
 	GPIOE->ODR &= ~start_botton;
+	return 0;
+}
+
+int init_OK()
+{
+	GPIOE->ODR |= LED_red_on;
+	GPIOE->ODR |= LED_green_on;
+	GPIOE->ODR |= Beep_on;
+	pdi_mdelay(200);
+	GPIOE->ODR &= ~LED_red_on;
+	GPIOE->ODR &= ~LED_green_on;
+	GPIOE->ODR &= ~Beep_on;
+	pdi_mdelay(100);
+	for(int i = 0; i < 5; i++){
+		GPIOE->ODR |= LED_red_on;
+		GPIOE->ODR |= LED_green_on;
+		pdi_mdelay(200);
+		GPIOE->ODR &= ~LED_red_on;
+		GPIOE->ODR &= ~LED_green_on;
+		pdi_mdelay(100);
+	}
 	return 0;
 }
