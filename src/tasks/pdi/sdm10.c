@@ -211,6 +211,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+2));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+1));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+0));
+        pdi_mdelay(3000);
 	power_on();
 //	pdi_mdelay(6000);
 	for(int k = 0; k < 90; k++) {
