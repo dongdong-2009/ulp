@@ -14,6 +14,7 @@
 #include "priv/usdt.h"
 #include "debug.h"
 #include "shell/cmd.h"
+#include "led.h"
 
 //local varibles;
 static const can_bus_t* pdi_can_bus = &can1;
@@ -307,6 +308,8 @@ void pdi_process(void)
 			pdi_fail_action();
 			printf("##START##EC-no this config file##END##\n");
 		} else {
+			led_flash(LED_GREEN);
+			led_flash(LED_RED);
 			if(target_on() == 1) {
 				if(pdi_check(pdi_cfg_file) == 0) {
 					if(pdi_GetFault(pdi_fault_buf, &num_fault))
@@ -327,6 +330,8 @@ void pdi_process(void)
 				target_noton_action();
 				printf("##START##EC-target is not on the right position##END##\n");
 			}
+			led_off(LED_GREEN);
+			led_off(LED_RED);
 		}
 	}
 }
