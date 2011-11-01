@@ -14,6 +14,7 @@
 #include "priv/usdt.h"
 #include "debug.h"
 #include "shell/cmd.h"
+#include "led.h"
 
 //local varibles;
 static const can_bus_t* pdi_can_bus = &can1;
@@ -47,8 +48,8 @@ void pdi_process();
 
 static int pdi_fail_action()
 {
-	led_pass_off();
-	led_fail_on();
+	led_off(LED_GREEN);
+	led_on(LED_RED);
 	counter_fail_add();
 	beep_on();
 	pdi_mdelay(3000);
@@ -84,23 +85,23 @@ static int pdi_pass_action()
 static int target_noton_action()
 {
 	led_pass_on();
-	led_fail_on();
+	led_on(LED_RED);
 	for(int i = 0; i < 4; i++) {
 		beep_on();
 		led_pass_on();
-		led_fail_on();
+		led_on(LED_RED);
 		pdi_mdelay(200);
 		beep_off();
-		led_pass_off();
-		led_fail_off();
+		led_off(LED_GREEN);
+		led_off(LED_RED);
 		pdi_mdelay(100);
 	}
 	for(int k = 0; k < 4; k++) {
 		led_pass_on();
-		led_fail_on();
+		led_on(LED_RED);
 		pdi_mdelay(200);
-		led_pass_off();
-		led_fail_off();
+		led_off(LED_GREEN);
+		led_off(LED_RED);
 		pdi_mdelay(100);
 	}
 	return 0;
@@ -221,8 +222,8 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		printf("%s",temp);
 		printf("##END##\n");
 	}
-	led_fail_off();
-	led_pass_off();
+	led_off(LED_RED);
+	led_off(LED_GREEN);
 	for(i = 0; i < sr->nr_of_rules; i++) {
 		try_times = 5;
 		pdi_cfg_rule = pdi_rule_get(sr,i);
@@ -296,8 +297,8 @@ void pdi_process(void)
 	else start_botton_off();
 	if(ls1203_Read(&pdi_ls1203,bcode) == 0) {
 		start_botton_off();
-		led_pass_off();
-		led_fail_off();
+		led_off(LED_GREEN);
+		led_off(LED_RED);
 		bcode[19] = '\0';
 		printf("##START##SB-");
 		printf(bcode,"\0");
@@ -308,6 +309,8 @@ void pdi_process(void)
 			pdi_fail_action();
 			printf("##START##EC-no this config file##END##\n");
 		} else {
+			led_flash(LED_GREEN);
+			led_flash(LED_RED);
 			if(target_on() == 1) {
 				if(pdi_check(pdi_cfg_file) == 0) {
 					if(pdi_GetFault(pdi_fault_buf, &num_fault))
@@ -328,6 +331,8 @@ void pdi_process(void)
 				target_noton_action();
 				printf("##START##EC-target is not on the right position##END##\n");
 			}
+			led_off(LED_GREEN);
+			led_off(LED_RED);
 		}
 	}
 }
