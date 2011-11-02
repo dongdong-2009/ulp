@@ -31,4 +31,6 @@
 #define HSE_Value CONFIG_HSE_VALUE
 #endif
 
+#define HAVE_INTTYPES_H
+
 #endif /*__CONFIG_H_*/
