@@ -45,6 +45,7 @@ static int pdi_GetFault(char *data, int * pnum_fault);
 static int target_noton_action();
 static int DTC_Clear();
 void pdi_process();
+static int pdi_wakeup();
 
 static int pdi_fail_action()
 {
@@ -54,7 +55,9 @@ static int pdi_fail_action()
 	beep_on();
 	pdi_mdelay(3000);
 	beep_off();
-	power_off();
+	//power_off();
+	pdi_batt_off();
+	pdi_IGN_off();
 	return 0;
 }
 
@@ -78,7 +81,9 @@ static int pdi_pass_action()
 	beep_on();
 	pdi_mdelay(1000);
 	beep_off();
-	power_off();
+	//power_off();
+	pdi_batt_off();
+	pdi_IGN_off();
 	return 0;
 }
 
@@ -138,6 +143,55 @@ static int pdi_GetDID(char did, char *data)
 
 	return 0;
 }
+
+const can_msg_t pdi_wakeup_msg =	{0x100, 8, {0, 0, 0, 0, 0, 0, 0, 0}, 0};
+const can_msg_t pdi_dtc_msg = 		{0x247, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
+const can_msg_t pdi_cpid_msg = 		{0x247, 8, {0x03, 0xae, 0x01, 0x3f, 0, 0, 0, 0}, 0};
+
+static int pdi_wakeup()
+{
+	int i;
+	char buf[8];
+
+	pdi_batt_on();
+	pdi_mdelay(400);
+	pdi_can_bus->send(&pdi_wakeup_msg);
+	pdi_GetDID(0x22,buf);
+	for(i = 0; i < 8; i++) {
+		printf("%2x, ",buf[i]&0xff);
+	}
+	printf("\n");
+	pdi_GetDID(0xc2,buf);
+	for(i = 0; i < 8; i++) {
+		printf("%2x, ",buf[i]&0xff);
+	}
+	printf("\n");
+
+	// pdi_can_bus->send(&pdi_wakeup_msg);
+	// pdi_mdelay(200);
+	// pdi_can_bus->send(&pdi_dtc_msg);
+	// pdi_mdelay(200);
+	// pdi_can_bus->send(&pdi_cpid_msg);
+	// pdi_mdelay(200);
+
+	// pdi_GetDID(0x22,buf);
+	// for(i = 0; i < 8; i++) {
+		// printf("%2x, ",buf[i]&0xff);
+	// }
+	// printf("\n");
+	// pdi_GetDID(0xc2,buf);
+	// for(i = 0; i < 8; i++) {
+		// printf("%2x, ",buf[i]&0xff);
+	// }
+	// printf("\n\r");
+	// pdi_GetDPID(0x05,buf);
+	// for(i = 0; i < 8; i++) {
+		// printf("%2x, ",buf[i]&0xff);
+	// }
+	//pdi_batt_off();
+	return 0;
+}
+
 
 static int DTC_Clear()
 {
@@ -212,8 +266,12 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+2));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+1));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+0));
-        pdi_mdelay(3000);
-	power_on();
+	pdi_mdelay(500);
+	//power_on();
+	pdi_batt_on();
+	pdi_IGN_on();
+
+
 //	pdi_mdelay(6000);
 	for(int k = 0; k < 90; k++) {
 		pdi_mdelay(70);
@@ -367,12 +425,6 @@ static int cmd_pdi_func(int argc, char *argv[])
 	}
 
 	if(argc == 2) {
-		if(argv[1][1] == 'n') {
-			power_on();
-		}
-		if(argv[1][1] == 'f') {
-			power_off();
-		}
 		if(argv[1][0] == 'f') {
 			if (pdi_GetFault(pdi_fault_buf, &num_fault))
 				printf("##ERROR##\n");
@@ -386,6 +438,23 @@ static int cmd_pdi_func(int argc, char *argv[])
 		if(argv[1][0] == 'c') {
 			DTC_Clear();
 			printf("##OK##\n");
+		}
+		if(argv[1][0] == 'w') {
+			pdi_wakeup();
+		}
+	}
+	if(argc == 3) {
+		if(argv[1][0] == 'b') {
+			if(argv[2][1] == 'n')
+				pdi_batt_on();
+			if(argv[2][1] == 'f')
+				pdi_batt_off();
+		}
+		if(argv[1][0] == 'I') {
+			if(argv[2][1] == 'n')
+				pdi_IGN_on();
+			if(argv[2][1] == 'f')
+				pdi_IGN_off();
 		}
 	}
 
