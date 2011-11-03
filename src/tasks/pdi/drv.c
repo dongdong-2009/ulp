@@ -36,17 +36,27 @@ int pdi_mdelay(int ms)
 	return 0;
 }
 
-int power_on()
+int pdi_batt_on()
 {
-	GPIOE->ODR |= IGN_on;
 	GPIOE->ODR |= battary_on;
 	return 0;
 }
 
-int power_off()
+int pdi_batt_off()
+{
+	GPIOE->ODR &= ~battary_on;
+	return 0;
+}
+
+int pdi_IGN_on()
+{
+	GPIOE->ODR |= IGN_on;
+	return 0;
+}
+
+int pdi_IGN_off()
 {
 	GPIOE->ODR &= ~IGN_on;
-	GPIOE->ODR &= ~battary_on;
 	return 0;
 }
 
