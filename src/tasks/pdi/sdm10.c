@@ -21,6 +21,7 @@ static const can_bus_t* pdi_can_bus = &can1;
 static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
 static char pdi_data_buf[256];
 static char pdi_fault_buf[64];
+static char bcode_1[20];
 
 static mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
@@ -50,8 +51,7 @@ void pdi_process();
 
 static int pdi_fail_action()
 {
-	led_off(LED_GREEN);
-	led_on(LED_RED);
+	led_fail_on();
 	counter_fail_add();
 	beep_on();
 	pdi_mdelay(3000);
@@ -69,7 +69,6 @@ static int pdi_pass_action()
 		printf("%s",temp);
 		printf("##END##\n");
 	}
-	led_fail_off();
 	led_pass_on();
 	beep_on();
 	counter_pass_add();
@@ -84,24 +83,22 @@ static int pdi_pass_action()
 
 static int target_noton_action()
 {
-	led_pass_on();
-	led_on(LED_RED);
 	for(int i = 0; i < 4; i++) {
 		beep_on();
 		led_pass_on();
-		led_on(LED_RED);
+		led_fail_on();
 		pdi_mdelay(200);
 		beep_off();
-		led_off(LED_GREEN);
-		led_off(LED_RED);
+		led_pass_off();
+		led_fail_off();
 		pdi_mdelay(100);
 	}
-	for(int k = 0; k < 4; k++) {
+	for(int i = 0; i < 4; i++) {
 		led_pass_on();
-		led_on(LED_RED);
+		led_fail_on();
 		pdi_mdelay(200);
-		led_off(LED_GREEN);
-		led_off(LED_RED);
+		led_pass_off();
+		led_fail_off();
 		pdi_mdelay(100);
 	}
 	return 0;
@@ -154,75 +151,29 @@ static int pdi_GetDID(char did, char *data)
 	return 0;
 }
 
-const can_msg_t pdi_wakeup_msg =	{0x100, 8, {0, 0, 0, 0, 0, 0, 0, 0}, 0};
-const can_msg_t pdi_dtc_msg = 		{0x247, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
-const can_msg_t pdi_cpid_msg = 		{0x247, 8, {0x03, 0xae, 0x01, 0x3f, 0, 0, 0, 0}, 0};
-const can_msg_t pdi_present_msg =	{0x101, 3, {0xfe, 0x01, 0x3e}, 0};
-const can_msg_t pdi_621_msg =		{0x621, 8, {0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
-const can_msg_t pdi_10_power_cfg_msg =	{0x10242040, 1, {0x01}, 1};
-const can_msg_t pdi_11_power_cfg_msg =	{0x10002040, 1, {0x01}, 1};
-const can_msg_t pdi_10_pwr_on_msg1 =	{0x10242040, 1, {0x03}, 1};
-const can_msg_t pdi_11_pwr_on_msg1 =	{0x10002040, 4, {0x03,0x00,0x00,0x00}, 1};
-const can_msg_t pdi_10_pwr_on_msg2 =	{0x10244060, 1, {0x03}, 1};
-const can_msg_t pdi_11_pwr_on_msg2 =	{0x10004060, 1, {0x03}, 1};
-const can_msg_t pdi_10_pwr_off_msg1 =	{0x10242040, 1, {0x00}, 1};
-const can_msg_t pdi_10_pwr_off_msg2 =	{0x10244060, 1, {0x00}, 1};
-const can_msg_t pdi_11_pwr_off_msg1 =	{0x10002040, 4, {0x00,0x00,0x00,0x00}, 1};
-const can_msg_t pdi_11_pwr_off_msg2 =	{0x10004060, 1, {0x00}, 1};
-
-static int pdi_wakeup()
+static int pdi_GetDPID(char dpid, char *data)
 {
-	int i;
-	pdi_batt_on();
-	pdi_mdelay(400);
-	pdi_can_bus->send(&pdi_wakeup_msg);
-	pdi_mdelay(100);
-	pdi_GetDID(0x22,pdi_data_buf);
-	for(i = 0; i < 2; i++) {
-		printf("%2x, ",pdi_data_buf[i]&0xff);
-	}
-	printf("\n");
-	pdi_GetDPID(0x05,pdi_data_buf);
-	for(i = 0; i < 8; i++) {
-		printf("%2x, ",pdi_data_buf[i]&0xff);
-	}
-	printf("\n");
-	pdi_can_bus->send(&pdi_wakeup_msg);
-	pdi_mdelay(200);
-	pdi_can_bus->send(&pdi_10_power_cfg_msg);
-	pdi_can_bus->send(&pdi_11_power_cfg_msg);
-	pdi_mdelay(50);
-	pdi_can_bus->send(&pdi_621_msg);
-	pdi_mdelay(50);
-	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
-	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
-	pdi_mdelay(200);
-	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
-	pdi_can_bus->send(&pdi_11_pwr_on_msg1);
-	pdi_mdelay(200);
-	pdi_can_bus->send(&pdi_dtc_msg);
-	pdi_mdelay(200);
-	pdi_can_bus->send(&pdi_cpid_msg);
-	pdi_mdelay(200);
+	can_msg_t pdi_recv_msg;
+	can_msg_t pdi_send_msg = {0x247, 8, {0x03, 0xaa, 0x01, 0, 0, 0, 0, 0}, 0};
+	time_t over_time;
 
-	pdi_can_bus->send(&pdi_present_msg);
-	pdi_mdelay(3000);
-	pdi_can_bus->send(&pdi_present_msg);
-	pdi_mdelay(3000);
-	pdi_can_bus->send(&pdi_present_msg);
-	pdi_mdelay(3000);
-	pdi_can_bus->send(&pdi_present_msg);
+	pdi_send_msg.data[3] = dpid;
+	pdi_can_bus->send(&pdi_send_msg);
+	over_time = time_get(100);
+	do {
+		if (time_left(over_time) < 0)
+			return 1;
+		if (pdi_can_bus->recv(&pdi_recv_msg) == 0) {
+			if (pdi_recv_msg.data[0] == dpid)
+				break;
+			else
+				return 1;
+		}
+	} while(1);
 
-	pdi_GetDPID(0x12,pdi_data_buf);
-	for(i = 0; i < 8; i++) {
-		printf("%2x, ",pdi_data_buf[i]&0xff);
-	}
-	printf("\n");
-	//pdi_sleep();
-
+	memcpy(data, (pdi_recv_msg.data + 1), 7);
 	return 0;
 }
-
 
 static int pdi_clear_dtc()
 {
@@ -263,27 +214,95 @@ static int pdi_GetFault(char *data, int * pnum_fault)
 	return 0;
 }
 
-static int pdi_GetDPID(char dpid, char *data)
+const can_msg_t pdi_wakeup_msg =	{0x100, 8, {0, 0, 0, 0, 0, 0, 0, 0}, 0};
+const can_msg_t pdi_dtc_msg = 		{0x247, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
+const can_msg_t pdi_cpid_msg = 		{0x247, 8, {0x03, 0xae, 0x01, 0x3f, 0, 0, 0, 0}, 0};
+const can_msg_t pdi_present_msg =	{0x101, 3, {0xfe, 0x01, 0x3e}, 0};
+const can_msg_t pdi_621_msg =		{0x621, 8, {0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
+const can_msg_t pdi_10_power_cfg_msg =	{0x10242040, 1, {0x01}, 1};
+const can_msg_t pdi_11_power_cfg_msg =	{0x10002040, 1, {0x01}, 1};
+const can_msg_t pdi_10_pwr_on_msg1 =	{0x10242040, 1, {0x03}, 1};
+const can_msg_t pdi_11_pwr_on_msg1 =	{0x10002040, 4, {0x03,0x00,0x00,0x00}, 1};
+const can_msg_t pdi_10_pwr_on_msg2 =	{0x10244060, 1, {0x03}, 1};
+const can_msg_t pdi_11_pwr_on_msg2 =	{0x10004060, 1, {0x03}, 1};
+const can_msg_t pdi_10_pwr_off_msg1 =	{0x10242040, 1, {0x00}, 1};
+const can_msg_t pdi_10_pwr_off_msg2 =	{0x10244060, 1, {0x00}, 1};
+const can_msg_t pdi_11_pwr_off_msg1 =	{0x10002040, 4, {0x00,0x00,0x00,0x00}, 1};
+const can_msg_t pdi_11_pwr_off_msg2 =	{0x10004060, 1, {0x00}, 1};
+
+static int pdi_wakeup()
 {
-	can_msg_t pdi_recv_msg;
-	can_msg_t pdi_send_msg = {0x247, 8, {0x03, 0xaa, 0x01, 0, 0, 0, 0, 0}, 0};
-	time_t over_time;
+	int i;
+	pdi_batt_on();
+	pdi_mdelay(400);
+	pdi_can_bus->send(&pdi_wakeup_msg);
+	pdi_mdelay(100);
+	pdi_GetDID(0x22,pdi_data_buf);
+	for(i = 0; i < 2; i++) {
+		printf("%2x, ",pdi_data_buf[i]&0xff);
+	}
+	printf("\n");
+	pdi_GetDPID(0x05,pdi_data_buf);
+	for(i = 0; i < 8; i++) {
+		printf("%2x, ",pdi_data_buf[i]&0xff);
+	}
+	printf("\n");
+	pdi_can_bus->send(&pdi_wakeup_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_wakeup_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_10_power_cfg_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_10_power_cfg_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_11_power_cfg_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_11_power_cfg_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_621_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_621_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_11_pwr_on_msg1);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_11_pwr_on_msg1);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_dtc_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_dtc_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_cpid_msg);
+	pdi_mdelay(20);
+	pdi_can_bus->send(&pdi_cpid_msg);
+	pdi_mdelay(20);
 
-	pdi_send_msg.data[3] = dpid;
-	pdi_can_bus->send(&pdi_send_msg);
-	over_time = time_get(100);
-	do {
-		if (time_left(over_time) < 0)
-			return 1;
-		if (pdi_can_bus->recv(&pdi_recv_msg) == 0) {
-			if (pdi_recv_msg.data[0] == dpid)
-				break;
-			else
-				return 1;
-		}
-	} while(1);
+	pdi_can_bus->send(&pdi_present_msg);
+	pdi_mdelay(2000);
+	pdi_can_bus->send(&pdi_present_msg);
+	pdi_mdelay(2000);
+	// pdi_can_bus->send(&pdi_present_msg);
+	// pdi_mdelay(3000);
+	pdi_can_bus->send(&pdi_present_msg);
 
-	memcpy(data, (pdi_recv_msg.data + 1), 7);
+	pdi_GetDPID(0x12,pdi_data_buf);
+	for(i = 0; i < 8; i++) {
+		printf("%2x, ",pdi_data_buf[i]&0xff);
+	}
+	printf("\n");
+	//pdi_sleep();
+
 	return 0;
 }
 
@@ -305,8 +324,6 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		// printf("##END##\n");
 	// }
 	pdi_wakeup();
-	led_off(LED_RED);
-	led_off(LED_GREEN);
 	for(i = 0; i < sr->nr_of_rules; i++) {
 		try_times = 5;
 		pdi_cfg_rule = pdi_rule_get(sr,i);
@@ -316,6 +333,9 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_DID:
+			printf("##START##EC-checking DID:");
+			printf("%X",(char *)pdi_cfg_rule->para);
+			printf("##END##\n");
 			while (pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf)) {
 				try_times --;
 				if (try_times <= 0)
@@ -323,6 +343,9 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 			}
 			break;
 		case PDI_RULE_DPID:
+			printf("##START##EC-checking DPID:");
+			printf("%X",(char *)pdi_cfg_rule->para);
+			printf("##END##\n");
 			while (pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf)) {
 				try_times --;
 				if (try_times <= 0)
@@ -334,13 +357,22 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0) {
 			if(i == 0) {
-				printf("##START##RB-");
+				printf("##START##RB-	");
 				printf(pdi_data_buf);
 				printf("##END##\n");
+				printf("##START##EC-checking barcode##END##\n");
+				for(i = 3; i < 20; i++)
+					if(bcode_1[i] == pdi_data_buf[i-3])
+						i++;
+				if(i != 21) {
+					printf("##START##EC-barcode is wrong##END##\n");
+					return 1;
+				}
+
 			}
 			continue;
 		} else {
-			printf("##START##EC-");
+			printf("##START##EC-fault is");
 			if (pdi_cfg_rule->type == PDI_RULE_DID)
 				printf("DID: $");
 			else if (pdi_cfg_rule->type == PDI_RULE_DPID)
@@ -352,6 +384,28 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 			return 1;
 		}
 	}
+	return 0;
+}
+
+static int pdi_sleep()
+{
+	pdi_can_bus->send(&pdi_10_pwr_off_msg1);
+	pdi_mdelay(10);
+	pdi_can_bus->send(&pdi_10_pwr_off_msg1);
+	pdi_mdelay(10);
+	pdi_can_bus->send(&pdi_10_pwr_off_msg2);
+	pdi_mdelay(10);
+	pdi_can_bus->send(&pdi_10_pwr_off_msg2);
+	pdi_mdelay(10);
+	pdi_can_bus->send(&pdi_11_pwr_off_msg1);
+	pdi_mdelay(10);
+	pdi_can_bus->send(&pdi_11_pwr_off_msg1);
+	pdi_mdelay(10);
+	pdi_can_bus->send(&pdi_11_pwr_off_msg2);
+	pdi_mdelay(10);
+	pdi_can_bus->send(&pdi_11_pwr_off_msg2);
+	pdi_mdelay(350);
+	pdi_batt_off();
 	return 0;
 }
 
@@ -383,6 +437,8 @@ void pdi_process(void)
 		led_flash(LED_GREEN);
 		led_flash(LED_RED);
 		bcode[19] = '\0';
+		for(int i = 0; i<20 ;i++)
+			bcode_1[i] = bcode[i];
 		printf("##START##SB-");
 		printf(bcode,"\0");
 		printf("##END##\n");
@@ -390,6 +446,8 @@ void pdi_process(void)
 		pdi_cfg_file = pdi_cfg_get(bcode);
 		if(pdi_cfg_file == NULL) {
 			pdi_sleep();
+			led_off(LED_GREEN);
+			led_off(LED_RED);
 			pdi_fail_action();
 			printf("##START##EC-no this config file##END##\n");
 		} else {
@@ -401,43 +459,40 @@ void pdi_process(void)
 						printf("##START##EC-read DTC error##END##\n");
 					else if(num_fault == 0) {
 						pdi_sleep();
+						led_off(LED_GREEN);
+						led_off(LED_RED);
 						pdi_pass_action();
 						}
 					else {
-						//pdi_clear_dtc();
+						pdi_clear_dtc();
 						printf("##START##EC-");
 						printf("num of fault is: %d*", num_fault);
 						for (int i = 0; i < num_fault*3; i += 3)
 							printf("0x%2x, 0x%2x, 0x%2x*", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
 						printf("##END##\n");
 						pdi_sleep();
+						led_off(LED_GREEN);
+						led_off(LED_RED);
 						pdi_fail_action();
 					}
 				} else {
 					pdi_sleep();
+					led_off(LED_GREEN);
+					led_off(LED_RED);
 					pdi_fail_action();
 					}
 			} else {
+				led_off(LED_GREEN);
+				led_off(LED_RED);
 				target_noton_action();
 				printf("##START##EC-target is not on the right position##END##\n");
 			}
-			led_off(LED_GREEN);
-			led_off(LED_RED);
+			// led_off(LED_GREEN);
+			// led_off(LED_RED);
 		}
 	}
 }
 
-static int pdi_sleep()
-{
-	pdi_mdelay(100);
-	pdi_can_bus->send(&pdi_10_pwr_off_msg1);
-	pdi_can_bus->send(&pdi_10_pwr_off_msg2);
-	pdi_can_bus->send(&pdi_11_pwr_off_msg1);
-	pdi_can_bus->send(&pdi_11_pwr_off_msg2);
-	pdi_mdelay(20);
-	pdi_batt_off();
-	return 0;
-}
 
 int main(void)
 {
