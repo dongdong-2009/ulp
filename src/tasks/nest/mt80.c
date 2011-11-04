@@ -501,6 +501,7 @@ void main(void)
 	nest_power_off();
 	nest_message("\nPower Conditioning - MT80\n");
 	nest_message("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
+	nest_message("nest ID:MT80-%03d\n",(*nest_info_get()).id_base);
 
 	while(1){
 		TestStart();
