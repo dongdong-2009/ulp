@@ -8,3 +8,4 @@ obj-$(CONFIG_NEST_HCU_GAC) += lib/ hcu.o
 obj-$(CONFIG_NEST_IGBT_BURN) += burn.o
 obj-$(CONFIG_NEST_TESTFIXTURE) += testfixture.o
 obj-$(CONFIG_NEST_FIXTURE) += fixture.o
+obj-$(CONFIG_NEST_TCM8P0) += lib/ tcm80.o
