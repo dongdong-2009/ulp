@@ -17,6 +17,21 @@
 #include "led.h"
 
 //local varibles;
+const can_msg_t pdi_wakeup_msg =	{0x100, 8, {0, 0, 0, 0, 0, 0, 0, 0}, 0};
+const can_msg_t pdi_dtc_msg = 		{0x247, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
+const can_msg_t pdi_cpid_msg = 		{0x247, 8, {0x03, 0xae, 0x01, 0x3f, 0, 0, 0, 0}, 0};
+const can_msg_t pdi_present_msg =	{0x101, 3, {0xfe, 0x01, 0x3e}, 0};
+const can_msg_t pdi_621_msg =		{0x621, 8, {0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
+const can_msg_t pdi_10_power_cfg_msg =	{0x10242040, 1, {0x01}, 1};
+const can_msg_t pdi_11_power_cfg_msg =	{0x10002040, 1, {0x01}, 1};
+const can_msg_t pdi_10_pwr_on_msg1 =	{0x10242040, 1, {0x03}, 1};
+const can_msg_t pdi_11_pwr_on_msg1 =	{0x10002040, 4, {0x03,0x00,0x00,0x00}, 1};
+const can_msg_t pdi_10_pwr_on_msg2 =	{0x10244060, 1, {0x03}, 1};
+const can_msg_t pdi_11_pwr_on_msg2 =	{0x10004060, 1, {0x03}, 1};
+const can_msg_t pdi_10_pwr_off_msg1 =	{0x10242040, 1, {0x00}, 1};
+const can_msg_t pdi_10_pwr_off_msg2 =	{0x10244060, 1, {0x00}, 1};
+const can_msg_t pdi_11_pwr_off_msg1 =	{0x10002040, 4, {0x00,0x00,0x00,0x00}, 1};
+const can_msg_t pdi_11_pwr_off_msg2 =	{0x10004060, 1, {0x00}, 1};
 static const can_bus_t* pdi_can_bus = &can1;
 static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
 static char pdi_data_buf[256];
@@ -47,10 +62,16 @@ static int target_noton_action();
 static int pdi_clear_dtc();
 static int pdi_wakeup();
 static int pdi_sleep();
-void pdi_process();
+static int pdi_check_init(const struct pdi_cfg_s *);
+static int pdi_led_start();
+static void pdi_process();
+
 
 static int pdi_fail_action()
 {
+	pdi_sleep();
+	led_off(LED_GREEN);
+	led_off(LED_RED);
 	led_on(LED_RED);
 	counter_fail_add();
 	beep_on();
@@ -61,15 +82,9 @@ static int pdi_fail_action()
 
 static int pdi_pass_action()
 {
-	//char temp[3];
-	// for(int j = 90; j <= 100; j++) {
-		// pdi_mdelay(50);
-		// printf("##START##STATUS-");
-		// sprintf(temp,"%d",j);
-		// printf("%s",temp);
-		// printf("##END##\n");
-	// }
-	pdi_mdelay(10);
+	pdi_sleep();
+	led_off(LED_GREEN);
+	led_off(LED_RED);
 	led_on(LED_GREEN);
 	beep_on();
 	pdi_mdelay(20);
@@ -86,6 +101,8 @@ static int pdi_pass_action()
 
 static int target_noton_action()
 {
+	led_off(LED_GREEN);
+	led_off(LED_RED);
 	for(int i = 0; i < 4; i++) {
 		beep_on();
 		led_on(LED_GREEN);
@@ -104,6 +121,16 @@ static int target_noton_action()
 		led_off(LED_RED);
 		pdi_mdelay(100);
 	}
+	return 0;
+}
+
+static int pdi_led_start()
+{
+	led_off(LED_GREEN);
+	led_off(LED_RED);
+	led_Update_Immediate();
+	led_flash(LED_GREEN);
+	led_flash(LED_RED);
 	return 0;
 }
 
@@ -182,13 +209,14 @@ static int check_barcode(void)
 {
 	int try_times = 5;
 
+	printf("##START##EC-checking barcode##END##\n");
+
 	while (pdi_GetDID(0xB4,pdi_data_buf)) {
 		try_times --;
 		if (try_times < 0)
 			return 1;
 	}
 
-	printf("##START##EC-checking barcode##END##\n");
 	if (memcmp(bcode_1 + 3, pdi_data_buf, 16))
 		return 1;
 	else
@@ -234,54 +262,41 @@ static int pdi_GetFault(char *data, int * pnum_fault)
 	return 0;
 }
 
-const can_msg_t pdi_wakeup_msg =	{0x100, 8, {0, 0, 0, 0, 0, 0, 0, 0}, 0};
-const can_msg_t pdi_dtc_msg = 		{0x247, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
-const can_msg_t pdi_cpid_msg = 		{0x247, 8, {0x03, 0xae, 0x01, 0x3f, 0, 0, 0, 0}, 0};
-const can_msg_t pdi_present_msg =	{0x101, 3, {0xfe, 0x01, 0x3e}, 0};
-const can_msg_t pdi_621_msg =		{0x621, 8, {0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
-const can_msg_t pdi_10_power_cfg_msg =	{0x10242040, 1, {0x01}, 1};
-const can_msg_t pdi_11_power_cfg_msg =	{0x10002040, 1, {0x01}, 1};
-const can_msg_t pdi_10_pwr_on_msg1 =	{0x10242040, 1, {0x03}, 1};
-const can_msg_t pdi_11_pwr_on_msg1 =	{0x10002040, 4, {0x03,0x00,0x00,0x00}, 1};
-const can_msg_t pdi_10_pwr_on_msg2 =	{0x10244060, 1, {0x03}, 1};
-const can_msg_t pdi_11_pwr_on_msg2 =	{0x10004060, 1, {0x03}, 1};
-const can_msg_t pdi_10_pwr_off_msg1 =	{0x10242040, 1, {0x00}, 1};
-const can_msg_t pdi_10_pwr_off_msg2 =	{0x10244060, 1, {0x00}, 1};
-const can_msg_t pdi_11_pwr_off_msg1 =	{0x10002040, 4, {0x00,0x00,0x00,0x00}, 1};
-const can_msg_t pdi_11_pwr_off_msg2 =	{0x10004060, 1, {0x00}, 1};
-
 static int pdi_wakeup()
 {
-	int i;
+	int i , rate;
 	char temp[2];
 	printf("##START##EC-Initialize LAN  communication##END##\n");
 	pdi_batt_on();
-	for(int a = 0; a < 10; a++) {
+//delay 400ms
+	for(rate = 0; rate < 10; rate ++) {
 		pdi_mdelay(40);
 		printf("##START##STATUS-");
-		sprintf(temp,"%d",a);
-		printf("%s",temp);
+		sprintf(temp, "%d", rate);
+		printf("%s", temp);
 		printf("##END##\n");
 	}
 	pdi_can_bus->send(&pdi_wakeup_msg);
-	for(int b = 10; b <= 12; b++) {
-		pdi_mdelay(40);
+//delay 100ms
+	for(rate = 10; rate < 13; rate ++) {
+		pdi_mdelay(30);
 		printf("##START##STATUS-");
-		sprintf(temp,"%d",b);
-		printf("%s",temp);
+		sprintf(temp, "%d", rate);
+		printf("%s", temp);
 		printf("##END##\n");
 	}
-	//pdi_mdelay(100);
-	pdi_GetDID(0x22,pdi_data_buf);
+//try 2 times
+	pdi_GetDID(0x22, pdi_data_buf);
 	for(i = 0; i < 2; i++) {
-		printf("%2x, ",pdi_data_buf[i]&0xff);
+		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
 	printf("\n");
 	pdi_GetDPID(0x05,pdi_data_buf);
 	for(i = 0; i < 8; i++) {
-		printf("%2x, ",pdi_data_buf[i]&0xff);
+		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
 	printf("\n");
+
 	printf("##START##EC-Send High Voltage Wakeup##END##\n");
 	pdi_can_bus->send(&pdi_wakeup_msg);
 	pdi_mdelay(20);
@@ -325,38 +340,35 @@ static int pdi_wakeup()
 	pdi_mdelay(20);
 	pdi_can_bus->send(&pdi_cpid_msg);
 	pdi_mdelay(20);
-
-	if(check_barcode()) {
-		pdi_mdelay(40);
-		printf("##START##EC-barcode is wrong##END##\n");
-		return 1;
-	}
-
 	printf("##START##STATUS-18##END##\n");
-	pdi_can_bus->send(&pdi_present_msg);
-	pdi_mdelay(25);
+	pdi_mdelay(40);
 	printf("##START##EC-ECU will be ready##END##\n");
-	// for(int c = 19; c < 57; c++) {
-		// pdi_mdelay(80);
-		// printf("##START##STATUS-");
-		// sprintf(temp,"%d",c);
-		// printf("%s",temp);
-		// printf("##END##\n");
-	// }
-	// pdi_can_bus->send(&pdi_present_msg);
-	// for(int d = 57; d < 93; d++) {
-		// pdi_mdelay(80);
-		// printf("##START##STATUS-");
-		// sprintf(temp,"%d",d);
-		// printf("%s",temp);
-		// printf("##END##\n");
-	// }
+
 	pdi_can_bus->send(&pdi_present_msg);
-	pdi_mdelay(3000);
 	pdi_can_bus->send(&pdi_present_msg);
-	pdi_mdelay(3000);
+
+	for(rate = 19; rate < 57; rate ++) {
+		pdi_mdelay(80);
+		printf("##START##STATUS-");
+		sprintf(temp, "%d", rate);
+		printf("%s", temp);
+		printf("##END##\n");
+	}
 	pdi_can_bus->send(&pdi_present_msg);
-	pdi_mdelay(3000);//感觉这里有错，应该再次发一下pdi_present_msg，不然后面会死掉
+	pdi_can_bus->send(&pdi_present_msg);
+
+	for(rate = 57; rate < 95; rate ++) {
+		pdi_mdelay(80);
+		printf("##START##STATUS-");
+		sprintf(temp,"%d", rate);
+		printf("%s", temp);
+		printf("##END##\n");
+	}
+	pdi_can_bus->send(&pdi_present_msg);
+	pdi_can_bus->send(&pdi_present_msg);
+
+	//pdi_mdelay(3000);感觉这里有错，应该再次发一下pdi_present_msg，不然后面会死掉
+	//try DPID $12 again
 	pdi_GetDPID(0x12,pdi_data_buf);
 	for(i = 0; i < 8; i++) {
 		printf("%2x, ",pdi_data_buf[i]&0xff);
@@ -367,26 +379,29 @@ static int pdi_wakeup()
 	return 0;
 }
 
-static int pdi_check(const struct pdi_cfg_s *sr)
+static int pdi_check_init(const struct pdi_cfg_s *sr)
 {
-	int i, try_times = 5;
-	int num_fault;
-	//char data[16];
-	const struct pdi_rule_s* pdi_cfg_rule;
 	char *o=(char *)&(sr->relay);
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+3));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+2));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+1));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+0));
-		// for(int k = 0; k < 90; k++) {
-		// pdi_mdelay(70);
-		// printf("##START##STATUS-");
-		// sprintf(temp,"%d",k);
-		// printf("%s",temp);
-		// printf("##END##\n");
-	// }
-	if (pdi_wakeup())
+	return 0;
+}
+
+static int pdi_check(const struct pdi_cfg_s *sr)
+{
+	int i, try_times = 5;
+	int num_fault;
+	const struct pdi_rule_s* pdi_cfg_rule;
+
+	if(pdi_wakeup())
 		return 1;
+
+	if(check_barcode()) {
+		printf("##START##EC-Barcode Wrong##END##\n");
+		return 1;
+	}
 
 	while (pdi_GetFault(pdi_fault_buf, &num_fault)) {
 		try_times --;
@@ -396,7 +411,6 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 	}
 
-	try_times = 5;
 	if (num_fault) {
 		pdi_clear_dtc();
 		printf("##START##EC-");
@@ -407,7 +421,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		return 1;
 	}
 
-	for(i = 0; i < sr->nr_of_rules; i++) {
+	for(i = 0; i < sr->nr_of_rules; i ++) {
 		try_times = 5;
 		pdi_cfg_rule = pdi_rule_get(sr,i);
 		if (&pdi_cfg_rule == NULL) {
@@ -419,8 +433,6 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 			printf("##START##EC-checking DID:");
 			printf("%X",(char *)pdi_cfg_rule->para);
 			printf("##END##\n");
-			if(i == 0) {
-			}
 			while (pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf)) {
 				try_times --;
 				if (try_times <= 0)
@@ -429,7 +441,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 			break;
 		case PDI_RULE_DPID:
 			printf("##START##EC-checking DPID:");
-			printf("%X",(char *)pdi_cfg_rule->para);
+			printf("%X", (char *)pdi_cfg_rule->para);
 			printf("##END##\n");
 			while (pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf)) {
 				try_times --;
@@ -440,21 +452,15 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		case PDI_RULE_UNDEF:
 			return 1;
 		}
+
 		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0) {
 			if(i == 0) {
-				printf("##START##RB-	");
+				printf("##START##RB-");
 				printf(pdi_data_buf);
 				printf("##END##\n");
-				// printf("##START##EC-checking barcode##END##\n");
-				// for(i = 3; i < 20; i++)
-					// if(bcode_1[i] == pdi_data_buf[i-3])
-						// i++;
-				// if(i != 21) {
-					// printf("##START##EC-barcode is wrong##END##\n");
-					// return 1;
-				// }
-
 			}
+			if(i == 12)
+				pdi_can_bus->send(&pdi_present_msg);
 			continue;
 		} else {
 			printf("##START##EC-Error: Fault is : ");
@@ -475,6 +481,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 static int pdi_sleep()
 {
 	char temp[3];
+	int rate;
 	printf("##START##EC---------------------------------------##END##\n");
 	pdi_mdelay(20);
 	printf("##START##EC-Transmitting Power Mode Off##END##\n");
@@ -495,10 +502,10 @@ static int pdi_sleep()
 	pdi_mdelay(10);
 	pdi_can_bus->send(&pdi_11_pwr_off_msg2);
 	printf("##START##STATUS-94##END##\n");
-	for(int e = 95; e <= 100; e++) {
+	for(int rate = 95; rate <= 100; rate ++) {
 		pdi_mdelay(50);
 		printf("##START##STATUS-");
-		sprintf(temp,"%d",e);
+		sprintf(temp,"%d",rate);
 		printf("%s",temp);
 		printf("##END##\n");
 	}
@@ -525,58 +532,39 @@ void pdi_process(void)
 {
 	const struct pdi_cfg_s* pdi_cfg_file;
 	char bcode[20];
-	if(target_on() == 1)
+	if(target_on())
 		start_botton_on();
 	else start_botton_off();
 	if(ls1203_Read(&pdi_ls1203,bcode) == 0) {
+
 		start_botton_off();
-		led_off(LED_GREEN);
-		led_off(LED_RED);
-		led_Update_Immediate();
-		led_flash(LED_GREEN);
-		led_flash(LED_RED);
+		pdi_led_start();
 		bcode[19] = '\0';
-		for(int i = 0; i<20 ;i++)
-			bcode_1[i] = bcode[i];
+
+		memcpy(bcode_1 ,bcode ,19);
 		printf("##START##SB-");
 		printf(bcode,"\0");
 		printf("##END##\n");
 		bcode[9] = '\0';
+
 		pdi_cfg_file = pdi_cfg_get(bcode);
-		if(pdi_cfg_file == NULL) {
-			pdi_sleep();
-			led_off(LED_GREEN);
-			led_off(LED_RED);
-			pdi_fail_action();
-			printf("##START##EC-no this config file##END##\n");
-		} else {
-			// led_flash(LED_GREEN);
-			// led_flash(LED_RED);
-			if(target_on() == 1) {
-				if(pdi_check(pdi_cfg_file) == 0) {
-					pdi_sleep();
-					led_off(LED_GREEN);
-					led_off(LED_RED);
-					//printf("##START##EC-no error##END##\n");
-					pdi_pass_action();
-				} else {
-					pdi_sleep();
-					led_off(LED_GREEN);
-					led_off(LED_RED);
-					pdi_fail_action();
-				}
-			} else {
-				led_off(LED_GREEN);
-				led_off(LED_RED);
-				target_noton_action();
-				printf("##START##EC-target is not on the right position##END##\n");
+
+		if(target_on()) {
+			if(pdi_cfg_file == NULL) {
+				pdi_fail_action();
+				printf("##START##EC-No This Config File##END##\n");
 			}
-			// led_off(LED_GREEN);
-			// led_off(LED_RED);
+			pdi_check_init(pdi_cfg_file);
+			if(pdi_check(pdi_cfg_file) == 0)
+				pdi_pass_action();
+			else
+				pdi_fail_action();
+		} else {
+			target_noton_action();
+			printf("##START##EC-target is not on the right position##END##\n");
 		}
 	}
 }
-
 
 int main(void)
 {
