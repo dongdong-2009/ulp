@@ -64,8 +64,62 @@ static int pdi_wakeup();
 static int pdi_sleep();
 static int pdi_check_init(const struct pdi_cfg_s *);
 static int pdi_led_start();
+static int pdi_mdelay(int );
+static int init_OK();
+static int counter_pass_add();
+static int counter_fail_add();
 static void pdi_process();
 
+static int pdi_mdelay(int ms)
+{
+	int left;
+	time_t deadline = time_get(ms);
+	do {
+		left = time_left(deadline);
+		if(left >= 10) { //system update period is expected less than 10ms
+			ulp_update();
+		}
+	} while(left > 0);
+
+	return 0;
+}
+
+static int init_OK()
+{
+	led_on(LED_RED);
+	led_on(LED_GREEN);
+	beep_on();
+	pdi_mdelay(200);
+	led_off(LED_RED);
+	led_off(LED_GREEN);
+	beep_off();
+	pdi_mdelay(100);
+	for(int i = 0; i < 5; i++){
+		led_on(LED_RED);
+		led_on(LED_GREEN);
+		pdi_mdelay(200);
+		led_off(LED_RED);
+		led_off(LED_GREEN);
+		pdi_mdelay(100);
+	}
+	return 0;
+}
+
+static int counter_pass_add()
+{
+	counter_pass_rise();
+	pdi_mdelay(40);
+	counter_pass_down();
+	return 0;
+}
+
+static int counter_fail_add()
+{
+	counter_fail_rise();
+	pdi_mdelay(40);
+	counter_fail_down();
+	return 0;
+}
 
 static int pdi_fail_action()
 {
@@ -157,7 +211,7 @@ static int pdi_GetDID(char did, char *data)
 			return 1;
 	} else if (msg_len > 1) {
 		memcpy(data, (msg_res.data + 4), 4);
-		printf("%d\n",data);
+		printf("%d\n", data);
 		data += 4;
 		for (i = 1; i < msg_len; i++) {
 			memcpy(data, (pdi_msg_buf + i)->data + 1, 7);
@@ -211,7 +265,7 @@ static int check_barcode(void)
 
 	printf("##START##EC-checking barcode##END##\n");
 
-	while (pdi_GetDID(0xB4,pdi_data_buf)) {
+	while (pdi_GetDID(0xB4, pdi_data_buf)) {
 		try_times --;
 		if (try_times < 0)
 			return 1;
@@ -291,7 +345,7 @@ static int pdi_wakeup()
 		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
 	printf("\n");
-	pdi_GetDPID(0x05,pdi_data_buf);
+	pdi_GetDPID(0x05, pdi_data_buf);
 	for(i = 0; i < 8; i++) {
 		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
@@ -369,10 +423,11 @@ static int pdi_wakeup()
 
 	//pdi_mdelay(3000);感觉这里有错，应该再次发一下pdi_present_msg，不然后面会死掉
 	//try DPID $12 again
-	pdi_GetDPID(0x12,pdi_data_buf);
-	for(i = 0; i < 8; i++) {
-		printf("%2x, ",pdi_data_buf[i]&0xff);
-	}
+
+	pdi_GetDPID(0x12, pdi_data_buf);
+	for(i = 0; i < 8; i ++)
+		printf("%2x,", pdi_data_buf[i]&0xff);
+
 	printf("\n");
 	//pdi_sleep();
 
@@ -415,7 +470,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		pdi_clear_dtc();
 		printf("##START##EC-");
 		printf("num of fault is: %d*", num_fault);
-		for (int i = 0; i < num_fault*3; i += 3)
+		for (i = 0; i < num_fault*3; i += 3)
 			printf("0x%2x, 0x%2x, 0x%2x*", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
 		printf("##END##\n");
 		return 1;
@@ -423,7 +478,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 
 	for(i = 0; i < sr->nr_of_rules; i ++) {
 		try_times = 5;
-		pdi_cfg_rule = pdi_rule_get(sr,i);
+		pdi_cfg_rule = pdi_rule_get(sr, i);
 		if (&pdi_cfg_rule == NULL) {
 			printf("##START##EC-no this rule##END##\n");
 			return 1;
@@ -431,12 +486,16 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_DID:
 			printf("##START##EC-checking DID:");
-			printf("%X",(char *)pdi_cfg_rule->para);
+			printf("%X", (char *)pdi_cfg_rule->para);
 			printf("##END##\n");
 			while (pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf)) {
 				try_times --;
-				if (try_times <= 0)
+				if (try_times <= 0) {
+					printf("##START##EC-read DID:");
+					printf("%X", (char *)pdi_cfg_rule->para);
+					printf(" error ##END##\n");
 					return 1;
+				}
 			}
 			break;
 		case PDI_RULE_DPID:
@@ -445,8 +504,12 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 			printf("##END##\n");
 			while (pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf)) {
 				try_times --;
-				if (try_times <= 0)
+				if (try_times <= 0) {
+					printf("##START##EC-read DPID:");
+					printf("%X", (char *)pdi_cfg_rule->para);
+					printf(" error ##END##\n");
 					return 1;
+				}
 			}
 			break;
 		case PDI_RULE_UNDEF:
@@ -502,11 +565,11 @@ static int pdi_sleep()
 	pdi_mdelay(10);
 	pdi_can_bus->send(&pdi_11_pwr_off_msg2);
 	printf("##START##STATUS-94##END##\n");
-	for(int rate = 95; rate <= 100; rate ++) {
+	for(rate = 95; rate <= 100; rate ++) {
 		pdi_mdelay(50);
 		printf("##START##STATUS-");
-		sprintf(temp,"%d",rate);
-		printf("%s",temp);
+		sprintf(temp, "%d", rate);
+		printf("%s", temp);
 		printf("##END##\n");
 	}
 	pdi_batt_off();
@@ -535,13 +598,13 @@ void pdi_process(void)
 	if(target_on())
 		start_botton_on();
 	else start_botton_off();
-	if(ls1203_Read(&pdi_ls1203,bcode) == 0) {
+	if(ls1203_Read(&pdi_ls1203, bcode) == 0) {
 
 		start_botton_off();
 		pdi_led_start();
 		bcode[19] = '\0';
 
-		memcpy(bcode_1 ,bcode ,19);
+		memcpy(bcode_1, bcode, 19);
 		printf("##START##SB-");
 		printf(bcode,"\0");
 		printf("##END##\n");
@@ -577,17 +640,17 @@ int main(void)
 	}
 }
 
-static int cmd_pdi_func(int argc, char *argv[])
+static int cmd_sdm10_func(int argc, char *argv[])
 {
 	int num_fault, i;
 
 	const char *usage = {
-		"pdi power control, usage:\n"
-		"pdi on\n"
-		"pdi off\n"
-		"pdi fault\n"
-		"pdi clear\n"
-		"pdi wakeup\n"
+		"sdm10 , usage:\n"
+		"sdm10 fault\n"
+		"sdm10 clear\n"
+		"sdm10 wakeup	it maybe result in some error code!\n"
+		"sdm10 batt on/off\n"
+		"sdm10 IGN on/off\n"
 	};
 
 	if (argc < 2) {
@@ -597,6 +660,7 @@ static int cmd_pdi_func(int argc, char *argv[])
 
 	if(argc == 2) {
 		if(argv[1][0] == 'f') {
+			pdi_wakeup();
 			if (pdi_GetFault(pdi_fault_buf, &num_fault))
 				printf("##ERROR##\n");
 			else {
@@ -605,9 +669,12 @@ static int cmd_pdi_func(int argc, char *argv[])
 				for (i = 0; i < num_fault*3; i += 3)
 					printf("0x%2x, 0x%2x, 0x%2x\n", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
 			}
+			pdi_sleep();
 		}
 		if(argv[1][0] == 'c') {
+			pdi_wakeup();
 			pdi_clear_dtc();
+			pdi_sleep();
 			printf("##OK##\n");
 		}
 		if(argv[1][0] == 'w') {
@@ -632,5 +699,5 @@ static int cmd_pdi_func(int argc, char *argv[])
 	return 0;
 }
 
-const cmd_t cmd_pdi = {"pdi", cmd_pdi_func, "pdi cmd i/f"};
-DECLARE_SHELL_CMD(cmd_pdi)
+const cmd_t cmd_sdm10 = {"sdm10", cmd_sdm10_func, "sdm10 cmd i/f"};
+DECLARE_SHELL_CMD(cmd_sdm10)
