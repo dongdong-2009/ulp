@@ -49,7 +49,7 @@ void c131_diag_Init(void);
 int c131_DiagSW(void);
 int c131_DiagLED(void);
 int c131_DiagLOOP(void);
-int c131_GetDiagLoop(int * *pdata, int * pdata_len);
-int c131_GetDiagSwitch(int * *pdata, int * pdata_len);
+int c131_GetDiagLoop(int * *pdata, int * *pflag, int * pdata_len);
+int c131_GetDiagSwitch(int * *pdata, int * *pflag, int * pdata_len);
 
 #endif /*__C131_DIAG_H_*/

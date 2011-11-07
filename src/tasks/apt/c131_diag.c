@@ -30,8 +30,8 @@
 #define LED4_FBC	0x08
 #define LED5_FBC	0x10
 
-static int diag_loop[14];
-static int diag_switch[10];
+static int diag_loop[14], loop_flag[14];
+static int diag_switch[10], switch_flag[10];
 
 //local function define
 static void c131_adc_Init(void);
@@ -59,6 +59,10 @@ void c131_diag_Init(void)
 
 	//get the lcd device pointer
 	apt_lcd = lcd_get(NULL);
+
+	//initialize flag data
+	memset(loop_flag, 0, sizeof(loop_flag));
+	memset(switch_flag, 0, sizeof(switch_flag));
 }
 
 int c131_DiagSW(void)
@@ -91,6 +95,7 @@ int c131_DiagSW(void)
 	diag_switch[0] = ((diag_switch[0] * 2500) >> 12) / 100;
 	if ((temp < SW1_14MA_LOW_LIMIT) || (temp > SW1_14MA_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
+		switch_flag[0] = 1;
 	}
 
 	sw_SetRelayStatus(C131_SW1_C2, RELAY_OFF);
@@ -104,6 +109,7 @@ int c131_DiagSW(void)
 	diag_switch[1] = ((diag_switch[1] * 2500) >> 12) / 100;
 	if ((temp < SW1_6MA_LOW_LIMIT) || (temp > SW1_6MA_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
+		switch_flag[1] = 1;
 	}
 
 	//DIAG FOR SW2 PAD
@@ -120,6 +126,7 @@ int c131_DiagSW(void)
 	diag_switch[2] = (3000 * ((temp * 2500) >> 12)) / (5000 - ((temp * 2500) >> 12));
 	if ((temp < SW2_2K82_LOW_LIMIT) || (temp > SW2_2K82_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
+		switch_flag[2] = 1;
 	}
 
 	sw_SetRelayStatus(C131_SW2_C2, RELAY_OFF);
@@ -133,6 +140,7 @@ int c131_DiagSW(void)
 	diag_switch[3] = (3000 * ((temp * 2500) >> 12)) / (5000 - ((temp * 2500) >> 12));
 	if ((temp < SW2_820_LOW_LIMIT) || (temp > SW2_820_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
+		switch_flag[3] = 1;
 	}
 
 	//DIAG FOR SW3
@@ -146,9 +154,10 @@ int c131_DiagSW(void)
 	printf("DSB is :%x\n", temp);
 #endif
 	diag_switch[4] = temp;
-	temp >>= 4;
+	temp >>= 6;
 	if (temp <= 0) {
 		result = ERROR_SWITCH;
+		switch_flag[4] = 1;
 	} else {
 		diag_switch[4] = -1;
 	}
@@ -160,9 +169,10 @@ int c131_DiagSW(void)
 	printf("DSB is :%x\n", temp);
 #endif
 	diag_switch[5] = temp;
-	temp >>= 4;
+	temp >>= 6;
 	if (temp > 0) {
 		result = ERROR_SWITCH;
+		switch_flag[5] = 1;
 	} else {
 		diag_switch[5] = 0;
 	}
@@ -178,9 +188,10 @@ int c131_DiagSW(void)
 	printf("PSB is :%x\n", temp);
 #endif
 	diag_switch[6] = temp;
-	temp >>= 4;
+	temp >>= 6;
 	if (temp <= 0) {
 		result = ERROR_SWITCH;
+		switch_flag[6] = 1;
 	} else {
 		diag_switch[6] = -1;
 	}
@@ -192,9 +203,10 @@ int c131_DiagSW(void)
 	printf("PSB is :%x\n", temp);
 #endif
 	diag_switch[7] = temp;
-	temp >>= 4;
+	temp >>= 6;
 	if (temp > 0) {
 		result = ERROR_SWITCH;
+		switch_flag[7] = 1;
 	} else {
 		diag_switch[7] = 0;
 	}
@@ -213,6 +225,7 @@ int c131_DiagSW(void)
 	diag_switch[8] = (1000 * ((temp * 2500) >> 12)) / (5000 - ((temp * 2500) >> 12));
 	if ((temp < SW5_900_LOW_LIMIT) || (temp > SW5_900_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
+		switch_flag[8] = 1;
 	}
 
 	sw_SetRelayStatus(C131_SW5_C2, RELAY_OFF);
@@ -226,6 +239,7 @@ int c131_DiagSW(void)
 	diag_switch[9] = (1000 * ((temp * 2500) >> 12)) / (5000 - ((temp * 2500) >> 12));
 	if ((temp < SW5_220_LOW_LIMIT) || (temp > SW5_220_HIGH_LIMIT)){
 		result = ERROR_SWITCH;
+		switch_flag[9] = 1;
 	}
 
 	//shut down all feedback channel
@@ -276,9 +290,11 @@ int c131_DiagLOOP(void)
 #endif
 		if ((temp > LOOP_HIGH_LIMIT) || (temp < LOOP_LOW_LIMIT)) {
 			result = ERROR_LOOP;
+			loop_flag[j] = 1;
 		}
 		temp = (((temp * 2500)>>12) * 10000) / (75 * 50);
-		diag_loop[j++] = temp;
+		diag_loop[j] = temp;
+		j++;
 	}
 
 	//go to default status
@@ -386,16 +402,18 @@ int c131_DiagLED(void)
 	return result;
 }
 
-int c131_GetDiagLoop(int * * pdata, int * pdata_len)
+int c131_GetDiagLoop(int * * pdata, int * *pflag, int * pdata_len)
 {
 	(*pdata) = diag_loop;
+	(*pflag) = loop_flag;
 	(*pdata_len) = 14;
 	return 0;
 }
 
-int c131_GetDiagSwitch(int * * pdata, int * pdata_len)
+int c131_GetDiagSwitch(int * * pdata, int * *pflag, int * pdata_len)
 {
 	(*pdata) = diag_switch;
+	(*pflag) = switch_flag;
 	(*pdata_len) = 10;
 	return 0;
 }
