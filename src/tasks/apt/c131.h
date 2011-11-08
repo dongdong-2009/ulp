@@ -51,6 +51,7 @@ int apt_GetLEDPWRIndicator(void);
 int apt_SelectPWR(int keytype);
 
 int apt_GetLinkInfo(void);
+int apt_GetTypeInfo(void);
 
 int apt_GetDiagInfo(void);
 int apt_SelectAPTDiag(int keytype);

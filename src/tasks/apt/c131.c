@@ -58,6 +58,7 @@ static const char unselected = 0x20;
 
 static int c131_index_load;
 static char sdmtype_ram[16];	//the last char for EOC
+static char typeinfo_ram[16];	//the last char for EOC
 
 static const char str_internal[] = "Internal";
 static const char str_external[] = "External";
@@ -182,6 +183,7 @@ static const can_bus_t *can_bus;
 static int c131_GetSDMType(int index_load, char *pname);
 static int c131_GetLoad(apt_load_t ** pload, int index_load);
 static int c131_ConfirmLoad(int index_load);
+static int c131_DelCurrentLoad(void);
 static int c131_GetCurrentLoadIndex(void);
 static void c131_InitMsg(void);
 static int c131_SendOtherECUMsg(void);
@@ -204,7 +206,8 @@ static void c131_Init(void)
 	usdt_Init(can_bus);
 
 	//init config which has been confirmed
-	c131_current_load = 0;
+	c131_current_load = -1;
+	strcpy(typeinfo_ram, "No Invalid Cfg ");
 	memset(name_temp, 0xff, 16);
 	for (i = 0; i < NUM_OF_LOAD; i++) {
 		if (memcmp(c131_load[i].load_name, name_temp, 16) == 0) {
@@ -341,6 +344,11 @@ int apt_GetSDMTypeName(void)
 	return (int)sdmtype_ram;
 }
 
+int apt_GetTypeInfo(void)
+{
+	return (int)typeinfo_ram;
+}
+
 int apt_GetSDMTypeSelect(void)
 {
 	if (c131_GetCurrentLoadIndex() == c131_index_load)
@@ -370,6 +378,10 @@ int apt_SelectSDMType(int keytype)
 		} while(c131_GetSDMType(c131_index_load, sdmtype_ram));
 	} else if(keytype == KEY_ENTER) {
 		c131_ConfirmLoad(c131_index_load);
+		c131_GetSDMType(c131_index_load, typeinfo_ram);
+	} else if(keytype == KEY_RESET) {
+		if (c131_DelCurrentLoad() == 0)
+			apt_SelectSDMType(KEY_RIGHT);
 	}
 
 	return 0;
@@ -747,6 +759,17 @@ static int c131_ConfirmLoad(int index_load)
 static int c131_GetCurrentLoadIndex(void)
 {
 	return c131_current_load;
+}
+
+static int c131_DelCurrentLoad(void)
+{
+	if (c131_current_load == c131_index_load)
+		return 1;
+	else {
+		c131_load[c131_index_load].load_bExist = 0;
+		nvm_save();
+		return 0;
+	}
 }
 
 static int c131_GetSDMType(int index_load, char *pname)

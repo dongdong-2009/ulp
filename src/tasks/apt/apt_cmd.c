@@ -162,14 +162,14 @@ static int cmd_apt_func(int argc, char *argv[])
 
 				//for switch3
 				if (pflag[4]) {
-					printf("sw3 stage1 :%4d (ohm) Short     ", pdata[4]);
+					printf("sw3 stage1 :%4d (ohm) Short       ", pdata[4]);
 					printf("Error\n");
 				}  else {
 					printf("sw3 stage1 :Short      Short       ");
 					printf("OK\n");
 				}
 				if (pflag[5]) {
-					printf("sw3 stage2 :%4d (ohm) Open      ", pdata[5]);
+					printf("sw3 stage2 :%4d (ohm) Open        ", pdata[5]);
 					printf("Error\n");
 				} else {
 					printf("sw3 stage2 :Open       Open        ");
@@ -178,14 +178,14 @@ static int cmd_apt_func(int argc, char *argv[])
 
 				//for switch4
 				if (pflag[6]) {
-					printf("sw4 stage1 :%4d (ohm) Short     ", pdata[6]);
+					printf("sw4 stage1 :%4d (ohm) Short       ", pdata[6]);
 					printf("Error\n");
 				} else {
 					printf("sw4 stage1 :Short      Short       ");
 					printf("OK\n");
 				}
 				if (pflag[7]) {
-					printf("sw4 stage2 :%4d (ohm) Open     ", pdata[7]);
+					printf("sw4 stage2 :%4d (ohm) Open        ", pdata[7]);
 					printf("Error\n");
 				} else {
 					printf("sw4 stage2 :Open       Open        ");
