@@ -477,7 +477,10 @@ void TestStop(void)
 	fail += Write_Memory(addr, mfg_data.fb, size);
 
 	//store nest_psv & nest_nec
-	mfg_data.nest_psv |= 0x80;
+	if(pass())
+		mfg_data.nest_psv |= 0x80;
+	else
+		mfg_data.nest_psv &= 0x7F;
 	mfg_data.nest_nec = nest_error_get() -> nec;
 	addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> nest_psv;
 	fail += Write_Memory(addr, &mfg_data.nest_psv, 2);
