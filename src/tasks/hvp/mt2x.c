@@ -12,7 +12,7 @@
 #include "common/inifile.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "time.h"
+#include "ulp_time.h"
 #include "uart.h"
 
 #include "ff.h"

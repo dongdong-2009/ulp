@@ -1,6 +1,6 @@
 #include "lib/nest.h"
 #include "priv/mcamos.h"
-#include "time.h"
+#include "ulp_time.h"
 
 static time_t fixture_timer;
 static char fixture_led_on = 0;

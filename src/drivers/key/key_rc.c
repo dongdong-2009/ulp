@@ -8,7 +8,7 @@
 #include "stm32f10x.h"
 #include "key.h"
 #include "driver.h"
-#include "time.h"
+#include "ulp_time.h"
 #include <stddef.h>
 #include <stdio.h>
 

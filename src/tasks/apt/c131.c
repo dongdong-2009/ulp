@@ -11,7 +11,7 @@
 #include "config.h"
 #include "nvm.h"
 #include "key.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "c131_driver.h"
 #include "c131_diag.h"
 #include "c131.h"

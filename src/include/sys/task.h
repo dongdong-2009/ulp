@@ -14,11 +14,13 @@
 	void (*##init##_entry)(void)@".sys.lib" = &##init; \
 	void (*##update##_entry)(void)@".sys.lib" = &##update;
 
+#define ulp_init task_Init
+#define ulp_update task_Update
+
+//obsoleted
 void task_Init(void);
 void task_Update(void);
 void task_Isr(void);
-
-//obsoleted
 void task_SetForeground(void (*task)(void));
 
 //private

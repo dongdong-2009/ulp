@@ -5,7 +5,7 @@
 
 #include "config.h"
 #include "led.h"
-#include "time.h"
+#include "ulp_time.h"
 
 static time_t led_timer;
 static char flag_status; /*0->off/flash, 1->on*/

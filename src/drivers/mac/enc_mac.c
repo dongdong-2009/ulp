@@ -15,7 +15,7 @@
 
 #include "ethernetif.h"
 #include "spi.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "stm32f10x.h"
 #include <string.h>
 

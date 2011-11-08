@@ -1,6 +1,6 @@
 #include "config.h"
 #include "debug.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "nvm.h"
 #include "key.h"
 #include "osd/osd.h"

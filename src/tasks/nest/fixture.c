@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "can.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "sys/sys.h"
 #include "priv/mcamos.h"
 #include "nvm.h"

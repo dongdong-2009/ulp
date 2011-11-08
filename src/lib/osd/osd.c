@@ -10,7 +10,7 @@
 #include "osd/osd_cmd.h"
 #include "osd/osd_dialog.h"
 #include "osd/osd_eng.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "sys/task.h"
 #include "FreeRTOS.h"
 

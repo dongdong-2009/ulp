@@ -5,7 +5,7 @@
 
 #include "config.h"
 #include "debug.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "encoder.h"
 
 static short encoder_v_min;

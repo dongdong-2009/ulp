@@ -3,7 +3,7 @@
  */
 #include "config.h"
 #include "debug.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "dbs.h"
 #include "sis_card.h"
 #include <string.h>

@@ -6,7 +6,7 @@
 #include "key.h"
 #include "driver.h"
 #include "stm32f10x.h"
-#include "time.h"
+#include "ulp_time.h"
 
 #ifdef CONFIG_ADCKEY_ADC12_IN0
 #define ADCKEY_CLOCK_PROT	RCC_APB2Periph_GPIOA

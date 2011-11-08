@@ -4,6 +4,10 @@
 # Written by miaofng@2010
 #
 bool "led driver" CONFIG_DRIVER_LED
+if [ "$CONFIG_DRIVER_LED" = "y" ]; then
+	int 'LED Module Update Period(mS)' CONFIG_LED_UPDATE_MS 1000
+fi
+
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
 bool "capture driver?" CONFIG_DRIVER_CAPTURE
 bool "add md204l driver?" CONFIG_DRIVER_MD204L
