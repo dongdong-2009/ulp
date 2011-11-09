@@ -205,7 +205,7 @@ static int pdi_GetDID(char did, char *data)
 
 	//pick up the data
 	if (msg_len == 1) {
-		if (msg_res.data[1] == 0x5a)
+		if (msg_res.data[1] == 0x5a)//说明读数据正确
 			memcpy(data, (msg_res.data + 3), msg_res.data[0] - 2);
 		else
 			return 1;
@@ -270,7 +270,10 @@ static int check_barcode(void)
 		if (try_times < 0)
 			return 1;
 	}
-
+	pdi_data_buf[16] = '\0';
+	printf("##START##RB-");
+	printf(pdi_data_buf);
+	printf("##END##\n");
 	if (memcmp(bcode_1 + 3, pdi_data_buf, 16))
 		return 1;
 	else
@@ -350,7 +353,7 @@ static int pdi_wakeup()
 		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
 	printf("\n");
-
+	pdi_mdelay(100);
 	printf("##START##EC-Send High Voltage Wakeup##END##\n");
 	pdi_can_bus->send(&pdi_wakeup_msg);
 	pdi_mdelay(20);
@@ -424,8 +427,8 @@ static int pdi_wakeup()
 	//pdi_mdelay(3000);感觉这里有错，应该再次发一下pdi_present_msg，不然后面会死掉
 	//try DPID $12 again
 
-	pdi_GetDPID(0x12, pdi_data_buf);
-	for(i = 0; i < 8; i ++)
+	pdi_GetDID(0x71, pdi_data_buf);
+	for(i = 0; i < 18; i ++)
 		printf("%2x,", pdi_data_buf[i]&0xff);
 
 	printf("\n");
@@ -467,7 +470,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	}
 
 	if (num_fault) {
-		pdi_clear_dtc();
+		//pdi_clear_dtc();
 		printf("##START##EC-");
 		printf("num of fault is: %d*", num_fault);
 		for (i = 0; i < num_fault*3; i += 3)
@@ -517,11 +520,6 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 
 		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0) {
-			if(i == 0) {
-				printf("##START##RB-");
-				printf(pdi_data_buf);
-				printf("##END##\n");
-			}
 			if(i == 12)
 				pdi_can_bus->send(&pdi_present_msg);
 			continue;
@@ -582,11 +580,11 @@ void pdi_init(void)
 		.baud = 33330,
 	};
 
-	pdi_drv_Init();
-	mbi5025_Init(&pdi_mbi5025);
+	pdi_drv_Init();//led,beep
+	mbi5025_Init(&pdi_mbi5025);//SPI总线	移位寄存器
 	mbi5025_EnableOE(&pdi_mbi5025);
-	ls1203_Init(&pdi_ls1203);
-	pdi_swcan_mode();
+	ls1203_Init(&pdi_ls1203);//scanner
+	pdi_swcan_mode();//SW can
 	pdi_can_bus->init(&cfg_pdi_can);
 	usdt_Init(pdi_can_bus);
 }
@@ -613,11 +611,11 @@ void pdi_process(void)
 		pdi_cfg_file = pdi_cfg_get(bcode);
 
 		if(target_on()) {
-			if(pdi_cfg_file == NULL) {
+			if(pdi_cfg_file == NULL) {//是否有此配置文件
 				pdi_fail_action();
 				printf("##START##EC-No This Config File##END##\n");
 			}
-			pdi_check_init(pdi_cfg_file);
+			pdi_check_init(pdi_cfg_file);//relay config
 			if(pdi_check(pdi_cfg_file) == 0)
 				pdi_pass_action();
 			else
