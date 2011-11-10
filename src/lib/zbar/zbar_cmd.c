@@ -52,7 +52,6 @@ static int cmd_zbarimg_func(int argc, char *argv[])
 		printf("%s%s:%s\n", zbar_get_symbol_name(typ), zbar_get_addon_name(typ), zbar_symbol_get_data(sym));
 	}
 
-	sys_free(blob);
 	zbar_image_destroy(zimage);
 	zbar_processor_destroy(processor);
 	return 0;
