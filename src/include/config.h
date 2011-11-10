@@ -6,6 +6,9 @@
 #define __CONFIG_H_
 
 #include "autoconfig.h"
+#ifdef CONFIG_LIB_ZBAR
+#include "zbar_config.h"
+#endif
 
 #ifdef CONFIG_STM32F10X_LD
 #define STM32F10X_LD
@@ -30,7 +33,5 @@
 #ifdef CONFIG_HSE_VALUE
 #define HSE_Value CONFIG_HSE_VALUE
 #endif
-
-#define HAVE_INTTYPES_H
 
 #endif /*__CONFIG_H_*/

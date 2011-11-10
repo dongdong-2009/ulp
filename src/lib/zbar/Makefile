@@ -41,9 +41,14 @@ obj-$(CONFIG_ZBAR_QRCODE) += $(ZBAR_FOLDER)/qrcode/util.o
 #zbar_libzbar_la_SOURCES += zbar/processor/posix.h zbar/processor/posix.c
 #endif
 
-obj-y += $(ZBAR_FOLDER)/video/null.o
-obj-y += $(ZBAR_FOLDER)/processor/null.o
-obj-y += $(ZBAR_FOLDER)/window/null.o
+#obj-y += $(ZBAR_FOLDER)/video/null.o
+#obj-y += $(ZBAR_FOLDER)/processor/null.o
+#obj-y += $(ZBAR_FOLDER)/window/null.o
+obj-y += proc_ulp.o
+obj-y += video_ulp.o
+obj-y += window_ulp.o
+
+obj-$(CONFIG_ZBAR_CMD) += zbar_cmd.o
 
 #include path
 inc-y += $(ZBAR_FOLDER)/
@@ -53,4 +58,5 @@ inc-y += $(ZBAR_FOLDER)/
 #inc-y += $(ZBAR_FOLDER)/video/
 #inc-y += $(ZBAR_FOLDER)/window/
 inc-y += $(ZBAR_FOLDER)/../include/
+inc-y += $(ZBAR_FOLDER)/../../
 
