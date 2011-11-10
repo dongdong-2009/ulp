@@ -22,13 +22,15 @@
  *------------------------------------------------------------------------*/
 
 #include <config.h>
-#include <unistd.h>
 #ifdef HAVE_INTTYPES_H
 # include <inttypes.h>
 #endif
 #include <stdlib.h>     /* malloc, free */
 #include <time.h>       /* clock_gettime */
+#ifndef CONFIG_LIB_ZBAR
+#include <unistd.h>
 #include <sys/time.h>   /* gettimeofday */
+#endif
 #include <string.h>     /* memcmp, memset, memcpy */
 #include <assert.h>
 
@@ -467,7 +469,7 @@ zbar_image_scanner_t *zbar_image_scanner_create ()
     /* apply default configuration */
     CFG(iscn, ZBAR_CFG_X_DENSITY) = 1;
     CFG(iscn, ZBAR_CFG_Y_DENSITY) = 1;
-    zbar_image_scanner_set_config(iscn, 0, ZBAR_CFG_POSITION, 1);
+    zbar_image_scanner_set_config(iscn, ZBAR_NONE, ZBAR_CFG_POSITION, 1);
     return(iscn);
 }
 

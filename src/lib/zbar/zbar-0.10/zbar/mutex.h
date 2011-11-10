@@ -148,7 +148,7 @@ static inline int _zbar_mutex_unlock (zbar_mutex_t *lock)
 
 #else
 
-typedef int zbar_mutex_t[0];
+typedef int zbar_mutex_t;
 
 #define _zbar_mutex_init(l) -1
 #define _zbar_mutex_destroy(l)

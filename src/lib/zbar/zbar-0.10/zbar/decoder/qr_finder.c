@@ -3,6 +3,7 @@
 
 #include <zbar.h>
 #include "decoder.h"
+#include "qrcode.h"
 
 #ifdef DEBUG_QR_FINDER
 # define DEBUG_LEVEL (DEBUG_QR_FINDER)
@@ -27,7 +28,7 @@ zbar_symbol_type_t _zbar_find_qr (zbar_decoder_t *dcode)
     unsigned s = qrf->s5;
 
     if(get_color(dcode) != ZBAR_SPACE || s < 7)
-        return(0);
+        return(ZBAR_NONE);
 
     dprintf(2, "    qrf: s=%d", s);
 

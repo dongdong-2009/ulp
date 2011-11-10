@@ -249,7 +249,7 @@ static inline int video_init_images (zbar_video_t *vdo)
         if(vdo->iomode != VIDEO_MMAP) {
             img->datalen = vdo->datalen;
             unsigned long offset = i * vdo->datalen;
-            img->data = vdo->buf + offset;
+            img->data = (uint8_t *)vdo->buf + offset;
             zprintf(2, "    [%02d] @%08lx\n", i, offset);
         }
     }

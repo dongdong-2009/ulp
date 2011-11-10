@@ -27,7 +27,9 @@
 #ifdef HAVE_INTTYPES_H
 # include <inttypes.h>
 #endif
+#ifndef CONFIG_LIB_ZBAR
 #include <unistd.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 

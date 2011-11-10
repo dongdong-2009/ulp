@@ -373,7 +373,7 @@ static void convert_uvp_append (zbar_image_t *dst,
     dst->data = malloc(dst->datalen);
     if(!dst->data) return;
     convert_y_resize(dst, dstfmt, src, srcfmt, n);
-    memset((void*)dst->data + n, 0x80, dst->datalen - n);
+    memset((char*)dst->data + n, 0x80, dst->datalen - n);
 }
 
 /* interleave YUV planes into packed YUV */
@@ -395,10 +395,10 @@ static void convert_yuv_pack (zbar_image_t *dst,
     uint8_t *srcy = (void*)src->data;
     const uint8_t *srcu, *srcv;
     if(flags & 1) {
-        srcv = src->data + srcn;
+        srcv = (uint8_t *)src->data + srcn;
         srcu = srcv + srcm;
     } else {
-        srcu = src->data + srcn;
+        srcu = (uint8_t *)src->data + srcn;
         srcv = srcu + srcm;
     }
     flags = dstfmt->p.yuv.packorder & 2;
@@ -455,8 +455,8 @@ static void convert_yuv_unpack (zbar_image_t *dst,
     dst->data = malloc(dst->datalen);
     if(!dst->data) return;
     if(dstm2)
-        memset((void*)dst->data + dstn, 0x80, dstm2);
-    uint8_t *dsty = (void*)dst->data;
+        memset((uint8_t *)dst->data + dstn, 0x80, dstm2);
+    uint8_t *dsty = (uint8_t *)dst->data;
 
     uint8_t flags = srcfmt->p.yuv.packorder ^ dstfmt->p.yuv.packorder;
     flags &= 2;
@@ -499,7 +499,7 @@ static void convert_uvp_resample (zbar_image_t *dst,
     if(!dst->data) return;
     convert_y_resize(dst, dstfmt, src, srcfmt, dstn);
     if(dstm2)
-        memset((void*)dst->data + dstn, 0x80, dstm2);
+        memset((uint8_t *)dst->data + dstn, 0x80, dstm2);
 }
 
 /* rearrange interleaved UV componets */
@@ -613,7 +613,7 @@ static void convert_rgb_to_yuvp (zbar_image_t *dst,
     dst->data = malloc(dst->datalen);
     if(!dst->data) return;
     if(dstm2)
-        memset((void*)dst->data + dstn, 0x80, dstm2);
+        memset((uint8_t *)dst->data + dstn, 0x80, dstm2);
     uint8_t *dsty = (void*)dst->data;
 
     assert(src->datalen >= (src->width * src->height * srcfmt->p.rgb.bpp));

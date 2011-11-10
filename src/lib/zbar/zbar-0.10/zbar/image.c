@@ -202,8 +202,8 @@ int zbar_image_write (const zbar_image_t *img,
                       const char *filebase)
 {
     int len = strlen(filebase) + 16;
-    char filename[len];
-    strcpy(filename, filebase);
+    char filename[16];
+    strncpy(filename, filebase, 16);
     int n = 0;
     if(*(char*)&img->format >= ' ')
         n = snprintf(filename, len, "%s.%.4s.zimg",

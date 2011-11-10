@@ -23,8 +23,12 @@
 #ifndef _ZBAR_TIMER_H_
 #define _ZBAR_TIMER_H_
 
+#ifndef CONFIG_LIB_ZBAR
 #include <time.h>
 #include <sys/time.h>   /* gettimeofday */
+#else
+#include "zbar_config.h"
+#endif
 
 /* platform timer abstraction
  *
