@@ -8,7 +8,7 @@
 #include <string.h>
 #include "shell/cmd.h"
 #include "sys/sys.h"
-#include "debug.h"
+#include "ulp/debug.h"
 
 /*private*/
 static struct cmd_queue_s *cmd_queue;

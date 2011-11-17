@@ -7,7 +7,7 @@
 #include "uart.h"
 #include <stddef.h>
 #include "sys/sys.h"
-#include "debug.h"
+#include "ulp/debug.h"
 
 static const struct console_s *cnsl; /*current console*/
 
