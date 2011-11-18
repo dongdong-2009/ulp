@@ -75,6 +75,11 @@ static struct can_queue_s dm_msg3 = {
 	.msg = {0x2F0, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
+static struct can_queue_s dm_msg4 = {
+	.ms = 500,
+	.msg = {0x607, 8, {0x02, 0x3E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
+};
+
 static LIST_HEAD(can_queue);
 static const can_bus_t *can_bus = &can1;
 
@@ -220,6 +225,9 @@ static void dm_InitMsg(void)
 
 	INIT_LIST_HEAD(&dm_msg3.list);
 	list_add(&dm_msg3.list, &can_queue);
+
+	INIT_LIST_HEAD(&dm_msg4.list);
+	list_add(&dm_msg4.list, &can_queue);
 }
 
 static void dm_update()
