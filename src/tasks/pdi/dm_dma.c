@@ -207,6 +207,7 @@ void pdi_init(void)
 	ls1203_Init(&pdi_ls1203);//scanner
 	pdi_can_bus->init(&cfg_pdi_can);
 	usdt_Init(pdi_can_bus);
+	dm_InitMsg();
 }
 
 static void dm_InitMsg(void)
@@ -230,18 +231,17 @@ static void dm_update()
 		q = list_entry(pos, can_queue_s, list);
 		if(q -> timer == 0 || time_left(q -> timer) < 0) {
 			q -> timer = time_get(q -> ms);
-			while (can_bus -> send(&q -> msg)) {
-			}
+			can_bus -> send(&q -> msg);
 		}
 	}
 }
 
 static int pdi_check_init(const struct pdi_cfg_s *sr)
 {
-	char *o=(char *)&(sr->relay_ex);
+	char *o = (char *)&(sr -> relay_ex);
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+1));
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+0));
-	char *p=(char *)&(sr->relay);
+	char *p = (char *)&(sr->relay);
 	mbi5025_WriteByte(&pdi_mbi5025, *(p+3));
 	mbi5025_WriteByte(&pdi_mbi5025, *(p+2));
 	mbi5025_WriteByte(&pdi_mbi5025, *(p+1));
@@ -389,9 +389,9 @@ static int cmd_dm_func(int argc, char *argv[])
 	if(argc == 3) {
 		if(argv[1][0] == 'b') {
 			if(argv[2][1] == 'n')
-				pdi_batt_on();
+				pdi_IGN_on();
 			if(argv[2][1] == 'f')
-				pdi_batt_off();
+				pdi_IGN_off();
 		}
 	}
 
