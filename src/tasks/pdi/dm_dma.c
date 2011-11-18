@@ -234,7 +234,6 @@ static void dm_update()
 			}
 		}
 	}
-
 }
 
 static int pdi_check_init(const struct pdi_cfg_s *sr)
@@ -288,12 +287,18 @@ static void pdi_process(void)
 	}
 }
 
-static int getbarcode(void)
+static int getbarcode(char *data)
 {
 	can_msg_t dm_recv_msg;
 	can_msg_t dm_send_msg = {0x607, 8, {0x03, 0x22, 0xFE, 0x8D, 0x00, 0x00, 0x00, 0x00}, 0};
 
+
 	return 0;
+}
+
+static int check_barcode()
+{
+
 }
 
 static int pdi_clear_dtc(void)
@@ -308,6 +313,32 @@ static int pdi_GetFault(char *data, int * pnum_fault)
 
 static int pdi_check(const struct pdi_cfg_s *sr)
 {
+	int i, num_fault, try_times = 5;
+	const struct pdi_rule_s* pdi_cfg_rule;
+
+	if(check_barcode()) {
+		printf("##START##EC-Barcode Wrong##END##\n");
+		return 1;
+	}
+
+	while (pdi_GetFault(pdi_fault_buf, &num_fault)) {
+		try_times --;
+		if (try_times < 0) {
+			printf("##START##EC-read DTC error##END##\n");
+			return 1;
+		}
+	}
+
+	if (num_fault) {
+		//pdi_clear_dtc();
+		printf("##START##EC-");
+		printf("num of fault is: %d*", num_fault);
+		for (i = 0; i < num_fault*3; i += 3)
+			printf("0x%2x, 0x%2x, 0x%2x*", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
+		printf("##END##\n");
+		return 1;
+	}
+
 	return 0;
 }
 
