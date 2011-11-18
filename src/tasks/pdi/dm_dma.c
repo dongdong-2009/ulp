@@ -21,6 +21,7 @@ const can_msg_t dm_DTC_msg =		{0x607, 4, {0x03, 0x22, 0xFE, 0x80}, 0};
 const can_msg_t dm_reqseed_msg =	{0x607, 3, {0x02, 0x27, 0x01}, 0};
 static const can_bus_t* pdi_can_bus = &can1;
 static char pdi_fault_buf[64];
+static char bcode_1[19];
 
 static mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
@@ -48,6 +49,7 @@ static int dm_mdelay(int );
 static int init_OK();
 static int counter_pass_add();
 static int counter_fail_add();
+static int getbarcode();
 static void dm_update();
 static void dm_InitMsg();
 
@@ -237,16 +239,60 @@ static void dm_update()
 
 static int pdi_check_init(const struct pdi_cfg_s *sr)
 {
+	char *o=(char *)&(sr->relay_ex);
+	mbi5025_WriteByte(&pdi_mbi5025, *(o+1));
+	mbi5025_WriteByte(&pdi_mbi5025, *(o+0));
+	char *p=(char *)&(sr->relay);
+	mbi5025_WriteByte(&pdi_mbi5025, *(p+3));
+	mbi5025_WriteByte(&pdi_mbi5025, *(p+2));
+	mbi5025_WriteByte(&pdi_mbi5025, *(p+1));
+	mbi5025_WriteByte(&pdi_mbi5025, *(p+0));
 	return 0;
 }
 
 static void pdi_process(void)
 {
+	const struct pdi_cfg_s* pdi_cfg_file;
+	char bcode[20];
+	if(target_on())
+		start_botton_on();
+	else start_botton_off();
+	if(ls1203_Read(&pdi_ls1203, bcode) == 0) {
 
+		start_botton_off();
+		pdi_led_start();
+		bcode[19] = '\0';
+
+		memcpy(bcode_1, bcode, 19);
+		printf("##START##SB-");
+		printf(bcode,"\0");
+		printf("##END##\n");
+		bcode[9] = '\0';
+
+		pdi_cfg_file = pdi_cfg_get(bcode);
+
+		if(target_on()) {
+			if(pdi_cfg_file == NULL) {//是否有此配置文件
+				pdi_fail_action();
+				printf("##START##EC-No This Config File##END##\n");
+			}
+			pdi_check_init(pdi_cfg_file);//relay config
+			if(pdi_check(pdi_cfg_file) == 0)
+				pdi_pass_action();
+			else
+				pdi_fail_action();
+		} else {
+			target_noton_action();
+			printf("##START##EC-target is not on the right position##END##\n");
+		}
+	}
 }
 
-static int check_barcode(void)
+static int getbarcode(void)
 {
+	can_msg_t dm_recv_msg;
+	can_msg_t dm_send_msg = {0x607, 8, {0x03, 0x22, 0xFE, 0x8D, 0x00, 0x00, 0x00, 0x00}, 0};
+
 	return 0;
 }
 
