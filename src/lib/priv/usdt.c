@@ -28,6 +28,14 @@ static const can_msg_t req_flow_msg = {
 };
 #endif
 
+#ifdef CONFIG_PDI_DM
+static const can_msg_t req_flow_msg = {
+	.id = 0x607,
+	.dlc = 8,
+	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+#endif
+
 static const can_bus_t *can_bus;
 
 int usdt_Init(can_bus_t const *pcan)
