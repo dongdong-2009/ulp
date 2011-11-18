@@ -11,7 +11,7 @@
 #include "sys/sys.h"
 #include "shell/cmd.h"
 #include "console.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "uart.h"
 
 static void cmd_GetHistory(char *cmd, int dir);

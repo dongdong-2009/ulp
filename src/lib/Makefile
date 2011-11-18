@@ -10,5 +10,6 @@ obj-$(CONFIG_LIB_FREERTOS) += FreeRTOS/
 obj-$(CONFIG_LIB_UDISK) += mass_storage/
 obj-$(CONFIG_LIB_PRIV) += priv/
 obj-$(CONFIG_LIB_LUA) += lua/
+obj-$(CONFIG_LIB_ZBAR) += zbar/
 
 inc-$(CONFIG_LIB_FATFS) += fatfs/
