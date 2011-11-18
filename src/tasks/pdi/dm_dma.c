@@ -11,7 +11,7 @@
 #include "ls1203.h"
 #include "cfg.h"
 #include "priv/usdt.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "shell/cmd.h"
 #include "led.h"
 #include "pdi.h"

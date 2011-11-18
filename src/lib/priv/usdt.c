@@ -10,7 +10,7 @@
 #include "ulp_time.h"
 #include "sys/sys.h"
 #include "shell/cmd.h"
-#include "debug.h"
+#include "ulp/debug.h"
 
 #ifdef CONFIG_TASK_APTC131
 static const can_msg_t req_flow_msg = {
