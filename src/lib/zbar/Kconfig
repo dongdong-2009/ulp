@@ -1,0 +1,16 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+bool "zbar decoder EAN" CONFIG_ZBAR_EAN 0
+bool "zbar decoder CODE128" CONFIG_ZBAR_CODE128 0
+bool "zbar decoder CODE39" CONFIG_ZBAR_CODE39 0
+bool "zbar decoder I25" CONFIG_ZBAR_I25 0
+bool "zbar decoder PDF417" CONFIG_ZBAR_PDF417 0
+bool "zbar decoder QRCODE" CONFIG_ZBAR_QRCODE 1
+bool "zbar command support" CONFIG_ZBAR_CMD 1
+if [ "$CONFIG_ZBAR_CMD" = "y"]; then
+	bool "zbarimg demo" CONFIG_ZBAR_ZBARIMG 0
+fi

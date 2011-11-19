@@ -9,7 +9,7 @@
 #include "crc.h"
 #include "sys/malloc.h"
 #include <string.h>
-#include "debug.h"
+#include "ulp/debug.h"
 #include "cfg.h"
 #include "nvm.h"
 

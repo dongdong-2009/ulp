@@ -10,7 +10,7 @@
 #include "ulp_time.h"
 #include "sys/sys.h"
 #include "shell/cmd.h"
-#include "debug.h"
+#include "ulp/debug.h"
 
 #ifdef CONFIG_TASK_APTC131
 static const can_msg_t req_flow_msg = {
@@ -23,6 +23,14 @@ static const can_msg_t req_flow_msg = {
 #ifdef CONFIG_PDI_SDM10
 static const can_msg_t req_flow_msg = {
 	.id = 0x247,
+	.dlc = 8,
+	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+#endif
+
+#ifdef CONFIG_PDI_DM
+static const can_msg_t req_flow_msg = {
+	.id = 0x607,
 	.dlc = 8,
 	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };

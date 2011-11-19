@@ -64,13 +64,13 @@ static int pdi_wakeup();
 static int pdi_sleep();
 static int pdi_check_init(const struct pdi_cfg_s *);
 static int pdi_led_start();
-static int pdi_mdelay(int );
+static int sdm10_mdelay(int );
 static int init_OK();
 static int counter_pass_add();
 static int counter_fail_add();
 static void pdi_process();
 
-static int pdi_mdelay(int ms)
+static int sdm10_mdelay(int ms)
 {
 	int left;
 	time_t deadline = time_get(ms);
@@ -89,18 +89,18 @@ static int init_OK()
 	led_on(LED_RED);
 	led_on(LED_GREEN);
 	beep_on();
-	pdi_mdelay(200);
+	sdm10_mdelay(200);
 	led_off(LED_RED);
 	led_off(LED_GREEN);
 	beep_off();
-	pdi_mdelay(100);
+	sdm10_mdelay(100);
 	for(int i = 0; i < 5; i++){
 		led_on(LED_RED);
 		led_on(LED_GREEN);
-		pdi_mdelay(200);
+		sdm10_mdelay(200);
 		led_off(LED_RED);
 		led_off(LED_GREEN);
-		pdi_mdelay(100);
+		sdm10_mdelay(100);
 	}
 	return 0;
 }
@@ -108,7 +108,7 @@ static int init_OK()
 static int counter_pass_add()
 {
 	counter_pass_rise();
-	pdi_mdelay(40);
+	sdm10_mdelay(40);
 	counter_pass_down();
 	return 0;
 }
@@ -116,7 +116,7 @@ static int counter_pass_add()
 static int counter_fail_add()
 {
 	counter_fail_rise();
-	pdi_mdelay(40);
+	sdm10_mdelay(40);
 	counter_fail_down();
 	return 0;
 }
@@ -129,7 +129,7 @@ static int pdi_fail_action()
 	led_on(LED_RED);
 	counter_fail_add();
 	beep_on();
-	pdi_mdelay(3000);
+	sdm10_mdelay(3000);
 	beep_off();
 	return 0;
 }
@@ -141,14 +141,14 @@ static int pdi_pass_action()
 	led_off(LED_RED);
 	led_on(LED_GREEN);
 	beep_on();
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	printf("##START##EC-Test Result : No Error ##END##\n");
 	counter_pass_add();
-	pdi_mdelay(1000);
+	sdm10_mdelay(1000);
 	beep_off();
-	pdi_mdelay(200);
+	sdm10_mdelay(200);
 	beep_on();
-	pdi_mdelay(1000);
+	sdm10_mdelay(1000);
 	beep_off();
 	return 0;
 }
@@ -161,19 +161,19 @@ static int target_noton_action()
 		beep_on();
 		led_on(LED_GREEN);
 		led_on(LED_RED);
-		pdi_mdelay(200);
+		sdm10_mdelay(200);
 		beep_off();
 		led_off(LED_GREEN);
 		led_off(LED_RED);
-		pdi_mdelay(100);
+		sdm10_mdelay(100);
 	}
 	for(int i = 0; i < 4; i++) {
 		led_on(LED_GREEN);
 		led_on(LED_RED);
-		pdi_mdelay(200);
+		sdm10_mdelay(200);
 		led_off(LED_GREEN);
 		led_off(LED_RED);
-		pdi_mdelay(100);
+		sdm10_mdelay(100);
 	}
 	return 0;
 }
@@ -205,7 +205,7 @@ static int pdi_GetDID(char did, char *data)
 
 	//pick up the data
 	if (msg_len == 1) {
-		if (msg_res.data[1] == 0x5a)
+		if (msg_res.data[1] == 0x5a)//说明读数据正确
 			memcpy(data, (msg_res.data + 3), msg_res.data[0] - 2);
 		else
 			return 1;
@@ -270,7 +270,10 @@ static int check_barcode(void)
 		if (try_times < 0)
 			return 1;
 	}
-
+	pdi_data_buf[16] = '\0';
+	printf("##START##RB-");
+	printf(pdi_data_buf);
+	printf("##END##\n");
 	if (memcmp(bcode_1 + 3, pdi_data_buf, 16))
 		return 1;
 	else
@@ -324,7 +327,7 @@ static int pdi_wakeup()
 	pdi_batt_on();
 //delay 400ms
 	for(rate = 0; rate < 10; rate ++) {
-		pdi_mdelay(40);
+		sdm10_mdelay(40);
 		printf("##START##STATUS-");
 		sprintf(temp, "%d", rate);
 		printf("%s", temp);
@@ -333,7 +336,7 @@ static int pdi_wakeup()
 	pdi_can_bus->send(&pdi_wakeup_msg);
 //delay 100ms
 	for(rate = 10; rate < 13; rate ++) {
-		pdi_mdelay(30);
+		sdm10_mdelay(30);
 		printf("##START##STATUS-");
 		sprintf(temp, "%d", rate);
 		printf("%s", temp);
@@ -350,59 +353,59 @@ static int pdi_wakeup()
 		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
 	printf("\n");
-
+	sdm10_mdelay(100);
 	printf("##START##EC-Send High Voltage Wakeup##END##\n");
 	pdi_can_bus->send(&pdi_wakeup_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_wakeup_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	printf("##START##EC-Transmitting Power Mode##END##\n");
 	pdi_can_bus->send(&pdi_10_power_cfg_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_power_cfg_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_power_cfg_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_power_cfg_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_621_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_621_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	printf("##START##STATUS-15##END##\n");
 	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_pwr_on_msg1);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_pwr_on_msg1);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_dtc_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_dtc_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_cpid_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_cpid_msg);
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	printf("##START##STATUS-18##END##\n");
-	pdi_mdelay(40);
+	sdm10_mdelay(40);
 	printf("##START##EC-ECU will be ready##END##\n");
 
 	pdi_can_bus->send(&pdi_present_msg);
 	pdi_can_bus->send(&pdi_present_msg);
 
 	for(rate = 19; rate < 57; rate ++) {
-		pdi_mdelay(80);
+		sdm10_mdelay(80);
 		printf("##START##STATUS-");
 		sprintf(temp, "%d", rate);
 		printf("%s", temp);
@@ -412,7 +415,7 @@ static int pdi_wakeup()
 	pdi_can_bus->send(&pdi_present_msg);
 
 	for(rate = 57; rate < 95; rate ++) {
-		pdi_mdelay(80);
+		sdm10_mdelay(80);
 		printf("##START##STATUS-");
 		sprintf(temp,"%d", rate);
 		printf("%s", temp);
@@ -421,11 +424,11 @@ static int pdi_wakeup()
 	pdi_can_bus->send(&pdi_present_msg);
 	pdi_can_bus->send(&pdi_present_msg);
 
-	//pdi_mdelay(3000);感觉这里有错，应该再次发一下pdi_present_msg，不然后面会死掉
+	//sdm10_mdelay(3000);感觉这里有错，应该再次发一下pdi_present_msg，不然后面会死掉
 	//try DPID $12 again
 
-	pdi_GetDPID(0x12, pdi_data_buf);
-	for(i = 0; i < 8; i ++)
+	pdi_GetDID(0x71, pdi_data_buf);
+	for(i = 0; i < 18; i ++)
 		printf("%2x,", pdi_data_buf[i]&0xff);
 
 	printf("\n");
@@ -467,7 +470,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	}
 
 	if (num_fault) {
-		pdi_clear_dtc();
+		//pdi_clear_dtc();
 		printf("##START##EC-");
 		printf("num of fault is: %d*", num_fault);
 		for (i = 0; i < num_fault*3; i += 3)
@@ -517,11 +520,6 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 
 		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0) {
-			if(i == 0) {
-				printf("##START##RB-");
-				printf(pdi_data_buf);
-				printf("##END##\n");
-			}
 			if(i == 12)
 				pdi_can_bus->send(&pdi_present_msg);
 			continue;
@@ -546,27 +544,27 @@ static int pdi_sleep()
 	char temp[3];
 	int rate;
 	printf("##START##EC---------------------------------------##END##\n");
-	pdi_mdelay(20);
+	sdm10_mdelay(20);
 	printf("##START##EC-Transmitting Power Mode Off##END##\n");
 	pdi_can_bus->send(&pdi_10_pwr_off_msg1);
-	pdi_mdelay(10);
+	sdm10_mdelay(10);
 	pdi_can_bus->send(&pdi_10_pwr_off_msg1);
-	pdi_mdelay(10);
+	sdm10_mdelay(10);
 	pdi_can_bus->send(&pdi_10_pwr_off_msg2);
-	pdi_mdelay(10);
+	sdm10_mdelay(10);
 	pdi_can_bus->send(&pdi_10_pwr_off_msg2);
-	pdi_mdelay(10);
+	sdm10_mdelay(10);
 	printf("##START##STATUS-93##END##\n");
 	pdi_can_bus->send(&pdi_11_pwr_off_msg1);
-	pdi_mdelay(10);
+	sdm10_mdelay(10);
 	pdi_can_bus->send(&pdi_11_pwr_off_msg1);
-	pdi_mdelay(10);
+	sdm10_mdelay(10);
 	pdi_can_bus->send(&pdi_11_pwr_off_msg2);
-	pdi_mdelay(10);
+	sdm10_mdelay(10);
 	pdi_can_bus->send(&pdi_11_pwr_off_msg2);
 	printf("##START##STATUS-94##END##\n");
 	for(rate = 95; rate <= 100; rate ++) {
-		pdi_mdelay(50);
+		sdm10_mdelay(50);
 		printf("##START##STATUS-");
 		sprintf(temp, "%d", rate);
 		printf("%s", temp);
@@ -582,11 +580,11 @@ void pdi_init(void)
 		.baud = 33330,
 	};
 
-	pdi_drv_Init();
-	mbi5025_Init(&pdi_mbi5025);
+	pdi_drv_Init();//led,beep
+	mbi5025_Init(&pdi_mbi5025);//SPI总线	移位寄存器
 	mbi5025_EnableOE(&pdi_mbi5025);
-	ls1203_Init(&pdi_ls1203);
-	pdi_swcan_mode();
+	ls1203_Init(&pdi_ls1203);//scanner
+	pdi_swcan_mode();//SW can
 	pdi_can_bus->init(&cfg_pdi_can);
 	usdt_Init(pdi_can_bus);
 }
@@ -613,11 +611,11 @@ void pdi_process(void)
 		pdi_cfg_file = pdi_cfg_get(bcode);
 
 		if(target_on()) {
-			if(pdi_cfg_file == NULL) {
+			if(pdi_cfg_file == NULL) {//是否有此配置文件
 				pdi_fail_action();
 				printf("##START##EC-No This Config File##END##\n");
 			}
-			pdi_check_init(pdi_cfg_file);
+			pdi_check_init(pdi_cfg_file);//relay config
 			if(pdi_check(pdi_cfg_file) == 0)
 				pdi_pass_action();
 			else
