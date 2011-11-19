@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
+import sys
 from cx_Freeze import setup, Executable
 
-includeFiles = [
-   # (r"D:\lib\Python26\tcl\tcl8.5", "tcl"),
-    #(r"D:\lib\Python26\tcl\tk8.5", "tk")
-    ]
+# buildOptions = dict(  
+	# compressed = True,  
+	# includes = ["serial"],  
+	# include_files = ["./"],  
+	# base = 'Win32GUI',  
+	# path = sys.path + ["modules"])
 
 setup(
-        name = "hello",
-        version = "0.1",
-        description = "Sample cx_Freeze script",
-        options = {"build_exe": {"include_files": includeFiles,}},
-        executables = [Executable("apt.py",base="Win32GUI",icon = "py.ico",)])
+	name = "APT C131",
+	version = "0.1",
+	description = "Linktronsys",
+	# options = dict(build_exe = buildOptions),
+	executables = [Executable("apt.py",base="Win32GUI",icon = "py.ico",)])

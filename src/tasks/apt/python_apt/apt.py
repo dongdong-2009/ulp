@@ -477,8 +477,6 @@ class Glade_main(gtk.Window):
 	def buttonget_apt_diag_clicked(self,widget):
 		if self.COM.get_option()==False:
 			self.display_error(self.error_dialog,"Please Open Serial Port!")
-		elif self.button_sdmpwr.get_label() == "ON":
-			self.display_error(self.error_dialog,"Please Turn On SDM Power!")
 		else:
 			for n,value in enumerate(datalog4):
 				self.COM.send("apt diag "+ value[0])
@@ -494,7 +492,7 @@ class Glade_main(gtk.Window):
 				for act in spit_list:
 					spit__list = act.split()
 					length = len(spit__list)
-					if(length > 2 and spit__list[2] == "is"):
+					if(length > 2):
 						string += act
 						string += "\n"
 					else:

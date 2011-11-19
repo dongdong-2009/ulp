@@ -19,7 +19,7 @@ static can_msg_t apt_msg_buf[64];		//for multi frame buffer
 
 static int cmd_apt_func(int argc, char *argv[])
 {
-	int temp, i, data_len, msg_len, * pdata;
+	int temp, i, data_len, msg_len, * pdata, * pflag;
 	can_msg_t msg_req;
 
 	const char * usage = { \
@@ -29,7 +29,7 @@ static int cmd_apt_func(int argc, char *argv[])
 		" apt set load_name b0 b1 ... b7,  set current config \n" \
 		" apt clr/read dtc, clear the product DTC information \n" \
 		" apt diag loop/switch, get diagnose data \n" \
-		" apt req id b0..b7, send diag request" \
+		" apt req id b0..b7, send diag request\n" \
 		" apt eeprom dlen id b0..b7, send eeprom request with data len\n" \
 	};
 
@@ -123,26 +123,85 @@ static int cmd_apt_func(int argc, char *argv[])
 		//for geting diagnosis data
 		if (strcmp(argv[1], "diag") == 0) {
 			if (strcmp(argv[2], "loop") == 0){
-				c131_GetDiagLoop(&pdata, &data_len);
+				c131_GetDiagLoop(&pdata, &pflag, &data_len);
+				printf("LOOP    Current      Standard    Status\n");
 				for (i = 0; i < data_len; i++) {
 					// printf("Loop%d resistance is %d (mohm)\n", i, pdata[i]);
-					printf("Loop%d resistance is %d (mohm)\n", i, pdata[i] - 1000);
+					printf("Loop%2d  %4d (mohm)  2000(mohm)  ", i, pdata[i] - 1000);
+					if (pflag[i])
+						printf("Error\n");
+					else
+						printf("OK\n");
 				}
 			}
 
 			if (strcmp(argv[2], "switch") == 0) {
-				c131_GetDiagSwitch(&pdata, &data_len);
+				c131_GetDiagSwitch(&pdata, &pflag, &data_len);
 				//for switch1
-				printf("sw1 stage1 is :%d (mA)\n", pdata[0]);
-				printf("sw1 stage2 is :%d (mA)\n", pdata[1]);
-				printf("sw2 stage1 is :%d (ohm)\n", pdata[2]);
-				printf("sw2 stage2 is :%d (ohm)\n", pdata[3]);
-				printf("sw3 stage1 is :%d (ohm)\n", pdata[4]);
-				printf("sw3 stage2 is :%d (ohm)\n", pdata[5]);
-				printf("sw4 stage1 is :%d (ohm)\n", pdata[6]);
-				printf("sw4 stage2 is :%d (ohm)\n", pdata[7]);
-				printf("sw5 stage1 is :%d (ohm)\n", pdata[8]);
-				printf("sw5 stage2 is :%d (ohm)\n", pdata[9]);
+				printf("SW  STATE   Current    Standard    Status\n");
+				printf("sw1 stage1 :%4d (mA)  14 (mA)     ", pdata[0]);
+				if (pflag[0])
+					printf("Error\n");
+				else
+					printf("OK\n");
+				printf("sw1 stage2 :%4d (mA)  6  (mA)     ", pdata[1]);
+				if (pflag[1])
+					printf("Error\n");
+				else
+					printf("OK\n");
+				printf("sw2 stage1 :%4d (ohm) 2820 (ohm)  ", pdata[2]);
+				if (pflag[2])
+					printf("Error\n");
+				else
+					printf("OK\n");
+				printf("sw2 stage2 :%4d (ohm) 820  (ohm)  ", pdata[3]);
+				if (pflag[3])
+					printf("Error\n");
+				else
+					printf("OK\n");
+
+				//for switch3
+				if (pflag[4]) {
+					printf("sw3 stage1 :%4d (ohm) Short       ", pdata[4]);
+					printf("Error\n");
+				}  else {
+					printf("sw3 stage1 :Short      Short       ");
+					printf("OK\n");
+				}
+				if (pflag[5]) {
+					printf("sw3 stage2 :%4d (ohm) Open        ", pdata[5]);
+					printf("Error\n");
+				} else {
+					printf("sw3 stage2 :Open       Open        ");
+					printf("OK\n");
+				}
+
+				//for switch4
+				if (pflag[6]) {
+					printf("sw4 stage1 :%4d (ohm) Short       ", pdata[6]);
+					printf("Error\n");
+				} else {
+					printf("sw4 stage1 :Short      Short       ");
+					printf("OK\n");
+				}
+				if (pflag[7]) {
+					printf("sw4 stage2 :%4d (ohm) Open        ", pdata[7]);
+					printf("Error\n");
+				} else {
+					printf("sw4 stage2 :Open       Open        ");
+					printf("OK\n");
+				}
+
+				printf("sw5 stage1 :%4d (ohm) 900 (ohm)   ", pdata[8]);
+				if (pflag[8])
+					printf("Error\n");
+				else
+					printf("OK\n");
+				printf("sw5 stage2 :%4d (ohm) 220 (ohm)   ", pdata[9]);
+				if (pflag[9])
+					printf("Error\n");
+				else
+					printf("OK\n");
 			}
 		}
 

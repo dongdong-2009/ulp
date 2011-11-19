@@ -61,7 +61,7 @@ const osd_item_t items_pwrtype[] = {
 const osd_item_t items_aptstatus[] = {
 	{0, 12, 20, 1, (int)str_aptsta, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
 	{0, 13, 6, 1, (int)str_type, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{6, 13, 15, 1, (int)apt_GetSDMTypeName, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{6, 13, 15, 1, (int)apt_GetTypeInfo, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	{0, 14, 6, 1, (int)str_pwr, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
 	{6, 14, 10, 1, (int)apt_GetSDMPWRName, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	{0, 15, 6, 1, (int)str_link, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
@@ -99,7 +99,7 @@ const osd_command_t cmds_type[] = {
 	{.event = KEY_RIGHT, .func = dlg_SelectSDMType},
 	{.event = KEY_LEFT, .func = dlg_SelectSDMType},
 	{.event = KEY_ENTER, .func = dlg_SelectSDMType},
-	{.event = KEY_RESET, .func = NULL},
+	{.event = KEY_RESET, .func = dlg_SelectSDMType},
 	NULL,
 };
 
