@@ -83,6 +83,26 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq, int req_len, can_filter_t cons
 	can_bus -> filt(pResFilter, 2);
 #endif
 
+#ifdef CONFIG_PDI_DM
+	can_filter_t filter[] = {
+		{
+			.id = 0x7DA,
+			.mask = 0xffff,
+			.flag = 0,
+		},
+		{
+			.id = 0x608,
+			.mask = 0xffff,
+			.flag = 0,
+		},
+	};
+
+	if (pResFilter == NULL)
+		pResFilter = filter;
+
+	can_bus -> filt(pResFilter, 2);
+#endif
+
 	assert(pReq);
 	assert(pRes);
 
