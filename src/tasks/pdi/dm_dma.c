@@ -14,44 +14,43 @@
 #include "ulp/debug.h"
 #include "shell/cmd.h"
 #include "led.h"
-#include "pdi.h"
 
-const can_msg_t dm_bcode_msg =		{0x607, 4, {0x03, 0x22, 0xFE, 0x8D}, 0};
-const can_msg_t dm_DTC_msg =		{0x607, 4, {0x03, 0x22, 0xFE, 0x80}, 0};
-const can_msg_t dm_reqseed_msg =	{0x607, 3, {0x02, 0x27, 0x01}, 0};
-static const can_bus_t* pdi_can_bus = &can1;
-static char pdi_fault_buf[64];
-static char bcode_1[19];
+#define PDI_DEBUG	1
 
-static mbi5025_t pdi_mbi5025 = {
+static const can_msg_t dm_rddtc_msg = {
+	0x607, 8, {0x03, 0x19, 0x89, 0x08, 0, 0, 0, 0}, 0
+};
+static const can_msg_t dm_clrdtc_msg = {
+	0x607, 8, {0x04, 0x14, 0xff, 0xff, 0xff, 0, 0, 0}, 0
+};
+static const can_msg_t dm_bcode_msg = {
+	0x607, 8, {0x03, 0x22, 0xFE, 0x8D, 0, 0, 0, 0}, 0
+};
+static const can_msg_t dm_errcode_msg = {
+	0x607, 8, {0x03, 0x22, 0xfe, 0x80, 0, 0, 0, 0}, 0
+};
+static const can_msg_t dm_getsn_msg = {
+	0x607, 8, {0x03, 0x22, 0xfe, 0x8d, 0, 0, 0, 0}, 0
+};
+static const can_msg_t dm_reqseed_msg = {
+	0x607, 8, {0x02, 0x27, 0x7d, 0, 0, 0, 0, 0}, 0
+};
+static const can_msg_t dm_start_msg = {
+	0x607, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0
+};
+
+static const mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
 		.idx = SPI_CS_DUMMY,
 		.load_pin = SPI_CS_PC3,
 		.oe_pin = SPI_CS_PC4,
 };
 
-static ls1203_t pdi_ls1203 = {
+static const ls1203_t pdi_ls1203 = {
 		.bus = &uart2,
 		.data_len = 19,//长度没有定下来
 		.dead_time = 20,
 };
-
-static int pdi_check(const struct pdi_cfg_s *);
-static int pdi_GetFault(char *data, int * pnum_fault);
-static int pdi_clear_dtc();
-static int pdi_check_init(const struct pdi_cfg_s *);
-static void pdi_process();
-static int pdi_pass_action();
-static int pdi_fail_action();
-static int target_noton_action();
-static int pdi_led_start();
-static int dm_mdelay(int );
-static int init_OK();
-static int counter_pass_add();
-static int counter_fail_add();
-static int getbarcode();
-static void dm_update();
-static void dm_InitMsg();
 
 struct can_queue_s {
 	int ms;
@@ -83,6 +82,34 @@ static struct can_queue_s dm_msg4 = {
 static LIST_HEAD(can_queue);
 static const can_bus_t *can_bus = &can1;
 
+static const can_bus_t* pdi_can_bus = &can1;
+static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
+static char pdi_data_buf[256];			//data buffer
+static char pdi_fault_buf[64];			//fault buffer
+static char bcode_1[19];
+
+static int pdi_check(const struct pdi_cfg_s *);
+static int pdi_GetFault(char *data, int * pnum_fault);
+static int pdi_clear_dtc();
+static int pdi_check_init(const struct pdi_cfg_s *);
+static int check_barcode(void);
+static void pdi_process();
+static int pdi_pass_action();
+static int pdi_fail_action();
+static int target_noton_action();
+static int pdi_led_start();
+static int dm_mdelay(int );
+static int init_OK();
+static int counter_pass_add();
+static int counter_fail_add();
+static void dm_update();
+static void dm_InitMsg();
+static int dm_StartSession(void);
+static int dm_GetCID(short cid, char *data);
+
+/**************************************************************************/
+/************         Local funcitons                         *************/
+/**************************************************************************/
 static int dm_mdelay(int ms)
 {
 	int left;
@@ -94,6 +121,111 @@ static int dm_mdelay(int ms)
 			dm_update();
 		}
 	} while(left > 0);
+
+	return 0;
+}
+
+//for start the session
+static int dm_StartSession(void)
+{
+	int i, msg_len;
+	unsigned char seed[2], result;
+	can_msg_t msg;
+	can_msg_t sendkey_msg = {
+		0x607,
+		8,
+		{0x04, 0x27, 0x7e, 0xff, 0xff, 0, 0, 0},
+		0
+	};
+
+	if (usdt_GetDiagFirstFrame(&dm_start_msg, 1, NULL, &msg, &msg_len))   //start session
+		return 1;
+#if PDI_DEBUG
+	can_msg_print(&msg, "\n");
+#endif
+	if (usdt_GetDiagFirstFrame(&dm_reqseed_msg, 1, NULL, &msg, &msg_len)) //req seed
+		return 1;
+#if PDI_DEBUG
+	can_msg_print(&msg, "\n");
+#endif
+
+	//calculate the key from seed
+	seed[0] = (unsigned char)msg.data[3];
+	seed[1] = (unsigned char)msg.data[4];
+	result = seed[0] ^ seed[1];
+	result ^= 0x23;
+	result ^= 0x9a;
+	sendkey_msg.data[3] = (char)((0x239a + result) >> 8);
+	sendkey_msg.data[4] = (char)((0x239a + result) & 0x00ff);
+
+	if (usdt_GetDiagFirstFrame(&sendkey_msg, 1, NULL, &msg, &msg_len)) //send key
+		return 1;
+	//judge the send key response
+	if ((msg.data[1] != 0x67) || (msg.data[2] != 0x7e))
+		return 1;
+#if PDI_DEBUG
+	can_msg_print(&msg, "\n");
+#endif
+
+#if 0
+	//get serial number
+	printf("\nSN Code:\n");
+	usdt_GetDiagFirstFrame(&dm_getsn_msg, 1, NULL, pdi_msg_buf, &msg_len);
+	if (msg_len > 1)
+		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+	for (i = 0; i < msg_len; i++)
+		can_msg_print(pdi_msg_buf + i, "\n");
+
+	// get error code
+	printf("\nError Code:\n");
+	usdt_GetDiagFirstFrame(&dm_errcode_msg, 1, NULL, pdi_msg_buf, &msg_len);
+	if (msg_len > 1)
+		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+	for (i = 0; i < msg_len; i++)
+		can_msg_print(pdi_msg_buf + i, "\n");
+
+	// get dtc code
+	printf("\nDTC Code:\n");
+	usdt_GetDiagFirstFrame(&dm_rddtc_msg, 1, NULL, pdi_msg_buf, &msg_len);
+	if (msg_len > 1)
+		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+	for (i = 0; i < msg_len; i++)
+		can_msg_print(pdi_msg_buf + i, "\n");
+#endif
+
+	return 0;
+}
+
+static int dm_GetCID(short cid, char *data)
+{
+	can_msg_t msg_res, pdi_send_msg = {0x607, 8, {0x03, 0x22, 0, 0, 0, 0, 0, 0}, 0};
+	int i = 0, msg_len;
+	//char *temp = data;
+
+	pdi_send_msg.data[2] = (char)(cid >> 8);
+	pdi_send_msg.data[3] = (char)(cid & 0x00ff);
+	if (usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res, &msg_len))
+		return 1;
+	if (msg_len > 1) {
+		pdi_msg_buf[0] = msg_res;
+		if(usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len))
+			return 1;
+	}
+
+	//pick up the data
+	if (msg_len == 1) {
+		if (msg_res.data[1] == 0x62)
+			memcpy(data, (msg_res.data + 4), msg_res.data[0] - 3);
+		else
+			return 1;
+	} else if (msg_len > 1) {
+		memcpy(data, (msg_res.data + 5), 3);
+		data += 3;
+		for (i = 1; i < msg_len; i++) {
+			memcpy(data, (pdi_msg_buf + i)->data + 1, 7);
+			data += 7;
+		}
+	}
 
 	return 0;
 }
@@ -200,21 +332,6 @@ static int pdi_led_start()
 	return 0;
 }
 
-void pdi_init(void)
-{
-	can_cfg_t cfg_pdi_can = {
-		.baud = 500000,
-	};
-
-	pdi_drv_Init();//led,beep
-	mbi5025_Init(&pdi_mbi5025);//SPI总线	移位寄存器
-	mbi5025_EnableOE(&pdi_mbi5025);
-	ls1203_Init(&pdi_ls1203);//scanner
-	pdi_can_bus->init(&cfg_pdi_can);
-	usdt_Init(pdi_can_bus);
-	dm_InitMsg();
-}
-
 static void dm_InitMsg(void)
 {
 	INIT_LIST_HEAD(&dm_msg1.list);
@@ -295,27 +412,44 @@ static void pdi_process(void)
 	}
 }
 
-static int getbarcode(char *data)
-{
-	can_msg_t dm_recv_msg;
-	can_msg_t dm_send_msg = {0x607, 8, {0x03, 0x22, 0xFE, 0x8D, 0x00, 0x00, 0x00, 0x00}, 0};
-
-
-	return 0;
-}
-
 static int check_barcode()
 {
+	//start session
+	if (dm_StartSession())
+		return 1;
 
+	dm_GetCID(0xfe8d, pdi_data_buf);
+
+	if (memcmp(pdi_data_buf, bcode_1, 19))
+		return 1;
+	else
+		return 0;
 }
 
 static int pdi_clear_dtc(void)
 {
+	int msg_len;
+	can_msg_t msg;
+
+	//start session
+	if (dm_StartSession())
+		return 1;
+
+	if (usdt_GetDiagFirstFrame(&dm_clrdtc_msg, 1, NULL, &msg, &msg_len))
+		return 1;
+	if (msg.data[1] != 0x54)	//positive response is 0x54
+		return 1;
+
 	return 0;
 }
 
 static int pdi_GetFault(char *data, int * pnum_fault)
 {
+	//start session
+	if (dm_StartSession())
+		return 1;
+
+	
 	return 0;
 }
 
@@ -350,6 +484,22 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
+
+void pdi_init(void)
+{
+	can_cfg_t cfg_pdi_can = {
+		.baud = 500000,
+	};
+
+	pdi_drv_Init();//led,beep
+	mbi5025_Init(&pdi_mbi5025);//SPI总线	移位寄存器
+	mbi5025_EnableOE(&pdi_mbi5025);
+	ls1203_Init(&pdi_ls1203);//scanner
+	pdi_can_bus->init(&cfg_pdi_can);
+	usdt_Init(pdi_can_bus);
+	dm_InitMsg();
+}
+
 int main(void)
 {
 	ulp_init();
@@ -362,6 +512,7 @@ int main(void)
 	}
 }
 
+#if 1
 static int cmd_dm_func(int argc, char *argv[])
 {
 	int num_fault, i;
@@ -371,6 +522,7 @@ static int cmd_dm_func(int argc, char *argv[])
 		"dm fault\n"
 		"dm clear\n"
 		"dm batt on/off\n"
+		"dm start, start the diagnostic seesion\n"
 	};
 
 	if (argc < 2) {
@@ -390,8 +542,15 @@ static int cmd_dm_func(int argc, char *argv[])
 			}
 		}
 		if(argv[1][0] == 'c') {
-			pdi_clear_dtc();
-			printf("##OK##\n");
+			if (pdi_clear_dtc())
+				printf("##ERROR##\n");
+			else
+				printf("##OK##\n");
+		}
+
+		// start the diagnostic session
+		if(argv[1][0] == 's') {
+			dm_StartSession();
 		}
 	}
 	if(argc == 3) {
@@ -408,3 +567,4 @@ static int cmd_dm_func(int argc, char *argv[])
 
 const cmd_t cmd_dm = {"dm", cmd_dm_func, "dm cmd i/f"};
 DECLARE_SHELL_CMD(cmd_dm)
+#endif
