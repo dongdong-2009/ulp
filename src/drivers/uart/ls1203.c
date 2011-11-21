@@ -9,7 +9,7 @@
 #include "ls1203.h"
 #include "ulp_time.h"
 
-void ls1203_Init(ls1203_t *chip)
+void ls1203_Init(const ls1203_t *chip)
 {
 	uart_cfg_t cfg = { //UART_CFG_DEF;
 		.baud = 9600,
@@ -18,7 +18,7 @@ void ls1203_Init(ls1203_t *chip)
 	chip->bus->init(&cfg);
 }
 
-int ls1203_Read(ls1203_t *chip, char *code_data)
+int ls1203_Read(const ls1203_t *chip, char *code_data)
 {
 	int i = 0;
 	time_t scanner_overtime;
