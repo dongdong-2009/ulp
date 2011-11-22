@@ -92,7 +92,6 @@ static int pdi_GetFault(char *data, int * pnum_fault);
 static int pdi_clear_dtc();
 static int pdi_check_init(const struct pdi_cfg_s *);
 static int check_barcode();
-static void pdi_process();
 static int pdi_pass_action();
 static int pdi_fail_action();
 static int target_noton_action();
@@ -101,11 +100,12 @@ static int dm_mdelay(int );
 static int init_OK();
 static int counter_pass_add();
 static int counter_fail_add();
-static void dm_update();
-static void dm_InitMsg();
 static int dm_StartSession();
 static int dm_GetCID(short cid, char *data);
 static int esc_check();
+static void dm_update();
+static void dm_InitMsg();
+static void pdi_process();
 
 /**************************************************************************/
 /************         Local funcitons                         *************/
@@ -414,7 +414,32 @@ static void pdi_process(void)
 
 static int esc_check()
 {
-
+	int i;
+	can_msg_t esc_msg;
+	time_t deadtime = time_get(100);
+	while(time_left(deadtime) > 0) {
+		if(pdi_can_bus -> recv(&esc_msg))
+			return 1;
+		switch(esc_msg.id) {
+		case 188:
+			esc_msg.data[6] &= 0xF8;
+			for(i = 0; i < 7; i ++) {
+				if(esc_msg.data[i] != 0x00)
+					break;
+			}
+			if(i != 6)
+				return 1;
+		case 189:
+			esc_msg.data[1] &= 0xEF;
+			for(i = 0; i < 3; i ++) {
+				if(esc_msg.data[i] != 0x00)
+					break;
+			}
+			if(i != 3)
+				return 1;
+		}
+	}
+	return 0;
 }
 
 static int check_barcode()
@@ -486,9 +511,12 @@ static int pdi_check()
 		return 1;
 	}
 
+	if(esc_check()) {
+		printf("##START##EC-ESC ERROR##END##\n");
+		return 1;
+	}
 	return 0;
 }
-
 
 void pdi_init(void)
 {
