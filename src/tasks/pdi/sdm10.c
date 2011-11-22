@@ -12,7 +12,7 @@
 #include "ls1203.h"
 #include "cfg.h"
 #include "priv/usdt.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "shell/cmd.h"
 #include "led.h"
 
@@ -20,7 +20,6 @@
 const can_msg_t pdi_wakeup_msg =	{0x100, 8, {0, 0, 0, 0, 0, 0, 0, 0}, 0};
 const can_msg_t pdi_dtc_msg = 		{0x247, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
 const can_msg_t pdi_cpid_msg = 		{0x247, 8, {0x03, 0xae, 0x01, 0x3f, 0, 0, 0, 0}, 0};
-const can_msg_t pdi_present_msg =	{0x101, 3, {0xfe, 0x01, 0x3e}, 0};
 const can_msg_t pdi_621_msg =		{0x621, 8, {0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
 const can_msg_t pdi_10_power_cfg_msg =	{0x10242040, 1, {0x01}, 1};
 const can_msg_t pdi_11_power_cfg_msg =	{0x10002040, 1, {0x01}, 1};
@@ -32,11 +31,26 @@ const can_msg_t pdi_10_pwr_off_msg1 =	{0x10242040, 1, {0x00}, 1};
 const can_msg_t pdi_10_pwr_off_msg2 =	{0x10244060, 1, {0x00}, 1};
 const can_msg_t pdi_11_pwr_off_msg1 =	{0x10002040, 4, {0x00,0x00,0x00,0x00}, 1};
 const can_msg_t pdi_11_pwr_off_msg2 =	{0x10004060, 1, {0x00}, 1};
+
+struct can_queue_s {
+	int ms;
+	time_t timer;
+	can_msg_t msg;
+	struct list_head list;
+};
+
+static struct can_queue_s sdm_present_msg = {
+	.ms = 1000,
+	.msg = {0x101, 3, {0xfe, 0x01, 0x3e}, 0},
+};
+
 static const can_bus_t* pdi_can_bus = &can1;
 static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
 static char pdi_data_buf[256];
 static char pdi_fault_buf[64];
 static char bcode_1[20];
+
+static LIST_HEAD(can_queue);
 
 static mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
@@ -68,7 +82,9 @@ static int sdm10_mdelay(int );
 static int init_OK();
 static int counter_pass_add();
 static int counter_fail_add();
+static void sdm_InitMsg();
 static void pdi_process();
+static void sdm_update();
 
 static int sdm10_mdelay(int ms)
 {
@@ -78,10 +94,31 @@ static int sdm10_mdelay(int ms)
 		left = time_left(deadline);
 		if(left >= 10) { //system update period is expected less than 10ms
 			ulp_update();
+			sdm_update();
 		}
 	} while(left > 0);
 
 	return 0;
+}
+
+static void sdm_InitMsg(void)
+{
+	INIT_LIST_HEAD(&sdm_present_msg.list);
+	list_add(&sdm_present_msg.list, &can_queue);
+}
+
+static void sdm_update(void)
+{
+	struct list_head *pos;
+	struct can_queue_s *q;
+
+	list_for_each(pos, &can_queue) {
+		q = list_entry(pos, can_queue_s, list);
+		if(q -> timer == 0 || time_left(q -> timer) < 0) {
+			q -> timer = time_get(q -> ms);
+			pdi_can_bus -> send(&q -> msg);
+		}
+	}
 }
 
 static int init_OK()
@@ -94,7 +131,7 @@ static int init_OK()
 	led_off(LED_GREEN);
 	beep_off();
 	sdm10_mdelay(100);
-	for(int i = 0; i < 5; i++){
+	for(int i = 0; i < 5; i++) {
 		led_on(LED_RED);
 		led_on(LED_GREEN);
 		sdm10_mdelay(200);
@@ -401,9 +438,6 @@ static int pdi_wakeup()
 	sdm10_mdelay(40);
 	printf("##START##EC-ECU will be ready##END##\n");
 
-	pdi_can_bus->send(&pdi_present_msg);
-	pdi_can_bus->send(&pdi_present_msg);
-
 	for(rate = 19; rate < 57; rate ++) {
 		sdm10_mdelay(80);
 		printf("##START##STATUS-");
@@ -411,8 +445,6 @@ static int pdi_wakeup()
 		printf("%s", temp);
 		printf("##END##\n");
 	}
-	pdi_can_bus->send(&pdi_present_msg);
-	pdi_can_bus->send(&pdi_present_msg);
 
 	for(rate = 57; rate < 95; rate ++) {
 		sdm10_mdelay(80);
@@ -421,8 +453,6 @@ static int pdi_wakeup()
 		printf("%s", temp);
 		printf("##END##\n");
 	}
-	pdi_can_bus->send(&pdi_present_msg);
-	pdi_can_bus->send(&pdi_present_msg);
 
 	//sdm10_mdelay(3000);感觉这里有错，应该再次发一下pdi_present_msg，不然后面会死掉
 	//try DPID $12 again
@@ -520,8 +550,6 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		}
 
 		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0) {
-			if(i == 12)
-				pdi_can_bus->send(&pdi_present_msg);
 			continue;
 		} else {
 			printf("##START##EC-Error: Fault is : ");
@@ -587,6 +615,7 @@ void pdi_init(void)
 	pdi_swcan_mode();//SW can
 	pdi_can_bus->init(&cfg_pdi_can);
 	usdt_Init(pdi_can_bus);
+	sdm_InitMsg();
 }
 
 void pdi_process(void)
@@ -635,6 +664,7 @@ int main(void)
 	while(1) {
 		pdi_process();
 		ulp_update();
+		sdm_update();
 	}
 }
 
