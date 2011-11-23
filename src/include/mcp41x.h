@@ -6,14 +6,14 @@
 #ifndef __MCP41X_H_
 #define __MCP41X_H_
 
-#include "device.h"
+#include "spi.h"
 
 typedef struct {
-	spi_bus_t *bus;
+	const spi_bus_t *bus;
 	int idx; //index of chip in the specified bus
 } mcp41x_t;
 
-void mcp41x_Init(mcp41x_t *chip);
-void mcp41x_SetPos(mcp41x_t *chip, short pos); /*0~255*/
+void mcp41x_Init(const mcp41x_t *chip);
+void mcp41x_SetPos(const mcp41x_t *chip, short pos); /*0~255*/
 
 #endif /*__MCP41X_H_*/
