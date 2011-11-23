@@ -80,7 +80,6 @@ static struct can_queue_s dm_msg4 = {
 };
 
 static LIST_HEAD(can_queue);
-static const can_bus_t *can_bus = &can1;
 
 static const can_bus_t* pdi_can_bus = &can1;
 static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
@@ -88,11 +87,11 @@ static char pdi_data_buf[256];			//data buffer
 static char pdi_fault_buf[64];			//fault buffer
 static char bcode_1[19];
 
-static int pdi_check(const struct pdi_cfg_s *);
+static int pdi_check();
 static int pdi_GetFault(char *data, int * pnum_fault);
 static int pdi_clear_dtc();
 static int pdi_check_init(const struct pdi_cfg_s *);
-static int check_barcode(void);
+static int check_barcode();
 static void pdi_process();
 static int pdi_pass_action();
 static int pdi_fail_action();
@@ -104,8 +103,9 @@ static int counter_pass_add();
 static int counter_fail_add();
 static void dm_update();
 static void dm_InitMsg();
-static int dm_StartSession(void);
+static int dm_StartSession();
 static int dm_GetCID(short cid, char *data);
+static int esc_check();
 
 /**************************************************************************/
 /************         Local funcitons                         *************/
@@ -356,7 +356,7 @@ static void dm_update()
 		q = list_entry(pos, can_queue_s, list);
 		if(q -> timer == 0 || time_left(q -> timer) < 0) {
 			q -> timer = time_get(q -> ms);
-			can_bus -> send(&q -> msg);
+			pdi_can_bus -> send(&q -> msg);
 		}
 	}
 }
@@ -412,6 +412,11 @@ static void pdi_process(void)
 	}
 }
 
+static int esc_check()
+{
+
+}
+
 static int check_barcode()
 {
 	//start session
@@ -449,11 +454,11 @@ static int pdi_GetFault(char *data, int * pnum_fault)
 	if (dm_StartSession())
 		return 1;
 
-	
+
 	return 0;
 }
 
-static int pdi_check(const struct pdi_cfg_s *sr)
+static int pdi_check()
 {
 	int i, num_fault, try_times = 5;
 	const struct pdi_rule_s* pdi_cfg_rule;
