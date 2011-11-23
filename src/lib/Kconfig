@@ -17,6 +17,8 @@ bool "common - common routine library" CONFIG_LIB_COMMON
 bool "FreeRTOS - realtime operating system" CONFIG_LIB_FREERTOS
 bool "mass storage - virtual usb disk" CONFIG_LIB_UDISK
 bool "priv - copyright related library" CONFIG_LIB_PRIV
+bool "lua - lua script language" CONFIG_LIB_LUA
+bool "zbar - barcode scanner library" CONFIG_LIB_ZBAR
 
 mainmenu_option next_comment
 	comment 'library detail configuration'

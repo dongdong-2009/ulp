@@ -51,6 +51,7 @@ int apt_GetLEDPWRIndicator(void);
 int apt_SelectPWR(int keytype);
 
 int apt_GetLinkInfo(void);
+int apt_GetTypeInfo(void);
 
 int apt_GetDiagInfo(void);
 int apt_SelectAPTDiag(int keytype);
@@ -62,6 +63,8 @@ int apt_GetDTCInfo(void);
 int apt_SelectSDMDTC(int keytype);
 
 //for can send
-int c131_can_ClearHistoryDTC(void);
-int c131_can_GetDTC(c131_dtc_t *pc131_dtc);
+int c131_ClearHistoryDTC(void);
+int c131_GetDTC(c131_dtc_t *pc131_dtc);
+int c131_GetDiagInfo(can_msg_t *pReq, can_msg_t *pRes, int * plen);
+int c131_GetEEPROMInfo(can_msg_t *pReq, can_msg_t *pRes, char data_len, int *plen);
 #endif /*__C131_H_*/

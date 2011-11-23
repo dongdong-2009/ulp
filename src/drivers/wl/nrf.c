@@ -13,7 +13,7 @@
 #include "spi.h"
 #include "nrf.h"
 #include "debug.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "wl.h"
 
 static const spi_bus_t *nrf_spi;

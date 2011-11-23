@@ -11,10 +11,10 @@
 
 #include "config.h"
 #include <stdlib.h>
-#include "FreeRTOS.h"
 
 //memory management functions
 #ifdef CONFIG_LIB_FREERTOS
+#include "FreeRTOS.h"
 #define sys_malloc pvPortMalloc
 #define sys_free vPortFree
 #else

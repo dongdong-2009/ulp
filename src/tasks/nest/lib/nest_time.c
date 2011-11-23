@@ -3,7 +3,7 @@
  */
 
 #include "config.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "nest_time.h"
 
 static time_t nest_time_start;

@@ -10,5 +10,5 @@ void sys_Update(void);
 /*normally this routine will be provided by cpu/xxx/cmsis/system_xxx.c*/
 extern void SystemInit (void);
 
-#include "time.h"
+#include "ulp_time.h"
 #endif /*__SYSTEM_H_*/

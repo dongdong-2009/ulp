@@ -56,3 +56,17 @@ if [ "$CONFIG_LIB_UDISK" = "y" ]; then
 		source src/lib/mass_storage/Kconfig
 	endmenu	
 fi
+
+if [ "$CONFIG_LIB_LUA" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'lua script language'
+		source src/lib/lua/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_LIB_ZBAR" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'zbar scanner library'
+		source src/lib/zbar/Kconfig
+	endmenu
+fi

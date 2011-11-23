@@ -7,7 +7,7 @@
 #include "can.h"
 #include "stm32f10x.h"
 #include <string.h>
-#include "time.h"
+#include "ulp_time.h"
 #include "stm32f10x_it.h"
 
 #if CONFIG_CAN1_RF_SZ > 0
@@ -162,33 +162,48 @@ int can_recv(can_msg_t *msg)
 #endif
 }
 
-int can_filt(can_filter_t *filter, int n)
+int can_filt(can_filter_t const *filter, int n)
 {
 	int i, j, ret = 0;
 	short id0, id1, msk0, msk1;
 	CAN_FilterInitTypeDef  CAN_FilterInitStructure;
 
-	for(i = 0, j = 0; i < n; j ++) {
-		id0 = filter[i].id << 5;
-		msk0 = filter[i].mask << 5;
-		i ++;
-
-		id1 = (i < n) ? filter[i].id << 5 : 0x0000;
-		msk1 = (i < n) ? filter[i].mask << 5 : 0xffff;
-		i ++;
-
-		/* CAN filter init */
-		CAN_FilterInitStructure.CAN_FilterNumber = j;
+	if ((n == 0) || (filter == NULL)) {
+			/* CAN filter init */
+		CAN_FilterInitStructure.CAN_FilterNumber = 0;
 		CAN_FilterInitStructure.CAN_FilterMode = CAN_FilterMode_IdMask; //default id mask mode
 		CAN_FilterInitStructure.CAN_FilterScale = CAN_FilterScale_16bit; //default id 16bit
-		CAN_FilterInitStructure.CAN_FilterIdHigh = id0;
-		CAN_FilterInitStructure.CAN_FilterIdLow = id1;
-		CAN_FilterInitStructure.CAN_FilterMaskIdHigh = msk0;
-		CAN_FilterInitStructure.CAN_FilterMaskIdLow = msk1;
+		CAN_FilterInitStructure.CAN_FilterIdHigh = 0x0;
+		CAN_FilterInitStructure.CAN_FilterIdLow = 0x0;
+		CAN_FilterInitStructure.CAN_FilterMaskIdHigh = 0x0;
+		CAN_FilterInitStructure.CAN_FilterMaskIdLow = 0x0;
 		CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0 ; //default fifo use 0
 		CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
 		CAN_FilterInit(&CAN_FilterInitStructure);
+	} else {
+		for(i = 0, j = 0; i < n; j ++) {
+			id0 = filter[i].id << 5;
+			msk0 = filter[i].mask << 5;
+			i ++;
+
+			id1 = (i < n) ? filter[i].id << 5 : 0x0000;
+			msk1 = (i < n) ? filter[i].mask << 5 : 0xffff;
+			i ++;
+
+			/* CAN filter init */
+			CAN_FilterInitStructure.CAN_FilterNumber = j;
+			CAN_FilterInitStructure.CAN_FilterMode = CAN_FilterMode_IdMask; //default id mask mode
+			CAN_FilterInitStructure.CAN_FilterScale = CAN_FilterScale_16bit; //default id 16bit
+			CAN_FilterInitStructure.CAN_FilterIdHigh = id0;
+			CAN_FilterInitStructure.CAN_FilterIdLow = id1;
+			CAN_FilterInitStructure.CAN_FilterMaskIdHigh = msk0;
+			CAN_FilterInitStructure.CAN_FilterMaskIdLow = msk1;
+			CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0 ; //default fifo use 0
+			CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
+			CAN_FilterInit(&CAN_FilterInitStructure);
+		}
 	}
+
 	return ret;
 }
 

@@ -6,7 +6,7 @@
 #include "config.h"
 #include "sys/task.h"
 #include "sys/system.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "driver.h"
 
 /* rtos includes. */

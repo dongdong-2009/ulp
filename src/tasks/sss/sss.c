@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "time.h"
+#include "ulp_time.h"
 #include "sss.h"
 #include "sis.h"
 #include "nvm.h"

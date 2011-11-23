@@ -25,9 +25,9 @@
 #include "err.h"
 #include "priv/ccp.h"
 #include "can.h"
-#include "time.h"
+#include "ulp_time.h"
 #include <string.h>
-#include "debug.h"
+#include "ulp/debug.h"
 
 static const can_bus_t *ccp_can = NULL;
 static char ccp_ctr = 0; //command counter

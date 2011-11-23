@@ -5,7 +5,7 @@
 #include "key.h"
 #include "driver.h"
 #include "encoder.h"
-#include "time.h"
+#include "ulp_time.h"
 #include <stdio.h>
 
 /*static variable*/

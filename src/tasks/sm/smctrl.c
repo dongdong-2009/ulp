@@ -4,7 +4,7 @@
 
 #include "config.h"
 #include "smctrl.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "l6208.h"
 #include "ad9833.h"
 #include "spi.h"

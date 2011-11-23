@@ -4,7 +4,11 @@
 #ifndef __LED_H_
 #define __LED_H_
 
+#ifdef CONFIG_LED_UPDATE_MS
+#define LED_FLASH_PERIOD	CONFIG_LED_UPDATE_MS
+#else
 #define LED_FLASH_PERIOD	1000 /*unit ms*/
+#endif
 
 typedef enum {
 	LED_GREEN = 0,
@@ -20,6 +24,7 @@ typedef enum {
 
 void led_Init(void);
 void led_Update(void);
+void led_Update_Immediate(void);
 void led_on(led_t led);
 void led_off(led_t led);
 void led_inv(led_t led);

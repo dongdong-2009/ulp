@@ -11,7 +11,7 @@
 #include "sys/sys.h"
 #include "shell/cmd.h"
 #include "console.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "uart.h"
 
 static void cmd_GetHistory(char *cmd, int dir);
@@ -89,6 +89,10 @@ int shell_register(const struct console_s *console)
 	//new shell init
 	console_select(shell -> console);
 	cmd_queue_init(&shell -> cmd_queue);
+#ifdef stdout
+	setbuf(stdout, 0);
+	setbuf(stderr, 0);
+#endif
 	putchar(0x1b); /*clear screen*/
 	putchar('c');
 	printf("%s\n", CONFIG_BLDC_BANNER);
@@ -295,7 +299,9 @@ int shell_ReadLine(const char *prompt, char *str)
 			}
 			continue;
 		default:
-			if((ch < ' ') || (ch > 126))
+			if (ch == '	')
+				NULL;
+			else if((ch < ' ') || (ch > 126))
 				continue;
 			if(len < CONFIG_SHELL_LEN_CMD_MAX - 1)
 			{

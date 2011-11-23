@@ -176,7 +176,8 @@ def iar_add():
 		quit();
 	#create sub-group/sub-files
 	for sname in argv[4:nr_para]:
-		if(path.dirname(sname) != ""):
+		#if(path.dirname(sname) != ""):
+		if(path.basename(sname) == ""):
 			#create a sub-group
 			print "sub-grp", sname, "is created"
 			esub = etree.SubElement(egrp, "group");

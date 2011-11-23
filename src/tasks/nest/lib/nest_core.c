@@ -8,11 +8,14 @@
 #include <sys/sys.h>
 #include <shell/cmd.h>
 #include "debug.h"
-#include "time.h"
+#include "ulp_time.h"
 #include "nvm.h"
 
 static int nest_flag_ignore __nvm;
-static struct nest_info_s nest_info __nvm;
+static struct nest_info_s nest_info;
+#ifdef CONFIG_NEST_ID
+static int nest_id __nvm;
+#endif
 
 int nest_init(void)
 {
@@ -21,6 +24,9 @@ int nest_init(void)
 	nest_message_init();
 	if(nest_flag_ignore == -1)
 		nest_flag_ignore = 0;
+#ifdef CONFIG_NEST_ID
+	nest_info.id_base = nest_id;
+#endif
 	nest_message("$nest_id = %d\n", nest_info.id_base);
 	nest_message("$nest_ignore = 0x%04x\n", nest_flag_ignore);
 	return 0;
@@ -189,18 +195,16 @@ static int cmd_nest_func(int argc, char *argv[])
 				return 0;
 			}
 		}
+#ifdef CONFIG_NEST_ID
 		if(!strcmp(argv[1], "id")) {
-			for(int i=2;i<argc;i++){
-				int len = strlen(argv[i]);
-				if(len>3 || len == 0)
-					break;
-				else
-					nest_info.id_base = atoi(argv[i]);
-					//strcpy(nest_info.id_base,argv[i]);
+			if(argc == 3) {
+				nest_id = atoi(argv[2]);
+				nest_info.id_base = nest_id;
 			}
 			nest_message("nest id %03d \n",nest_info.id_base);
 			return 0;
 		}
+#endif
 	}
 
 	printf("%s", usage);
