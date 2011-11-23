@@ -9,7 +9,6 @@
 #include "osd/osd_item.h"
 #include "osd/osd_eng.h"
 #include "osd/osd_event.h"
-#include "FreeRTOS.h"
 #include <stdlib.h>
 
 int osd_ShowItem(const osd_item_t *item, int status)

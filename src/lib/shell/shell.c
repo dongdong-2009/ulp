@@ -299,7 +299,9 @@ int shell_ReadLine(const char *prompt, char *str)
 			}
 			continue;
 		default:
-			if((ch < ' ') || (ch > 126))
+			if (ch == '	')
+				NULL;
+			else if((ch < ' ') || (ch > 126))
 				continue;
 			if(len < CONFIG_SHELL_LEN_CMD_MAX - 1)
 			{

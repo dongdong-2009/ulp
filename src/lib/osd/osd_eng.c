@@ -5,7 +5,6 @@
 
 #include "config.h"
 #include "osd/osd_eng.h"
-#include "FreeRTOS.h"
 #include <stdlib.h>
 #include "lcd.h"
 
