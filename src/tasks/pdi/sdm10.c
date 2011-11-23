@@ -16,8 +16,6 @@
 #include "shell/cmd.h"
 #include "led.h"
 
-static int a = 0;
-
 //local varibles;
 const can_msg_t pdi_wakeup_msg =	{0x100, 8, {0, 0, 0, 0, 0, 0, 0, 0}, 0};
 const can_msg_t pdi_dtc_msg = 		{0x247, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
@@ -48,7 +46,7 @@ static struct can_queue_s sdm_present_msg = {
 };
 
 static struct can_queue_s sdm_621_msg = {
-	.ms = 3000,
+	.ms = 2000,
 	.msg = {0x621, 8, {0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
@@ -57,6 +55,7 @@ static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
 static char pdi_data_buf[256];
 static char pdi_fault_buf[64];
 static char bcode_1[20];
+static int msg_621_flag = 0;
 
 static LIST_HEAD(can_queue);
 
@@ -127,7 +126,12 @@ static void sdm_update(void)
 		q = list_entry(pos, can_queue_s, list);
 		if(q -> timer == 0 || time_left(q -> timer) < 0) {
 			q -> timer = time_get(q -> ms);
-			pdi_can_bus -> send(&q -> msg);
+			if (q -> msg.id == 0x621) {
+				if (msg_621_flag)
+					pdi_can_bus -> send(&q -> msg);
+			} else {
+				pdi_can_bus -> send(&q -> msg);
+			}
 		}
 	}
 }
@@ -459,7 +463,7 @@ static int pdi_wakeup()
 	pdi_can_bus->send(&pdi_621_msg2);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_621_msg2);
-	a = 1;
+	msg_621_flag = 1;
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_dtc_msg);
 	sdm10_mdelay(20);
@@ -604,7 +608,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 
 static int pdi_sleep()
 {
-	a = 0;
+	msg_621_flag = 0;
 	char temp[3];
 	int rate;
 	printf("##START##EC---------------------------------------##END##\n");
