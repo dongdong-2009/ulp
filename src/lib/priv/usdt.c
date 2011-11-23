@@ -12,27 +12,29 @@
 #include "shell/cmd.h"
 #include "ulp/debug.h"
 
-#ifdef CONFIG_TASK_APTC131
+#if CONFIG_TASK_APTC131
 static const can_msg_t req_flow_msg = {
 	.id = 0x7a2,
 	.dlc = 8,
 	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
-#endif
-
-#ifdef CONFIG_PDI_SDM10
+#elif CONFIG_PDI_SDM10
 static const can_msg_t req_flow_msg = {
 	.id = 0x247,
 	.dlc = 8,
 	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
-#endif
-
-#ifdef CONFIG_PDI_DM
+#elif CONFIG_PDI_DM
 static const can_msg_t req_flow_msg = {
 	.id = 0x607,
 	.dlc = 8,
 	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+#else
+static const can_msg_t req_flow_msg = {
+	.id = 0x38,
+	.dlc = 8,
+	.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
 #endif
 
