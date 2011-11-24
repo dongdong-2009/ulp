@@ -299,10 +299,9 @@ int shell_ReadLine(const char *prompt, char *str)
 			}
 			continue;
 		default:
-			if (ch == '	')
-				NULL;
-			else if((ch < ' ') || (ch > 126))
+			if(((ch < ' ') || (ch > 126)) && (ch != '\t'))
 				continue;
+			offset = shell ->cmd_idx;
 			if(len < CONFIG_SHELL_LEN_CMD_MAX - 1)
 			{
 				sz = len - shell -> cmd_idx;
@@ -321,10 +320,12 @@ int shell_ReadLine(const char *prompt, char *str)
 
 				/*terminal display*/
 				putchar(ch);
-				printf("\033[s"); /*save cursor pos*/
-				printf("\033[K"); /*clear contents after cursor*/
-				printf(buf);
-				printf("\033[u"); /*restore cursor pos*/
+				if(offset < len) {
+					printf("\033[s"); /*save cursor pos*/
+					printf("\033[K"); /*clear contents after cursor*/
+					printf(buf);
+					printf("\033[u"); /*restore cursor pos*/
+				}
 			}
 			continue;
 		}
