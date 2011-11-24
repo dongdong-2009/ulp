@@ -20,7 +20,8 @@
 const can_msg_t pdi_wakeup_msg =	{0x100, 8, {0, 0, 0, 0, 0, 0, 0, 0}, 0};
 const can_msg_t pdi_dtc_msg = 		{0x247, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
 const can_msg_t pdi_cpid_msg = 		{0x247, 8, {0x03, 0xae, 0x01, 0x3f, 0, 0, 0, 0}, 0};
-const can_msg_t pdi_621_msg =		{0x621, 8, {0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
+const can_msg_t pdi_621_msg1 =		{0x621, 8, {0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
+const can_msg_t pdi_621_msg2 =		{0x621, 8, {0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
 const can_msg_t pdi_10_power_cfg_msg =	{0x10242040, 1, {0x01}, 1};
 const can_msg_t pdi_11_power_cfg_msg =	{0x10002040, 1, {0x01}, 1};
 const can_msg_t pdi_10_pwr_on_msg1 =	{0x10242040, 1, {0x03}, 1};
@@ -44,11 +45,17 @@ static struct can_queue_s sdm_present_msg = {
 	.msg = {0x101, 3, {0xfe, 0x01, 0x3e}, 0},
 };
 
+static struct can_queue_s sdm_621_msg = {
+	.ms = 2000,
+	.msg = {0x621, 8, {0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
+};
+
 static const can_bus_t* pdi_can_bus = &can1;
 static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
 static char pdi_data_buf[256];
 static char pdi_fault_buf[64];
 static char bcode_1[20];
+static int msg_621_flag = 0;
 
 static LIST_HEAD(can_queue);
 
@@ -105,6 +112,9 @@ static void sdm_InitMsg(void)
 {
 	INIT_LIST_HEAD(&sdm_present_msg.list);
 	list_add(&sdm_present_msg.list, &can_queue);
+
+	INIT_LIST_HEAD(&sdm_621_msg.list);
+	list_add(&sdm_621_msg.list, &can_queue);
 }
 
 static void sdm_update(void)
@@ -116,7 +126,12 @@ static void sdm_update(void)
 		q = list_entry(pos, can_queue_s, list);
 		if(q -> timer == 0 || time_left(q -> timer) < 0) {
 			q -> timer = time_get(q -> ms);
-			pdi_can_bus -> send(&q -> msg);
+			if (q -> msg.id == 0x621) {
+				if (msg_621_flag)
+					pdi_can_bus -> send(&q -> msg);
+			} else {
+				pdi_can_bus -> send(&q -> msg);
+			}
 		}
 	}
 }
@@ -380,12 +395,13 @@ static int pdi_wakeup()
 		printf("##END##\n");
 	}
 //try 2 times
-	pdi_GetDID(0x22, pdi_data_buf);
+	pdi_GetDID(0xc3, pdi_data_buf);
 	for(i = 0; i < 2; i++) {
 		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
 	printf("\n");
-	pdi_GetDPID(0x05, pdi_data_buf);
+
+	pdi_GetDID(0xd3, pdi_data_buf);
 	for(i = 0; i < 8; i++) {
 		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
@@ -405,26 +421,49 @@ static int pdi_wakeup()
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_power_cfg_msg);
 	sdm10_mdelay(20);
-	pdi_can_bus->send(&pdi_621_msg);
+	pdi_can_bus->send(&pdi_621_msg1);
 	sdm10_mdelay(20);
-	pdi_can_bus->send(&pdi_621_msg);
-	sdm10_mdelay(20);
-	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
+	pdi_can_bus->send(&pdi_621_msg1);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
 	sdm10_mdelay(20);
+	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
 	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
+	sdm10_mdelay(120);
+	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
 	sdm10_mdelay(20);
+	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
+	pdi_can_bus->send(&pdi_11_pwr_on_msg1);
+	sdm10_mdelay(20);
+	pdi_can_bus->send(&pdi_11_pwr_on_msg1);
+	sdm10_mdelay(20);
+	pdi_can_bus->send(&pdi_621_msg2);
+	pdi_can_bus->send(&pdi_621_msg2);
+	sdm10_mdelay(20);
+	pdi_can_bus->send(&pdi_wakeup_msg);
+	pdi_can_bus->send(&pdi_wakeup_msg);
 	printf("##START##STATUS-15##END##\n");
+	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
+	sdm10_mdelay(20);
+	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
+	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
+	sdm10_mdelay(20);
+	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
+	sdm10_mdelay(120);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
-	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_pwr_on_msg1);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_pwr_on_msg1);
+	sdm10_mdelay(20);
+	pdi_can_bus->send(&pdi_621_msg2);
+	pdi_can_bus->send(&pdi_621_msg2);
+	sdm10_mdelay(20);
+	pdi_can_bus->send(&pdi_621_msg2);
+	msg_621_flag = 1;
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_dtc_msg);
 	sdm10_mdelay(20);
@@ -457,8 +496,8 @@ static int pdi_wakeup()
 	//sdm10_mdelay(3000);感觉这里有错，应该再次发一下pdi_present_msg，不然后面会死掉
 	//try DPID $12 again
 
-	pdi_GetDID(0x71, pdi_data_buf);
-	for(i = 0; i < 18; i ++)
+	pdi_GetDPID(0x21, pdi_data_buf);
+	for(i = 0; i < 8; i ++)
 		printf("%2x,", pdi_data_buf[i]&0xff);
 
 	printf("\n");
@@ -569,6 +608,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 
 static int pdi_sleep()
 {
+	msg_621_flag = 0;
 	char temp[3];
 	int rate;
 	printf("##START##EC---------------------------------------##END##\n");
@@ -643,12 +683,13 @@ void pdi_process(void)
 			if(pdi_cfg_file == NULL) {//是否有此配置文件
 				pdi_fail_action();
 				printf("##START##EC-No This Config File##END##\n");
+			} else {
+				pdi_check_init(pdi_cfg_file);//relay config
+				if(pdi_check(pdi_cfg_file) == 0)
+					pdi_pass_action();
+				else
+					pdi_fail_action();
 			}
-			pdi_check_init(pdi_cfg_file);//relay config
-			if(pdi_check(pdi_cfg_file) == 0)
-				pdi_pass_action();
-			else
-				pdi_fail_action();
 		} else {
 			target_noton_action();
 			printf("##START##EC-target is not on the right position##END##\n");
@@ -688,7 +729,6 @@ static int cmd_sdm10_func(int argc, char *argv[])
 
 	if(argc == 2) {
 		if(argv[1][0] == 'f') {
-			pdi_wakeup();
 			if (pdi_GetFault(pdi_fault_buf, &num_fault))
 				printf("##ERROR##\n");
 			else {
@@ -697,7 +737,6 @@ static int cmd_sdm10_func(int argc, char *argv[])
 				for (i = 0; i < num_fault*3; i += 3)
 					printf("0x%2x, 0x%2x, 0x%2x\n", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
 			}
-			pdi_sleep();
 		}
 		if(argv[1][0] == 'c') {
 			pdi_wakeup();
@@ -707,6 +746,9 @@ static int cmd_sdm10_func(int argc, char *argv[])
 		}
 		if(argv[1][0] == 'w') {
 			pdi_wakeup();
+		}
+		if(argv[1][0] == 's') {
+			pdi_sleep();
 		}
 	}
 	if(argc == 3) {
@@ -729,3 +771,28 @@ static int cmd_sdm10_func(int argc, char *argv[])
 
 const cmd_t cmd_sdm10 = {"sdm10", cmd_sdm10_func, "sdm10 cmd i/f"};
 DECLARE_SHELL_CMD(cmd_sdm10)
+
+
+static int cmd_sdm_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"sdm , usage:\n"
+		"sdm clear\n"
+	};
+
+	if (argc < 2) {
+		printf("%s", usage);
+		return 0;
+	}
+
+	if(argc == 2) {
+		if(argv[1][0] == 'c') {
+			pdi_clear_dtc();
+			printf("##OK##\n");
+		}
+	}
+	return 0;
+}
+
+const cmd_t cmd_sdm = {"sdm", cmd_sdm_func, "sdm cmd i/f"};
+DECLARE_SHELL_CMD(cmd_sdm)
