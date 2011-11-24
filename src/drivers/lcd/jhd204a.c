@@ -123,6 +123,12 @@ int jhd204a_WriteChar(int row,int column,char ch)
 int jhd204a_WriteString(int column, int row, const char *s)
 {
 	char i=0,size;
+
+	if ((row > 3) || (column > 20))
+		return 1;
+	if ((row < 0) || (column < 0))
+		return 1;
+
 	size = (char)strlen(s);
 
 #if 0

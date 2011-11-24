@@ -37,6 +37,9 @@ static const char lcm_cmd = LCM_CMD_READ;;
 //local private
 static short vvt_counter; //0-719
 
+//working model
+static int vvt_default = 0;
+
 //pravite varibles define
 static ad9833_t knock_dds = {
 	.bus = &spi1,
@@ -63,7 +66,7 @@ static ad9833_t rpm_dds = {
 };
 
 static void lowlevel_Init(void);
-static void vvt_dds_Init(void);
+static void dds_Init(void);
 static void vss_SetFreq(short hz);
 static void wss_SetFreq(short hz);
 static void pss_SetSpeed(short hz);
@@ -75,6 +78,7 @@ static int vvt_GetConfigData(void);
 
 void vvt_Init(void)
 {
+	time_t overtime_cfg;
 	struct mcamos_s lcm = {
 		.can = &can1,
 		.baud = 500000,
@@ -82,78 +86,118 @@ void vvt_Init(void)
 		.id_dat = MCAMOS_MSG_DAT_ID,
 		.timeout = 50,
 	};
+
 	mcamos_init_ex(&lcm);
 
-	mdelay(100);	//wait for lcm initialized
+	//wait for lcm initialized
+	mdelay(500);
+	overtime_cfg = time_get(1000);
+	while(vvt_GetConfigData()) {
+		if (time_left(overtime_cfg) < 0) {
+			vvt_default = 1;
+			printf("Simulator Work in Default Status!");
+			break;
+		}
+	}
+
 	vvt_counter = 0;
-	while(vvt_GetConfigData());
-#if 0
-	//for frequence varible
-	ne58x_freq_value = cfg_data.rpm;
-	knock_freq_value = cfg_data.knk;
-	wss_freq_value = cfg_data.wss;
-	vss_freq_value = cfg_data.vss;
-	//for misfire varible
-	misfire_value = mfr;
-	misfire_pattern = dio & 0x00ff;
-	//for knock varible
-	knock_pos;
-	knock_width;
-	knock_strength; //unit: mV
-	knock_pattern = (dio >> 8); //...D C B A
-	//for advanced gear
-	gear_advance;
+
+	if (vvt_default) {
+		//for frequence varible
+		ne58x_freq_value = 1000;
+		wss_freq_value = 100;
+		vss_freq_value = 100;
+		//for advanced gear
+		gear_advance = 0;
+		//for misfire varible
+		misfire_value = 0;
+		//for knock config
+		knock_freq_value = 10000;
+		knock_strength = 50;
+		knock_width = 20;
+		knock_pos = 0;
+		//for patten
+		misfire_pattern = 0;
+		knock_pattern = 0;
+	} else {
+		//for frequence varible
+		ne58x_freq_value = cfg_data.rpm;
+		wss_freq_value = cfg_data.wss;
+		vss_freq_value = cfg_data.vss;
+		//for advanced gear
+		gear_advance = cfg_data.cam;
+		//for misfire varible
+		misfire_value = cfg_data.mfr;
+		//for knock config
+		knock_freq_value = cfg_data.knf;
+		knock_pos = cfg_data.knp;
+		knock_width = cfg_data.knw;
+		knock_strength = cfg_data.knk; //unit: mV
+#if 1
+		//for patten
+		misfire_pattern = 0;
+		knock_pattern = 0;
 #endif
 
-	lowlevel_Init();
-	vvt_dds_Init();
-	misfire_Init();
-	misfire_SetSpeed(500);
-	vvt_Start();
+#if 0
+		knock_pattern = (cfg_data.dio >> 8) & 0x003f; //...D C B A
+		misfire_pattern = cfg_data.dio & 0x003f;
+#endif
+	}
 
+	dds_Init();
+	lowlevel_Init();
+	misfire_Init();
+
+	misfire_SetSpeed(ne58x_freq_value? ne58x_freq_value : 1);
+	misfire_ConfigStrength(misfire_value);
+	misfire_ConfigPattern(misfire_pattern);
 	wss_SetFreq(wss_freq_value);
 	vss_SetFreq(vss_freq_value);
 	knock_SetFreq(knock_freq_value);
+	vvt_Start();
 }
 
 void vvt_Update(void)
 {
 	//update lcm input
-	vvt_GetConfigData();
-#if 1
-	printf("rpm : %d \n", cfg_data.rpm);
-	printf("cam : %d \n", cfg_data.cam);
-	printf("wss : %d \n", cfg_data.wss);
-	printf("vss : %d \n", cfg_data.vss);
-	printf("mfr : %d \n", cfg_data.mfr);
-	printf("knk : %d \n", cfg_data.knk);
-	printf("dio : %d \n\n", cfg_data.dio);
-#endif
+	if (vvt_GetConfigData() == 0) {
+		//mcamos communication indicator
+		led_inv(LED_RED);
 
-	if (wss_freq_value != cfg_data.wss)
-		wss_SetFreq(cfg_data.wss);
-	if (wss_freq_value != cfg_data.vss)
-		vss_SetFreq(cfg_data.vss);
-	if (wss_freq_value != cfg_data.knk)
-		knock_SetFreq(cfg_data.knk);
+		//frequence init
+		if (wss_freq_value != cfg_data.wss)
+			wss_SetFreq(cfg_data.wss);
+		if (vss_freq_value != cfg_data.vss)
+			vss_SetFreq(cfg_data.vss);
+		if (knock_freq_value != cfg_data.knf)
+			knock_SetFreq(cfg_data.knf);
+		if (ne58x_freq_value != cfg_data.rpm)
+			misfire_SetSpeed(cfg_data.rpm ? cfg_data.rpm : 1);
+		if (misfire_value != cfg_data.mfr)
+			misfire_ConfigStrength(misfire_value);
+		// if (misfire_pattern != (cfg_data.dio & 0x003f))
+			// misfire_ConfigPattern(misfire_pattern);
+
+		//for frequence varible
+		ne58x_freq_value = cfg_data.rpm;
+		wss_freq_value = cfg_data.wss;
+		vss_freq_value = cfg_data.vss;
+		//for advanced gear
+		gear_advance = cfg_data.cam;
+		//for misfire varible
+		misfire_value = cfg_data.mfr;
+		//for knock config
+		knock_freq_value = cfg_data.knf;
+		knock_pos = cfg_data.knp;
+		knock_width = cfg_data.knw;
+		knock_strength = cfg_data.knk; //unit: mV
 
 #if 0
-	//for frequence varible
-	ne58x_freq_value = cfg_data.rpm;
-	knock_freq_value = cfg_data.knk;
-	wss_freq_value = cfg_data.wss;
-	vss_freq_value = cfg_data.vss;
-	//for misfire varible
-	misfire_value = mfr;
-	misfire_pattern = dio & 0x00ff;
-	//for knock varible
-	knock_pos;
-	knock_width;
-	knock_strength; //unit: mV
-	knock_pattern = (dio >> 8); //...D C B A
-	//for advanced gear
-	gear_advance;
+		misfire_pattern = cfg_data.dio & 0x003f;
+		knock_pattern = (cfg_data.dio >> 8) & 0x003f; //...D C B A
 #endif
+	}
 }
 
 void vvt_isr(void)
@@ -232,6 +276,9 @@ int main(void)
 	}
 }
 
+/****************************************************************
+****************** static local function  ******************
+****************************************************************/
 static int vvt_GetConfigData(void)
 {
 	int ret = 0;
@@ -242,25 +289,6 @@ static int vvt_GetConfigData(void)
 		printf("MCAMOS ERROR!\n");
 		return -1;
 	}
-
-#if 0
-	//for frequence varible
-	ne58x_freq_value = cfg_data.rpm;
-	knock_freq_value = cfg_data.knk;
-	wss_freq_value = cfg_data.wss;
-	vss_freq_value = cfg_data.vss;
-	//for misfire varible
-	misfire_value = mfr;
-	misfire_pattern = dio & 0x00ff;
-	//for knock varible
-	knock_pos;
-	knock_width;
-	knock_strength; //unit: mV
-	knock_pattern = (dio >> 8); //...D C B A
-	//for advanced gear
-	gear_advance;
-#endif
-
 	return 0;
 }
 
@@ -308,7 +336,7 @@ static void lowlevel_Init(void)
 	pss_Enable(0);/*misfire input switch*/
 }
 
-static void vvt_dds_Init(void)
+static void dds_Init(void)
 {
 	//for rpm dds
 	static char rpmdds_rbuf[6];
