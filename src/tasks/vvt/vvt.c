@@ -14,6 +14,14 @@
 #include "ad9833.h"
 #include "mcp41x.h"
 #include "vvt.h"
+#include "nvm.h"
+
+#define VVT_DEBUG 1
+#if VVT_DEBUG
+#define DEBUG_TRACE(args)    (printf args)
+#else
+#define DEBUG_TRACE(args)
+#endif
 
 //for frequence varible
 static short ne58x_freq_value;
@@ -38,7 +46,6 @@ static const char lcm_cmd = LCM_CMD_READ;;
 //local private
 static short vvt_counter;      //0-719
 static int vvt_default = 0;    //working model
-static int macmos_fn = 0;      //macmos service fault times
 
 //pravite varibles define
 static ad9833_t knock_dds = {
@@ -101,7 +108,7 @@ void vvt_Init(void)
 	while(vvt_GetConfigData()) {
 		if (time_left(overtime_cfg) < 0) {
 			vvt_default = 1;
-			printf("Simulator Work in Default Status!");
+			DEBUG_TRACE(("##VVT Simulator Work in Default Status!##\n"));
 			break;
 		}
 	}
@@ -110,7 +117,7 @@ void vvt_Init(void)
 
 	if (vvt_default) {
 		//for frequence varible
-		ne58x_freq_value = 1000;
+		ne58x_freq_value = 300;
 		wss_freq_value = 100;
 		vss_freq_value = 100;
 		//for advanced gear
@@ -168,7 +175,9 @@ void vvt_Init(void)
 	mcp41x_Init(&knock_vr);
 	knock_SetStrength(knock_strength);
 	vvt_Start();
-	led_flash(LED_GREEN);
+	led_on(LED_GREEN);
+	led_on(LED_RED);
+	DEBUG_TRACE(("##VVT Simulator Init OK!##\n"));
 }
 
 void vvt_Update(void)
@@ -176,7 +185,7 @@ void vvt_Update(void)
 	//update lcm input
 	if (vvt_GetConfigData() == 0) {
 		//mcamos communication indicator
-		led_inv(LED_RED);
+		led_inv(LED_GREEN);
 
 		//frequence set for wss,vss,knock
 		if (wss_freq_value != cfg_data.wss) {
@@ -224,12 +233,7 @@ void vvt_Update(void)
 		knock_pattern = (cfg_data.dio >> 8) & 0x003f; //...D C B A
 #endif
 	} else {
-		macmos_fn ++;
-		if (macmos_fn > 5) {
-			macmos_fn = 0;
-			mcamos_init_ex(&lcm);
-			printf("Restart the can bus!\n");
-		}
+		led_inv(LED_RED);  //indicator mcamos error.
 	}
 }
 
@@ -295,8 +299,8 @@ void vvt_isr(void)
 
 void EXTI9_5_IRQHandler(void)
 {
-	EXTI->PR = EXTI_Line6;
 	vvt_isr();
+	EXTI->PR = EXTI_Line6;
 }
 
 int main(void)
@@ -319,7 +323,7 @@ static int vvt_GetConfigData(void)
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, &lcm_cmd, 1);
 	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, sizeof(cfg_data));
 	if (ret) {
-		printf("MCAMOS ERROR!\n");
+		DEBUG_TRACE(("##MCAMOS ERROR!##\n"));
 		return -1;
 	}
 	return 0;
