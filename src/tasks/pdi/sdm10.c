@@ -22,6 +22,7 @@ const can_msg_t pdi_dtc_msg = 		{0x247, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0}
 const can_msg_t pdi_cpid_msg = 		{0x247, 8, {0x03, 0xae, 0x01, 0x3f, 0, 0, 0, 0}, 0};
 const can_msg_t pdi_621_msg1 =		{0x621, 8, {0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
 const can_msg_t pdi_621_msg2 =		{0x621, 8, {0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
+const can_msg_t pdi_621_msg3 =		{0x621, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0};
 const can_msg_t pdi_10_power_cfg_msg =	{0x10242040, 1, {0x01}, 1};
 const can_msg_t pdi_11_power_cfg_msg =	{0x10002040, 1, {0x01}, 1};
 const can_msg_t pdi_10_pwr_on_msg1 =	{0x10242040, 1, {0x03}, 1};
@@ -461,8 +462,6 @@ static int pdi_wakeup()
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_621_msg2);
 	pdi_can_bus->send(&pdi_621_msg2);
-	sdm10_mdelay(20);
-	pdi_can_bus->send(&pdi_621_msg2);
 	msg_621_flag = 1;
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_dtc_msg);
@@ -631,6 +630,8 @@ static int pdi_sleep()
 	sdm10_mdelay(10);
 	pdi_can_bus->send(&pdi_11_pwr_off_msg2);
 	printf("##START##STATUS-94##END##\n");
+	pdi_can_bus->send(&pdi_621_msg3);
+	pdi_can_bus->send(&pdi_621_msg3);
 	for(rate = 95; rate <= 100; rate ++) {
 		sdm10_mdelay(50);
 		printf("##START##STATUS-");
