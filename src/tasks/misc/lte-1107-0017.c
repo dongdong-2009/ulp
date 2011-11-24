@@ -32,22 +32,22 @@ unsigned char return_data[6];
 
 void Led_R_On(void)
 {
-	GPIO_SetBits(GPIOA, GPIO_Pin_1);
+	GPIO_SetBits(GPIOC, GPIO_Pin_12);
 }
 
 void Led_G_On(void)
 {
-	GPIO_SetBits(GPIOA, GPIO_Pin_2);
+	GPIO_SetBits(GPIOC, GPIO_Pin_10);
 }
 
 void Led_R_Off(void)
 {
-	GPIO_ResetBits(GPIOA, GPIO_Pin_1);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_12);
 }
 
 void Led_G_Off(void)
 {
-	GPIO_ResetBits(GPIOA, GPIO_Pin_2);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_10);
 }
 
 void Address_Init(void)
@@ -86,7 +86,7 @@ void Channel_Init(void)
 		GPIO_Init(GPIOA, &GPIO_InitStructure);
 		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
 		GPIO_Init(GPIOB, &GPIO_InitStructure);
-		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9;
+		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_12;
 		GPIO_Init(GPIOC, &GPIO_InitStructure);
 }
 
@@ -252,10 +252,10 @@ void Server_Update(void)
 	char *inbox = slu_server.inbox;
 	channel_num_temp = 1 << channel_num;
 	Led_G_On();
-	if(relay_status)
+	/*if(relay_status)
 		Led_R_On();
 	else
-		Led_R_Off();
+		Led_R_Off();*/
 	mcamos_srv_update(&slu_server);
 	switch(inbox[0]) {
 	case SET:
