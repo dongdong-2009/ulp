@@ -33,6 +33,7 @@ const can_msg_t pdi_10_pwr_off_msg1 =	{0x10242040, 1, {0x00}, 1};
 const can_msg_t pdi_10_pwr_off_msg2 =	{0x10244060, 1, {0x00}, 1};
 const can_msg_t pdi_11_pwr_off_msg1 =	{0x10002040, 4, {0x00,0x00,0x00,0x00}, 1};
 const can_msg_t pdi_11_pwr_off_msg2 =	{0x10004060, 1, {0x00}, 1};
+const can_msg_t pdi_testpresent_msg =	{0x101, 3, {0xfe, 0x01, 0x3e}, 0};
 
 struct can_queue_s {
 	int ms;
@@ -57,6 +58,7 @@ static char pdi_data_buf[256];
 static char pdi_fault_buf[64];
 static char bcode_1[20];
 static int msg_621_flag = 0;
+static int msg_present_flag = 0;
 
 static LIST_HEAD(can_queue);
 
@@ -130,8 +132,10 @@ static void sdm_update(void)
 			if (q -> msg.id == 0x621) {
 				if (msg_621_flag)
 					pdi_can_bus -> send(&q -> msg);
-			} else {
-				pdi_can_bus -> send(&q -> msg);
+			}
+			if (q -> msg.id == 0x101) {
+				if (msg_present_flag)
+					pdi_can_bus -> send(&q -> msg);
 			}
 		}
 	}
@@ -395,31 +399,31 @@ static int pdi_wakeup()
 		printf("%s", temp);
 		printf("##END##\n");
 	}
+
+	pdi_can_bus->send(&pdi_wakeup_msg);
 //try 2 times
-	pdi_GetDID(0xc3, pdi_data_buf);
+	pdi_GetDID(0x22, pdi_data_buf);
 	for(i = 0; i < 2; i++) {
 		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
 	printf("\n");
 
-	pdi_GetDID(0xd3, pdi_data_buf);
+	pdi_GetDID(0xc2, pdi_data_buf);
 	for(i = 0; i < 8; i++) {
 		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
 	printf("\n");
+
 	sdm10_mdelay(100);
 	printf("##START##EC-Send High Voltage Wakeup##END##\n");
 	pdi_can_bus->send(&pdi_wakeup_msg);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_wakeup_msg);
-	sdm10_mdelay(20);
 	printf("##START##EC-Transmitting Power Mode##END##\n");
 	pdi_can_bus->send(&pdi_10_power_cfg_msg);
-	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_power_cfg_msg);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_power_cfg_msg);
-	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_power_cfg_msg);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_621_msg1);
@@ -432,7 +436,7 @@ static int pdi_wakeup()
 	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_11_pwr_on_msg2);
-	sdm10_mdelay(120);
+	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
@@ -452,7 +456,6 @@ static int pdi_wakeup()
 	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg2);
-	sdm10_mdelay(120);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_10_pwr_on_msg1);
@@ -465,27 +468,28 @@ static int pdi_wakeup()
 	msg_621_flag = 1;
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_dtc_msg);
-	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_dtc_msg);
 	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_cpid_msg);
-	sdm10_mdelay(20);
 	pdi_can_bus->send(&pdi_cpid_msg);
+	msg_present_flag = 1;
 	sdm10_mdelay(20);
 	printf("##START##STATUS-18##END##\n");
-	sdm10_mdelay(40);
 	printf("##START##EC-ECU will be ready##END##\n");
 
 	for(rate = 19; rate < 57; rate ++) {
-		sdm10_mdelay(80);
+		sdm10_mdelay(75);
 		printf("##START##STATUS-");
 		sprintf(temp, "%d", rate);
 		printf("%s", temp);
 		printf("##END##\n");
+		// pdi_GetDPID(0x21, pdi_data_buf);			//TEST Point
+		// for(i = 0; i < 8; i ++)
+			// printf("%2x,", pdi_data_buf[i]&0xff);
 	}
 
 	for(rate = 57; rate < 95; rate ++) {
-		sdm10_mdelay(80);
+		sdm10_mdelay(75);
 		printf("##START##STATUS-");
 		sprintf(temp,"%d", rate);
 		printf("%s", temp);
@@ -548,12 +552,31 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	}
 
 	for(i = 0; i < sr->nr_of_rules; i ++) {
+		pdi_can_bus->send(&pdi_10_pwr_on_msg2); //fuck£¡ this point is important very much
+		pdi_can_bus->send(&pdi_10_pwr_on_msg2);
+		pdi_can_bus->send(&pdi_10_pwr_on_msg1);
+		pdi_can_bus->send(&pdi_10_pwr_on_msg1);
 		try_times = 5;
 		pdi_cfg_rule = pdi_rule_get(sr, i);
 		if (&pdi_cfg_rule == NULL) {
 			printf("##START##EC-no this rule##END##\n");
 			return 1;
 		}
+
+		// if(i == 5) {							//TEST point
+			// pdi_GetDPID(0x21, pdi_data_buf);
+			// for(i = 0; i < 8; i ++)
+				// printf("%2x,", pdi_data_buf[i]&0xff);
+			// printf("\n");
+		// }
+
+		// if(i == 8) {
+			// pdi_GetDPID(0x21, pdi_data_buf);
+			// for(i = 0; i < 8; i ++)
+				// printf("%2x,", pdi_data_buf[i]&0xff);
+			// printf("\n");
+		// }
+
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_DID:
 			printf("##START##EC-checking DID:");
@@ -582,6 +605,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 					return 1;
 				}
 			}
+			sdm10_mdelay(10);
 			break;
 		case PDI_RULE_UNDEF:
 			return 1;
@@ -601,6 +625,11 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 			printf("##END##\n");
 			return 1;
 		}
+	}
+
+	pdi_GetDPID(0x21, pdi_data_buf);
+	for(i = 0; i < 8; i++) {
+		printf("%2x,", pdi_data_buf[i]&0xff);
 	}
 	return 0;
 }
