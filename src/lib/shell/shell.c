@@ -329,16 +329,19 @@ int shell_ReadLine(const char *prompt, char *str)
 			}
 			continue;
 		}
-	}
 
-	if(ready) {
-		if(str != NULL) {
-			strcpy(str, shell -> cmd_buffer);
+		if(ready) {
+			if(str != NULL) {
+				strcpy(str, shell -> cmd_buffer);
+			}
+
+			if(strlen(shell -> cmd_buffer))
+				cmd_SetHistory(shell -> cmd_buffer);
+
+			break;
 		}
-
-		if(strlen(shell -> cmd_buffer))
-			cmd_SetHistory(shell -> cmd_buffer);
 	}
+
 	return ready;
 }
 
