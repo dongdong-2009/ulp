@@ -438,7 +438,7 @@ void Slu_Init()
 {
 	Address_Init();
 	card_address = Address_Read();
-	if(card_address != 0x1f){
+	if(card_address != 0x1d){//control-card bug, it should be 0x1f
 		Channel_Init();
 		Server_Init();
 	}	
@@ -446,7 +446,7 @@ void Slu_Init()
 
 void Slu_Update()
 {
-	if(card_address != 0x1f) Server_Update();
+	if(card_address != 0x1d) Server_Update();//control-card bug, it should be 0x1f
 }
 
 void main()
