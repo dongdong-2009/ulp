@@ -18,6 +18,7 @@
 #define GET 2
 #define ON 1
 #define OFF 2
+#define IMAGE 3
 
 static int channel_num __nvm;
 char card_address;
@@ -164,6 +165,90 @@ void relay_off(unsigned int channel)
 		GPIO_ResetBits(GPIOA, GPIO_Pin_8);
 }
 
+void relay_image(unsigned int channel)
+{
+	relay_status = channel;
+	if((channel >> 0) & 0x01)
+		GPIO_SetBits(GPIOA, GPIO_Pin_3);
+	else
+		GPIO_ResetBits(GPIOA, GPIO_Pin_3);
+
+	if((channel >> 1) & 0x01)
+		GPIO_SetBits(GPIOC, GPIO_Pin_4);
+	else
+		GPIO_ResetBits(GPIOC, GPIO_Pin_4);
+
+	if((channel >> 2) & 0x01)
+		GPIO_SetBits(GPIOC, GPIO_Pin_5);
+	else
+		GPIO_ResetBits(GPIOC, GPIO_Pin_5);
+
+	if((channel >> 3) & 0x01)
+		GPIO_SetBits(GPIOB, GPIO_Pin_0);
+	else
+		GPIO_ResetBits(GPIOB, GPIO_Pin_0);
+
+	if((channel >> 4) & 0x01)
+		GPIO_SetBits(GPIOB, GPIO_Pin_1);
+	else
+		GPIO_ResetBits(GPIOB, GPIO_Pin_1);
+
+	if((channel >> 5) & 0x01)
+		GPIO_SetBits(GPIOB, GPIO_Pin_10);
+	else
+		GPIO_ResetBits(GPIOB, GPIO_Pin_10);
+
+	if((channel >> 6) & 0x01)
+		GPIO_SetBits(GPIOB, GPIO_Pin_11);
+	else
+		GPIO_ResetBits(GPIOB, GPIO_Pin_11);
+
+	if((channel >> 7) & 0x01)
+		GPIO_SetBits(GPIOB, GPIO_Pin_12);
+	else
+		GPIO_ResetBits(GPIOB, GPIO_Pin_12);
+
+	if((channel >> 8) & 0x01)
+		GPIO_SetBits(GPIOB, GPIO_Pin_13);
+	else
+		GPIO_ResetBits(GPIOB, GPIO_Pin_13);
+
+	if((channel >> 9) & 0x01)
+		GPIO_SetBits(GPIOB, GPIO_Pin_14);
+	else
+		GPIO_ResetBits(GPIOB, GPIO_Pin_14);
+
+	if((channel >> 10) & 0x01)
+		GPIO_SetBits(GPIOB, GPIO_Pin_15);
+	else
+		GPIO_ResetBits(GPIOB, GPIO_Pin_15);
+
+	if((channel >> 11) & 0x01)
+		GPIO_SetBits(GPIOC, GPIO_Pin_6);
+	else
+		GPIO_ResetBits(GPIOC, GPIO_Pin_6);
+
+	if((channel >> 12) & 0x01)
+		GPIO_SetBits(GPIOC, GPIO_Pin_7);
+	else
+		GPIO_ResetBits(GPIOC, GPIO_Pin_7);
+
+	if((channel >> 13) & 0x01)
+		GPIO_SetBits(GPIOC, GPIO_Pin_8);
+	else
+		GPIO_ResetBits(GPIOC, GPIO_Pin_8);
+
+	if((channel >> 14) & 0x01)
+		GPIO_SetBits(GPIOC, GPIO_Pin_9);
+	else
+		GPIO_ResetBits(GPIOC, GPIO_Pin_9);
+
+	if((channel >> 15) & 0x01)
+		GPIO_SetBits(GPIOA, GPIO_Pin_8);
+	else
+		GPIO_ResetBits(GPIOA, GPIO_Pin_8);
+}
+
 static int slu_wait(struct mcamos_s *m, int timeout)
 {
 	int ret;
@@ -268,6 +353,8 @@ void Server_Update(void)
 				relay_on(channel);
 			else if(data.status == OFF)
 				relay_off(channel);
+			else if(data.status == IMAGE)
+				relay_image(channel);
 			else
 				return;
 			break;
@@ -413,7 +500,32 @@ static int cmd_relay_func(int argc, char *argv[])
 					display_status(relay_status);
 					return 0;
 				}
-			}	
+			}
+		}
+		else if(argc == 3 && !strcmp(argv[1], "image")){
+			char *now, *next;
+			int i;
+			now = argv[2];
+			for(i = 1; i < 21; i++) {
+				next = strchr(now, ',');
+				if(now == next) {
+					now++;
+					next++;
+					continue;
+				}
+				*next = 0;
+				next++;
+				sscanf(now, "%x", &slu_data.data);
+				now = next;
+				slu_data.status = IMAGE;
+				ret = Slu_Set(i, &slu_data);
+				if(ret) {
+					printf("      operation fail!!\n");
+					return -1;
+				}
+			}
+			printf("      operation success!!\n");
+				return 0;
 		}
 		else if(argc == 3 && !strcmp(argv[1], "save")){
 			sscanf(argv[2], "%d", &id);
@@ -441,7 +553,7 @@ void Slu_Init()
 	if(card_address != 0x1d){//control-card bug, it should be 0x1f
 		Channel_Init();
 		Server_Init();
-	}	
+	}
 }
 
 void Slu_Update()
