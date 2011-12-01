@@ -116,11 +116,8 @@ static const char * get_string( const char * pnt, char ** label )
     memcpy( *label, word, pnt - word );
     (*label)[pnt - word] = '\0';
 
-    while ( *pnt != '\0' ) {
-	if(*pnt != ' ' && *pnt != '\t')
-		break;
+    if ( *pnt != '\0' )
 	pnt++;
-    }
     return pnt;
 }
 
@@ -517,7 +514,6 @@ static void tokenize_line( const char * pnt )
 	pnt = get_qstring ( pnt, &cfg->label );
 	pnt = get_string  ( pnt, &buffer );
 	cfg->nameindex = get_varnum( buffer );
-	pnt = get_string( pnt, &cfg->value );
 	break;
 
     case token_choice_header:

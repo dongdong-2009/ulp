@@ -12,7 +12,7 @@
 #include <stddef.h>
 #include "nvm.h"
 #include "flash.h"
-#include "debug.h"
+#include "ulp/debug.h"
 
 #define NVM_MAGIC ((int)(0x13572468))
 char nvm_flag_null;

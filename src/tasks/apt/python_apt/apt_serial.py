@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import serial
+import time
 
 class ComThread:
     def __init__(self, Port ,Baudrate, value = None):
@@ -20,9 +21,8 @@ class ComThread:
         self.l_serial = serial.Serial()
         self.l_serial.port = self.port
         self.l_serial.baudrate = self.baudrate
-        self.l_serial.timeout = 2
+        self.l_serial.timeout = 0.5   #read time out 
         self.l_serial.open()
-        
         if self.l_serial.isOpen():
             self.alive = True
             return True
@@ -36,24 +36,14 @@ class ComThread:
         self.alive = False
         if self.l_serial.isOpen():
             self.l_serial.close()
-
-if __name__ == '__main__':
-    rt = ComThread(2,115200)
-    rt.set_option(3,9600)
-    try:
-        if rt.start():
-            while True:
-                pass
-            rt.stop()
-        else:
-            pass        
-    except Exception,se:
-        print 'sssssssss'
-        print str(se)
-
-
-    if rt.alive:
-        rt.stop()
-    print ''
-    print 'End OK .'
-    del rt
+    def read(self):
+        if self.alive:
+            time.sleep(0.2)
+            try:
+                data = ''
+                n = self.l_serial.inWaiting()
+                if n:
+                    data = data + self.l_serial.read(n)
+            except Exception,ex:
+                print str(ex)
+        return data

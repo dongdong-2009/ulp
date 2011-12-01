@@ -26,6 +26,7 @@ void task_SetForeground(void (*task)(void));
 //private
 void task_init(void);
 void task_update(void);
+void task_tick(void); //tick call back function
 void lib_init(void);
 void lib_update(void);
 
