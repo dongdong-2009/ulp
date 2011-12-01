@@ -5,7 +5,7 @@
  *		TIM3 is shared by pwm output(pin remap) & learning capture function!!!
  */
 #include "config.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "stm32f10x.h"
 
 /*ori: ADDRESS_GPIO_Init*/

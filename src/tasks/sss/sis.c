@@ -2,7 +2,7 @@
  *	miaofng@2011 initial version
  */
 #include "config.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "ulp_time.h"
 #include "sys/task.h"
 #include "nvm.h"
