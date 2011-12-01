@@ -197,11 +197,11 @@ enum {
 static int __cmd_exec(struct cmd_list_s *clst, int flag)
 {
 	int argc, ret;
-	char *argv[16], **_argv = argv;
+	char *argv[CONFIG_SHELL_NR_PARA_MAX], **_argv = argv;
 	cmd_t *cmd;
 
 	ret = 0;
-	argc = __cmd_parse(clst -> cmdline, clst -> len, argv, 16);
+	argc = __cmd_parse(clst -> cmdline, clst -> len, argv, CONFIG_SHELL_NR_PARA_MAX);
 	if(argc > 0) {
 		cmd = __name2cmd(argv[0]);
 		if(cmd != NULL) {
@@ -422,3 +422,14 @@ static int cmd_kill_func(int argc, char *argv[])
 
 const cmd_t cmd_kill = {"kill", cmd_kill_func, "kill a background task"};
 DECLARE_SHELL_CMD(cmd_kill)
+
+static int cmd_echo_func(int argc, char *argv[])
+{
+	for(int i = 0; i < argc; i ++) {
+		printf("argv[%d] = %s\n", i, argv[i]);
+	}
+	return 0;
+}
+
+const cmd_t cmd_echo = {"echo", cmd_echo_func, "echo the cmdline"};
+DECLARE_SHELL_CMD(cmd_echo)

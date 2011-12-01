@@ -21,7 +21,7 @@
 #include "config.h"
 #include "sys/sys.h"
 #include "common/circbuf.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include <string.h>
 
 int buf_init (circbuf_t * buf, int size)
