@@ -11,6 +11,8 @@
 #include "priv/mcamos.h"
 #include "led.h"
 #include "nvm.h"
+#include <ctype.h>
+
 
 #define SLU_INBOX_ADDR 0x0F000000
 #define SLU_OUTBOX_ADDR 0x0F000100
@@ -505,18 +507,33 @@ static int cmd_relay_func(int argc, char *argv[])
 		else if(argc == 3 && !strcmp(argv[1], "image")){
 			char *now, *next;
 			int i;
-			now = argv[2];
+			next = argv[2];
 			for(i = 1; i < 21; i++) {
-				next = strchr(now, ',');
-				if(now == next) {
-					now++;
-					next++;
-					continue;
-				}
-				*next = 0;
-				next++;
-				sscanf(now, "%x", &slu_data.data);
+				if(!next || !(*next))
+					break;
 				now = next;
+				next = strchr(now, ',');
+				if(next) {
+					*next = 0;
+					if(now == next) {
+						next++;
+						continue;
+					}
+					next++;
+				}
+				int a = strlen(now);
+				if(a > 8) {
+					printf("      data error!!\n");
+					return -1;
+				}
+				int j;
+				for(j = 0; j < a; j++) {
+					if(!isxdigit(*(now + j))) {
+						printf("      data error!!\n");
+						return -1;
+					}
+				}
+				sscanf(now, "%x", &slu_data.data);
 				slu_data.status = IMAGE;
 				ret = Slu_Set(i, &slu_data);
 				if(ret) {
