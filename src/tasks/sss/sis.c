@@ -1,5 +1,6 @@
 /*
  *	miaofng@2011 initial version
+ *	king@2011 rewrite
  */
 #include "config.h"
 #include "ulp/debug.h"
@@ -13,6 +14,7 @@
 #include <string.h>
 #include "shell/cmd.h"
 #include "led.h"
+#include "psi5.h"
 
 static enum {
 	SIS_STM_INIT,
@@ -22,6 +24,8 @@ static enum {
 	SIS_LEARN_UPDATE,
 	SIS_STM_ERR,
 } sis_stm;
+static int learn_protocol = SIS_PROTOCOL_INVALID;
+static int learn_result = SIS_PROTOCOL_INVALID;
 static time_t sis_timer = 0;
 static mcamos_srv_t sis_server;
 static struct sis_sensor_s sis_sensor __nvm;
@@ -29,6 +33,112 @@ static enum {
 	SIS_EVENT_NONE,
 	SIS_EVENT_LEARN,
 } sis_event = SIS_EVENT_NONE;
+
+static void sis_run_init()
+{
+	switch(sis_sensor.protocol) {
+	case SIS_PROTOCOL_DBS:
+		dbs_init(&sis_sensor.dbs, NULL);
+		break;
+	case SIS_PROTOCOL_PSI5:
+		psi5_init(&sis_sensor.psi5, NULL);
+		break;
+	}
+}
+
+static void sis_run_update()
+{
+	switch(sis_sensor.protocol) {
+	case SIS_PROTOCOL_DBS:
+		dbs_update();
+		break;
+	case SIS_PROTOCOL_PSI5:
+		psi5_update();
+		break;
+	}
+}
+
+static void sis_learn_init()
+{
+	switch(learn_protocol) {
+	case SIS_PROTOCOL_DBS:
+		dbs_learn_init();
+		break;
+	case SIS_PROTOCOL_PSI5:
+		psi5_learn_init();
+		break;
+	}
+}
+
+static void sis_learn_update()
+{
+	switch(learn_protocol) {
+	case SIS_PROTOCOL_INVALID:
+		learn_protocol = SIS_PROTOCOL_DBS;
+		sis_stm = SIS_LEARN_INIT;
+		break;
+	case SIS_PROTOCOL_DBS:
+		dbs_learn_update();
+		if(dbs_learn_finish()) {
+			struct dbs_sensor_s sensor;
+			if(!dbs_learn_result(&sensor)) {
+				learn_result = SIS_PROTOCOL_DBS;
+				sis_stm = SIS_STM_INIT;
+				learn_protocol = SIS_PROTOCOL_DBS;
+			}
+			else {
+				sis_stm = SIS_LEARN_INIT;
+				learn_protocol = SIS_PROTOCOL_PSI5;
+			}
+			return;
+		}
+		break;
+	case SIS_PROTOCOL_PSI5:
+		psi5_learn_update();
+		if(psi5_learn_finish()) {
+			struct psi5_sensor_s sensor;
+			if(!psi5_learn_result(&sensor))
+				learn_result = SIS_PROTOCOL_PSI5;
+			else
+				learn_result = SIS_PROTOCOL_INVALID;
+			sis_stm = SIS_STM_INIT;
+			learn_protocol = SIS_PROTOCOL_INVALID;
+			return;
+		}
+		break;
+	}
+}
+
+static int sis_learn_finish()
+{
+	switch(learn_protocol) {
+	case SIS_PROTOCOL_INVALID:
+		return (psi5_learn_finish() || dbs_learn_finish());
+	case SIS_PROTOCOL_DBS:
+		return 0;
+	case SIS_PROTOCOL_PSI5:
+		return psi5_learn_finish();
+	}
+	return 0;
+}
+
+static int sis_learn_result(struct sis_sensor_s *sensor)
+{
+	int ret = -1;
+	switch(learn_result) {
+	case SIS_PROTOCOL_DBS:
+		ret = dbs_learn_result(&sensor->dbs);
+		sensor->protocol = SIS_PROTOCOL_DBS;
+		break;
+	case SIS_PROTOCOL_PSI5:
+		ret = psi5_learn_result(&sensor->psi5);
+		sensor->protocol = SIS_PROTOCOL_PSI5;
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
 
 static void serv_init(void)
 {
@@ -72,13 +182,12 @@ static void serv_update(void)
 		break;
 	case SSS_CMD_LEARN_RESULT:
 		ret = -2; //op refused
-		if(dbs_learn_finish()) {
+		if(sis_learn_finish()) {
 			sis = (struct sis_sensor_s *)(inbox + 1);
 			memcpy(&new, sis, sizeof(new));
-			ret = dbs_learn_result(&new.dbs);
+			ret = sis_learn_result(&new);
 			if(!ret) { //success
 				new.cksum = 0;
-				new.protocol = SIS_PROTOCOL_DBS;
 				new.cksum = 0 - sis_sum(&new, sizeof(new));
 				memcpy(outbox, &new, sizeof(new));
 			}
@@ -104,43 +213,18 @@ static void serv_update(void)
 
 static int cmd_sis_func(int argc, char *argv[])
 {
-	const char *usage = {
-		"usage:\n"
-		"sis select name	select a sensor by name\n"
-		"sis learn		learn a new sensor, and print it's para\n"
-	};
-
-	if(argc == 3) {
-		if(!strcmp(argv[1], "select")) {
-			int sensor = 0;
-			const char trace[3][10] = {
-				{0x01, 0x01, 0x06, 0x20, 0x00, 0x44, 0x00, 0x50, 0x71, 0x83},
-				{0x01, 0x02, 0x08, 0x20, 0x00, 0x73, 0x93, 0x20, 0x71, 0x90},
-				{0x01, 0x02, 0x02, 0x20, 0x09, 0x2e, 0x03, 0x62, 0x13, 0x34},
-			};
-
-			if(sscanf(argv[2], "%d", &sensor) > 0) {
-				if((sensor < 3) && (sensor >= 0)) {
-					memset(&sis_sensor, 0, sizeof(sis_sensor));
-					sis_sensor.protocol = SIS_PROTOCOL_DBS;
-					sprintf(sis_sensor.name, "%d", sensor);
-					memcpy(&sis_sensor.dbs, trace[sensor], 10);
-					sis_sensor.cksum = 0 - sis_sum(&sis_sensor, sizeof(sis_sensor));
-					nvm_save();
-					return 0;
-				}
-			}
-		}
-	}
-
 	if(argc == 2) {
 		if(!strcmp(argv[1], "learn")) {
 			sis_event = SIS_EVENT_LEARN;
-			return 0;
+		}
+		else if(!strcmp(argv[1], "save")) {
+			nvm_save();
+		}
+		else if(!strcmp(argv[1], "clear")) {
+			memset(&sis_sensor, 0, sizeof(sis_sensor));
+			sis_sensor.protocol = SIS_PROTOCOL_INVALID;
 		}
 	}
-
-	printf("%s", usage);
 	return 0;
 }
 const cmd_t cmd_sis = {"sis", cmd_sis_func, "sis debug commands"};
@@ -160,9 +244,8 @@ static void sis_update(void)
 	case SIS_STM_INIT:
 		led_on(LED_GREEN);
 		led_on(LED_RED);
-		if((!sis_sum(&sis_sensor, sizeof(sis_sensor))) && (sis_sensor.protocol != SIS_PROTOCOL_INVALID)) {
+		if((!sis_sum(&sis_sensor, sizeof(sis_sensor))) && (sis_sensor.protocol != SIS_PROTOCOL_INVALID))
 			sis_stm = SIS_STM_READY;
-		}
 		if(sis_event == SIS_EVENT_LEARN) {
 			sis_event = SIS_EVENT_NONE;
 			sis_stm = SIS_LEARN_INIT;
@@ -174,8 +257,8 @@ static void sis_update(void)
 			led_flash(LED_RED);
 		else
 			led_off(LED_RED);
-		if(card_getpower()) { //handle power-up event
-			dbs_init(&sis_sensor.dbs, NULL); //only dbs protocol implemented
+		if(card_getpower()) {
+			sis_run_init();
 			sis_stm = SIS_STM_RUN;
 			led_flash(LED_GREEN);
 		}
@@ -189,38 +272,25 @@ static void sis_update(void)
 			led_flash(LED_RED);
 		else
 			led_off(LED_RED);
-		dbs_update();
+		sis_run_update();
 		if(!card_getpower()) {
-			dbs_poweroff();
+			card_player_stop();
 			sis_stm = SIS_STM_READY;
 		}
 		break;
 	case SIS_LEARN_INIT:
-		dbs_learn_init();
+		sis_learn_init();
 		sis_stm = SIS_LEARN_UPDATE;
 		break;
 	case SIS_LEARN_UPDATE:
-		dbs_learn_update();
-		if(dbs_learn_finish()) {
-#if 1
-			struct dbs_sensor_s sensor;
-			if(!dbs_learn_result(&sensor)) {
-				printf("\n\ndbs sensor = {\n");
-				printf("	.mode = 0x%02x\n", sensor.mode);
-				printf("	.addr = 0x%02x\n", sensor.addr);
-				printf("	.speed = 0x%02x(%dmps)\n", sensor.speed, (1 << (4 - sensor.speed))*1000);
-				for(int i = 0; i < 8; i ++) {
-					unsigned x = sensor.trace[i] & 0xff;
-					printf("	.trace[%d] = 0x%02x\n", i, x);
-				}
-				printf("}\n");
-			}
-			else {
-				printf("learn failed\n");
-			}
-#endif
+		sis_learn_update();
+		if(sis_learn_finish())
 			sis_stm = SIS_STM_INIT;
-		}
+#if 1
+			sis_learn_result(&sis_sensor);
+			sis_sensor.cksum = 0;
+			sis_sensor.cksum = 0 - sis_sum(&sis_sensor, sizeof(sis_sensor));
+#endif
 		break;
 	case SIS_STM_ERR:
 		break;

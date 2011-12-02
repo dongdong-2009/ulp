@@ -1,15 +1,18 @@
 /*
  *	miaofng@2011 initial version
+ *	king@2011 rewrite
  */
 #ifndef __SIS_H_
 #define __SIS_H_
 
 #include "dbs.h"
+#include "psi5.h"
 
 /*supported sis protocols*/
 enum {
 	SIS_PROTOCOL_INVALID,
 	SIS_PROTOCOL_DBS,
+	SIS_PROTOCOL_PSI5,
 };
 
 /*sis_sensor_s, 32bytes*/
@@ -19,6 +22,7 @@ struct sis_sensor_s {
 	char name[14];
 	union {
 		struct dbs_sensor_s dbs;
+		struct psi5_sensor_s psi5;
 		char data[15];
 	};
 };
