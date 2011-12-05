@@ -1,6 +1,6 @@
 /*
  *	miaofng@2011 initial version
- *	king@2011 rewrite
+ *	king@2011 modify
  */
 #include "config.h"
 #include "ulp/debug.h"

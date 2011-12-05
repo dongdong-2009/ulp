@@ -1,7 +1,7 @@
 /*
  *	sky@2011 initial version
  *	miaofng@2011 rewrite
- *	king@2011 rewrite
+ *	king@2011 modify
  *	note:
  *		TIM3 is shared by pwm output(pin remap) & learning capture function!!!
  */

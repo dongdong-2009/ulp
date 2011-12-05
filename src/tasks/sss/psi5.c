@@ -25,6 +25,10 @@ static enum {
 const unsigned short ID[16] = {0x200, 0x201, 0x202, 0x203, 0x204, 0x205, 0x206, 0x207,
  0x208, 0x209, 0x20A, 0x20B, 0x20C, 0x20D, 0x20E, 0x20F};
 
+#if 1
+const unsigned short init_status[16] = {0x01E8, 0x01E8, 0x01E7, 0x01E7};
+#endif
+
 static enum {
 	PSI5_DECODE_INIT,//before start
 	PSI5_DECODE_START,//start
@@ -169,8 +173,8 @@ static unsigned short message_get(int m)
 	j = 2 * psi5_sensor.init_data_num * psi5_sensor.init_repeat;
 	if(m < j) {
 		j = m / 2 / psi5_sensor.init_repeat;
-		if(m % 2)
-			return psi5_sensor.init_data[j];
+		if(m & 0x01)
+			return (j & 0x01) ? ((psi5_sensor.init_data[j / 2] >> 4) | 0x0210) : ((psi5_sensor.init_data[j / 2] & 0x000f) | 0x0210);
 		else
 			return ID[j];
 	}
@@ -178,7 +182,7 @@ static unsigned short message_get(int m)
 		j += psi5_sensor.status_data_num;
 		if(m < j) {
 			j = m - 2 * psi5_sensor.init_data_num * psi5_sensor.init_repeat;
-			return psi5_sensor.status_data[j];
+			return init_status[j];
 		}
 		else
 			return 0x00;
@@ -508,13 +512,19 @@ void psi5_learn_update(void)
 			break;
 	}
 	psi5_sensor.init_data_num = k;
-	for(i = 0; i < psi5_sensor.init_data_num; i++)
-		psi5_sensor.init_data[i] = msg[i * psi5_sensor.init_repeat * 2 + 1] >> (psi5_sensor.data_bits - 11) & 0x3ff;
+	for(i = 0; i < psi5_sensor.init_data_num; i++) {
+		if(i & 0x01)
+			psi5_sensor.init_data[i / 2] |= (msg[i * psi5_sensor.init_repeat * 2 + 1] >> (psi5_sensor.data_bits - 11) & 0x0f) << 4;
+		else
+			psi5_sensor.init_data[i / 2] = msg[i * psi5_sensor.init_repeat * 2 + 1] >> (psi5_sensor.data_bits - 11) & 0x0f;
+	}
 	for(i = 0, k = 0;; i++) {
 		unsigned int temp;
 		temp = msg[psi5_sensor.init_data_num * psi5_sensor.init_repeat * 2 + i] >> (psi5_sensor.data_bits - 11) & 0x3ff; 
 		if(temp <= 511 && temp >= 481) {
+#if 0
 			psi5_sensor.status_data[i] = temp;
+#endif
 			k++;
 		}
 		else

@@ -1,6 +1,6 @@
 /*
  *	miaofng@2011 initial version
- *	king@2011 rewrite
+ *	king@2011 modify
  */
 #ifndef __SIS_H_
 #define __SIS_H_
@@ -15,15 +15,15 @@ enum {
 	SIS_PROTOCOL_PSI5,
 };
 
-/*sis_sensor_s, 32bytes*/
+/*sis_sensor_s, 64bytes*/
 struct sis_sensor_s {
 	char cksum;
 	char protocol;
 	char name[14];
 	union {
 		struct dbs_sensor_s dbs;
-		struct psi5_sensor_s psi5;
-		char data[15];
+		struct psi5_sensor_s psi5; // 22 bytes
+		char data[48];
 	};
 };
 

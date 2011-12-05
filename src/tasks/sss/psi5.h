@@ -23,14 +23,16 @@ static enum {
 	PSI5_3CRC,
 } psi5_parity = PSI5_EVENPARITY;
 
-/* psi5 protocol sensor para */
+/* psi5 protocol sensor para
+ *	22 bytes
+ */
 struct psi5_sensor_s {
 	unsigned char speed; //1->125kbps, 2->189kbps
 	unsigned char parity; //0->PSI5_EVENPARITY, 1->PSI5_3CRC
 	unsigned char data_bits; //每帧中的位数（不包括2位起始位）（11~31）
-	unsigned short init_data[32]; //初始化数据
+	unsigned char init_data[16]; //初始化数据
 	unsigned char init_data_num; //初始化数据的个数
-	unsigned short status_data[16]; //状态数据
+	//unsigned short status_data[16]; //状态数据
 	unsigned char status_data_num; //状态数据的个数
 	unsigned char init_repeat; //初始化数据重复的次数
 };
