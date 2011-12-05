@@ -29,7 +29,7 @@
  */
 #include "config.h"
 #include "common/kermit.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "err.h"
 #include <string.h>
 #include "sys/sys.h"

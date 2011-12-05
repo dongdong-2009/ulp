@@ -52,7 +52,7 @@ MT221.c
 * 22Nov10 fzwf47 > revised for arm platform
 END DESCRIPTION ***************************************************************/
 
-#include "nest.h"
+#include "lib/nest.h"
 #include "obsolete/obsolete.h"
 #include "mt92.h"
 
@@ -274,7 +274,7 @@ ERROR_CODE  Collect_Verify_Fault(void)
 			if(*Data_Pntr&0x40){result=E_ERR;message("PHDH:ShGnd\n");}
 			if(*Data_Pntr&0x20){result=E_ERR;message("PHDH:OpenFlt\n");}
 		}
-		else return;
+		else return result2;
 		result2 = mcamOSUpload(DW_CAN1, Data_Pntr+2, VSEP_ADDR, 8, CAN_TIMEOUT);
 		if(result2 == E_OK) {
 			for(j=2;j<8;j++) {
@@ -302,7 +302,7 @@ ERROR_CODE  Collect_Verify_Fault(void)
 				}
 			}
 		}
-		else return;
+		else return result2;
 		result2 = mcamOSUpload(DW_CAN1, Data_Pntr+10, EMCD_ADDR, 1, CAN_TIMEOUT);
 		if(result2 == E_OK) {
 			if(*(Data_Pntr+10)&0x80){result=E_ERR;message("K59 CRUZONLAMP\n");}
@@ -314,7 +314,7 @@ ERROR_CODE  Collect_Verify_Fault(void)
 			if(*(Data_Pntr+10)&0x02){result=E_ERR;message("EMCD:INTFAN\n");}
 			if(*(Data_Pntr+10)&0x01){result=E_ERR;message("J1-K78 SVS\n");}
 		}
-		else return;
+		else return result2;
 		result2 = mcamOSUpload(DW_CAN1, Data_Pntr+24, EMCD_ADDR, 4, CAN_TIMEOUT);
 		if(result2 == E_OK) {
 			if(*(Data_Pntr+25)&0x02){result=E_ERR;message("DIFO:OPEN6\n");}
@@ -324,7 +324,7 @@ ERROR_CODE  Collect_Verify_Fault(void)
 			if(*(Data_Pntr+27)&0x02){result=E_ERR;message("DIFO:OPEN2\n");}
 			if(*(Data_Pntr+27)&0x01){result=E_ERR;message("DIFO:OPEN1\n");}
 		}
-		else return;
+		else return result2;
 		Fault_Data[0]=*Data_Pntr;
 		for(i=2;i<11;i++)
 			Fault_Data[i-1]=*(Data_Pntr+i);
@@ -344,7 +344,7 @@ ERROR_CODE Execute_Cycling()
 	buffer[0]=0x00;buffer[1]=0x00;buffer[2]=0x00;buffer[3]=0x04;
 	result = mcamOSDownload(DW_CAN1, D4_ADDR, buffer, 4, CAN_TIMEOUT);
 	if(result != E_OK) return result;
-	result = mcamOSExecute(DW_CAN1, CYC_ADDR, CAN_TIMEOUT);
+	result = mcamOSExecute(DW_CAN1, CYC_ADDR, CAN_TIMEOUT); 
 	if(result != E_OK) return result;
 	result = mcamOSUpload(DW_CAN1, buffer, D2_ADDR, 4, CAN_TIMEOUT);
 	if(result != E_OK) return result;
