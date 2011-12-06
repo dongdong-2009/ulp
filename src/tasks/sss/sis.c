@@ -14,7 +14,6 @@
 #include <string.h>
 #include "shell/cmd.h"
 #include "led.h"
-#include "psi5.h"
 
 static enum {
 	SIS_STM_INIT,
@@ -61,6 +60,9 @@ static void sis_run_update()
 static void sis_learn_init()
 {
 	switch(learn_protocol) {
+	case SIS_PROTOCOL_INVALID:
+		dbs_learn_init();
+		psi5_learn_init();
 	case SIS_PROTOCOL_DBS:
 		dbs_learn_init();
 		break;
@@ -84,7 +86,7 @@ static void sis_learn_update()
 			if(!dbs_learn_result(&sensor)) {
 				learn_result = SIS_PROTOCOL_DBS;
 				sis_stm = SIS_STM_INIT;
-				learn_protocol = SIS_PROTOCOL_DBS;
+				learn_protocol = SIS_PROTOCOL_INVALID;
 			}
 			else {
 				sis_stm = SIS_LEARN_INIT;
@@ -286,7 +288,7 @@ static void sis_update(void)
 		sis_learn_update();
 		if(sis_learn_finish())
 			sis_stm = SIS_STM_INIT;
-#if 1
+#if 0
 			sis_learn_result(&sis_sensor);
 			sis_sensor.cksum = 0;
 			sis_sensor.cksum = 0 - sis_sum(&sis_sensor, sizeof(sis_sensor));
