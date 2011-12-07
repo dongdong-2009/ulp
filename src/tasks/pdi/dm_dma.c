@@ -21,7 +21,10 @@ static const can_msg_t dm_rddtc_msg = {
 	0x607, 8, {0x03, 0x19, 0x89, 0x08, 0, 0, 0, 0}, 0
 };
 static const can_msg_t dm_clrdtc_msg = {
-	0x607, 8, {0x04, 0x14, 0xff, 0xff, 0xff, 0, 0, 0}, 0
+	0x607, 8, {0x04, 0x14, 0x80, 0x00, 0xff, 0, 0, 0}, 0
+};
+static const can_msg_t dm_clrdtc_msg1 = {
+	0x607, 8, {0x04, 0x2e, 0xfe, 0x80, 0xaa, 0, 0, 0}, 0
 };
 static const can_msg_t dm_bcode_msg = {
 	0x607, 8, {0x03, 0x22, 0xFE, 0x8D, 0, 0, 0, 0}, 0
@@ -59,22 +62,22 @@ struct can_queue_s {
 	struct list_head list;
 };
 
-static struct can_queue_s dm_msg1 = {
+static struct can_queue_s dm_Vehicle_msg1 = {
 	.ms = 1000,
 	.msg = {0x5FA, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
-static struct can_queue_s dm_msg2 = {
+static struct can_queue_s dm_Vehicle_msg2 = {
 	.ms = 1000,
 	.msg = {0x5FC, 5, {0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
-static struct can_queue_s dm_msg3 = {
+static struct can_queue_s dm_ESC_msg = {
 	.ms = 40,
 	.msg = {0x2F0, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
-static struct can_queue_s dm_msg4 = {
+static struct can_queue_s dm_Testpresent_msg = {
 	.ms = 500,
 	.msg = {0x607, 8, {0x02, 0x3E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
@@ -125,6 +128,35 @@ static int dm_mdelay(int ms)
 	return 0;
 }
 
+static void dm_update()
+{
+	struct list_head *pos;
+	struct can_queue_s *q;
+
+	list_for_each(pos, &can_queue) {
+		q = list_entry(pos, can_queue_s, list);
+		if(q -> timer == 0 || time_left(q -> timer) < 0) {
+			q -> timer = time_get(q -> ms);
+			pdi_can_bus -> send(&q -> msg);
+		}
+	}
+}
+
+static void dm_InitMsg(void)
+{
+	INIT_LIST_HEAD(&dm_Vehicle_msg1.list);
+	list_add(&dm_Vehicle_msg1.list, &can_queue);
+
+	INIT_LIST_HEAD(&dm_Vehicle_msg2.list);
+	list_add(&dm_Vehicle_msg2.list, &can_queue);
+
+	INIT_LIST_HEAD(&dm_ESC_msg.list);
+	list_add(&dm_ESC_msg.list, &can_queue);
+
+	INIT_LIST_HEAD(&dm_Testpresent_msg.list);
+	list_add(&dm_Testpresent_msg.list, &can_queue);
+}
+
 //for start the session
 static int dm_StartSession(void)
 {
@@ -138,12 +170,12 @@ static int dm_StartSession(void)
 		0
 	};
 
-	if (usdt_GetDiagFirstFrame(&dm_start_msg, 1, NULL, &msg, &msg_len))   //start session
+	if (usdt_GetDiagFirstFrame(&dm_start_msg, 1, NULL, &msg, &msg_len))		//start session
 		return 1;
 #if PDI_DEBUG
 	can_msg_print(&msg, "\n");
 #endif
-	if (usdt_GetDiagFirstFrame(&dm_reqseed_msg, 1, NULL, &msg, &msg_len)) //req seed
+	if (usdt_GetDiagFirstFrame(&dm_reqseed_msg, 1, NULL, &msg, &msg_len))	//req seed
 		return 1;
 #if PDI_DEBUG
 	can_msg_print(&msg, "\n");
@@ -158,7 +190,7 @@ static int dm_StartSession(void)
 	sendkey_msg.data[3] = (char)((0x239a + result) >> 8);
 	sendkey_msg.data[4] = (char)((0x239a + result) & 0x00ff);
 
-	if (usdt_GetDiagFirstFrame(&sendkey_msg, 1, NULL, &msg, &msg_len)) //send key
+	if (usdt_GetDiagFirstFrame(&sendkey_msg, 1, NULL, &msg, &msg_len))		//send key
 		return 1;
 	//judge the send key response
 	if ((msg.data[1] != 0x67) || (msg.data[2] != 0x7e))
@@ -167,7 +199,7 @@ static int dm_StartSession(void)
 	can_msg_print(&msg, "\n");
 #endif
 
-#if 0
+#if 1
 	//get serial number
 	printf("\nSN Code:\n");
 	usdt_GetDiagFirstFrame(&dm_getsn_msg, 1, NULL, pdi_msg_buf, &msg_len);
@@ -191,6 +223,7 @@ static int dm_StartSession(void)
 		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
 	for (i = 0; i < msg_len; i++)
 		can_msg_print(pdi_msg_buf + i, "\n");
+
 #endif
 
 	return 0;
@@ -332,35 +365,6 @@ static int pdi_led_start()
 	return 0;
 }
 
-static void dm_InitMsg(void)
-{
-	INIT_LIST_HEAD(&dm_msg1.list);
-	list_add(&dm_msg1.list, &can_queue);
-
-	INIT_LIST_HEAD(&dm_msg2.list);
-	list_add(&dm_msg2.list, &can_queue);
-
-	INIT_LIST_HEAD(&dm_msg3.list);
-	list_add(&dm_msg3.list, &can_queue);
-
-	INIT_LIST_HEAD(&dm_msg4.list);
-	list_add(&dm_msg4.list, &can_queue);
-}
-
-static void dm_update()
-{
-	struct list_head *pos;
-	struct can_queue_s *q;
-
-	list_for_each(pos, &can_queue) {
-		q = list_entry(pos, can_queue_s, list);
-		if(q -> timer == 0 || time_left(q -> timer) < 0) {
-			q -> timer = time_get(q -> ms);
-			pdi_can_bus -> send(&q -> msg);
-		}
-	}
-}
-
 static int pdi_check_init(const struct pdi_cfg_s *sr)
 {
 	char *o = (char *)&(sr -> relay_ex);
@@ -444,16 +448,12 @@ static int esc_check()
 
 static int check_barcode()
 {
-	//start session
-	if (dm_StartSession())
-		return 1;
-
 	dm_GetCID(0xfe8d, pdi_data_buf);
 
 	if (memcmp(pdi_data_buf, bcode_1, 19))
 		return 1;
-	else
-		return 0;
+
+	return 0;
 }
 
 static int pdi_clear_dtc(void)
@@ -464,23 +464,35 @@ static int pdi_clear_dtc(void)
 	//start session
 	if (dm_StartSession())
 		return 1;
-
+	//foe test
 	if (usdt_GetDiagFirstFrame(&dm_clrdtc_msg, 1, NULL, &msg, &msg_len))
 		return 1;
 	if (msg.data[1] != 0x54)	//positive response is 0x54
 		return 1;
-
+	//for test
+	if (dm_StartSession())
+		return 1;
 	return 0;
 }
 
 static int pdi_GetFault(char *data, int * pnum_fault)
 {
-	//start session
-	if (dm_StartSession())
+	int i, result = 0;
+
+	if(dm_GetCID(0xfe8d, data))
 		return 1;
 
+	memset(data + 104, 0x00, 10);
+
+	for (i = 0; i < 52; i += 2) {
+		if (data[i] | data[i+1])
+			result ++;
+	}
+
+	* pnum_fault = result;
 
 	return 0;
+
 }
 
 static int pdi_check()
@@ -505,8 +517,8 @@ static int pdi_check()
 		//pdi_clear_dtc();
 		printf("##START##EC-");
 		printf("num of fault is: %d*", num_fault);
-		for (i = 0; i < num_fault*3; i += 3)
-			printf("0x%2x, 0x%2x, 0x%2x*", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
+		for (i = 0; i < num_fault*2; i += 2)
+			printf("0x%2x, 0x%2x*", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff);
 		printf("##END##\n");
 		return 1;
 	}
@@ -515,6 +527,7 @@ static int pdi_check()
 		printf("##START##EC-ESC ERROR##END##\n");
 		return 1;
 	}
+
 	return 0;
 }
 
