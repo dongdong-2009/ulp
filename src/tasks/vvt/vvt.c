@@ -96,6 +96,7 @@ static void pss_Enable(int on);
 static void knock_Enable(int en);
 static void pss_SetVolt(pss_ch_t ch, short mv);
 static int vvt_GetConfigData(void);
+static int vvt_mdelay(int ms);
 
 void vvt_Init(void)
 {
@@ -184,8 +185,10 @@ void vvt_Update(void)
 {
 	//update lcm input
 	if (vvt_GetConfigData() == 0) {
+		vvt_mdelay(300);
 		//mcamos communication indicator
-		led_inv(LED_GREEN);
+		led_flash(LED_GREEN);
+		led_off(LED_RED);
 
 		//frequence set for wss,vss,knock
 		if (wss_freq_value != cfg_data.wss) {
@@ -233,7 +236,9 @@ void vvt_Update(void)
 		knock_pattern = (cfg_data.dio >> 8) & 0x003f; //...D C B A
 #endif
 	} else {
-		led_inv(LED_RED);  //indicator mcamos error.
+		vvt_mdelay(300);
+		led_flash(LED_RED);
+		led_off(LED_GREEN);  //indicator mcamos error.
 	}
 }
 
@@ -316,6 +321,21 @@ int main(void)
 /****************************************************************
 ****************** static local function  ******************
 ****************************************************************/
+
+static int vvt_mdelay(int ms)
+{
+	int left;
+	time_t deadline = time_get(ms);
+	do {
+		left = time_left(deadline);
+		if(left >= 10) { //system update period is expected less than 10ms
+			task_Update();
+		}
+	} while(left > 0);
+
+	return 0;
+}
+
 static int vvt_GetConfigData(void)
 {
 	int ret = 0;
