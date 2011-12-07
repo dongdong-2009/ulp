@@ -3,7 +3,8 @@
 #
 # Written by miaofng@2010
 #
-
+int "high speed external clk freq?" CONFIG_HSE_VALUE 12000000
+int "low speed external clk freq?" CONFIG_LSE_VALUE 32768
 choice 'lm3s cpu type select'	" \
 	LM3S8962	CONFIG_CPU_LM3S8962 \
 	LM3S9B96	CONFIG_CPU_LM3S9B96 \
