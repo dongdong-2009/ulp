@@ -7,26 +7,21 @@
 mainmenu_name "bldc software platform settings"
 
 mainmenu_option next_comment
-  comment 'cpu'
-  source src/cpu/Kconfig
+  comment 'hardware'
+  source src/board/Kconfig
 endmenu
 
 mainmenu_option next_comment
-  comment 'drivers'
+  comment 'software - drivers'
   source src/drivers/Kconfig
 endmenu
 
 mainmenu_option next_comment
-  comment 'lib'
+  comment 'software - modules'
   source src/lib/Kconfig
 endmenu
 
 mainmenu_option next_comment
-  comment 'tasks'
+  comment 'software - tasks'
   source src/tasks/Kconfig
-endmenu
-
-mainmenu_option next_comment
-  comment 'main'
-  source src/main/Kconfig
 endmenu
