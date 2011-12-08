@@ -83,8 +83,8 @@ int burn_init(void)
 	} while(try > 0);
 
 	//check limit ok?
-	burn_vl = (burn_vl == -1) ? BURN_VL_DEF : burn_vl;
-	burn_il = (burn_il == -1) ? BURN_IL_DEF : burn_il;
+	burn_vl = (burn_vl == -1 || burn_vl == 0) ? BURN_VL_DEF : burn_vl;
+	burn_il = (burn_il == -1 || burn_il == 0) ? BURN_IL_DEF : burn_il;
 
 	burn_flag = 0;
 	burn_fail_counter = 0;
