@@ -9,7 +9,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include "debug.h"
+#include "ulp/debug.h"
 
 #if CONFIG_NEST_LOG_SIZE > 0
 static char nest_log_buf[CONFIG_NEST_LOG_SIZE] __nvm;

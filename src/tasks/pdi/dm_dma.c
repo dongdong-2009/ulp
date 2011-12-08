@@ -80,7 +80,6 @@ static struct can_queue_s dm_msg4 = {
 };
 
 static LIST_HEAD(can_queue);
-static const can_bus_t *can_bus = &can1;
 
 static const can_bus_t* pdi_can_bus = &can1;
 static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
@@ -88,12 +87,11 @@ static char pdi_data_buf[256];			//data buffer
 static char pdi_fault_buf[64];			//fault buffer
 static char bcode_1[19];
 
-static int pdi_check(const struct pdi_cfg_s *);
+static int pdi_check();
 static int pdi_GetFault(char *data, int * pnum_fault);
 static int pdi_clear_dtc();
 static int pdi_check_init(const struct pdi_cfg_s *);
-static int check_barcode(void);
-static void pdi_process();
+static int check_barcode();
 static int pdi_pass_action();
 static int pdi_fail_action();
 static int target_noton_action();
@@ -102,10 +100,12 @@ static int dm_mdelay(int );
 static int init_OK();
 static int counter_pass_add();
 static int counter_fail_add();
+static int dm_StartSession();
+static int dm_GetCID(short cid, char *data);
+static int esc_check();
 static void dm_update();
 static void dm_InitMsg();
-static int dm_StartSession(void);
-static int dm_GetCID(short cid, char *data);
+static void pdi_process();
 
 /**************************************************************************/
 /************         Local funcitons                         *************/
@@ -356,7 +356,7 @@ static void dm_update()
 		q = list_entry(pos, can_queue_s, list);
 		if(q -> timer == 0 || time_left(q -> timer) < 0) {
 			q -> timer = time_get(q -> ms);
-			can_bus -> send(&q -> msg);
+			pdi_can_bus -> send(&q -> msg);
 		}
 	}
 }
@@ -412,6 +412,36 @@ static void pdi_process(void)
 	}
 }
 
+static int esc_check()
+{
+	int i;
+	can_msg_t esc_msg;
+	time_t deadtime = time_get(100);
+	while(time_left(deadtime) > 0) {
+		if(pdi_can_bus -> recv(&esc_msg))
+			return 1;
+		switch(esc_msg.id) {
+		case 188:
+			esc_msg.data[6] &= 0xF8;
+			for(i = 0; i < 7; i ++) {
+				if(esc_msg.data[i] != 0x00)
+					break;
+			}
+			if(i != 6)
+				return 1;
+		case 189:
+			esc_msg.data[1] &= 0xEF;
+			for(i = 0; i < 3; i ++) {
+				if(esc_msg.data[i] != 0x00)
+					break;
+			}
+			if(i != 3)
+				return 1;
+		}
+	}
+	return 0;
+}
+
 static int check_barcode()
 {
 	//start session
@@ -449,11 +479,11 @@ static int pdi_GetFault(char *data, int * pnum_fault)
 	if (dm_StartSession())
 		return 1;
 
-	
+
 	return 0;
 }
 
-static int pdi_check(const struct pdi_cfg_s *sr)
+static int pdi_check()
 {
 	int i, num_fault, try_times = 5;
 	const struct pdi_rule_s* pdi_cfg_rule;
@@ -481,9 +511,12 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 		return 1;
 	}
 
+	if(esc_check()) {
+		printf("##START##EC-ESC ERROR##END##\n");
+		return 1;
+	}
 	return 0;
 }
-
 
 void pdi_init(void)
 {
