@@ -7,7 +7,7 @@
 #include "sys/task.h"
 #include <sys/sys.h>
 #include <shell/cmd.h>
-#include "debug.h"
+#include "ulp/debug.h"
 #include "ulp_time.h"
 #include "nvm.h"
 
@@ -15,6 +15,9 @@ static int nest_flag_ignore __nvm;
 static struct nest_info_s nest_info;
 #ifdef CONFIG_NEST_ID
 static int nest_id __nvm;
+#endif
+#ifdef CONFIG_NEST_MT80_OLD
+int write_nest_psv(int argc, char *cond_flag[]);
 #endif
 
 int nest_init(void)
@@ -128,10 +131,11 @@ static int cmd_nest_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"nest help\n"
-		"nest save				save settings to nvm\n"
-		"nest log				print log message\n"
-		"nest ignore psv bmr rly pkt all non		ignore some event for debug\n"
-		"nest id				set nest id eg.(001)\n"
+		"nest save                              save settings to nvm\n"
+		"nest log                               print log message\n"
+		"nest ignore psv bmr rly pkt all non    ignore some event for debug\n"
+		"nest id                                set nest id eg.(001)\n"
+		"nest cond_flag                         write nest cond_flag by hex eg.(0xff)\n"
 	};
 
 	if(argc > 1) {
@@ -205,11 +209,18 @@ static int cmd_nest_func(int argc, char *argv[])
 			return 0;
 		}
 #endif
+#ifdef CONFIG_NEST_MT80_OLD
+		if(!strcmp(argv[1], "cond_flag")) {
+			int fail = write_nest_psv(argc , argv);
+			if(fail) return -1;
+			return 0;
+		}
+#endif
 	}
-
 	printf("%s", usage);
 	return 0;
 }
+
 
 const static cmd_t cmd_nest = {"nest", cmd_nest_func, "nest debug command"};
 DECLARE_SHELL_CMD(cmd_nest)
