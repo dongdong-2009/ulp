@@ -18,6 +18,7 @@ struct device_s {
 	struct list_head lcls; //next dev in the same class
 	struct driver *pdrv;
 	void *priv; //to store device specific data
+	const void *pcfg;
 };
 
 static inline void* dev_priv_get(int fd) {
@@ -41,7 +42,9 @@ int dev_read(int fd, void *buf, int count);
 int dev_write(int fd, const void *buf, int count);
 int dev_close(int fd);
 
-int dev_register(const char *path, void *pcfg);
+struct device_s *__dev_get(const char *path);
+int __dev_init(struct device_s *pdev);
+int dev_register(const char *path, const void *pcfg);
 
 /*handling device class*/
 struct class_s {

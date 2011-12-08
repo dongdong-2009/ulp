@@ -22,8 +22,8 @@ struct driver_s {
 	const struct drv_ops_s *ops; //init/open/close/read/write/ioctl/poll
 };
 
-struct drv_ops_s* drv_register(const char *name, const void *ops);
-struct drv_ops_s* drv_open(const char *name);
+struct driver_s* drv_register(const char *name, const struct drv_ops_s *ops);
+struct driver_s* drv_open(const char *name);
 int drv_close(driver_s *pdrv);
 
 #pragma section=".driver" 4
