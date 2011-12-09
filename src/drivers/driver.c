@@ -12,42 +12,41 @@
 
 static LIST_HEAD(drv_queue);
 
-struct driver_s* drv_register(const char *name, const struct drv_ops_s *ops)
+int drv_register(const char *name, const struct drv_ops_s *ops)
 {
 	struct driver_s *new;
-	struct device_s *dev;
-	new = sys_malloc(sizeof(struct drv_s));
+
+	//verify name is a correct driver name, like uart_stm32
+	assert(strchr(name, '.') == NULL);
+	assert(ops != NULL);
+	new = sys_malloc(sizeof(struct driver_s));
 	assert(new != NULL);
 
 	new->name = name;
 	new->ops = ops;
 	list_add_tail(&new->list, &drv_queue);
-
-	//device exist?
-	dev = __dev_get(name);
-	if(dev != NULL) {
-
-	}
-
+	dev_probe();
 	return 0;
 }
 
+//when name = "uart_sam3u.debug", driver "uart_sam3u" will be opened
 struct driver_s* drv_open(const char *name)
 {
 	struct list_head *pos;
-	struct driver_s *q, *drv = NULL;
+	struct driver_s *q;
+	char *p = strchr(name, '.');
+	int n = (p == NULL) ? strlen(name) : (p - name);
 
 	list_for_each(pos, &drv_queue) {
-		q = list_entry(pos, can_queue_s, list);
-		if(!strcmp(name, q->name)) {
-			drv = q;
-			break;
+		q = list_entry(pos, driver_s, list);
+		if(!strncmp(name, q->name, n) && (n == strlen(q->name))) {
+			return q;
 		}
 	}
-	return drv;
+	return NULL;
 }
 
-int drv_close(driver_s *pdrv)
+int drv_close(struct driver_s *pdrv)
 {
 	return 0;
 }
