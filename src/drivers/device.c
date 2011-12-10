@@ -106,8 +106,8 @@ int dev_register(const char *name, const void *pcfg)
 int dev_open(const char *name, const char *mode)
 {
 	int ret;
-	int (*open)(int fd, const void *pcfg);
 	struct device_s *dev = dev_class_get(name);
+	int (*open)(int fd, const void *pcfg);
 
 	if(dev == NULL)
 		dev = dev_get(name);
@@ -115,8 +115,11 @@ int dev_open(const char *name, const char *mode)
 	if(dev == NULL)
 		return -1;
 
-	if(dev->pdrv != NULL && dev->pdrv->ops->open != NULL) {
-		open = dev->pdrv->ops->open;
+	if(dev->pdrv == NULL) //no driver found
+		return -1;
+
+	open = dev->pdrv->ops->open;
+	if(open != NULL) {
 		ret = (*open)((int)dev, dev->pcfg);
 		if(ret)
 			return -1;
@@ -133,11 +136,11 @@ int dev_ioctl(int fd, int request, ...)
 	int (*ioctl)(int fd, int request, va_list args);
 	va_list args;
 
-	assert(dev != NULL);
-	if(dev->pdrv != NULL && dev->pdrv->ops->ioctl != NULL) {
-		ioctl = dev->pdrv->ops->ioctl;
+	//assert(dev != NULL);
+	ioctl = dev->pdrv->ops->ioctl;
+	if(ioctl != NULL) {
 		va_start(args, request);
-		ret = ioctl(fd, request, args);
+		ret = (*ioctl)(fd, request, args);
 		va_end(args);
 	}
 	return ret;
@@ -147,10 +150,12 @@ int dev_poll(int fd, int event)
 {
 	int ret = -1;
 	struct device_s *dev = (struct device_s *) fd;
+	int (*poll)(int fd, int event);
 
-	assert(dev != NULL);
-	if(dev->pdrv != NULL && dev->pdrv->ops->poll != NULL) {
-		ret = (*(dev->pdrv->ops->poll))(fd, event);
+	//assert(dev != NULL);
+	poll = dev->pdrv->ops->poll;
+	if(poll != NULL) {
+		ret = (*poll)(fd, event);
 	}
 	return ret;
 }
@@ -159,10 +164,12 @@ int dev_read(int fd, void *buf, int count)
 {
 	int ret = -1;
 	struct device_s *dev = (struct device_s *) fd;
+	int (*read)(int fd, void *buf, int count);
 
-	assert(dev != NULL);
-	if(dev->pdrv != NULL && dev->pdrv->ops->read != NULL) {
-		ret = (*(dev->pdrv->ops->read))(fd, buf, count);
+	//assert(dev != NULL);
+	read = dev->pdrv->ops->read;
+	if(read != NULL) {
+		ret = (*read)(fd, buf, count);
 	}
 	return ret;
 }
@@ -171,10 +178,12 @@ int dev_write(int fd, const void *buf, int count)
 {
 	int ret = -1;
 	struct device_s *dev = (struct device_s *) fd;
+	int (*write)(int fd, const void *buf, int count);
 
-	assert(dev != NULL);
-	if(dev->pdrv != NULL && dev->pdrv->ops->write != NULL) {
-		ret = (*(dev->pdrv->ops->write))(fd, buf, count);
+	//assert(dev != NULL);
+	write = dev->pdrv->ops->write;
+	if(write != NULL) {
+		ret = (*write)(fd, buf, count);
 	}
 	return ret;
 }
@@ -183,11 +192,13 @@ int dev_close(int fd)
 {
 	int ret = -1;
 	struct device_s *dev = (struct device_s *) fd;
+	int (*close)(int fd);
 
 	assert(dev != NULL);
 	dev->ref -= (dev->ref > 0) ? 1 : 0;
-	if(dev->pdrv != NULL && dev->pdrv->ops->close != NULL) {
-		ret = (*(dev->pdrv->ops->close))(fd);
+	close = dev->pdrv->ops->close;
+	if(close != NULL) {
+		ret = (*close)(fd);
 	}
 	return ret;
 }
