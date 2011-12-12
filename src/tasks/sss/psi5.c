@@ -10,7 +10,7 @@
 #include "ulp_time.h"
 #include "stm32f10x.h"
 
-#define START_TIME 10
+#define START_TIME 30
 
 static enum {
 	PSI5_STM_INIT,
@@ -64,8 +64,8 @@ static unsigned int even_parity(unsigned int v) //Å¼Ð£Ñé
 	return n;
 }
 
-/* 
-* polynom = x^3 + x + 1, 1011 = 11 
+/*
+* polynom = x^3 + x + 1, 1011 = 11
 * 3 bits CRC
 */
 static unsigned int crc3(unsigned int v)
@@ -75,7 +75,7 @@ static unsigned int crc3(unsigned int v)
 	for(i = 27; i >= 0; i--) {
 		mask = 1 << i + 3;
 		if(v & mask)
-			v ^= (p << i); 
+			v ^= (p << i);
 	}
 	return v;
 }
@@ -176,7 +176,7 @@ static unsigned short message_get(int m)
 		if(m & 0x01)
 			return (j & 0x01) ? ((psi5_sensor.init_data[j / 2] >> 4) | 0x0210) : ((psi5_sensor.init_data[j / 2] & 0x000f) | 0x0210);
 		else
-			return ID[j];
+			return ID[j & 0x000f];
 	}
 	else {
 		j += psi5_sensor.status_data_num;
@@ -520,7 +520,7 @@ void psi5_learn_update(void)
 	}
 	for(i = 0, k = 0;; i++) {
 		unsigned int temp;
-		temp = msg[psi5_sensor.init_data_num * psi5_sensor.init_repeat * 2 + i] >> (psi5_sensor.data_bits - 11) & 0x3ff; 
+		temp = msg[psi5_sensor.init_data_num * psi5_sensor.init_repeat * 2 + i] >> (psi5_sensor.data_bits - 11) & 0x3ff;
 		if(temp <= 511 && temp >= 481) {
 #if 0
 			psi5_sensor.status_data[i] = temp;
