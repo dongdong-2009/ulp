@@ -8,4 +8,5 @@ choice 'autoliv pdi type selection'	" \
 	SDM10_11	CONFIG_PDI_SDM10 \
 	DM_DMA		CONFIG_PDI_DM \
 	RC_N7		CONFIG_PDI_RC \
+	B515		CONFIG_PDI_B515 \
 " SDM10_11
