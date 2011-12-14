@@ -3,6 +3,8 @@
 #
 # Written by miaofng@2010
 #
+int "high speed external clk freq?" CONFIG_HSE_VALUE 12000000
+int "low speed external clk freq?" CONFIG_LSE_VALUE 32768
 choice 'stm32 cpu type select'	" \
 	ld	CONFIG_STM32F10X_LD \
 	md	CONFIG_STM32F10X_MD \
