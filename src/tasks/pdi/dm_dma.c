@@ -15,19 +15,10 @@
 #include "shell/cmd.h"
 #include "led.h"
 
-#define PDI_DEBUG	1
+#define PDI_DEBUG	1					//DEBUG MODEL
 
-static const can_msg_t dm_rddtc_msg = {
-	0x607, 8, {0x03, 0x19, 0x89, 0x08, 0, 0, 0, 0}, 0
-};
 static const can_msg_t dm_clrdtc_msg = {
-	0x607, 8, {0x04, 0x14, 0x80, 0x00, 0xff, 0, 0, 0}, 0
-};
-static const can_msg_t dm_clrdtc_msg1 = {
-	0x607, 8, {0x04, 0x2e, 0xfe, 0x80, 0xaa, 0, 0, 0}, 0
-};
-static const can_msg_t dm_bcode_msg = {
-	0x607, 8, {0x03, 0x22, 0xFE, 0x8D, 0, 0, 0, 0}, 0
+	0x607, 8, {0x04, 0x2e, 0xfe, 0x90, 0xaa, 0, 0, 0}, 0
 };
 static const can_msg_t dm_errcode_msg = {
 	0x607, 8, {0x03, 0x22, 0xfe, 0x80, 0, 0, 0, 0}, 0
@@ -51,7 +42,7 @@ static const mbi5025_t pdi_mbi5025 = {
 
 static const ls1203_t pdi_ls1203 = {
 		.bus = &uart2,
-		.data_len = 19,//长度没有定下来
+		.data_len = 14,//长度没有定下来
 		.dead_time = 20,
 };
 
@@ -66,17 +57,14 @@ static struct can_queue_s dm_Vehicle_msg1 = {
 	.ms = 1000,
 	.msg = {0x5FA, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
-
 static struct can_queue_s dm_Vehicle_msg2 = {
 	.ms = 1000,
 	.msg = {0x5FC, 5, {0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
-
 static struct can_queue_s dm_ESC_msg = {
 	.ms = 40,
 	.msg = {0x2F0, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
-
 static struct can_queue_s dm_Testpresent_msg = {
 	.ms = 500,
 	.msg = {0x607, 8, {0x02, 0x3E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
@@ -85,30 +73,31 @@ static struct can_queue_s dm_Testpresent_msg = {
 static LIST_HEAD(can_queue);
 
 static const can_bus_t* pdi_can_bus = &can1;
-static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
-static char pdi_data_buf[256];			//data buffer
-static char pdi_fault_buf[64];			//fault buffer
-static char bcode_1[19];
 
-static int pdi_check();
-static int pdi_GetFault(char *data, int * pnum_fault);
-static int pdi_clear_dtc();
-static int pdi_check_init(const struct pdi_cfg_s *);
-static int check_barcode();
+static can_msg_t dm_msg_buf[32];		//for multi frame buffer
+static char dm_data_buf[256];			//data buffer
+static char dm_fault_buf[64];			//fault buffer
+static char bcode_1[14];
+
+static int dm_check();
+static int dm_clear_dtc();
+static int dm_mdelay(int );
+static int dm_esc_check();
+static int dm_StartSession();
+static int dm_check_barcode();
+static int dm_GetCID(short cid, char *data);
+static int dm_GetFault(char *data, int * pnum_fault);
+static int dm_check_init(const struct pdi_cfg_s *);
 static int pdi_pass_action();
 static int pdi_fail_action();
-static int target_noton_action();
 static int pdi_led_start();
-static int dm_mdelay(int );
-static int init_OK();
+static int pdi_init_OK();
+static int target_noton_action();
 static int counter_pass_add();
 static int counter_fail_add();
-static int dm_StartSession();
-static int dm_GetCID(short cid, char *data);
-static int esc_check();
 static void dm_update();
 static void dm_InitMsg();
-static void pdi_process();
+static void dm_process();
 
 /**************************************************************************/
 /************         Local funcitons                         *************/
@@ -160,7 +149,7 @@ static void dm_InitMsg(void)
 //for start the session
 static int dm_StartSession(void)
 {
-	int i, msg_len;
+	int i, msg_len, num_fault = 0;
 	unsigned char seed[2], result;
 	can_msg_t msg;
 	can_msg_t sendkey_msg = {
@@ -199,31 +188,44 @@ static int dm_StartSession(void)
 	can_msg_print(&msg, "\n");
 #endif
 
-#if 1
-	//get serial number
+#if PDI_DEBUG
+	// get serial number
 	printf("\nSN Code:\n");
-	usdt_GetDiagFirstFrame(&dm_getsn_msg, 1, NULL, pdi_msg_buf, &msg_len);
+	usdt_GetDiagFirstFrame(&dm_getsn_msg, 1, NULL, dm_msg_buf, &msg_len);
 	if (msg_len > 1)
-		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+		usdt_GetDiagLeftFrame(dm_msg_buf, msg_len);
 	for (i = 0; i < msg_len; i++)
-		can_msg_print(pdi_msg_buf + i, "\n");
+		can_msg_print(dm_msg_buf + i, "\n");
+
+	dm_GetFault(dm_fault_buf, &num_fault);
+	printf("num of fault is: %d\n", num_fault);
+	for (i = 0; i < num_fault*2; i += 2)
+		printf("0x%2x, 0x%2x\n", dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
+	memset(dm_fault_buf, 0, 52);
 
 	// get error code
 	printf("\nError Code:\n");
-	usdt_GetDiagFirstFrame(&dm_errcode_msg, 1, NULL, pdi_msg_buf, &msg_len);
+	usdt_GetDiagFirstFrame(&dm_errcode_msg, 1, NULL, dm_msg_buf, &msg_len);
 	if (msg_len > 1)
-		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+		usdt_GetDiagLeftFrame(dm_msg_buf, msg_len);
 	for (i = 0; i < msg_len; i++)
-		can_msg_print(pdi_msg_buf + i, "\n");
+		can_msg_print(dm_msg_buf + i, "\n");
 
 	// get dtc code
 	printf("\nDTC Code:\n");
-	usdt_GetDiagFirstFrame(&dm_rddtc_msg, 1, NULL, pdi_msg_buf, &msg_len);
+	usdt_GetDiagFirstFrame(&dm_rddtc_msg, 1, NULL, dm_msg_buf, &msg_len);
 	if (msg_len > 1)
-		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+		usdt_GetDiagLeftFrame(dm_msg_buf, msg_len);
 	for (i = 0; i < msg_len; i++)
-		can_msg_print(pdi_msg_buf + i, "\n");
+		can_msg_print(dm_msg_buf + i, "\n");
 
+	// clear error code
+	printf("\nClear Code:\n");
+	usdt_GetDiagFirstFrame(&dm_clrdtc_msg, 1, NULL, dm_msg_buf, &msg_len);
+	if (msg_len > 1)
+		usdt_GetDiagLeftFrame(dm_msg_buf, msg_len);
+	for (i = 0; i < msg_len; i++)
+		can_msg_print(dm_msg_buf + i, "\n");
 #endif
 
 	return 0;
@@ -231,21 +233,20 @@ static int dm_StartSession(void)
 
 static int dm_GetCID(short cid, char *data)
 {
-	can_msg_t msg_res, pdi_send_msg = {0x607, 8, {0x03, 0x22, 0, 0, 0, 0, 0, 0}, 0};
+	can_msg_t msg_res, pdi_send_msg = {0x607, 8, {0x03, 0x22, 0xff, 0xff, 0, 0, 0, 0}, 0};
 	int i = 0, msg_len;
-	//char *temp = data;
 
 	pdi_send_msg.data[2] = (char)(cid >> 8);
 	pdi_send_msg.data[3] = (char)(cid & 0x00ff);
 	if (usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res, &msg_len))
 		return 1;
 	if (msg_len > 1) {
-		pdi_msg_buf[0] = msg_res;
-		if(usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len))
+		dm_msg_buf[0] = msg_res;
+		if(usdt_GetDiagLeftFrame(dm_msg_buf, msg_len))
 			return 1;
 	}
 
-	//pick up the data
+	// pick up the data
 	if (msg_len == 1) {
 		if (msg_res.data[1] == 0x62)
 			memcpy(data, (msg_res.data + 4), msg_res.data[0] - 3);
@@ -255,7 +256,7 @@ static int dm_GetCID(short cid, char *data)
 		memcpy(data, (msg_res.data + 5), 3);
 		data += 3;
 		for (i = 1; i < msg_len; i++) {
-			memcpy(data, (pdi_msg_buf + i)->data + 1, 7);
+			memcpy(data, (dm_msg_buf + i)->data + 1, 7);
 			data += 7;
 		}
 	}
@@ -263,7 +264,7 @@ static int dm_GetCID(short cid, char *data)
 	return 0;
 }
 
-static int init_OK()
+static int pdi_init_OK()
 {
 	led_on(LED_RED);
 	led_on(LED_GREEN);
@@ -365,7 +366,7 @@ static int pdi_led_start()
 	return 0;
 }
 
-static int pdi_check_init(const struct pdi_cfg_s *sr)
+static int dm_check_init(const struct pdi_cfg_s *sr)
 {
 	char *o = (char *)&(sr -> relay_ex);
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+1));
@@ -378,10 +379,10 @@ static int pdi_check_init(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
-static void pdi_process(void)
+static void dm_process(void)
 {
 	const struct pdi_cfg_s* pdi_cfg_file;
-	char bcode[20];
+	char bcode[15];
 	if(target_on())
 		start_botton_on();
 	else start_botton_off();
@@ -389,9 +390,9 @@ static void pdi_process(void)
 
 		start_botton_off();
 		pdi_led_start();
-		bcode[19] = '\0';
+		bcode[9] = '\0';						//TBD
 
-		memcpy(bcode_1, bcode, 19);
+		memcpy(bcode_1, bcode, 14);
 		printf("##START##SB-");
 		printf(bcode,"\0");
 		printf("##END##\n");
@@ -400,12 +401,12 @@ static void pdi_process(void)
 		pdi_cfg_file = pdi_cfg_get(bcode);
 
 		if(target_on()) {
-			if(pdi_cfg_file == NULL) {//是否有此配置文件
+			if(pdi_cfg_file == NULL) {			//是否有此配置文件
 				pdi_fail_action();
 				printf("##START##EC-No This Config File##END##\n");
 			}
-			pdi_check_init(pdi_cfg_file);//relay config
-			if(pdi_check(pdi_cfg_file) == 0)
+			dm_check_init(pdi_cfg_file);		//relay config
+			if(dm_check() == 0)
 				pdi_pass_action();
 			else
 				pdi_fail_action();
@@ -416,7 +417,7 @@ static void pdi_process(void)
 	}
 }
 
-static int esc_check()
+static int dm_esc_check()
 {
 	int i;
 	can_msg_t esc_msg;
@@ -446,47 +447,41 @@ static int esc_check()
 	return 0;
 }
 
-static int check_barcode()
+static int dm_check_barcode()
 {
-	dm_GetCID(0xfe8d, pdi_data_buf);
+	dm_GetCID(0xfe8d, dm_data_buf);
 
-	if (memcmp(pdi_data_buf, bcode_1, 19))
+	if (memcmp(dm_data_buf, bcode_1, 14))
 		return 1;
 
 	return 0;
 }
 
-static int pdi_clear_dtc(void)
+static int dm_clear_dtc(void)
 {
 	int msg_len;
 	can_msg_t msg;
 
-	//start session
-	if (dm_StartSession())
-		return 1;
-	//foe test
 	if (usdt_GetDiagFirstFrame(&dm_clrdtc_msg, 1, NULL, &msg, &msg_len))
 		return 1;
-	if (msg.data[1] != 0x54)	//positive response is 0x54
-		return 1;
-	//for test
-	if (dm_StartSession())
+	if (msg.data[1] != 0x6e)	//positive response is 0x6e
 		return 1;
 	return 0;
 }
 
-static int pdi_GetFault(char *data, int * pnum_fault)
+static int dm_GetFault(char *data, int * pnum_fault)
 {
 	int i, result = 0;
 
-	if(dm_GetCID(0xfe8d, data))
+	if(dm_GetCID(0xfe80, data))
 		return 1;
 
-	memset(data + 104, 0x00, 10);
-
 	for (i = 0; i < 52; i += 2) {
-		if (data[i] | data[i+1])
-			result ++;
+		if((data[i] | data[i+1]) == 0)
+			break;
+		if(data[i] == (char)(0xaa))
+			break;
+		result ++;
 	}
 
 	* pnum_fault = result;
@@ -495,17 +490,16 @@ static int pdi_GetFault(char *data, int * pnum_fault)
 
 }
 
-static int pdi_check()
+static int dm_check()
 {
-	int i, num_fault, try_times = 5;
-	const struct pdi_rule_s* pdi_cfg_rule;
+	int i, num_fault = 0, try_times = 5;
 
-	if(check_barcode()) {
+	if(dm_check_barcode()) {
 		printf("##START##EC-Barcode Wrong##END##\n");
 		return 1;
 	}
 
-	while (pdi_GetFault(pdi_fault_buf, &num_fault)) {
+	while (dm_GetFault(dm_fault_buf, &num_fault)) {
 		try_times --;
 		if (try_times < 0) {
 			printf("##START##EC-read DTC error##END##\n");
@@ -514,16 +508,16 @@ static int pdi_check()
 	}
 
 	if (num_fault) {
-		//pdi_clear_dtc();
+		//dm_clear_dtc();
 		printf("##START##EC-");
 		printf("num of fault is: %d*", num_fault);
 		for (i = 0; i < num_fault*2; i += 2)
-			printf("0x%2x, 0x%2x*", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff);
+			printf("0x%2x, 0x%2x*", dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
 		printf("##END##\n");
 		return 1;
 	}
 
-	if(esc_check()) {
+	if(dm_esc_check()) {
 		printf("##START##EC-ESC ERROR##END##\n");
 		return 1;
 	}
@@ -537,10 +531,10 @@ void pdi_init(void)
 		.baud = 500000,
 	};
 
-	pdi_drv_Init();//led,beep
-	mbi5025_Init(&pdi_mbi5025);//SPI总线	移位寄存器
+	pdi_drv_Init();						//led,beep
+	mbi5025_Init(&pdi_mbi5025);			//SPI总线	移位寄存器
 	mbi5025_EnableOE(&pdi_mbi5025);
-	ls1203_Init(&pdi_ls1203);//scanner
+	ls1203_Init(&pdi_ls1203);			//scanner
 	pdi_can_bus->init(&cfg_pdi_can);
 	usdt_Init(pdi_can_bus);
 	dm_InitMsg();
@@ -550,9 +544,9 @@ int main(void)
 {
 	ulp_init();
 	pdi_init();
-	init_OK();
+	pdi_init_OK();
 	while(1) {
-		pdi_process();
+		dm_process();
 		ulp_update();
 		dm_update();
 	}
@@ -577,23 +571,26 @@ static int cmd_dm_func(int argc, char *argv[])
 	}
 
 	if(argc == 2) {
+		//read error code
 		if(argv[1][0] == 'f') {
-			if (pdi_GetFault(pdi_fault_buf, &num_fault))
+			dm_StartSession();
+			if (dm_GetFault(dm_fault_buf, &num_fault))
 				printf("##ERROR##\n");
 			else {
 				printf("##OK##\n");
 				printf("num of fault is: %d\n", num_fault);
-				for (i = 0; i < num_fault*3; i += 3)
-					printf("0x%2x, 0x%2x, 0x%2x\n", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
+				for (i = 0; i < num_fault*2; i += 2)
+					printf("0x%2x, 0x%2x\n", dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
 			}
 		}
+		//clear error code
 		if(argv[1][0] == 'c') {
-			if (pdi_clear_dtc())
+			dm_StartSession();
+			if (dm_clear_dtc())
 				printf("##ERROR##\n");
 			else
 				printf("##OK##\n");
 		}
-
 		// start the diagnostic session
 		if(argv[1][0] == 's') {
 			dm_StartSession();

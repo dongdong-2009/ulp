@@ -71,8 +71,8 @@ static struct can_queue_s sdm_nca_ipc_msg = {
 
 static const can_bus_t* pdi_can_bus = &can1;
 static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
-static char pdi_data_buf[256];
-static char pdi_fault_buf[64];
+static char sdm_data_buf[256];
+static char sdm_fault_buf[64];
 static char bcode_1[20];
 static int nca_periodic_flag = 0;
 static int power_periodic_flag = 0;
@@ -94,26 +94,26 @@ static ls1203_t pdi_ls1203 = {
 };
 
 //local functions for can communication
-static int pdi_GetDID(char did, char *data);
-static int pdi_GetDPID(char dpid, char *data);
-static int pdi_GetFault(char *data, int * pnum_fault);
-static int pdi_clear_dtc(void);
-static int pdi_wakeup(void);
-static int pdi_sleep(void);
+static int sdm_GetDID(char did, char *data);
+static int sdm_GetDPID(char dpid, char *data);
+static int sdm_GetFault(char *data, int * pnum_fault);
+static int sdmi_clear_dtc(void);
+static int sdm_wakeup(void);
+static int sdm_sleep(void);
 
 //local functions for pdi action
 static int pdi_pass_action();
 static int pdi_fail_action();
+static int pdi_led_start();
 static int target_noton_action();
 static int counter_pass_add();
 static int counter_fail_add();
-static int init_OK();
-static int pdi_led_start();
+static int sdm_init_OK();
 
 //for test consequence
-static int pdi_check_init(const struct pdi_cfg_s *);
+static int sdm_check_init(const struct pdi_cfg_s *);
 static int pdi_check(const struct pdi_cfg_s *);
-static void pdi_process();
+static void sdm_process();
 
 //others
 static int sdm_mdelay(int );
@@ -179,7 +179,7 @@ static void sdm_update(void)
 	}
 }
 
-static int init_OK()
+static int sdm_init_OK()
 {
 	led_on(LED_RED);
 	led_on(LED_GREEN);
@@ -218,7 +218,7 @@ static int counter_fail_add()
 
 static int pdi_fail_action()
 {
-	pdi_sleep();
+	sdm_sleep();
 	led_off(LED_GREEN);
 	led_off(LED_RED);
 	led_on(LED_RED);
@@ -231,7 +231,7 @@ static int pdi_fail_action()
 
 static int pdi_pass_action()
 {
-	pdi_sleep();
+	sdm_sleep();
 	led_off(LED_GREEN);
 	led_off(LED_RED);
 	led_on(LED_GREEN);
@@ -283,7 +283,7 @@ static int pdi_led_start()
 	return 0;
 }
 
-static int pdi_GetDID(char did, char *data)
+static int sdm_GetDID(char did, char *data)
 {
 	can_msg_t msg_res, pdi_send_msg = {0x247, 8, {0x02, 0x1a, 0, 0, 0, 0, 0, 0}, 0};
 	int i = 0, msg_len;
@@ -330,7 +330,7 @@ static int pdi_GetDID(char did, char *data)
 	return 0;
 }
 
-static int pdi_GetDPID(char dpid, char *data)
+static int sdm_GetDPID(char dpid, char *data)
 {
 	can_msg_t pdi_recv_msg;
 	can_msg_t pdi_send_msg = {0x247, 8, {0x03, 0xaa, 0x01, 0, 0, 0, 0, 0}, 0};
@@ -360,22 +360,22 @@ static int check_barcode(void)
 
 	printf("##START##EC-checking barcode##END##\n");
 
-	while (pdi_GetDID(0xB4, pdi_data_buf)) {
+	while (sdm_GetDID(0xB4, sdm_data_buf)) {
 		try_times --;
 		if (try_times < 0)
 			return 1;
 	}
-	pdi_data_buf[16] = '\0';
+	sdm_data_buf[16] = '\0';
 	printf("##START##RB-");
-	printf(pdi_data_buf);
+	printf(sdm_data_buf);
 	printf("##END##\n");
-	if (memcmp(bcode_1 + 3, pdi_data_buf, 16))
+	if (memcmp(bcode_1 + 3, sdm_data_buf, 16))
 		return 1;
 	else
 		return 0;
 }
 
-static int pdi_clear_dtc()
+static int sdmi_clear_dtc()
 {
 	can_msg_t pdi_recv_msg;
 	can_msg_t pdi_send_msg = {0x247, 8, {0x01, 0x04, 0, 0, 0, 0, 0, 0}, 0};
@@ -396,10 +396,10 @@ static int pdi_clear_dtc()
 	return 0;
 }
 
-static int pdi_GetFault(char *data, int * pnum_fault)
+static int sdm_GetFault(char *data, int * pnum_fault)
 {
 	int i = 0, result = 0;
-	if (pdi_GetDID(0x71, data))
+	if (sdm_GetDID(0x71, data))
 		return 1;
 
 	memset(data + 90, 0x00, 38);
@@ -414,7 +414,7 @@ static int pdi_GetFault(char *data, int * pnum_fault)
 	return 0;
 }
 
-static int pdi_check_init(const struct pdi_cfg_s *sr)
+static int sdm_check_init(const struct pdi_cfg_s *sr)
 {
 	char *o=(char *)&(sr->relay);
 	mbi5025_WriteByte(&pdi_mbi5025, *(o+3));
@@ -431,7 +431,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	char temp[2];
 	const struct pdi_rule_s* pdi_cfg_rule;
 
-	if(pdi_wakeup())
+	if(sdm_wakeup())
 		return 1;
 
 	if(check_barcode()) {
@@ -463,7 +463,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 			printf("##START##EC-checking DID:");
 			printf("%X", (char *)pdi_cfg_rule->para);
 			printf("##END##\n");
-			while (pdi_GetDID(pdi_cfg_rule->para, pdi_data_buf)) {
+			while (sdm_GetDID(pdi_cfg_rule->para, sdm_data_buf)) {
 				try_times --;
 				if (try_times <= 0) {
 					printf("##START##EC-read DID:");
@@ -477,7 +477,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 			printf("##START##EC-checking DPID:");
 			printf("%X", (char *)pdi_cfg_rule->para);
 			printf("##END##\n");
-			while (pdi_GetDPID(pdi_cfg_rule->para, pdi_data_buf)) {
+			while (sdm_GetDPID(pdi_cfg_rule->para, sdm_data_buf)) {
 				try_times --;
 				if (try_times <= 0) {
 					printf("##START##EC-read DPID:");
@@ -492,7 +492,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 			return 1;
 		}
 
-		if(pdi_verify(pdi_cfg_rule, pdi_data_buf) == 0) {
+		if(pdi_verify(pdi_cfg_rule, sdm_data_buf) == 0) {
 			continue;
 		} else {
 			printf("##START##EC-Error: Fault is : ");
@@ -511,7 +511,7 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	printf("##START##EC-checking limite file done...##END##\n");
 	printf("##START##EC-checking error buffer...##END##\n");
 
-	while (pdi_GetFault(pdi_fault_buf, &num_fault)) {
+	while (sdm_GetFault(sdm_fault_buf, &num_fault)) {
 		try_times --;
 		if (try_times < 0) {
 			printf("##START##EC-read DTC error##END##\n");
@@ -520,18 +520,18 @@ static int pdi_check(const struct pdi_cfg_s *sr)
 	}
 
 	if (num_fault) {
-		//pdi_clear_dtc();
+		//sdmi_clear_dtc();
 		printf("##START##EC-");
 		printf("num of fault is: %d * ", num_fault);
 		for (i = 0; i < num_fault*3; i += 3)
-			printf("0x%2x, 0x%2x, 0x%2x * ", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
+			printf("0x%2x, 0x%2x, 0x%2x * ", sdm_fault_buf[i]&0xff, sdm_fault_buf[i+1]&0xff, sdm_fault_buf[i+2]&0xff);
 		printf("##END##\n");
 		return 1;
 	}
 	printf("##START##EC-checking error buffer done...##END##\n");
-	pdi_GetDPID(0x21, pdi_data_buf);
+	sdm_GetDPID(0x21, sdm_data_buf);
 	for(i = 0; i < 8; i++) {
-		printf("%2x,", pdi_data_buf[i]&0xff);
+		printf("%2x,", sdm_data_buf[i]&0xff);
 	}
 	return 0;
 }
@@ -552,7 +552,7 @@ void pdi_init(void)
 	sdm_InitMsg();
 }
 
-void pdi_process(void)
+void sdm_process(void)
 {
 	const struct pdi_cfg_s* pdi_cfg_file;
 	char bcode[20];
@@ -582,7 +582,7 @@ void pdi_process(void)
 				pdi_fail_action();
 				printf("##START##EC-No This Config File##END##\n");
 			} else {
-				pdi_check_init(pdi_cfg_file);//relay config
+				sdm_check_init(pdi_cfg_file);//relay config
 				if(pdi_check(pdi_cfg_file) == 0)
 					pdi_pass_action();
 				else
@@ -595,7 +595,7 @@ void pdi_process(void)
 	}
 }
 
-static int pdi_wakeup(void)
+static int sdm_wakeup(void)
 {
 	int i, rate;
 	char temp[2];
@@ -702,7 +702,7 @@ static int pdi_wakeup(void)
 	return 0;
 }
 
-static int pdi_sleep(void)
+static int sdm_sleep(void)
 {
 	char temp[3];
 	int rate;
@@ -750,9 +750,9 @@ int main(void)
 {
 	ulp_init();
 	pdi_init();
-	init_OK();
+	sdm_init_OK();
 	while(1) {
-		pdi_process();
+		sdm_process();
 		ulp_update();
 		sdm_update();
 	}
@@ -780,28 +780,28 @@ static int cmd_sdm_func(int argc, char *argv[])
 
 	if(argc == 2) {
 		if(argv[1][0] == 'f') {
-			if (pdi_GetFault(pdi_fault_buf, &num_fault))
+			if (sdm_GetFault(sdm_fault_buf, &num_fault))
 				printf("##ERROR##\n");
 			else {
 				printf("##OK##\n");
 				printf("num of fault is: %d\n", num_fault);
 				for (i = 0; i < num_fault*3; i += 3)
-					printf("0x%2x, 0x%2x, 0x%2x\n", pdi_fault_buf[i]&0xff, pdi_fault_buf[i+1]&0xff, pdi_fault_buf[i+2]&0xff);
+					printf("0x%2x, 0x%2x, 0x%2x\n", sdm_fault_buf[i]&0xff, sdm_fault_buf[i+1]&0xff, sdm_fault_buf[i+2]&0xff);
 			}
 		}
 		if(argv[1][0] == 'c') {
-			pdi_wakeup();
+			sdm_wakeup();
 			sdm_mdelay(2000);
-			pdi_clear_dtc();
+			sdmi_clear_dtc();
 			sdm_mdelay(2000);
-			pdi_sleep();
+			sdm_sleep();
 			printf("##OK##\n");
 		}
 		if(argv[1][0] == 'w') {
-			pdi_wakeup();
+			sdm_wakeup();
 		}
 		if(argv[1][0] == 's') {
-			pdi_sleep();
+			sdm_sleep();
 		}
 	}
 	if(argc == 3) {
