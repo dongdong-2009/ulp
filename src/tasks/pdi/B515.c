@@ -328,7 +328,7 @@ static int b515_check_init(const struct pdi_cfg_s *sr)
 
 static int b515_check_bab515ode()
 {
-	b515_GetCID(0x90ab, b515_data_buf);
+	b515_GetCID(0xfd47, b515_data_buf);
 
 	if (memcmp(b515_data_buf, bcode_1, 19))
 		return 1;
@@ -341,17 +341,11 @@ static int b515_clear_dtc(void)
 	int msg_len;
 	can_msg_t msg;
 
-	//start session
-	//if (b515_StartSession())
-		//return 1;
-	//foe test
 	if (usdt_GetDiagFirstFrame(&b515_clrdtc_msg, 1, NULL, &msg, &msg_len))
-		//return 1;
+		return 1;
 	if (msg.data[1] != 0x7b)	//positive response is 0x54
 		return 0;
-	//for test
-	//if (b515_StartSession())
-		//return 1;
+
 	return 1;
 }
 
@@ -359,7 +353,7 @@ static int b515_GetFault(char *data, int * pnum_fault)
 {
 	int i, result = 0;
 
-	if(b515_GetCID(0x9080, data))
+	if(b515_GetCID(0xfd39, data))
 		return 1;
 
 	memset(data + 117, 0x00, 10);

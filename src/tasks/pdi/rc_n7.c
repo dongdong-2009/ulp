@@ -362,17 +362,10 @@ static int rc_clear_dtc(void)
 	int msg_len;
 	can_msg_t msg;
 
-	//start session
-	//if (rc_StartSession())
-		//return 1;
-	//foe test
 	if (usdt_GetDiagFirstFrame(&rc_clrdtc_msg, 1, NULL, &msg, &msg_len))
-		//return 1;
-	if (msg.data[1] != 0x7b)	//positive response is 0x54
+		return 1;
+	if (msg.data[1] != 0x7b)	//positive response is 0x7b
 		return 0;
-	//for test
-	//if (rc_StartSession())
-		//return 1;
 	return 1;
 }
 
