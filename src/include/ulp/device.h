@@ -35,6 +35,10 @@ static inline int dev_priv_set(int fd, void *priv) {
 	return 0;
 }
 
+/*dev_poll events*/
+#define POLLIN		1
+#define POLLOUT		2
+
 /*name is something like 'uart0'(class name + index) or 'uart_stm32.0'(device name)*/
 int dev_open(const char *name, const char *mode); //success return handle, fail -1
 int dev_ioctl(int fd, int request, ...);

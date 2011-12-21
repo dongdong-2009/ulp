@@ -12,19 +12,13 @@
 
 static LIST_HEAD(drv_queue);
 
-int drv_register(const char *name, const struct drv_ops_s *ops)
+int drv_register(struct driver_s *pdrv)
 {
-	struct driver_s *new;
-
 	//verify name is a correct driver name, like uart_stm32
-	assert(strchr(name, '.') == NULL);
-	assert(ops != NULL);
-	new = sys_malloc(sizeof(struct driver_s));
-	assert(new != NULL);
+	assert(strchr(pdrv->name, '.') == NULL);
+	assert(pdrv->ops != NULL);
 
-	new->name = name;
-	new->ops = ops;
-	list_add_tail(&new->list, &drv_queue);
+	list_add_tail(&pdrv->list, &drv_queue);
 	dev_probe();
 	return 0;
 }

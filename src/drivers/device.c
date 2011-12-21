@@ -190,7 +190,7 @@ int dev_write(int fd, const void *buf, int count)
 
 int dev_close(int fd)
 {
-	int ret = -1;
+	int ret = 0;
 	struct device_s *dev = (struct device_s *) fd;
 	int (*close)(int fd);
 
