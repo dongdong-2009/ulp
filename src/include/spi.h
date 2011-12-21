@@ -5,7 +5,7 @@
 #define __SPI_H_
 
 #include <stddef.h>
-#include "device.h"
+#include "ulp/device.h"
 #include "config.h"
 
 enum {
