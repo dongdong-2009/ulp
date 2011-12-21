@@ -112,7 +112,7 @@ static int sdm_init_OK();
 
 //for test consequence
 static int sdm_check_init(const struct pdi_cfg_s *);
-static int pdi_check(const struct pdi_cfg_s *);
+static int sdm_check(const struct pdi_cfg_s *);
 static void sdm_process();
 
 //others
@@ -424,7 +424,7 @@ static int sdm_check_init(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
-static int pdi_check(const struct pdi_cfg_s *sr)
+static int sdm_check(const struct pdi_cfg_s *sr)
 {
 	int i, try_times = 5, rate;
 	int num_fault;
@@ -583,7 +583,7 @@ void sdm_process(void)
 				printf("##START##EC-No This Config File##END##\n");
 			} else {
 				sdm_check_init(pdi_cfg_file);//relay config
-				if(pdi_check(pdi_cfg_file) == 0)
+				if(sdm_check(pdi_cfg_file) == 0)
 					pdi_pass_action();
 				else
 					pdi_fail_action();

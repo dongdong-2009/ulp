@@ -29,6 +29,9 @@ static const can_msg_t rc_connector_msg = {
 	0x752, 8, {0x03, 0x21, 0x90, 0xa2, 0, 0, 0, 0}, 0
 };
 static const can_msg_t rc_getsn_msg = {
+	0x752, 8, {0x03, 0x21, 0x90, 0xaa, 0, 0, 0, 0}, 0
+};
+static const can_msg_t rc_getpart_msg = {
 	0x752, 8, {0x03, 0x21, 0x90, 0xab, 0, 0, 0, 0}, 0
 };
 static const can_msg_t rc_reqseed_msg = {
@@ -57,14 +60,14 @@ static char rc_data_buf[256];			//data buffer
 static char rc_fault_buf[64];			//fault buffer
 static char bcode_1[14];
 
-static int rc_check();
+static int rc_check(const struct pdi_cfg_s *);
 static int rc_init_OK();
 static int rc_clear_dtc();
 static int rc_mdelay(int );
-static int rc_JAMA_check();
+static int rc_JAMA_check(const struct pdi_cfg_s *);
 static int rc_StartSession();
 static int rc_check_barcode();
-static int rc_connector_check();
+static int rc_part_check();
 static int rc_GetCID(short cid, char *data);
 static int rc_check_init(const struct pdi_cfg_s *);
 static int rc_GetFault(char *data, int * pnum_fault);
@@ -329,27 +332,51 @@ static int rc_check_init(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
-static int rc_JAMA_check()
+static int rc_JAMA_check(const struct pdi_cfg_s *sr)
 {
-	if(JAMA_on())
-		return 0;
-	else
-		return 1;
+	const struct pdi_rule_s* pdi_cfg_rule;
+	int i;
+	for(i = 0; i < sr->nr_of_rules; i ++) {
+		pdi_cfg_rule = pdi_rule_get(sr, i);
+		if (&pdi_cfg_rule == NULL) {
+			printf("##START##EC-no JAMA rule##END##\n");
+			return 1;
+		}
+
+		switch(pdi_cfg_rule->type) {
+		case PDI_RULE_JAMA:
+			printf("##START##EC-checking JAMA##END##\n");
+			if(JAMA_on()) rc_data_buf[0] = 0x00;//JAMA 塞子没有
+			else rc_data_buf[0] = 0x01;			//JAMA 塞子有
+			break;
+		case PDI_RULE_UNDEF:
+			return 1;
+		}
+
+		if(pdi_verify(pdi_cfg_rule, rc_data_buf) == 0) {
+			continue;
+		} else {
+			printf("##START##EC-JAMA Wrong##END##\n");
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
-static int rc_connector_check()
+static int rc_part_check()
 {
 	char *data;
-	if(rc_GetCID(0x90a2, data))
-		return 1;
-	if(data[4] != 0x01)
-		return 1;
+	if(rc_GetCID(0x90ab, data))
+		return 1;			//检测客户代码
+	// if(data[4] != 0x01)
+		// return 1;
 	return 0;
 }
 
 static int rc_check_barcode()
 {
-	rc_GetCID(0x90ab, rc_data_buf);
+	rc_GetCID(0x90aa, rc_data_buf);
 
 	if (memcmp(rc_data_buf, bcode_1, 19))
 		return 1;
@@ -388,7 +415,7 @@ static int rc_GetFault(char *data, int * pnum_fault)
 	return 0;
 }
 
-static int rc_check()
+static int rc_check(const struct pdi_cfg_s *sr)
 {
 	int i, num_fault, try_times = 5;
 
@@ -401,13 +428,13 @@ static int rc_check()
 		return 1;
 	}
 
-	if(rc_JAMA_check()) {
+	if(rc_JAMA_check(sr)) {
 		printf("##START##EC-JAMA Wrong##END##\n");
 		return 1;
 	}
 
-	if(rc_connector_check()) {
-		printf("##START##EC-Connecter Bar Wrong##END##\n");
+	if(rc_part_check()) {
+		printf("##START##EC-Partnumber Wrong##END##\n");
 		return 1;
 	}
 
@@ -457,7 +484,7 @@ static void rc_process(void)
 
 		start_botton_off();
 		pdi_led_start();
-		bcode[14] = '\0';
+		bcode[18] = '\0';
 
 		memcpy(bcode_1, bcode, 14);
 		printf("##START##SB-");
@@ -473,7 +500,7 @@ static void rc_process(void)
 				printf("##START##EC-No This Config File##END##\n");
 			}
 			rc_check_init(pdi_cfg_file);		//relay config
-			if(rc_check() == 0)
+			if(rc_check(pdi_cfg_file) == 0)
 				pdi_pass_action();
 			else
 				pdi_fail_action();

@@ -322,6 +322,7 @@ static int cmd_file_func(int argc, char *argv[])
 				printf("verify ");
 				if(rule->type == PDI_RULE_DID) printf("DID ");
 				if(rule->type == PDI_RULE_DPID) printf("DPID ");
+				if(rule->type == PDI_RULE_JAMA) printf("JAMA ");
 
 				printf("%02X ", rule->para);
 
@@ -369,6 +370,7 @@ static int cmd_verify_func(int argc, char *argv[])
 		"add limit settings to config file, usage:\n"
 		"verify DID B4 ASCII 16 20TAS5636E********* //explatation, optional\n"
 		"verify DPID 28 HEX 7 000000000000000000 //explation, optional\n"
+		"verify JAMA HEX 1 01 //explation, optional\n"
 	};
 
 	if(argc == 6) {
@@ -393,6 +395,25 @@ static int cmd_verify_func(int argc, char *argv[])
 		}
 		else {
 			ret = file_rule_add(&rule, argv[5]);
+		}
+	}
+
+	if(argc == 5) {
+		rule.type = PDI_RULE_UNDEF;
+		rule.type = (!strcmp(argv[1], "JAMA")) ? PDI_RULE_JAMA : rule.type;
+
+		rule.echo_type = PDI_ECHO_UNDEF;
+		rule.echo_type= (!strcmp(argv[2], "HEX")) ? PDI_ECHO_HEX : rule.echo_type;
+
+		sscanf(argv[3], "%d", &v);
+		rule.echo_size = v & 0xff;
+
+		if(rule.type == PDI_RULE_UNDEF || rule.echo_type == PDI_ECHO_UNDEF || rule.echo_size == 0) {
+			pdi_ecode = - PDI_ERR_IN_PARA;
+			ret = pdi_ecode;
+		}
+		else {
+			ret = file_rule_add(&rule, argv[4]);
 		}
 	}
 

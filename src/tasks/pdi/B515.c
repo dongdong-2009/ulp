@@ -377,7 +377,7 @@ static int b515_check()
 	b515_mdelay(10000);
 
 	if(b515_check_bab515ode()) {
-		printf("##START##EC-Bab515ode Wrong##END##\n");
+		printf("##START##EC-Barcode Wrong##END##\n");
 		return 1;
 	}
 
