@@ -30,7 +30,7 @@ struct driver_s {
 };
 
 /*return 0 indicates success*/
-int drv_register(const char *name, struct driver_s *pdrv);
+int drv_register(struct driver_s *pdrv);
 #pragma section=".driver" 4
 #define driver_init(init) \
 	void (*##init##_entry)(void)@".driver" = &##init
