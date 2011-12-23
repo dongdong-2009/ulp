@@ -66,3 +66,10 @@ if [ "$CONFIG_TASK_PDI" = "y" ]; then
 		source src/tasks/pdi/Kconfig
 	endmenu
 fi
+
+if [ "$CONFIG_TASK_YBS" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'ybs'
+		source src/tasks/ybs/Kconfig
+	endmenu
+fi
