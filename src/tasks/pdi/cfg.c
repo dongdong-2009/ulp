@@ -78,7 +78,7 @@ const struct pdi_cfg_s* pdi_cfg_get(const char *sn)
 		}
 
 		cfg = pdi_file(i);
-                i ++;
+		i ++;
 		if(sn != NULL) {
 			if((cfg->flag & 0x01) == 0 && cfg->nr_of_rules > 0) {
 				if(!strcmp(sn, cfg->name))

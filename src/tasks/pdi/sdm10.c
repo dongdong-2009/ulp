@@ -97,7 +97,7 @@ static ls1203_t pdi_ls1203 = {
 static int sdm_GetDID(char did, char *data);
 static int sdm_GetDPID(char dpid, char *data);
 static int sdm_GetFault(char *data, int * pnum_fault);
-static int sdmi_clear_dtc(void);
+static int sdi_clear_dtc(void);
 static int sdm_wakeup(void);
 static int sdm_sleep(void);
 
@@ -375,7 +375,7 @@ static int check_barcode(void)
 		return 0;
 }
 
-static int sdmi_clear_dtc()
+static int sdi_clear_dtc()
 {
 	can_msg_t pdi_recv_msg;
 	can_msg_t pdi_send_msg = {0x247, 8, {0x01, 0x04, 0, 0, 0, 0, 0, 0}, 0};
@@ -520,7 +520,7 @@ static int sdm_check(const struct pdi_cfg_s *sr)
 	}
 
 	if (num_fault) {
-		//sdmi_clear_dtc();
+		//sdi_clear_dtc();
 		printf("##START##EC-");
 		printf("num of fault is: %d * ", num_fault);
 		for (i = 0; i < num_fault*3; i += 3)
@@ -792,7 +792,7 @@ static int cmd_sdm_func(int argc, char *argv[])
 		if(argv[1][0] == 'c') {
 			sdm_wakeup();
 			sdm_mdelay(2000);
-			sdmi_clear_dtc();
+			sdi_clear_dtc();
 			sdm_mdelay(2000);
 			sdm_sleep();
 			printf("##OK##\n");

@@ -78,6 +78,7 @@ static can_msg_t dm_msg_buf[32];		//for multi frame buffer
 static char dm_data_buf[256];			//data buffer
 static char dm_fault_buf[64];			//fault buffer
 static char bcode_1[14];
+static int esc_flag = 1;
 
 static int dm_check();
 static int dm_clear_dtc();
@@ -303,6 +304,7 @@ static int counter_fail_add()
 
 static int pdi_fail_action()
 {
+	pdi_IGN_on();
 	led_off(LED_GREEN);
 	led_off(LED_RED);
 	led_on(LED_RED);
@@ -315,6 +317,7 @@ static int pdi_fail_action()
 
 static int pdi_pass_action()
 {
+	pdi_IGN_on();
 	led_off(LED_GREEN);
 	led_off(LED_RED);
 	led_on(LED_GREEN);
@@ -390,14 +393,22 @@ static void dm_process(void)
 
 		start_botton_off();
 		pdi_led_start();
-		bcode[9] = '\0';						//TBD
+		bcode[14] = '\0';						//TBD
 
 		memcpy(bcode_1, bcode, 14);
 		printf("##START##SB-");
 		printf(bcode,"\0");
 		printf("##END##\n");
-		bcode[9] = '\0';
+		bcode[5] = '\0';
+		//some verites need esc check
+		if (memcmp(bcode + 3, "DL", 2) == 0)
+			esc_flag = 0;
+		if (memcmp(bcode + 3, "DK", 2) == 0)
+			esc_flag = 0;
+		if (memcmp(bcode + 3, "PK", 2) == 0)
+			esc_flag = 0;
 
+		printf("##START##STATUS-5##END##\n");
 		pdi_cfg_file = pdi_cfg_get(bcode);
 
 		if(target_on()) {
@@ -405,7 +416,11 @@ static void dm_process(void)
 				pdi_fail_action();
 				printf("##START##EC-No This Config File##END##\n");
 			}
+
 			dm_check_init(pdi_cfg_file);		//relay config
+
+			pdi_IGN_on();
+
 			if(dm_check() == 0)
 				pdi_pass_action();
 			else
@@ -432,7 +447,7 @@ static int dm_esc_check()
 				if(esc_msg.data[i] != 0x00)
 					break;
 			}
-			if(i != 6)
+			if(i != 7)
 				return 1;
 		case 189:
 			esc_msg.data[1] &= 0xEF;
@@ -451,7 +466,7 @@ static int dm_check_barcode()
 {
 	dm_GetCID(0xfe8d, dm_data_buf);
 
-	if (memcmp(dm_data_buf, bcode_1, 14))
+	if(memcmp(dm_data_buf, bcode_1, 14))
 		return 1;
 
 	return 0;
@@ -499,6 +514,14 @@ static int dm_check()
 		return 1;
 	}
 
+	for (rate = 5; rate <= 95; rate ++) {
+		sdm_mdelay(111);
+		printf("##START##STATUS-");
+		sprintf(temp, "%d", rate);
+		printf("%s", temp);
+		printf("##END##\n");
+	}
+
 	while (dm_GetFault(dm_fault_buf, &num_fault)) {
 		try_times --;
 		if (try_times < 0) {
@@ -517,10 +540,14 @@ static int dm_check()
 		return 1;
 	}
 
-	if(dm_esc_check()) {
-		printf("##START##EC-ESC ERROR##END##\n");
-		return 1;
+	if(esc_flag) {
+		if(dm_esc_check()) {
+			printf("##START##EC-ESC ERROR##END##\n");
+			return 1;
+		}
 	}
+
+	printf("##START##STATUS-100##END##\n");
 
 	return 0;
 }
