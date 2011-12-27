@@ -89,7 +89,9 @@ static int nrf_init(const wl_cfg_t *cfg)
 	nrf_idx_cs = SPI_1_NSS;
 	nrf_idx_ce = SPI_CS_PA12;
 #else
-	nrf_spi = NULL;
+	nrf_spi = &spi1;
+	nrf_idx_cs = SPI_1_NSS;
+	nrf_idx_ce = SPI_CS_PC5;
 #endif
 
 	assert(nrf_spi != NULL);
