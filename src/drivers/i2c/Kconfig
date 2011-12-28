@@ -7,3 +7,8 @@ bool "i2c bus 1?" CONFIG_DRIVER_I2C1
 bool "i2c bus 2?" CONFIG_DRIVER_I2C2
 bool "chip at24cxx(eeprom)" CONFIG_DRIVER_AT24CXX
 bool "chip mcp23017 (IO explander)" CONFIG_DRIVER_MCP23017
+if [ "$CONFIG_DRIVER_I2C1" = "y" ]; then
+	if [ "$CONFIG_CPU_STM32" = "y" ]; then
+		bool "remap PB8/9 as SCL/SDA pin" CONFIG_I2C1_REMAP
+	fi
+fi
