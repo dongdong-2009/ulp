@@ -7,7 +7,7 @@
 #ifndef __NRF_H_
 #define __NRF_H_
 
-#include "device.h"
+#include "ulp/device.h"
 
 //misc cmds
 #define NOP (0xff)
