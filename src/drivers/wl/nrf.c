@@ -212,7 +212,7 @@ int nrf_update(struct nrf_priv_s *priv)
 {
 	struct nrf_pipe_s *pipe;
 	struct nrf_chip_s *chip;
-	char status, n, frame[32];
+	char status, fifo_status, n, frame[32];
 	int (*onfail)(int ecode, ...);
 	int ecode = WL_ERR_OK;
 	//assert(priv != NULL);
@@ -229,22 +229,27 @@ int nrf_update(struct nrf_priv_s *priv)
 	are more payloads available in RX FIFO, 4) if there are more data in RX FIFO, repeat from 1)
 	*/
 	status = nrf_read_reg(STATUS);
+	fifo_status = nrf_read_reg(FIFO_STATUS);
 	do {
 		if(chip->mode & WL_MODE_PRX) { //PRX
 			//handle recv
-			if(status & RX_DR) {
+			if(!(fifo_status & RX_FIFO_EMPTY)) {
 				nrf_read_buf(R_RX_PL_WID, &n, 1);
 				if(n > 0) {
+					if(buf_left(&pipe->rbuf) < n - 1) {
+						/*there's no enough space in rbuf, do not recv,
+						then prx will ignore,  which lead to ptx send fail and resend,
+						so there is two reason which may lead to ptx send fail:
+						1, prx lost link
+						2, prx rfifo full(maybe cpu is dead?:))
+						*/
+						break;
+					}
+
 					nrf_read_buf(R_RX_PAYLOAD, frame, n);
 					nrf_write_reg(STATUS, RX_DR);
 					if(frame[0] == WL_FRAME_DATA) {
-						n --;
-						if(buf_left(&pipe->rbuf) < n) {
-							//rbuf overflow
-							ecode = WL_ERR_RX_OVERFLOW;
-							onfail(ecode, frame, n + 1);
-						}
-						buf_push(&pipe->rbuf, frame + 1, n);
+						buf_push(&pipe->rbuf, frame + 1, n - 1);
 					}
 					else {
 						ecode = WL_ERR_RX_FRAME;
@@ -272,31 +277,32 @@ int nrf_update(struct nrf_priv_s *priv)
 				pipe->timer = 0;
 				frame[0] = WL_FRAME_DATA;
 				n = buf_pop(&pipe->tbuf, frame + 1, 31);
-				if(status & TX_DS) {
-					nrf_write_reg(STATUS, TX_DS);
-				}
 				if(n > 0) {
 					nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
+				}
+				if(status & TX_DS) {
+					nrf_write_reg(STATUS, TX_DS);
 				}
 			}
 		}
 		else { //PTX
-			//handle recv
-			if(status & RX_DR) {
+			/*handle recv, from the ptx flow chart, the payload attached with ack may lost in case of ptx rxfifo is full???
+			because it doesn' check rxfifo is full or not, pls refer to chart page 31. From shockburst communication protocol point of view,
+			ptx cann't notice prx 'i'm full', that may lead to deadloop. So we need to check the rfifo to ensure we can recv before ptx send
+			the frame*/
+			if(!(fifo_status & RX_FIFO_EMPTY)) {
 				nrf_read_buf(R_RX_PL_WID, &n, 1);
 				if(n > 0) {
+					if(buf_left(&pipe->rbuf) < (n -1)) {
+						/*there's no enough space in ptx rbuf, do not recv,
+						then ptx should give up send a frame at next step.
+						*/
+						break;
+					}
 					nrf_read_buf(R_RX_PAYLOAD, frame, n);
 					nrf_write_reg(STATUS, RX_DR);
 					if(frame[0] == WL_FRAME_DATA) {
-						n --;
-						if(buf_left(&pipe->rbuf) < n) {
-							//rbuf overflow
-							ecode = WL_ERR_RX_OVERFLOW;
-							onfail(ecode, frame, n + 1);
-						}
-						else {
-							buf_push(&pipe->rbuf, frame + 1, n);
-						}
+						buf_push(&pipe->rbuf, frame + 1, n - 1);
 					}
 					else {
 						ecode = WL_ERR_RX_FRAME;
@@ -340,6 +346,7 @@ int nrf_update(struct nrf_priv_s *priv)
 		}
 
 		status = nrf_read_reg(STATUS);
+		fifo_status = nrf_read_reg(FIFO_STATUS);
 	} while(status & (RX_DR|TX_DS|MAX_RT));
 	return 0;
 }
