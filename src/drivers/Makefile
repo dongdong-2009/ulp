@@ -1,4 +1,5 @@
 obj-y += driver.o
+obj-y += device.o
 obj-y += time.o
 obj-$(CONFIG_DRIVER_LED) += led/
 obj-y += uart/
@@ -21,3 +22,4 @@ obj-y += disk/
 obj-$(CONFIG_DRIVER_MD204L) += md204l/
 obj-y += flash/
 obj-$(CONFIG_DRIVER_WL) += wl/
+obj-y += video/

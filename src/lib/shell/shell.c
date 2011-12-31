@@ -291,13 +291,13 @@ int shell_ReadLine(const char *prompt, char *str)
 				} while(carry_flag);
 
 				if(idx == shell -> cmd_idx)
-					continue;
+					break;
 
 				shell -> cmd_idx = -2 - shell -> cmd_idx;
 				ready = 1;
 				putchar('\n');
 			}
-			continue;
+			break;
 		default:
 			if(((ch < ' ') || (ch > 126)) && (ch != '\t'))
 				continue;

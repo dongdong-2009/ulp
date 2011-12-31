@@ -1,0 +1,23 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+mainmenu_option next_comment
+	comment 'CPU - CONFIG'
+	source src/cpu/Kconfig
+endmenu
+
+choice 'BOARD - CONFIG'	" \
+	ARBITARY		CONFIG_BOARD_ARBITARY \
+	HY_SMART_STM32		CONFIG_BOARD_HY_SMART \
+" ARBITARY
+
+if [ "$CONFIG_BOARD_HY_SMART" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'HY Smart STM32 Board'
+		source src/board/HY-Smart/Kconfig
+	endmenu
+fi
+

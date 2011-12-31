@@ -3,26 +3,82 @@
 #
 # Written by miaofng@2010
 #
+#######################Please ensure the tasks in alphabetical order###############
+choice 'task select'	" \
+	NONE		CONFIG_TASK_NONE \
+	APT		CONFIG_TASK_APT \
+	BLDC		CONFIG_TASK_MOTOR \
+	ETHDEMO		CONFIG_TASK_ETHDEMO \
+	HVP		CONFIG_TASK_HVP \
+	LWIP		CONFIG_LWIP_APP \
+	MISC		CONFIG_TASK_MISC \
+	MATRIX		CONFIG_TASK_MATRIX \
+	NEST		CONFIG_TASK_NEST \
+	PDI		CONFIG_TASK_PDI \
+	SM		CONFIG_TASK_STEPMOTOR \
+	SSS		CONFIG_TASK_SSS \
+	VVT		CONFIG_TASK_VVT \
+" NONE
 
-bool "enable task of 'motor'?" CONFIG_TASK_MOTOR
-bool "enable task of 'stepmotor'?" CONFIG_TASK_STEPMOTOR
-bool "enable task of 'vvt'?" CONFIG_TASK_VVT
-bool "Handheld Vehicle Programmer?" CONFIG_TASK_HVP
-bool "delphi nest program?" CONFIG_TASK_NEST
-bool "enable lwip application" CONFIG_LWIP_APP
-bool "delphi safe sensor simulator?" CONFIG_TASK_SSS
-
-if [ "$CONFIG_LWIP_APP" = "y" ]; then
-	bool "enable task of 'eth demo'?" CONFIG_TASK_ETHDEMO
-	bool "enable task of MatrixBoard?" CONFIG_TASK_MATRIX
+if [ "$CONFIG_TASK_APT" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'apt applications select'
+		source src/tasks/apt/Kconfig
+	endmenu
 fi
 
-bool "enable APT application" CONFIG_TASK_APT
-bool "autoliv pdi project" CONFIG_TASK_PDI
-bool "misc applications?" CONFIG_TASK_MISC
-bool "enable task of 'yarn break sensor'?" CONFIG_TASK_YBS
+if [ "$CONFIG_TASK_MOTOR" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'bldc'
+		source src/tasks/bldc/Kconfig
+	endmenu
+fi
 
-mainmenu_option next_comment
-	comment 'tasks detail configuration'
-	source src/tasks/Kconfig.submenu
-endmenu
+if [ "$CONFIG_TASK_ETHDEMO" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'eth_demo'
+		source src/tasks/eth_demo/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_MISC" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'misc applications select'
+		source src/tasks/misc/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_NEST" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'nest'
+		source src/tasks/nest/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_PDI" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'pdi'
+		source src/tasks/pdi/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_STEPMOTOR" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'stepmotor'
+		source src/tasks/sm/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_SSS" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'sss'
+		source src/tasks/sss/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_VVT" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'vvt'
+		source src/tasks/vvt/Kconfig
+	endmenu
+fi

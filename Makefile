@@ -12,7 +12,7 @@ M ?= src/
 -include $(M)Makefile
 -include $(ENV_FILE)
 
-iar: detect_config iar_clr iar_cfg iar_inc iar_add
+iar: iar_script detect_config iar_clr iar_cfg iar_inc iar_add
 	@echo "projects/bldc/bldc.ewp has been created!"
 
 iar_help:
@@ -55,7 +55,7 @@ PARSER = tkparse.exe
 
 export PARSER
 
-xconfig: $(PARSER) iar_script
+xconfig: $(PARSER)
 	@$(TKSCRIPTS_DIR)/$(PARSER) src/Kconfig > main.tk
 	@cat $(TKSCRIPTS_DIR)/header.tk main.tk $(TKSCRIPTS_DIR)/tail.tk > lconfig.tk
 	@chmod a+x lconfig.tk

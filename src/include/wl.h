@@ -6,26 +6,48 @@
 #define __WL_H_
 
 #include "config.h"
+#include "common/circbuf.h"
 
-typedef struct {
-	int mhz; //unit: MHz, max 4.3Ghz
-	int bps; //unit: bps
-} wl_cfg_t;
+//ecode
+enum {
+	WL_ERR_OK,
+	WL_ERR_HW, //onfail(ecode)
+	WL_ERR_RX_HW, //onfail(ecode)
+	WL_ERR_RX_FRAME, //onfail(ecode, unsigned char * frame, unsigned char len)
+	WL_ERR_RX_OVERFLOW, //onfail(ecode, unsigned char * frame, unsigned char len)
+	WL_ERR_TX_HW, //onfail(ecode)
+	WL_ERR_TX_TIMEOUT, //onfail(ecode), caller may need to flush the tbuf&fifo?
+};
 
-#define WL_CFG_DEF { \
-	.mhz = 24000 + 30, \
-	.bps = 2000000, \
-}
+//FRAME TYPE, note: for nrf, byte0 is frame type as below
+enum {
+	WL_FRAME_DATA = 'D',
+	WL_FRAME_PING = 'P',
+};
 
-typedef struct {
-	int (*init)(const wl_cfg_t *cfg);
-	int (*send)(const char *buf, int count, int ms);// return n bytes sent
-	int (*recv)(char *buf, int count, int ms); // return n bytes received, no more than count bytes, or error code
+//IOCTL MODE PARA
+enum {
+	WL_MODE_PRX = 1, //or ptx
+	WL_MODE_1MBPS = 2, //or 2MBPS
+};
 
-	int (*poll)(void); //return 0 in case rx fifo is empty
-	int (*select)(int target); //used for multi device communication
-} wl_bus_t;
+/*IOCTL CMDS - there is no specific call sequency requirements*/
+enum {
+	WL_ERR_FUNC,
+	WL_SET_MODE, /*prx?*/
+	WL_SET_ADDR,
+	WL_SET_FREQ, /*unit: MHz*/
+	WL_SET_TBUF, /*tbuf, bytes*/
+	WL_SET_RBUF, /*rbuf, bytes*/
+	WL_FLUSH,
+};
 
-extern const wl_bus_t wl0;
+/*nrf24l01*/
+struct nrf_cfg_s {
+	const void *spi;
+	char gpio_cs;
+	char gpio_ce;
+	char gpio_irq;
+};
 
 #endif /* __WL_H_ */

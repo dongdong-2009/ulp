@@ -8,19 +8,36 @@
 #include "wl.h"
 #include "nvm.h"
 #include "sys/sys.h"
+#include "ulp/device.h"
+#include "spi.h"
 
-static wl_cfg_t nrf_cfg __nvm; /*only for debug cmd use*/
+static unsigned wl_freq __nvm;
+static unsigned wl_mode __nvm;
+static unsigned wl_addr __nvm;
+
+const struct nrf_cfg_s nrf_cfg = {
+	.spi = &spi1,
+	.gpio_cs = SPI_1_NSS,
+	.gpio_ce = SPI_CS_PC5,
+};
 
 static int cmd_nrf_chat(void)
 {
-	int ready, n;
+	int ready, n, newdat;
 	char *rxstr, *txstr;
 
 	rxstr = sys_malloc(128);
 	txstr = sys_malloc(128);
 
-	wl0.init(&nrf_cfg);
-	wl0.select(0x12345678);
+	dev_register("nrf", &nrf_cfg);
+	int fd = dev_open("wl0", 0);
+	assert(fd != 0);
+	dev_ioctl(fd, WL_SET_FREQ, wl_freq);
+	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
+	dev_ioctl(fd, WL_SET_MODE, wl_mode | WL_MODE_1MBPS);
+
+	printf("if it doesn't works, pls check the nrf work mode: ptx <> prx\n");
+	printf("pls type kill to exit ...\n");
 	while(1) {
 		//tx
 		ready = shell_ReadLine("nrf tx: ", txstr);
@@ -29,57 +46,88 @@ static int cmd_nrf_chat(void)
 				break;
 			}
 
-			n = wl0.send(txstr, strlen(txstr) + 1, 5);
+			n = dev_write(fd, txstr, strlen(txstr) + 1);
 			if(n != strlen(txstr) + 1) {
 				printf("...fail\n");
 			}
 		}
 
 		//rx
-		ready = wl0.poll();
-		if(ready) {
-			n = wl0.recv(rxstr, 128, 5);
+		newdat = 0;
+		while((n = dev_poll(fd, POLLIN)) > 0) {
+			n = (n > 127) ? 127 : n;
+			n = dev_read(fd, rxstr, n);
 			if(n > 0) {
 				rxstr[n] = 0;
-				printf("\rnrf rx: %s\nnrf tx: ", rxstr);
+				if(newdat == 0)
+					printf("\rnrf rx: ");
+				printf("%s", rxstr);
+				newdat = 1;
 			}
 		}
+		if(newdat)
+			printf("\nnrf tx: ");
 	}
 
+	sys_free(txstr);
+	sys_free(rxstr);
 	return 0;
 }
 
 static int cmd_nrf_func(int argc, char *argv[])
 {
+	int show_help = 1;
 	const char *usage = {
 		"usage:\n"
-		"nrf chat	start nrf chat\n"
-		"nrf ch 0-127	set RF channel(2400MHz + ch * 1Mhz)\n"
+		"nrf chat		start nrf chat small test program\n"
+		"nrf freq 2400		set RF channel(2400MHz + (0-127) * 1Mhz)\n"
+		"nrf mode ptx?prx	set nrf work mode\n"
+		"nrf addr 0x12345678	set nrf phy addr, hex\n"
 	};
 
 	if(argc > 1) {
-		if(!strcmp(argv[1], "ch")) {
+		show_help = 0;
+		if(!strcmp(argv[1], "freq")) {
 			int ch;
 			if(argc > 2) {
 				ch = atoi(argv[2]);
+				ch -= 2400;
 				ch = ((ch >= 0) && (ch <= 127)) ? ch : 0;
-				nrf_cfg.mhz = 24000 + ch;
-				printf("nrf: setting RF ch = %d(%dMHz)\n", ch, nrf_cfg.mhz);
+				wl_freq = 2400 + ch;
 				nvm_save();
 			}
-			else {
-				ch = nrf_cfg.mhz - 24000;
-				printf("nrf: RF ch = %d(%dMHz)\n", ch, nrf_cfg.mhz);
-			}
-
-			return 0;
 		}
+
+		if(!strcmp(argv[1], "mode")) {
+			if(argc > 2) {
+				wl_mode = 0;
+				if(!strcmp(argv[2], "prx")) {
+					wl_mode = WL_MODE_PRX;
+				}
+				nvm_save();
+			}
+		}
+
+		if(!strcmp(argv[1], "addr")) {
+			if(argc > 2) {
+				sscanf(argv[2], "0x%x", &wl_addr);
+				nvm_save();
+			}
+		}
+
 		if(!strcmp(argv[1], "chat")) {
 			return cmd_nrf_chat();
 		}
 	}
 
-	printf("%s", usage);
+	/*printf general settings*/
+	char *mode = (wl_mode & WL_MODE_PRX ) ? "prx" : "ptx";
+	printf("nrf: mode = %s\n", mode);
+	printf("nrf: freq = %dMHz\n", wl_freq);
+	printf("nrf: addr = 0x%08x\n", wl_addr);
+
+	if(show_help)
+		printf("%s", usage);
 	return 0;
 }
 

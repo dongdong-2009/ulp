@@ -6,7 +6,7 @@
 #include "sys/task.h"
 #include "sys/system.h"
 #include "ulp_time.h"
-#include "driver.h"
+#include "ulp/driver.h"
 
 void task_init(void)
 {
