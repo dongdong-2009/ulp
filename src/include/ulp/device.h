@@ -37,6 +37,8 @@ static inline int dev_priv_set(int fd, void *priv) {
 /*dev_poll events*/
 #define POLLIN		1
 #define POLLOUT		2
+#define POLLIBUF	3 /*bytes left of input buffer*/
+#define POLLOBUF	4 /*bytes left of output buffer*/
 
 /*name is something like 'uart0'(class name + index) or 'uart_stm32.0'(device name)*/
 int dev_open(const char *name, const char *mode); //success return handle, fail 0

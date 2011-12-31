@@ -74,12 +74,65 @@ static int cmd_nrf_chat(void)
 	return 0;
 }
 
+static int nrf_bytes_rx = 0;
+static int nrf_bytes_tx = 0;
+static int nrf_bytes_lost = 0;
+static unsigned char nrf_byte_tx = 0; //byte been sent
+static unsigned char nrf_byte_rx = 0; //byte been recv
+
+static int cmd_nrf_speed(void)
+{
+	dev_register("nrf", &nrf_cfg);
+	int fd = dev_open("wl0", 0);
+	assert(fd != 0);
+	dev_ioctl(fd, WL_SET_FREQ, wl_freq);
+	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
+	dev_ioctl(fd, WL_SET_MODE, wl_mode | WL_MODE_1MBPS);
+
+	printf("if it doesn't works, pls check the nrf work mode: ptx <> prx\n");
+	printf("pls press any key to exit ...\n");
+
+	//init
+	nrf_bytes_tx = 0;
+	nrf_bytes_rx = 0;
+	nrf_bytes_lost = 0;
+	nrf_byte_tx = 0;
+	nrf_byte_rx = 0;
+
+	unsigned char byte_rx = 0;
+	int bytes_lost;
+	do {
+		//try to recv a byte
+		if(dev_poll(fd, POLLIN)) {
+			dev_read(fd, &byte_rx, 1);
+			nrf_bytes_rx ++;
+			bytes_lost = byte_rx - nrf_byte_rx; //255 -> 0
+			bytes_lost += (bytes_lost < 0) ? 256 : 0;
+			bytes_lost -= 1; //normal increase 1
+			nrf_bytes_lost += bytes_lost;
+			nrf_byte_rx = byte_rx;
+		}
+
+		//try to send a byte
+		if(dev_poll(fd, POLLOBUF)) {
+			nrf_bytes_tx ++;
+			nrf_byte_tx ++;
+			dev_write(fd, &nrf_byte_tx, 1);
+		}
+
+		printf("\rnrf speed: tx %dB rx %dB lost %dB", nrf_bytes_tx, nrf_bytes_rx, nrf_bytes_lost);
+	} while(!console_IsNotEmpty());
+	printf("\n");
+	return 0;
+}
+
 static int cmd_nrf_func(int argc, char *argv[])
 {
 	int show_help = 1;
 	const char *usage = {
 		"usage:\n"
 		"nrf chat		start nrf chat small test program\n"
+		"nrf speed		nrf speed test\n"
 		"nrf freq 2400		set RF channel(2400MHz + (0-127) * 1Mhz)\n"
 		"nrf mode ptx?prx	set nrf work mode\n"
 		"nrf addr 0x12345678	set nrf phy addr, hex\n"
@@ -117,6 +170,10 @@ static int cmd_nrf_func(int argc, char *argv[])
 
 		if(!strcmp(argv[1], "chat")) {
 			return cmd_nrf_chat();
+		}
+
+		if(!strcmp(argv[1], "speed")) {
+			return cmd_nrf_speed();
 		}
 	}
 

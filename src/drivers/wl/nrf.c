@@ -479,6 +479,8 @@ static int nrf_poll(int fd, int event)
 	int bytes = 0;
 	bytes = (event == POLLIN) ? buf_size(&pipe->rbuf) : bytes;
 	bytes = (event == POLLOUT) ? buf_size(&pipe->tbuf) : bytes;
+	bytes = (event == POLLIBUF) ? buf_left(&pipe->rbuf) : bytes;
+	bytes = (event == POLLOBUF) ? buf_left(&pipe->tbuf) : bytes;
 	return bytes;
 }
 
