@@ -40,7 +40,7 @@
 #define ERASE_FLASH_CMD	(0X80170008UL)
 #define WRITE_FLASH_CMD	(0X80170004UL)
 
-#define MFGDAT_ADDR		(0X00C00180UL)  //MANUFACTURING_READ_LOCATION, 0x8001C000
+#define MFGDAT_ADDR		(0X8001C000UL)  //MANUFACTURING_READ_LOCATION, 0x8001C000
 
 //mfg data structure
 struct mfg_data_s {
@@ -57,7 +57,7 @@ struct mfg_data_s {
 	char psv; //0x8017, process flag < ..|nest|amb|ict>, won't touched by nest???
 	char rsv2[8]; //0x8018 - 0x801f
 	char fb[0x10]; //0x8020 - 0x8036 fault bytes write back
-} mfg_data;
+} mfg_data,mfg_data_bk;
 
 //base model id
 static int bmr;
@@ -77,6 +77,7 @@ enum{
 enum {
 	BM_28194324,
 	BM_28194330,
+	BM_28246719,
 };
 
 //base model number to id maps
@@ -85,6 +86,7 @@ const struct nest_map_s bmr_map[] = {
 	{"28194324", BM_28194324},
 	/*Linear Low Module*/
 	{"28194330", BM_28194330},
+	{"28246719", BM_28246719},
 	END_OF_MAP,
 };
 enum {
@@ -127,16 +129,17 @@ static void chips_bind(void)
 	csd_bind("HSG4", "CSD Pin20");
 	csd_bind("HSG5", "CSD Pin21");
 	csd_bind("HSG6", "CSD Pin22");
-	csd_bind("DISOUT4", "J1-25 LS13Flt1-0");
+	csd_bind("DISCOUT4", "J1-25 LS13Flt1-0");
 	
 }
 
 
 static void Test_Model(int model)
 {
+        cncb_signal(SIG1, SIG_LO);
 	if(model == POWER_CONDITION)
 		cncb_signal(SIG2, SIG_HI);
-	else if (model == POWER_CONDITION)
+	else if (model == RAM_DOWNLOAD)
 		cncb_signal(SIG2, SIG_LO);
 	else 
 		return;
@@ -147,17 +150,21 @@ ERROR_CODE Read_Memory(UINT32 addr, UINT8* pdata, UINT32 len)
 {
 	ERROR_CODE result ;
 	UINT8 buffer[4] = "\0";
-	*(int *)& buffer[2] = len & 0xFF; 
-	printf("%02X   %02X",buffer[2],buffer[3]);
+	buffer[3] = len & 0xFF; 
+	//printf("%02X   %02X",buffer[2],buffer[3]);
 	
 	result = mcamOSDownload(DW_CAN1, REGD4_ADDR, buffer, 4, MEMORY_READ_TIMEOUT);
 	if (result != E_OK) return result;
 	//check for finish
 	Delay10ms(10);
 
-	*(int *)& buffer[0] = len >> 16;
-	*(int *)& buffer[2] = len & 0xFF;
-	
+	//*(int *)& buffer[0] = len >> 16;
+	//*(int *)& buffer[2] = len & 0xFF;
+	buffer[0] = (addr >> 24) & 0xFF;
+	buffer[1] = (addr >> 16) & 0xFF;
+	buffer[2] = (addr >> 8 ) & 0xFF;
+	buffer[3] = (addr >> 0 ) & 0xFF;
+
 	result = mcamOSDownload(DW_CAN1, REGA4_ADDR, buffer, 4, MEMORY_READ_TIMEOUT);
 	if (result != E_OK) return result;
 	Delay10ms(10);
@@ -182,10 +189,23 @@ ERROR_CODE Write_Memory(UINT32 addr, UINT8* pdata, UINT16 len)
 	UINT8 buffer[4]="\0";
 	do{
 		loopcnt++;
-		buffer[0] = (addr >> 0 ) & 0xFF;
-		buffer[1] = (addr >> 8 ) & 0xFF;
-		buffer[2] = (addr >> 16) & 0xFF;
-		buffer[3] = (addr >> 24) & 0xFF;
+		//Sets Erase address 
+		buffer[0] = 0x80;
+		buffer[1] = 0x01;
+		buffer[2] = 0xC0;
+		buffer[3] = 0x00;
+		result = mcamOSDownload(DW_CAN1,REGA4_ADDR, buffer, sizeof(buffer),MEMORY_WRITE_TIMEOUT);
+		if (result != E_OK) return result;
+		Delay10ms(1);
+		result = mcamOSExecute(DW_CAN1,ERASE_FLASH_CMD, MEMORY_WRITE_TIMEOUT);
+		if (result != E_OK) return result;
+		Delay10ms(100);
+                
+                
+		buffer[0] = (addr >> 24 ) & 0xFF;
+		buffer[1] = (addr >> 16 ) & 0xFF;
+		buffer[2] = (addr >> 8) & 0xFF;
+		buffer[3] = (addr >> 0) & 0xFF;
 
 		//send erase/write addr 
 		result = mcamOSDownload(DW_CAN1, REGA4_ADDR, buffer, sizeof(buffer), MEMORY_WRITE_TIMEOUT);
@@ -194,26 +214,24 @@ ERROR_CODE Write_Memory(UINT32 addr, UINT8* pdata, UINT16 len)
 		/*result = mcamOSExecute(DW_CAN1,ERASE_FLASH_CMD, MEMORY_WRITE_TIMEOUT)
 		if (result != E_OK) return result;*/
 		//send write size 
-		buffer[0] = (len >> 0 ) & 0xFF;
-		buffer[1] = (len >> 8 ) & 0xFF;
-		buffer[2] = (len >> 16) & 0xFF;
-		buffer[3] = (len >> 24) & 0xFF;
+		buffer[0] = (len >> 24 ) & 0xFF;
+		buffer[1] = (len >> 16 ) & 0xFF;
+		buffer[2] = (len >> 8) & 0xFF;
+		buffer[3] = (len >> 0) & 0xFF;
 		result = mcamOSDownload(DW_CAN1, REGD4_ADDR, buffer, sizeof(buffer), MEMORY_WRITE_TIMEOUT);
 		if (result != E_OK) return result;
-
+		Delay10ms(1);
 		//send data payload
 		result = mcamOSDownload(DW_CAN1, INBOX_ADDR, pdata, len, MEMORY_WRITE_TIMEOUT);
 		if (result != E_OK) return result;
-
-		//result = wait_test_finish(EEPROM_WRITE_TESTID, EEPROM_WRITE_TIMEOUT);
-		//if (result != E_OK) return result;
-
+		Delay10ms(1);
+		
 		//excute
 		result = mcamOSExecute(DW_CAN1, WRITE_FLASH_CMD, FLASH_WRITE_TIMEOUT);
 		if (result != E_OK) return result;
 		Delay10ms(100);
 
-		result = mcamOSUpload(DW_CAN1, buffer, OUTBOX_ADDR, 0x04, CAN_TIMEOUT);
+		result = mcamOSUpload(DW_CAN1, buffer, REGD2_ADDR, 0x04, CAN_TIMEOUT);
 		if (result != E_OK) return result;
 	}while( (buffer[2] != 0x33) && (buffer[3] != 0x33) && (loopcnt < 3));
 		
@@ -246,8 +264,8 @@ ERROR_CODE PrintSoftwareVersion(void)
 		}else if(!strcmp(mfg_data.bmr,"28194330")){
 		Model_LINorPWM = Linear_Low ;  //0x04
 		message("Linear Low Module (28194330) Detected\n");
-		}else 
-			result = E_INVALID_BASE_MODEL_ID;
+		}//else 
+		//	result = E_INVALID_BASE_MODEL_ID;
 			
 	}else if ( buffer[0] == 'P' ){
 		Model_LINorPWM = MODEL_IS_PWM;   //0x02
@@ -301,6 +319,33 @@ ERROR_CODE PrintSoftwareVersion(void)
 
 
 
+ERROR_CODE PrintECMModel(void)
+{
+	ERROR_CODE result ;
+	UINT8 buffer[8]="\0";
+
+	result = mcamOSExecute(DW_CAN1, CHECK_MODEL_CMD , CAN_TIMEOUT);
+	if( result != E_OK) return result;
+	result = mcamOSUpload(DW_CAN1, buffer, REGD2_ADDR, 4, CAN_TIMEOUT);
+	if(result != E_OK) return result;
+	//message("current model:");
+	if(buffer[3]==0x04)
+          message("Model 4:Power Conditon Model\n");
+	else if(buffer[3] == 0x03)
+          message("Model 3:Input Polling Or RAM Download Model");
+        else
+		{
+			message("\nWrong Model");
+			result = NEST_OOPS;
+		}
+			//for (int i = 0;i<4;i++)
+				//printf("%X",buffer[i]);
+                        
+	return result;
+
+}
+
+
 static void CyclingTest(void)
 {
 	int fail = 0, min, deadline;
@@ -312,7 +357,7 @@ static void CyclingTest(void)
 
 	switch(bmr) {
 	case BM_28194324:
-		csd_mask("HSG6");
+		csd_mask("HSG5");
 	default:
 		break;
 	}
@@ -341,9 +386,17 @@ static void CyclingTest(void)
 
 		if(!fail) {
 			nest_message("T = %02d min\n", min);
-			fail += Read_Memory(FB_ADDR, mailbox, 0x10);
-			fail += emcd_verify(mailbox); /*verify [8300 - 8301]*/
-			fail += csd_verify(mailbox + (0x8304 - 0x8300)); /*verify [8304 - 8309]*/
+                        //RELAY_IGN_SET(0);
+                        //RELAY_BAT_SET(0);
+                        //Test_Model(RAM_DOWNLOAD);
+                        //nest_mdelay(100);
+                        //RELAY_IGN_SET(1);
+                        //RELAY_BAT_SET(1);
+                        //fail=PrintECMModel();
+                        //if(fail) break;
+                        fail += mcamOSUpload(DW_CAN1, (UINT8 *)mailbox, FB_ADDR, 0x10, CAN_TIMEOUT);
+                        //fail += emcd_verify(mailbox); /*verify [8300 - 8301]*/
+			//fail += csd_verify(mailbox + (0x8304 - 0x8300)); /*verify [8304 - 8309]*/
 			if (fail) {
 				memcpy(mfg_data.fb, mailbox, sizeof(mfg_data.fb));
 				nest_error_set(FB_FAIL, "Cycling");
@@ -355,7 +408,7 @@ static void CyclingTest(void)
 
 	//restart the dut
 	nest_power_reboot();
-	ccp_Init(&can1, 500000);
+	//ccp_Init(&can1, 500000);
 }
 
 void TestStart(void)
@@ -363,14 +416,20 @@ void TestStart(void)
 	int fail = 0;
 	//wait for dut insertion
 	nest_wait_plug_in();
-
-	nest_power_on();
 	Test_Model(POWER_CONDITION);
+	nest_power_on();
 
 	//get dut info through can bus
 	fail = mcamOSInit(DW_CAN1, 500);
 	if( fail != E_OK) ERROR_RETURN(CAN_FAIL, "Init CAN");
 	message("Init CAN ... pass\n");
+        PrintECMModel();
+        //nest_power_off();
+        //Test_Model(RAM_DOWNLOAD);
+        //nest_power_on();
+	//PrintECMModel();
+	if( fail != E_OK) ERROR_RETURN(MTYPE_FAIL, "Model Fail");
+
 
 	fail = Read_Memory(MFGDAT_ADDR, (UINT8 *) &mfg_data, sizeof(mfg_data));
 	if(fail) {
@@ -407,11 +466,11 @@ void TestStart(void)
 	//preset glvar
 	mfg_data.nest_psv = (char) ((nest_info_get() -> id_base) && 0x7f);
 	mfg_data.nest_nec = 0x00; //no err
-	memset(mfg_data.fb, 0x00, sizeof(mfg_data.fb) + 17); //+vp[4], ip[4]
+	memset(mfg_data.fb, 0x00, sizeof(mfg_data.fb)); //+vp[4], ip[4]
 
 	//check psv of amb
 	if(!nest_ignore(PSV)) {
-		if((mfg_data.psv & 0x08) == 0) {
+		if((mfg_data.psv & 0x80) != 0x80) {
 			nest_error_set(PSV_FAIL, "PSV");
 			return;
 		}
@@ -419,9 +478,13 @@ void TestStart(void)
 
 	//cyc ign, necessary???
 	if(!nest_ignore(RLY)) {
-		for(int cnt = 0; cnt < 75; cnt ++) {
+		for(int cnt = 0; cnt < 50; cnt ++) {
+			//RELAY_BAT_SET(0);
+			//nest_mdelay(50);
 			RELAY_IGN_SET(0);
 			nest_mdelay(100);
+			//RELAY_BAT_SET(1);
+			//nest_mdelay(50);
 			RELAY_IGN_SET(1);
 			nest_mdelay(100);
 		}
@@ -434,9 +497,9 @@ void TestStop(void)
 	nest_message("#Test Stop\n");
 
 	//store fault bytes back to dut
-	addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> fb[0];
-	size = sizeof(mfg_data.fb);
-	fail += Write_Memory(addr, mfg_data.fb, size);
+	//addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> fb[0];
+	//size = sizeof(mfg_data.fb);
+	//fail += Write_Memory(addr, mfg_data.fb, size);
 
 	if(pass())
 	//store nest_psv & nest_nec
@@ -444,11 +507,19 @@ void TestStop(void)
 	else
 		mfg_data.nest_psv &= 0x7F;
 	mfg_data.nest_nec = nest_error_get() -> nec;
-	addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> nest_psv;
-	fail += Write_Memory(addr, &mfg_data.nest_psv, 2);
-
+	addr = MFGDAT_ADDR ;//+ (int) &((struct mfg_data_s *)0) -> nest_psv;
+        if(strcmp(mfg_data.bmr,"\0"))
+	    fail += Write_Memory(addr, (UINT8 *)&mfg_data, sizeof(mfg_data));
+        
 	if(fail)
 		nest_error_set(CAN_FAIL, "Eeprom Write");
+        
+        
+        
+	//fail = Read_Memory(MFGDAT_ADDR, (UINT8 *) &mfg_data_bk, sizeof(mfg_data_bk));
+	//if(fail) {
+		//nest_error_set(CAN_FAIL, "CAN");
+	//}
 
 	//send FIS BCMP(build complete) message
 	//fisBCMP();
@@ -466,7 +537,6 @@ void main(void)
 	nest_power_off();
 	nest_message("\nPower Conditioning - TCM8.0\n");
 	nest_message("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
-
 	while(1){
 		TestStart();
 		//RAMTest();
