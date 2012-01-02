@@ -47,7 +47,7 @@ static inline void I2C_INIT_FUNC(void) {
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 }
 
-#define I2C_READ (GPIOB->IDR  & GPIO_Pin_11)
+#define I2C_READ ((GPIOB->IDR & GPIO_Pin_11) ? 1 : 0)
 #define I2C_SDA(bit) do { \
 		if (bit) GPIOB->BSRR = GPIO_Pin_11; \
 		else GPIOB->BRR  = GPIO_Pin_11; \
@@ -58,7 +58,7 @@ static inline void I2C_INIT_FUNC(void) {
 	} while (0)
 
 #elif CONFIG_I2C_PINMAP_I2C1 == 1
-#  include "stm32f10x.h"
+#include "stm32f10x.h"
 static inline void I2C_INIT_FUNC(void) {
 	/* Configure I2C2 pins: PB6->SCL and PB7->SDA */
 	GPIO_InitTypeDef  GPIO_InitStructure;
@@ -69,7 +69,7 @@ static inline void I2C_INIT_FUNC(void) {
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 }
 
-#define I2C_READ (GPIOB->IDR  & GPIO_Pin_7)
+#define I2C_READ ((GPIOB->IDR & GPIO_Pin_7) ? 1 : 0)
 #define I2C_SDA(bit) do { \
 		if (bit) GPIOB->BSRR = GPIO_Pin_7; \
 		else GPIOB->BRR  = GPIO_Pin_7; \
@@ -79,6 +79,30 @@ static inline void I2C_INIT_FUNC(void) {
 		if (bit) GPIOB->BSRR = GPIO_Pin_6; \
 		else GPIOB->BRR  = GPIO_Pin_6; \
 	} while (0)
+
+#elif CONFIG_I2C_REMAP_I2C1 == 1
+#include "stm32f10x.h"
+static inline void I2C_INIT_FUNC(void) {
+	/* Configure I2C2 pins: PB8->SCL and PB9->SDA */
+	GPIO_InitTypeDef  GPIO_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_8 | GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+}
+
+#define I2C_READ ((GPIOB->IDR & GPIO_Pin_9) ? 1 : 0)
+#define I2C_SDA(bit) do { \
+		if (bit) GPIOB->BSRR = GPIO_Pin_9; \
+		else GPIOB->BRR  = GPIO_Pin_9; \
+	} while (0)
+
+#define I2C_SCL(bit) do { \
+		if (bit) GPIOB->BSRR = GPIO_Pin_8; \
+		else GPIOB->BRR  = GPIO_Pin_8; \
+	} while (0)
+
 #endif
 
 #  define I2C_SOFT_DECLARATIONS
