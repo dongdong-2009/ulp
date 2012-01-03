@@ -14,7 +14,6 @@ enum {
 	WL_ERR_HW, //onfail(ecode)
 	WL_ERR_RX_HW, //onfail(ecode)
 	WL_ERR_RX_FRAME, //onfail(ecode, unsigned char * frame, unsigned char len)
-	WL_ERR_RX_OVERFLOW, //onfail(ecode, unsigned char * frame, unsigned char len)
 	WL_ERR_TX_HW, //onfail(ecode)
 	WL_ERR_TX_TIMEOUT, //onfail(ecode), caller may need to flush the tbuf&fifo?
 };

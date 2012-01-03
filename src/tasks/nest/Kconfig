@@ -16,6 +16,7 @@ choice 'nest project select'	" \
 	TESTFIXTURE	CONFIG_NEST_TESTFIXTURE \
 	FIXTURE		CONFIG_NEST_FIXTURE \
 	TCM8.0		CONFIG_NEST_TCM8P0\
+	UPA		CONFIG_NEST_UPA\
 " MT92
 
 #nest type description:

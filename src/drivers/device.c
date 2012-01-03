@@ -117,6 +117,9 @@ int dev_open(const char *name, const char *mode)
 	if(dev->pdrv == NULL) //no driver found
 		return 0;
 
+	if(dev->ref > 0)
+		return 0; //shared open are not allowed yet
+
 	open = dev->pdrv->ops->open;
 	if(open != NULL) {
 		ret = (*open)((int)dev, 0);
@@ -124,7 +127,7 @@ int dev_open(const char *name, const char *mode)
 			return 0;
 	}
 
-	dev->ref += (dev->ref > 0) ? 1 : 0;
+	dev->ref += 1;
 	return (int)dev;
 }
 
@@ -194,7 +197,7 @@ int dev_close(int fd)
 	int (*close)(int fd);
 
 	assert(dev != NULL);
-	dev->ref -= (dev->ref > 0) ? 1 : 0;
+	dev->ref -= 1;
 	close = dev->pdrv->ops->close;
 	if(close != NULL) {
 		ret = (*close)(fd);

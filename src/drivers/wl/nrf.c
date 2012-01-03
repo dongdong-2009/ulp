@@ -137,12 +137,18 @@ static int nrf_hw_flush(const struct nrf_chip_s *chip)
 
 static int nrf_hw_set_mode(const struct nrf_chip_s *chip, int mode)
 {
-	char cfg;
+	char cfg, ard;
 	cfg = (mode & WL_MODE_PRX) ? 0x0f : 0x0e;
 	nrf_write_reg(CONFIG, cfg);  //enable 2 bytes CRC | PWR_UP | mode
 
-	cfg = (mode & WL_MODE_1MBPS) ? 0x07 : 0x0f;
-	nrf_write_reg(RF_SETUP, cfg); //2Mbps + 0dBm + LNA enable
+	cfg = 0x0f; //2Mbps + 0dBm + LNA enable
+	ard = 0x0f; //auto retx delay = 250uS, count = 15
+	if(mode & WL_MODE_1MBPS) {
+		cfg = 0x07; //1Mbps + 0dBm + LNA enable
+		ard = 0x1f; //auto retx delay = 500uS, count = 15
+		nrf_write_reg(RF_SETUP, cfg);
+		nrf_write_reg(SETUP_RETR, ard);
+	}
 	return 0;
 }
 
@@ -176,7 +182,7 @@ static int nrf_hw_init(struct nrf_priv_s *priv)
 	nrf_write_reg(EN_AA, 0x01); //enable auto ack of pipe 0
 	nrf_write_reg(EN_RXADDR, 0x00); //disable all rx pipe
 	nrf_write_reg(SETUP_AW, 0x02); //addr width = 4bytes
-	nrf_write_reg(SETUP_RETR, 0x1f); //auto retx delay = 500uS, count = 15
+	nrf_write_reg(SETUP_RETR, 0x0f); //auto retx delay = 250uS, count = 15
 
 	char para = 0x73;
 	nrf_write_buf(ACTIVATE, &para, 1); //activate ext function
@@ -212,7 +218,7 @@ int nrf_update(struct nrf_priv_s *priv)
 {
 	struct nrf_pipe_s *pipe;
 	struct nrf_chip_s *chip;
-	char status, n, frame[32];
+	char status, fifo_status, n, frame[32];
 	int (*onfail)(int ecode, ...);
 	int ecode = WL_ERR_OK;
 	//assert(priv != NULL);
@@ -229,22 +235,27 @@ int nrf_update(struct nrf_priv_s *priv)
 	are more payloads available in RX FIFO, 4) if there are more data in RX FIFO, repeat from 1)
 	*/
 	status = nrf_read_reg(STATUS);
+	fifo_status = nrf_read_reg(FIFO_STATUS);
 	do {
 		if(chip->mode & WL_MODE_PRX) { //PRX
 			//handle recv
-			if(status & RX_DR) {
+			if(!(fifo_status & RX_FIFO_EMPTY)) {
 				nrf_read_buf(R_RX_PL_WID, &n, 1);
 				if(n > 0) {
+					if(buf_left(&pipe->rbuf) < n - 1) {
+						/*there's no enough space in rbuf, do not recv,
+						then prx will ignore,  which lead to ptx send fail and resend,
+						so there is two reason which may lead to ptx send fail:
+						1, prx lost link
+						2, prx rfifo full(maybe cpu is dead?:))
+						*/
+						break;
+					}
+
 					nrf_read_buf(R_RX_PAYLOAD, frame, n);
 					nrf_write_reg(STATUS, RX_DR);
 					if(frame[0] == WL_FRAME_DATA) {
-						n --;
-						if(buf_left(&pipe->rbuf) < n) {
-							//rbuf overflow
-							ecode = WL_ERR_RX_OVERFLOW;
-							onfail(ecode, frame, n + 1);
-						}
-						buf_push(&pipe->rbuf, frame + 1, n);
+						buf_push(&pipe->rbuf, frame + 1, n - 1);
 					}
 					else {
 						ecode = WL_ERR_RX_FRAME;
@@ -254,7 +265,6 @@ int nrf_update(struct nrf_priv_s *priv)
 				else {
 					ecode = WL_ERR_RX_HW;
 					onfail(ecode);
-					assert(0); //!!! impossible: got rx_dr but no payload ?
 				}
 			}
 
@@ -271,32 +281,34 @@ int nrf_update(struct nrf_priv_s *priv)
 			else { //not full
 				pipe->timer = 0;
 				frame[0] = WL_FRAME_DATA;
-				n = buf_pop(&pipe->tbuf, frame + 1, 31);
-				if(status & TX_DS) {
-					nrf_write_reg(STATUS, TX_DS);
-				}
+				n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
+				n = buf_pop(&pipe->tbuf, frame + 1, n);
 				if(n > 0) {
 					nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
+				}
+				if(status & TX_DS) {
+					nrf_write_reg(STATUS, TX_DS);
 				}
 			}
 		}
 		else { //PTX
-			//handle recv
-			if(status & RX_DR) {
+			/*handle recv, from the ptx flow chart, the payload attached with ack may lost in case of ptx rxfifo is full???
+			because it doesn' check rxfifo is full or not, pls refer to chart page 31. From shockburst communication protocol point of view,
+			ptx cann't notice prx 'i'm full', that may lead to deadloop. So we need to check the rfifo to ensure we can recv before ptx send
+			the frame*/
+			if(!(fifo_status & RX_FIFO_EMPTY)) {
 				nrf_read_buf(R_RX_PL_WID, &n, 1);
 				if(n > 0) {
+					if(buf_left(&pipe->rbuf) < (n -1)) {
+						/*there's no enough space in ptx rbuf, do not recv,
+						then ptx should give up send a frame at next step.
+						*/
+						break;
+					}
 					nrf_read_buf(R_RX_PAYLOAD, frame, n);
 					nrf_write_reg(STATUS, RX_DR);
 					if(frame[0] == WL_FRAME_DATA) {
-						n --;
-						if(buf_left(&pipe->rbuf) < n) {
-							//rbuf overflow
-							ecode = WL_ERR_RX_OVERFLOW;
-							onfail(ecode, frame, n + 1);
-						}
-						else {
-							buf_push(&pipe->rbuf, frame + 1, n);
-						}
+						buf_push(&pipe->rbuf, frame + 1, n - 1);
 					}
 					else {
 						ecode = WL_ERR_RX_FRAME;
@@ -306,7 +318,6 @@ int nrf_update(struct nrf_priv_s *priv)
 				else {
 					ecode = WL_ERR_RX_HW;
 					onfail(ecode);
-					assert(0); //!!! impossible: got rx_dr but no payload?
 				}
 			}
 
@@ -340,6 +351,7 @@ int nrf_update(struct nrf_priv_s *priv)
 		}
 
 		status = nrf_read_reg(STATUS);
+		fifo_status = nrf_read_reg(FIFO_STATUS);
 	} while(status & (RX_DR|TX_DS|MAX_RT));
 	return 0;
 }
@@ -395,8 +407,11 @@ static int nrf_init(int fd, const void *pcfg)
 static int nrf_open(int fd, int mode)
 {
 	struct nrf_priv_s *priv = dev_priv_get(fd);
+	int ret;
 	assert(priv != NULL);
-	return nrf_hw_init(priv);
+	ret = nrf_hw_init(priv);
+	nrf_flush(priv);
+	return ret;
 }
 
 static int nrf_ioctl(int fd, int request, va_list args)
@@ -479,6 +494,8 @@ static int nrf_poll(int fd, int event)
 	int bytes = 0;
 	bytes = (event == POLLIN) ? buf_size(&pipe->rbuf) : bytes;
 	bytes = (event == POLLOUT) ? buf_size(&pipe->tbuf) : bytes;
+	bytes = (event == POLLIBUF) ? buf_left(&pipe->rbuf) : bytes;
+	bytes = (event == POLLOBUF) ? buf_left(&pipe->tbuf) : bytes;
 	return bytes;
 }
 
