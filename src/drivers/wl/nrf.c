@@ -137,12 +137,18 @@ static int nrf_hw_flush(const struct nrf_chip_s *chip)
 
 static int nrf_hw_set_mode(const struct nrf_chip_s *chip, int mode)
 {
-	char cfg;
+	char cfg, ard;
 	cfg = (mode & WL_MODE_PRX) ? 0x0f : 0x0e;
 	nrf_write_reg(CONFIG, cfg);  //enable 2 bytes CRC | PWR_UP | mode
 
-	cfg = (mode & WL_MODE_1MBPS) ? 0x07 : 0x0f;
-	nrf_write_reg(RF_SETUP, cfg); //2Mbps + 0dBm + LNA enable
+	cfg = 0x0f; //2Mbps + 0dBm + LNA enable
+	ard = 0x0f; //auto retx delay = 250uS, count = 15
+	if(mode & WL_MODE_1MBPS) {
+		cfg = 0x07; //1Mbps + 0dBm + LNA enable
+		ard = 0x1f; //auto retx delay = 500uS, count = 15
+		nrf_write_reg(RF_SETUP, cfg);
+		nrf_write_reg(SETUP_RETR, ard);
+	}
 	return 0;
 }
 
@@ -176,7 +182,7 @@ static int nrf_hw_init(struct nrf_priv_s *priv)
 	nrf_write_reg(EN_AA, 0x01); //enable auto ack of pipe 0
 	nrf_write_reg(EN_RXADDR, 0x00); //disable all rx pipe
 	nrf_write_reg(SETUP_AW, 0x02); //addr width = 4bytes
-	nrf_write_reg(SETUP_RETR, 0x1f); //auto retx delay = 500uS, count = 15
+	nrf_write_reg(SETUP_RETR, 0x0f); //auto retx delay = 250uS, count = 15
 
 	char para = 0x73;
 	nrf_write_buf(ACTIVATE, &para, 1); //activate ext function
@@ -276,7 +282,8 @@ int nrf_update(struct nrf_priv_s *priv)
 			else { //not full
 				pipe->timer = 0;
 				frame[0] = WL_FRAME_DATA;
-				n = buf_pop(&pipe->tbuf, frame + 1, 31);
+				n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
+				n = buf_pop(&pipe->tbuf, frame + 1, n);
 				if(n > 0) {
 					nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
 				}
@@ -402,8 +409,11 @@ static int nrf_init(int fd, const void *pcfg)
 static int nrf_open(int fd, int mode)
 {
 	struct nrf_priv_s *priv = dev_priv_get(fd);
+	int ret;
 	assert(priv != NULL);
-	return nrf_hw_init(priv);
+	ret = nrf_hw_init(priv);
+	nrf_flush(priv);
+	return ret;
 }
 
 static int nrf_ioctl(int fd, int request, va_list args)
