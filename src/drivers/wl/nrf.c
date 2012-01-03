@@ -265,7 +265,6 @@ int nrf_update(struct nrf_priv_s *priv)
 				else {
 					ecode = WL_ERR_RX_HW;
 					onfail(ecode);
-					assert(0); //!!! impossible: got rx_dr but no payload ?
 				}
 			}
 
@@ -319,7 +318,6 @@ int nrf_update(struct nrf_priv_s *priv)
 				else {
 					ecode = WL_ERR_RX_HW;
 					onfail(ecode);
-					assert(0); //!!! impossible: got rx_dr but no payload?
 				}
 			}
 
