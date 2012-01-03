@@ -121,6 +121,9 @@ static int cmd_nrf_speed(void)
 					bytes_lost += (bytes_lost < 0) ? 256 : 0;
 					bytes_lost -= 1; //normal increase 1
 					nrf_bytes_lost += bytes_lost;
+					if(bytes_lost != 0) {
+						printf("\n");
+					}
 				}
 				nrf_bytes_rx ++;
 				nrf_byte_rx = byte_rx;
