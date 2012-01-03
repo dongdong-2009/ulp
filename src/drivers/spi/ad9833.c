@@ -56,11 +56,14 @@ void ad9833_Init(ad9833_t *chip)
 		chip->p_wbuf[1] = (char)(REG_CTRL(RESET));
 		chip->p_wbuf[2] = (char)(REG_CTRL(opt | RESET) >> 8);
 		chip->p_wbuf[3] = (char)(REG_CTRL(opt | RESET));
+		chip->p_wbuf[2] = (char)(REG_PHASE0(0) >> 8);
+		chip->p_wbuf[3] = (char)(REG_PHASE0(0));
 		//while(chip->bus->poll());
 		chip->bus->wbuf((const char *)chip->p_wbuf, chip->p_rbuf, 4);
 	} else {
 		chip->bus->wreg(chip->idx, REG_CTRL(RESET));
 		chip->bus->wreg(chip->idx, REG_CTRL(opt | RESET));
+		chip->bus->wreg(chip->idx, REG_PHASE0(0));
 	}
 	chip->option = opt;
 }
