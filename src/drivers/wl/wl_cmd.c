@@ -80,7 +80,8 @@ static int nrf_bytes_rs; //bytes rx in 1s
 
 static int nrf_onfail(int ecode, ...)
 {
-	printf("ecode = %d\n", ecode);
+	if(ecode != WL_ERR_TX_TIMEOUT)
+		printf("ecode = %d\n", ecode);
 	//assert(0); //!!! impossible: got rx_dr but no payload?
 	return 0;
 }

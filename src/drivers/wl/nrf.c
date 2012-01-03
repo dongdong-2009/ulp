@@ -271,9 +271,9 @@ int nrf_update(struct nrf_priv_s *priv)
 			}
 
 			//handle transmit
-			if(status & TX_FULL) {
+			if(fifo_status & TX_FIFO_FULL) {
 				if(pipe->timer == 0)
-					pipe->timer = time_left(pipe->timeout);
+					pipe->timer = time_get(pipe->timeout);
 				if(time_left(pipe->timer) < 0) { //timeout, flush?
 					ecode = WL_ERR_TX_TIMEOUT;
 					onfail(ecode);
@@ -339,9 +339,9 @@ int nrf_update(struct nrf_priv_s *priv)
 				ce_set(1);
 			}
 
-			if(status & TX_FULL) {
+			if(fifo_status & TX_FIFO_FULL) {
 				if(pipe->timer == 0)
-					pipe->timer = time_left(pipe->timeout);
+					pipe->timer = time_get(pipe->timeout);
 				if(time_left(pipe->timer) < 0) { //timeout, flush?
 					ecode = WL_ERR_TX_TIMEOUT;
 					onfail(ecode);
@@ -412,7 +412,7 @@ static int nrf_init(int fd, const void *pcfg)
 	INIT_LIST_HEAD(&chip->pipes);
 	list_add_tail(&pipe->list, &chip->pipes);
 	pipe->onfail = nrf_onfail; //default onfail func
-	chip->frame = NULL;
+	pipe->frame = NULL;
 
 	//priv
 	priv->chip = chip;
