@@ -10,16 +10,11 @@
 #include "sys/sys.h"
 #include "ulp/device.h"
 #include "spi.h"
+#include "ulp_time.h"
 
 static unsigned wl_freq __nvm;
 static unsigned wl_mode __nvm;
 static unsigned wl_addr __nvm;
-
-const struct nrf_cfg_s nrf_cfg = {
-	.spi = &spi1,
-	.gpio_cs = SPI_1_NSS,
-	.gpio_ce = SPI_CS_PC5,
-};
 
 static int cmd_nrf_chat(void)
 {
@@ -29,14 +24,13 @@ static int cmd_nrf_chat(void)
 	rxstr = sys_malloc(128);
 	txstr = sys_malloc(128);
 
-	dev_register("nrf", &nrf_cfg);
 	int fd = dev_open("wl0", 0);
 	assert(fd != 0);
 	dev_ioctl(fd, WL_SET_FREQ, wl_freq);
 	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
-	dev_ioctl(fd, WL_SET_MODE, wl_mode | WL_MODE_1MBPS);
+	dev_ioctl(fd, WL_SET_MODE, wl_mode);
 
-	printf("if it doesn't works, pls check the nrf work mode: ptx <> prx\n");
+	printf("if it doesn't works, pls check the nrf work mode: prx = %d?\n", wl_mode);
 	printf("pls type kill to exit ...\n");
 	while(1) {
 		//tx
@@ -69,6 +63,7 @@ static int cmd_nrf_chat(void)
 			printf("\nnrf tx: ");
 	}
 
+	dev_close(fd);
 	sys_free(txstr);
 	sys_free(rxstr);
 	return 0;
@@ -79,17 +74,19 @@ static int nrf_bytes_tx = 0;
 static int nrf_bytes_lost = 0;
 static unsigned char nrf_byte_tx = 0; //byte been sent
 static unsigned char nrf_byte_rx = 0; //byte been recv
+static time_t wl_timer;
+static int nrf_bytes_ts; //bytes tx in 1s
+static int nrf_bytes_rs; //bytes rx in 1s
 
 static int cmd_nrf_speed(void)
 {
-	dev_register("nrf", &nrf_cfg);
 	int fd = dev_open("wl0", 0);
 	assert(fd != 0);
 	dev_ioctl(fd, WL_SET_FREQ, wl_freq);
 	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
-	dev_ioctl(fd, WL_SET_MODE, wl_mode | WL_MODE_1MBPS);
+	dev_ioctl(fd, WL_SET_MODE, wl_mode);
 
-	printf("if it doesn't works, pls check the nrf work mode: ptx <> prx\n");
+	printf("if it doesn't works, pls check the nrf work mode: prx = %d?\n", wl_mode);
 	printf("pls press any key to exit ...\n");
 
 	//init
@@ -99,30 +96,56 @@ static int cmd_nrf_speed(void)
 	nrf_byte_tx = 0;
 	nrf_byte_rx = 0;
 
+	unsigned char *buf = sys_malloc(128);
 	unsigned char byte_rx = 0;
-	int bytes_lost;
+	int bytes_lost, ms, tx_bps, rx_bps, i;
+	wl_timer = time_get(0);
+	nrf_bytes_ts = 0;
+	nrf_bytes_rs = 0;
 	do {
-		//try to recv a byte
-		if(dev_poll(fd, POLLIN)) {
-			dev_read(fd, &byte_rx, 1);
-			nrf_bytes_rx ++;
-			bytes_lost = byte_rx - nrf_byte_rx; //255 -> 0
-			bytes_lost += (bytes_lost < 0) ? 256 : 0;
-			bytes_lost -= 1; //normal increase 1
-			nrf_bytes_lost += bytes_lost;
-			nrf_byte_rx = byte_rx;
+		//try to recv 128 bytes
+		if(dev_poll(fd, POLLIN) >= 128) {
+			dev_read(fd, buf, 128);
+			for(i = 0; i < 128; i ++) {
+				byte_rx = buf[i];
+				if(nrf_bytes_rx > 0) {
+					bytes_lost = byte_rx - nrf_byte_rx; //255 -> 0
+					bytes_lost += (bytes_lost < 0) ? 256 : 0;
+					bytes_lost -= 1; //normal increase 1
+					nrf_bytes_lost += bytes_lost;
+				}
+				nrf_bytes_rx ++;
+				nrf_byte_rx = byte_rx;
+			}
 		}
 
 		//try to send a byte
-		if(dev_poll(fd, POLLOBUF)) {
-			nrf_bytes_tx ++;
-			nrf_byte_tx ++;
-			dev_write(fd, &nrf_byte_tx, 1);
+		if(dev_poll(fd, POLLOBUF) >= 128) {
+			for(i = 0; i < 128; i ++) {
+				nrf_bytes_tx ++;
+				nrf_byte_tx ++;
+				buf[i] = nrf_byte_tx;
+			}
+			dev_write(fd, buf, 128);
 		}
 
-		printf("\rnrf speed: tx %dB rx %dB lost %dB", nrf_bytes_tx, nrf_bytes_rx, nrf_bytes_lost);
+		ms = -time_left(wl_timer);
+		ms = (ms == 0) ? 1 : ms;
+		if(ms > 1000) {
+			//update speed display
+			tx_bps = (nrf_bytes_tx - nrf_bytes_ts) * 1000 / ms;
+			rx_bps = (nrf_bytes_rx - nrf_bytes_rs) * 1000 / ms;
+			printf("\rnrf: tx %dB(%dBPS) rx %dB(%dBPS) lost %dB        ", nrf_bytes_tx, tx_bps, nrf_bytes_rx, rx_bps, nrf_bytes_lost);
+
+			//next speed calcu period
+			wl_timer = time_get(0);
+			nrf_bytes_ts = nrf_bytes_tx;
+			nrf_bytes_rs = nrf_bytes_rx;
+		}
 	} while(!console_IsNotEmpty());
 	printf("\n");
+	sys_free(buf);
+	dev_close(fd);
 	return 0;
 }
 
