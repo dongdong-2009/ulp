@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "wl.h"
+#include "ulp/wl.h"
 #include "nvm.h"
 #include "sys/sys.h"
 #include "ulp/device.h"
@@ -80,7 +80,8 @@ static int nrf_bytes_rs; //bytes rx in 1s
 
 static int nrf_onfail(int ecode, ...)
 {
-	printf("ecode = %d\n", ecode);
+	if(ecode != WL_ERR_TX_TIMEOUT)
+		printf("ecode = %d\n", ecode);
 	//assert(0); //!!! impossible: got rx_dr but no payload?
 	return 0;
 }
@@ -121,6 +122,9 @@ static int cmd_nrf_speed(void)
 					bytes_lost += (bytes_lost < 0) ? 256 : 0;
 					bytes_lost -= 1; //normal increase 1
 					nrf_bytes_lost += bytes_lost;
+					if(bytes_lost != 0) {
+						printf("\n");
+					}
 				}
 				nrf_bytes_rx ++;
 				nrf_byte_rx = byte_rx;

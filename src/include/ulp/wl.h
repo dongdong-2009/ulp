@@ -22,6 +22,7 @@ enum {
 enum {
 	WL_FRAME_DATA = 'D',
 	WL_FRAME_PING = 'P',
+	WL_FRAME_INVALID,
 };
 
 //IOCTL MODE PARA
@@ -39,6 +40,9 @@ enum {
 	WL_SET_TBUF, /*tbuf, bytes*/
 	WL_SET_RBUF, /*rbuf, bytes*/
 	WL_FLUSH,
+	/*to insert a custom frame to send fifo, buf, format: len(note: max 15bytes when 2MBPS), type, d0, d1 ..
+	to wait until the frame is sent to hw fifo*/
+	WL_SEND,
 };
 
 /*nrf24l01*/

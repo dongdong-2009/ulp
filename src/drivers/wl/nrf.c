@@ -22,12 +22,13 @@
 #include "nrf.h"
 #include "ulp/debug.h"
 #include "ulp_time.h"
-#include "wl.h"
+#include "ulp/wl.h"
 #include "ulp/device.h"
 #include "ulp/types.h"
 #include "common/circbuf.h"
 #include "linux/list.h"
 #include "sys/malloc.h"
+#include <string.h>
 
 struct nrf_pipe_s {
 	short index; //0-5
@@ -38,6 +39,7 @@ struct nrf_pipe_s {
 	circbuf_t rbuf; //mv from hw fifo by poll()
 	struct list_head list;
 	int (*onfail)(int ecode, ...); //exception process func
+	char *frame; //custom frame to be sent, will be modified to NULL when sent
 };
 
 struct nrf_chip_s {
@@ -269,9 +271,9 @@ int nrf_update(struct nrf_priv_s *priv)
 			}
 
 			//handle transmit
-			if(status & TX_FULL) {
+			if(fifo_status & TX_FIFO_FULL) {
 				if(pipe->timer == 0)
-					pipe->timer = time_left(pipe->timeout);
+					pipe->timer = time_get(pipe->timeout);
 				if(time_left(pipe->timer) < 0) { //timeout, flush?
 					ecode = WL_ERR_TX_TIMEOUT;
 					onfail(ecode);
@@ -280,9 +282,16 @@ int nrf_update(struct nrf_priv_s *priv)
 			}
 			else { //not full
 				pipe->timer = 0;
-				frame[0] = WL_FRAME_DATA;
-				n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
-				n = buf_pop(&pipe->tbuf, frame + 1, n);
+				if(pipe->frame == NULL) {
+					frame[0] = WL_FRAME_DATA;
+					n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
+					n = buf_pop(&pipe->tbuf, frame + 1, n);
+				}
+				else { //to send a custom frame
+					n = pipe->frame[0];
+					memcpy(frame, pipe->frame, n);
+					pipe->frame = NULL;
+				}
 				if(n > 0) {
 					nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
 				}
@@ -330,9 +339,9 @@ int nrf_update(struct nrf_priv_s *priv)
 				ce_set(1);
 			}
 
-			if(status & TX_FULL) {
+			if(fifo_status & TX_FIFO_FULL) {
 				if(pipe->timer == 0)
-					pipe->timer = time_left(pipe->timeout);
+					pipe->timer = time_get(pipe->timeout);
 				if(time_left(pipe->timer) < 0) { //timeout, flush?
 					ecode = WL_ERR_TX_TIMEOUT;
 					onfail(ecode);
@@ -341,8 +350,15 @@ int nrf_update(struct nrf_priv_s *priv)
 			}
 			else { //not full
 				pipe->timer = 0;
-				frame[0] = WL_FRAME_DATA;
-				n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
+				if(pipe->frame == NULL) {
+					frame[0] = WL_FRAME_DATA;
+					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
+				}
+				else { //to send a custom frame
+					n = pipe->frame[0];
+					memcpy(frame, pipe->frame, n);
+					pipe->frame = NULL;
+				}
 				if(status & TX_DS) {
 					nrf_write_reg(STATUS, TX_DS);
 				}
@@ -396,6 +412,7 @@ static int nrf_init(int fd, const void *pcfg)
 	INIT_LIST_HEAD(&chip->pipes);
 	list_add_tail(&pipe->list, &chip->pipes);
 	pipe->onfail = nrf_onfail; //default onfail func
+	pipe->frame = NULL;
 
 	//priv
 	priv->chip = chip;
@@ -469,6 +486,15 @@ static int nrf_ioctl(int fd, int request, va_list args)
 
 	case WL_FLUSH:
 		nrf_flush(priv);
+		break;
+
+	case WL_SEND:
+		pipe->frame = va_arg(args, char *);
+		while(1) {
+			nrf_update(priv);
+			if(pipe->frame == NULL)
+				break;
+		}
 		break;
 
 	default:
