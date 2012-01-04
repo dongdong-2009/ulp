@@ -1,7 +1,7 @@
 #include "config.h"
 #include "ulp/debug.h"
 #include "ulp_time.h"
-#include "wl.h"
+#include "ulp/wl.h"
 #include "spi.h"
 #include "sys/task.h"
 

@@ -22,7 +22,7 @@
 #include "nrf.h"
 #include "ulp/debug.h"
 #include "ulp_time.h"
-#include "wl.h"
+#include "ulp/wl.h"
 #include "ulp/device.h"
 #include "ulp/types.h"
 #include "common/circbuf.h"

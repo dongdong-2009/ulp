@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "wl.h"
+#include "ulp/wl.h"
 #include "nvm.h"
 #include "sys/sys.h"
 #include "ulp/device.h"
