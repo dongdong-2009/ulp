@@ -6,7 +6,7 @@
 #include "nest_chip.h"
 #include "nest_message.h"
 #include <string.h>
-#include "debug.h"
+#include "ulp/debug.h"
 
 int nest_chip_init(nest_chip_t *chip)
 {

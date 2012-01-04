@@ -28,8 +28,8 @@ CAM4X_EXT,
 PSS_CH_NR
 } pss_ch_t;
 
-#define vvt_Start() do{ pss_SetSpeed(misfire_GetSpeed(0)); pss_Enable(1);led_on(LED_GREEN);} while(0)
-#define vvt_Stop() do{pss_Enable(0);led_on(LED_RED);led_off(LED_GREEN);} while(0)
+#define vvt_Start() do{pss_SetSpeed(misfire_GetSpeed(0)); pss_Enable(1);} while(0)
+#define vvt_Stop() do{pss_Enable(0);} while(0)
 
 //val ? [min, max]
 #define IS_IN_RANGE(val, min, max) \

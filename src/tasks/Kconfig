@@ -18,6 +18,7 @@ choice 'task select'	" \
 	SM		CONFIG_TASK_STEPMOTOR \
 	SSS		CONFIG_TASK_SSS \
 	VVT		CONFIG_TASK_VVT \
+	YBS		CONFIG_TASK_YBS \
 " NONE
 
 if [ "$CONFIG_TASK_APT" = "y" ]; then
@@ -80,5 +81,12 @@ if [ "$CONFIG_TASK_VVT" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'vvt'
 		source src/tasks/vvt/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_YBS" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'ybs'
+		source src/tasks/ybs/Kconfig
 	endmenu
 fi
