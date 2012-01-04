@@ -168,6 +168,7 @@ int shell_ReadLine(const char *prompt, char *str)
 			ready = 1;
 			putchar('\n');
 			break;
+		case 8:
 		case 127:			// Backspace
 			if(shell -> cmd_idx > 0)
 			{
@@ -185,7 +186,7 @@ int shell_ReadLine(const char *prompt, char *str)
 				shell -> cmd_idx --;
 
 				/*terminal display*/
-				putchar(127);
+				putchar(ch);
 				printf("\033[s"); /*save cursor pos*/
 				printf("\033[K"); /*clear contents after cursor*/
 				printf(buf);
@@ -285,7 +286,7 @@ int shell_ReadLine(const char *prompt, char *str)
 
 					/*terminal display*/
 					printf("\033[1C"); /*right shift 1 char*/
-					putchar(127);
+					putchar(8); //it works for both putty and hyterm
 					putchar(tmp);
 					printf("\033[D"); /*left shift 1 char*/
 				} while(carry_flag);
