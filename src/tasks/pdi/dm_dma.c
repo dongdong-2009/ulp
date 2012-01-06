@@ -213,12 +213,12 @@ static int dm_StartSession(void)
 		can_msg_print(dm_msg_buf + i, "\n");
 
 	// get dtc code
-	printf("\nDTC Code:\n");
-	usdt_GetDiagFirstFrame(&dm_rddtc_msg, 1, NULL, dm_msg_buf, &msg_len);
-	if (msg_len > 1)
-		usdt_GetDiagLeftFrame(dm_msg_buf, msg_len);
-	for (i = 0; i < msg_len; i++)
-		can_msg_print(dm_msg_buf + i, "\n");
+	// printf("\nDTC Code:\n");
+	// usdt_GetDiagFirstFrame(&dm_rddtc_msg, 1, NULL, dm_msg_buf, &msg_len);
+	// if (msg_len > 1)
+		// usdt_GetDiagLeftFrame(dm_msg_buf, msg_len);
+	// for (i = 0; i < msg_len; i++)
+		// can_msg_print(dm_msg_buf + i, "\n");
 
 	// clear error code
 	printf("\nClear Code:\n");
@@ -304,7 +304,7 @@ static int counter_fail_add()
 
 static int pdi_fail_action()
 {
-	pdi_IGN_on();
+	pdi_IGN_off();
 	led_off(LED_GREEN);
 	led_off(LED_RED);
 	led_on(LED_RED);
@@ -317,7 +317,7 @@ static int pdi_fail_action()
 
 static int pdi_pass_action()
 {
-	pdi_IGN_on();
+	pdi_IGN_off();
 	led_off(LED_GREEN);
 	led_off(LED_RED);
 	led_on(LED_GREEN);
@@ -415,16 +415,17 @@ static void dm_process(void)
 			if(pdi_cfg_file == NULL) {			//是否有此配置文件
 				pdi_fail_action();
 				printf("##START##EC-No This Config File##END##\n");
+			} else {
+
+				dm_check_init(pdi_cfg_file);		//relay config
+
+				pdi_IGN_on();
+
+				if(dm_check() == 0)
+					pdi_pass_action();
+				else
+					pdi_fail_action();
 			}
-
-			dm_check_init(pdi_cfg_file);		//relay config
-
-			pdi_IGN_on();
-
-			if(dm_check() == 0)
-				pdi_pass_action();
-			else
-				pdi_fail_action();
 		} else {
 			target_noton_action();
 			printf("##START##EC-target is not on the right position##END##\n");
@@ -464,7 +465,19 @@ static int dm_esc_check()
 
 static int dm_check_barcode()
 {
-	dm_GetCID(0xfe8d, dm_data_buf);
+	int try_times = 5;
+	printf("##START##EC-checking barcode##END##\n");
+
+	while (dm_GetCID(0xfe8d, dm_data_buf)) {
+		try_times --;
+		if (try_times < 0)
+			return 1;
+	}
+
+	//dm_data_buf[] = '\0';
+	printf("##START##RB-");
+	printf(dm_data_buf);
+	printf("##END##\n");
 
 	if(memcmp(dm_data_buf, bcode_1, 14))
 		return 1;
@@ -507,19 +520,22 @@ static int dm_GetFault(char *data, int * pnum_fault)
 
 static int dm_check()
 {
-	int i, num_fault = 0, try_times = 5;
-
-	if(dm_check_barcode()) {
-		printf("##START##EC-Barcode Wrong##END##\n");
-		return 1;
-	}
+	int i, num_fault = 0, try_times = 5, rate;
+	char temp[2];
 
 	for (rate = 5; rate <= 95; rate ++) {
-		sdm_mdelay(111);
+		dm_mdelay(111);
 		printf("##START##STATUS-");
 		sprintf(temp, "%d", rate);
 		printf("%s", temp);
 		printf("##END##\n");
+	}
+
+	dm_StartSession();
+
+	if(dm_check_barcode()) {
+		printf("##START##EC-Barcode Wrong##END##\n");
+		return 1;
 	}
 
 	while (dm_GetFault(dm_fault_buf, &num_fault)) {
@@ -531,11 +547,11 @@ static int dm_check()
 	}
 
 	if (num_fault) {
-		//dm_clear_dtc();
+		dm_clear_dtc();
 		printf("##START##EC-");
-		printf("num of fault is: %d*", num_fault);
+		printf("num of fault is: %d\n", num_fault);
 		for (i = 0; i < num_fault*2; i += 2)
-			printf("0x%2x, 0x%2x*", dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
+			printf("0x%2x, 0x%2x\n", dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
 		printf("##END##\n");
 		return 1;
 	}

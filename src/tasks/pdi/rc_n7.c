@@ -29,10 +29,10 @@ static const can_msg_t rc_connector_msg = {
 	0x752, 8, {0x03, 0x21, 0x90, 0xa2, 0, 0, 0, 0}, 0
 };
 static const can_msg_t rc_getsn_msg = {
-	0x752, 8, {0x03, 0x21, 0x90, 0xaa, 0, 0, 0, 0}, 0
+	0x752, 8, {0x03, 0x21, 0x90, 0xab, 0, 0, 0, 0}, 0
 };
 static const can_msg_t rc_getpart_msg = {
-	0x752, 8, {0x03, 0x21, 0x90, 0xab, 0, 0, 0, 0}, 0
+	0x752, 8, {0x02, 0x21, 0x83, 0, 0, 0, 0, 0}, 0
 };
 static const can_msg_t rc_reqseed_msg = {
 	0x752, 8, {0x02, 0x27, 0x61, 0, 0, 0, 0, 0}, 0
@@ -55,7 +55,7 @@ static const ls1203_t pdi_ls1203 = {
 };
 
 static const can_bus_t* pdi_can_bus = &can1;
-static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
+static can_msg_t rc_msg_buf[32];		//for multi frame buffer
 static char rc_data_buf[256];			//data buffer
 static char rc_fault_buf[64];			//fault buffer
 static char bcode_1[14];
@@ -142,27 +142,27 @@ static int rc_StartSession(void)
 #if 1
 	//get serial number
 	printf("\nSN Code:\n");
-	usdt_GetDiagFirstFrame(&rc_getsn_msg, 1, NULL, pdi_msg_buf, &msg_len);
+	usdt_GetDiagFirstFrame(&rc_getsn_msg, 1, NULL, rc_msg_buf, &msg_len);
 	if (msg_len > 1)
-		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+		usdt_GetDiagLeftFrame(rc_msg_buf, msg_len);
 	for (i = 0; i < msg_len; i++)
-		can_msg_print(pdi_msg_buf + i, "\n");
+		can_msg_print(rc_msg_buf + i, "\n");
 
 	// get error code
 	printf("\nError Code:\n");
-	usdt_GetDiagFirstFrame(&rc_errcode_msg, 1, NULL, pdi_msg_buf, &msg_len);
+	usdt_GetDiagFirstFrame(&rc_errcode_msg, 1, NULL, rc_msg_buf, &msg_len);
 	if (msg_len > 1)
-		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+		usdt_GetDiagLeftFrame(rc_msg_buf, msg_len);
 	for (i = 0; i < msg_len; i++)
-		can_msg_print(pdi_msg_buf + i, "\n");
+		can_msg_print(rc_msg_buf + i, "\n");
 
 	//tester point
 	printf("\nConnector Bar:\n");
-	usdt_GetDiagFirstFrame(&rc_connector_msg, 1, NULL, pdi_msg_buf, &msg_len);
+	usdt_GetDiagFirstFrame(&rc_connector_msg, 1, NULL, rc_msg_buf, &msg_len);
 	if (msg_len > 1)
-		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+		usdt_GetDiagLeftFrame(rc_msg_buf, msg_len);
 	for (i = 0; i < msg_len; i++)
-		can_msg_print(pdi_msg_buf + i, "\n");
+		can_msg_print(rc_msg_buf + i, "\n");
 
 	if (rc_GetFault(rc_fault_buf, &num_fault))
 		printf("##ERROR##\n");
@@ -194,8 +194,8 @@ static int rc_GetCID(short cid, char *data)
 	if (usdt_GetDiagFirstFrame(&pdi_send_msg, 1, NULL, &msg_res, &msg_len))
 		return 1;
 	if (msg_len > 1) {
-		pdi_msg_buf[0] = msg_res;
-		if(usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len))
+		rc_msg_buf[0] = msg_res;
+		if(usdt_GetDiagLeftFrame(rc_msg_buf, msg_len))
 			return 1;
 	}
 
@@ -209,7 +209,7 @@ static int rc_GetCID(short cid, char *data)
 		memcpy(data, (msg_res.data + 5), 3);
 		data += 3;
 		for (i = 1; i < msg_len; i++) {
-			memcpy(data, (pdi_msg_buf + i)->data + 1, 7);
+			memcpy(data, (rc_msg_buf + i)->data + 1, 7);
 			data += 7;
 		}
 	}
@@ -366,17 +366,33 @@ static int rc_JAMA_check(const struct pdi_cfg_s *sr)
 
 static int rc_part_check()
 {
-	char *data;
-	if(rc_GetCID(0x90ab, data))
-		return 1;			//¼ì²â¿Í»§´úÂë
-	// if(data[4] != 0x01)
-		// return 1;
+	int msg_len;
+	char part_data[20];
+	can_msg_t msg_res;
+	if(usdt_GetDiagFirstFrame(&rc_getpart_msg, 1, NULL, &msg_res, &msg_len))
+		return 1;
+	if(msg_len > 1) {
+		rc_msg_buf[0] = msg_res;
+		if(usdt_GetDiagLeftFrame(rc_msg_buf, msg_len))
+			return 1;
+	}
+	//pickup partnumber
+	if(memcpy(part_data, (msg_res.data + 4), 4))
+		return 1;
+	if(memcpy((part_data + 4) ,(rc_msg_buf + 1)->data + 1 ,1))
+		return 1;
+	//check partnumber
+	if(memcmp(part_data, bcode_1 + 2, 3))
+		return 1;
+	if((part_data[3] != 0x30) || (part_data[4] != 0x41))
+		return 1;
+
 	return 0;
 }
 
 static int rc_check_barcode()
 {
-	rc_GetCID(0x90aa, rc_data_buf);
+	rc_GetCID(0x90ab, rc_data_buf);
 
 	if (memcmp(rc_data_buf, bcode_1, 14))
 		return 1;
@@ -478,7 +494,7 @@ void pdi_init(void)
 static void rc_process(void)
 {
 	const struct pdi_cfg_s* pdi_cfg_file;
-	char bcode[15];				//TBD
+	char bcode[15];
 	if(target_on())
 		start_botton_on();
 	else start_botton_off();
@@ -492,7 +508,7 @@ static void rc_process(void)
 		printf("##START##SB-");
 		printf(bcode,"\0");
 		printf("##END##\n");
-		bcode[5] = '\0';		//TBD
+		bcode[5] = '\0';
 
 		pdi_cfg_file = pdi_cfg_get(bcode);
 
