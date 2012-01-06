@@ -87,3 +87,8 @@ mainmenu_option next_comment
 	source src/drivers/wl/Kconfig
 endmenu
 
+mainmenu_option next_comment
+	comment 'video config'
+	source src/drivers/video/Kconfig
+endmenu
+

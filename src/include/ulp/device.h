@@ -19,7 +19,6 @@ struct device_s {
 	struct list_head lcls; //next dev in the same class
 	struct driver_s *pdrv;
 	void *priv; //to store device specific data
-	const void *pcfg;
 };
 
 static inline void* dev_priv_get(int fd) {
@@ -35,12 +34,18 @@ static inline int dev_priv_set(int fd, void *priv) {
 	return 0;
 }
 
+/*dev_poll events*/
+#define POLLIN		1
+#define POLLOUT		2
+#define POLLIBUF	3 /*bytes left of input buffer*/
+#define POLLOBUF	4 /*bytes left of output buffer*/
+
 /*name is something like 'uart0'(class name + index) or 'uart_stm32.0'(device name)*/
-int dev_open(const char *name, const char *mode); //success return handle, fail -1
+int dev_open(const char *name, const char *mode); //success return handle, fail 0
 int dev_ioctl(int fd, int request, ...);
-int dev_poll(int fd, int event);
-int dev_read(int fd, void *buf, int count);
-int dev_write(int fd, const void *buf, int count);
+int dev_poll(int fd, int event); //return bytes on the queue
+int dev_read(int fd, void *buf, int count); //return bytes read
+int dev_write(int fd, const void *buf, int count); //return bytes write
 int dev_close(int fd);
 
 //match the driver automatically

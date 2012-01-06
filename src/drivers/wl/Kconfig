@@ -9,7 +9,11 @@ bool "wireless support" CONFIG_DRIVER_WL
 
 #RF chip select
 if [ "$CONFIG_DRIVER_WL" = "y" ]; then
-
+int "default tx/rx timeout ms" CONFIG_WL_MS 30
+int "default frequency MHz" CONFIG_WL_MHZ 2430
+hex "default device address" CONFIG_WL_ADDR 0x12345678
+int "default tx fifo size" CONFIG_WL_TBUF_SZ 256
+int "default rx fifo size" CONFIG_WL_RBUF_SZ 256
 choice 'wireless chip select'	" \
 	NRF24L01	CONFIG_WL_NRF \
 	NONE		CONFIG_WL_NONE \
