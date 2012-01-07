@@ -57,8 +57,9 @@ void shell_Update(void)
 		cmd_queue_update(&shell -> cmd_queue);
 
 		ok = shell_ReadLine(CONFIG_SHELL_PROMPT, NULL);
-		if(!ok) continue;
-		cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
+		if(ok)
+			cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
+		console_select(NULL); //restore system default console
 	}
 }
 
