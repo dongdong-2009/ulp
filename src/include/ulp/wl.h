@@ -27,7 +27,9 @@ enum {
 
 //IOCTL MODE PARA
 enum {
+	WL_MODE_PTX = 0,
 	WL_MODE_PRX = 1, //or ptx
+	WL_MODE_2MBPS = 0,
 	WL_MODE_1MBPS = 2, //or 2MBPS
 };
 
