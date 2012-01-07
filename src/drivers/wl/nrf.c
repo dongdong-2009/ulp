@@ -387,9 +387,8 @@ int nrf_update(struct nrf_priv_s *priv)
 				else { //to send a custom frame, wait until send out or max_rt
 					if(fifo_status & TX_FIFO_EMPTY) {
 						n = pipe->cf[0];
-						memcpy(frame, pipe->cf, n);
+						memcpy(frame, pipe->cf + 1, n);
 						nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
-
 						//wait until send out or max rt
 						pipe->timer = time_get(pipe->cf_timeout);
 						while(1) {
@@ -503,9 +502,6 @@ static int nrf_ioctl(int fd, int request, va_list args)
 	unsigned addr;
 	int freq;
 
-	//preprocess
-	ce_set(0);
-
 	int ret = 0;
 	switch(request) {
 	case WL_ERR_FUNC:
@@ -515,33 +511,41 @@ static int nrf_ioctl(int fd, int request, va_list args)
 		break;
 
 	case WL_SET_MODE:
+		ce_set(0);
 		mode = (char) va_arg(args, int);
 		if(mode != chip->mode) {
 			ret = nrf_hw_set_mode(chip, mode);
 			chip->mode = (char) mode;
 			nrf_flush(priv);
 		}
+		ce_set(1);
 		break;
 
 	case WL_SET_ADDR:
+		ce_set(0);
 		addr = va_arg(args, unsigned);
 		if(addr != pipe->addr) {
 			ret = nrf_hw_set_addr(chip, pipe->index, addr);
 			pipe->addr = addr;
 			nrf_flush(priv);
 		}
+		ce_set(1);
 		break;
 
 	case WL_SET_FREQ:
+		ce_set(0);
 		freq = va_arg(args, int);
 		if(freq != chip->freq) {
 			ret = nrf_hw_set_freq(chip, freq);
 			chip->freq = freq;
 		}
+		ce_set(1);
 		break;
 
 	case WL_FLUSH:
+		ce_set(0);
 		nrf_flush(priv);
+		ce_set(1);
 		break;
 
 	case WL_SEND: //to send a custom frame in blocked, unbuffered method
@@ -559,9 +563,6 @@ static int nrf_ioctl(int fd, int request, va_list args)
 		ret = -1;
 		break;
 	}
-
-	//post process
-	ce_set(1);
 	return ret;
 }
 
