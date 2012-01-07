@@ -246,6 +246,20 @@ int shell_ReadLine(const char *prompt, char *str)
 						printf("\033[D"); /*mov cursor left*/
 					}
 					break;
+				case 49: /*home key*/
+					console_getch(); //'~'
+					while(shell->cmd_idx > 0) {
+						shell->cmd_idx --;
+						printf("\033[D"); /*mov cursor left*/
+					}
+					break;
+				case 52: /*end key*/
+					console_getch(); //'~'
+					while(shell -> cmd_idx < len) {
+						shell -> cmd_idx ++;
+						printf("\033[C"); /*mov cursor right*/
+					}
+					break;
 				default:
 					break;
 			}
