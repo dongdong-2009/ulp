@@ -31,15 +31,17 @@
 #include <string.h>
 
 struct nrf_pipe_s {
-	short index; //0-5
-	short timeout; // unit: ms
+	char index; //0-5
+	char timeout; // unit: ms
+	char cf_timeout; //custom frame send timeout
+	char cf_ecode; //custom frame err code
 	time_t timer; //send timer for both ptx and prx mode, it counts the ms elapsed that hw tx fifo keeps full
 	unsigned addr; //note: only low 8 bit effective in case not pipe0
 	circbuf_t tbuf; //mv to hw fifo by poll()
 	circbuf_t rbuf; //mv from hw fifo by poll()
 	struct list_head list;
 	int (*onfail)(int ecode, ...); //exception process func
-	char *frame; //custom frame to be sent, will be modified to NULL when sent
+	char *cf; //custom frame to be sent, will be modified to NULL when sent
 };
 
 struct nrf_chip_s {
@@ -271,6 +273,10 @@ int nrf_update(struct nrf_priv_s *priv)
 			}
 
 			//handle transmit
+			if(status & TX_DS) {
+				nrf_write_reg(STATUS, TX_DS);
+			}
+
 			if(fifo_status & TX_FIFO_FULL) {
 				if(pipe->timer == 0)
 					pipe->timer = time_get(pipe->timeout);
@@ -282,21 +288,40 @@ int nrf_update(struct nrf_priv_s *priv)
 			}
 			else { //not full
 				pipe->timer = 0;
-				if(pipe->frame == NULL) {
+				if(pipe->cf == NULL) {
 					frame[0] = WL_FRAME_DATA;
 					n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
 					n = buf_pop(&pipe->tbuf, frame + 1, n);
+					if(n > 0) {
+						nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
+					}
 				}
 				else { //to send a custom frame
-					n = pipe->frame[0];
-					memcpy(frame, pipe->frame, n);
-					pipe->frame = NULL;
-				}
-				if(n > 0) {
-					nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
-				}
-				if(status & TX_DS) {
-					nrf_write_reg(STATUS, TX_DS);
+					if(fifo_status & TX_FIFO_EMPTY) {
+						n = pipe->cf[0];
+						memcpy(frame, pipe->cf, n);
+						nrf_write_buf(W_ACK_PAYLOAD(0), frame, n);
+
+						//wait until send out or max rt
+						pipe->timer = time_get(pipe->cf_timeout);
+						while(1) {
+							status = nrf_read_reg(STATUS);
+							if(status & TX_DS) { //success
+								nrf_write_reg(STATUS, TX_DS);
+								pipe->cf = NULL;
+								pipe->cf_ecode = 0;
+								break;
+							}
+
+							if(time_left(pipe->timer) < 0) { //send timeout
+								nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
+								pipe->timer = 0;
+								pipe->cf = NULL;
+								pipe->cf_ecode = WL_ERR_TX_TIMEOUT;
+								break;
+							}
+						}
+					}
 				}
 			}
 		}
@@ -339,6 +364,10 @@ int nrf_update(struct nrf_priv_s *priv)
 				ce_set(1);
 			}
 
+			if(status & TX_DS) {
+				nrf_write_reg(STATUS, TX_DS);
+			}
+
 			if(fifo_status & TX_FIFO_FULL) {
 				if(pipe->timer == 0)
 					pipe->timer = time_get(pipe->timeout);
@@ -350,19 +379,46 @@ int nrf_update(struct nrf_priv_s *priv)
 			}
 			else { //not full
 				pipe->timer = 0;
-				if(pipe->frame == NULL) {
+				if(pipe->cf == NULL) {
 					frame[0] = WL_FRAME_DATA;
 					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
+					nrf_write_buf(W_TX_PAYLOAD, frame, n + 1); //nrf count the bytes automatically
 				}
-				else { //to send a custom frame
-					n = pipe->frame[0];
-					memcpy(frame, pipe->frame, n);
-					pipe->frame = NULL;
+				else { //to send a custom frame, wait until send out or max_rt
+					if(fifo_status & TX_FIFO_EMPTY) {
+						n = pipe->cf[0];
+						memcpy(frame, pipe->cf, n);
+						nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
+
+						//wait until send out or max rt
+						pipe->timer = time_get(pipe->cf_timeout);
+						while(1) {
+							status = nrf_read_reg(STATUS);
+							if(status & TX_DS) { //success
+								nrf_write_reg(STATUS, TX_DS);
+								pipe->cf = NULL;
+								pipe->cf_ecode = 0;
+								break;
+							}
+							if(status & MAX_RT) { //fail, resend until timeout
+								if(time_left(pipe->timer) > 0) {
+									ce_set(0);
+									//delay at least 10uS here ...
+									nrf_write_reg(STATUS, MAX_RT);
+									ce_set(1);
+								}
+								else { //send timeout
+									nrf_write_reg(STATUS, MAX_RT);
+									nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
+									pipe->timer = 0;
+									pipe->cf = NULL;
+									pipe->cf_ecode = WL_ERR_TX_TIMEOUT;
+									break;
+								}
+							}
+						}
+					}
 				}
-				if(status & TX_DS) {
-					nrf_write_reg(STATUS, TX_DS);
-				}
-				nrf_write_buf(W_TX_PAYLOAD, frame, n + 1); //nrf count the bytes automatically
 			}
 		}
 
@@ -412,7 +468,7 @@ static int nrf_init(int fd, const void *pcfg)
 	INIT_LIST_HEAD(&chip->pipes);
 	list_add_tail(&pipe->list, &chip->pipes);
 	pipe->onfail = nrf_onfail; //default onfail func
-	pipe->frame = NULL;
+	pipe->cf = NULL;
 
 	//priv
 	priv->chip = chip;
@@ -488,13 +544,15 @@ static int nrf_ioctl(int fd, int request, va_list args)
 		nrf_flush(priv);
 		break;
 
-	case WL_SEND:
-		pipe->frame = va_arg(args, char *);
+	case WL_SEND: //to send a custom frame in blocked, unbuffered method
+		pipe->cf = va_arg(args, char *);
+		pipe->cf_timeout = (char) va_arg(args, int);
 		while(1) {
 			nrf_update(priv);
-			if(pipe->frame == NULL)
+			if(pipe->cf == NULL)
 				break;
 		}
+		ret = pipe->cf_ecode;
 		break;
 
 	default:

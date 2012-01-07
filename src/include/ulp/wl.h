@@ -40,7 +40,7 @@ enum {
 	WL_SET_TBUF, /*tbuf, bytes*/
 	WL_SET_RBUF, /*rbuf, bytes*/
 	WL_FLUSH,
-	/*to insert a custom frame to send fifo, buf, format: len(note: max 15bytes when 2MBPS), type, d0, d1 ..
+	/*to insert a custom frame to send fifo, ioctl(fd, WL_SEND, frame, timeout) buf, format: len(note: max 15bytes when 2MBPS), type, d0, d1 ..
 	to wait until the frame is sent to hw fifo*/
 	WL_SEND,
 };
