@@ -33,6 +33,8 @@ int nest_wl_init(void)
 	cnsl = console_register(nest_wl_fd);
 	assert(cnsl != NULL);
 	shell_register(cnsl);
+	shell_mute(cnsl, 1);
+	dev_ioctl(nest_wl_fd, WL_FLUSH);
 	return 0;
 }
 
@@ -43,19 +45,23 @@ int nest_wl_update(void)
 	unsigned random;
 	if(time_left(nest_wl_timer) < 0) {
 		/*add a unique value to timeout to avoid all nest request monitor at the same time*/
-		nest_wl_timer = time_get(NEST_WL_MS + (nest_wl_addr & 0x1fff));
+		nest_wl_timer = time_get(NEST_WL_MS +(nest_wl_addr & 0x0fff));
 
 		//ping frame has not been received in timeout period, re connect ...
-		n = sprintf(frame + 2, "monitor nest %x\n", nest_wl_addr);
+		n = sprintf(frame + 2, "monitor newbie %x\r", nest_wl_addr);
 		frame[0] = n + 2; //wl frame length
 		frame[1] = WL_FRAME_DATA;
+		dev_ioctl(nest_wl_fd, WL_STOP);
 		dev_ioctl(nest_wl_fd, WL_SET_ADDR, NEST_WL_ADDR);
 		dev_ioctl(nest_wl_fd, WL_SET_MODE, WL_MODE_PTX); //ptx
+		dev_ioctl(nest_wl_fd, WL_START);
 		dev_ioctl(nest_wl_fd, WL_SEND, frame, 0);
 
 		//change to normal mode
+		dev_ioctl(nest_wl_fd, WL_STOP);
 		dev_ioctl(nest_wl_fd, WL_SET_ADDR, nest_wl_addr);
-		dev_ioctl(nest_wl_fd, WL_SET_MODE, WL_MODE_PRX); //ptx
+		dev_ioctl(nest_wl_fd, WL_SET_MODE, WL_MODE_PRX);
+		dev_ioctl(nest_wl_fd, WL_START);
 	}
 	return 0;
 }
@@ -78,7 +84,9 @@ static int nest_wl_onfail(int ecode, ...)
 		}
 		break;
 	default:
+		console_select(NULL);
 		printf("ecode = %d\n", ecode);
+		console_restore();
 		break;
 	}
 	va_end(args);
@@ -96,7 +104,13 @@ static int cmd_monitor_func(int argc, char *argv[])
 		"monitor newbie 1234567A		newbie nest request\n"
 		"monitor report			report newbie list to upa\n"
 		"monitor shutup			to shut nest's mouth\n"
+		"monitor ping			periodically triged by upa\n"
 	};
+
+	if((argc == 2) && (!strcmp(argv[1], "ping"))) {
+		nest_wl_timer = time_get(NEST_WL_MS + (nest_wl_addr & 0x1fff));
+		return 0;
+	}
 
 	if((argc == 2) && (!strcmp(argv[1], "shutup"))) {
 		printf("upa shutup\n");
