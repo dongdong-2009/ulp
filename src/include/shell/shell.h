@@ -32,6 +32,10 @@
 struct shell_s {
 	const struct console_s *console;
 
+	short status;
+	#define SHELL_CONFIG_MUTE (1<<0)
+	short config;
+
 	/*cmd line*/
 	char cmd_buffer[CONFIG_SHELL_LEN_CMD_MAX];
 	short cmd_idx;
@@ -51,6 +55,8 @@ void shell_Update(void);
 
 /*to dynamic register a new shell console device with specified history buffer size*/
 int shell_register(const struct console_s *);
+int shell_unregister(const struct console_s *);
+int shell_mute(const struct console_s *cnsl, int enable);
 
 /*to execute a specified cmd in specified console*/
 int shell_exec_cmd(const struct console_s *, const char *cmdline);

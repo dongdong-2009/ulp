@@ -13,12 +13,18 @@
 #include "console.h"
 #include "ulp/debug.h"
 #include "uart.h"
+#include <stdarg.h>
 
 static void cmd_GetHistory(char *cmd, int dir);
 static void cmd_SetHistory(const char *cmd);
 
 static LIST_HEAD(shell_queue);
 static struct shell_s *shell; /*current shell*/
+
+#define shell_print(...) do { \
+	if(!(shell->config & SHELL_CONFIG_MUTE)) \
+		printf(__VA_ARGS__); \
+} while (0)
 
 void shell_Init(void)
 {
@@ -55,7 +61,6 @@ void shell_Update(void)
 		shell = list_entry(pos, shell_s, list);
 		console_select(shell -> console);
 		cmd_queue_update(&shell -> cmd_queue);
-
 		ok = shell_ReadLine(CONFIG_SHELL_PROMPT, NULL);
 		if(ok)
 			cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
@@ -73,6 +78,8 @@ int shell_register(const struct console_s *console)
 	//sponsor new shell
 	list_add(&shell -> list, &shell_queue);
 	shell -> console = console;
+	shell -> status = 0;
+	shell -> config = 0;
 	shell -> cmd_buffer[0] = 0;
 	shell -> cmd_idx = -1;
 
@@ -94,10 +101,56 @@ int shell_register(const struct console_s *console)
 	setbuf(stdout, 0);
 	setbuf(stderr, 0);
 #endif
-	putchar(0x1b); /*clear screen*/
-	putchar('c');
-	printf("%s\n", CONFIG_BLDC_BANNER);
+	shell_print("\033c"); /*clear screen*/
+	shell_print("%s\n", CONFIG_BLDC_BANNER);
+	console_select(NULL);
 	return 0;
+}
+
+int shell_unregister(const struct console_s *console)
+{
+	struct list_head *pos, *n;
+	struct shell_s *q = NULL;
+
+	list_for_each_safe(pos, n, &shell_queue) {
+		q = list_entry(pos, shell_s, list);
+		if(q->console == console) {
+			//destroy cmd history
+			sys_free(q->cmd_history);
+
+			//destroy cmd list
+			struct cmd_list_s *cl;
+			list_for_each_safe(pos, n, &(q->cmd_queue.cmd_list)) {
+				cl = list_entry(pos, cmd_list_s, list);
+				list_del(&cl->list);
+				sys_free(cl);
+			}
+
+			//destroy shell itself
+			list_del(&q->list);
+			sys_free(q);
+			break;
+		}
+	}
+	return 0;
+}
+
+int shell_mute(const struct console_s *cnsl, int enable)
+{
+	struct shell_s *s;
+	struct list_head *pos;
+	int ret = -1;
+	list_for_each(pos, &shell_queue) {
+		s = list_entry(pos, shell_s, list);
+		if(s->console == cnsl) {
+			enable = (enable) ? SHELL_CONFIG_MUTE : 0;
+			s->config &= ~SHELL_CONFIG_MUTE;
+			s->config |= enable;
+			ret = 0;
+			break;
+		}
+	}
+	return ret;
 }
 
 int shell_exec_cmd(const struct console_s *cnsl, const char *cmdline)
@@ -125,7 +178,7 @@ int shell_ReadLine(const char *prompt, char *str)
 	assert(shell != NULL);
 	if(shell -> cmd_idx < 0) {
 		if(prompt != NULL) {
-			printf("%s", prompt);
+			shell_print("%s", prompt);
 		}
 		memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
 		shell -> cmd_idx ++;
@@ -140,10 +193,10 @@ int shell_ReadLine(const char *prompt, char *str)
 		shell -> cmd_idx = -2 - shell -> cmd_idx;
 
 		/*terminal display*/
-		printf(shell -> cmd_buffer);
+		shell_print(shell -> cmd_buffer);
 		offset = strlen(shell -> cmd_buffer) - shell -> cmd_idx;
 		if(offset > 0)
-			printf("\033[%dD", offset); /*restore cursor position*/
+			shell_print("\033[%dD", offset); /*restore cursor position*/
 	}
 
 	len = strlen(shell -> cmd_buffer);
@@ -163,11 +216,11 @@ int shell_ReadLine(const char *prompt, char *str)
 			else
 				strcpy(shell -> cmd_buffer, "kill all");
 		case '@':
-			putchar('\r');
+			shell_print("%c", '\r');
 		case '\r':		// Return
 			shell -> cmd_idx = -1;
 			ready = 1;
-			putchar('\n');
+			shell_print("%c", '\n');
 			break;
 		case 8:
 		case 127:			// Backspace
@@ -187,11 +240,11 @@ int shell_ReadLine(const char *prompt, char *str)
 				shell -> cmd_idx --;
 
 				/*terminal display*/
-				putchar(ch);
-				printf("\033[s"); /*save cursor pos*/
-				printf("\033[K"); /*clear contents after cursor*/
-				printf(buf);
-				printf("\033[u"); /*restore cursor pos*/
+				shell_print("%c", ch);
+				shell_print("\033[s"); /*save cursor pos*/
+				shell_print("\033[K"); /*clear contents after cursor*/
+				shell_print(buf);
+				shell_print("\033[u"); /*restore cursor pos*/
 			}
 			continue;
 		case 0x1B: /*arrow keys*/
@@ -210,9 +263,9 @@ int shell_ReadLine(const char *prompt, char *str)
 
 						/*terminal display*/
 						if(offset > 0)
-							printf("\033[%dD", offset); /*mov cursor to left*/
-						printf("\033[K"); /*clear contents after cursor*/
-						printf(shell -> cmd_buffer);
+							shell_print("\033[%dD", offset); /*mov cursor to left*/
+						shell_print("\033[K"); /*clear contents after cursor*/
+						shell_print(shell -> cmd_buffer);
 					}
 					else
 						ch = '+';
@@ -227,9 +280,9 @@ int shell_ReadLine(const char *prompt, char *str)
 
 						/*terminal display*/
 						if(offset > 0)
-							printf("\033[%dD", offset); /*mov cursor to left*/
-						printf("\033[K"); /*clear contents after cursor*/
-						printf(shell -> cmd_buffer);
+							shell_print("\033[%dD", offset); /*mov cursor to left*/
+						shell_print("\033[K"); /*clear contents after cursor*/
+						shell_print(shell -> cmd_buffer);
 					}
 					else
 						ch = '-';
@@ -237,27 +290,27 @@ int shell_ReadLine(const char *prompt, char *str)
 				case 'C': /*RIGHT key*/
 					if(shell -> cmd_idx < len) {
 						shell -> cmd_idx ++;
-						printf("\033[C"); /*mov cursor right*/
+						shell_print("\033[C"); /*mov cursor right*/
 					}
 					break;
 				case 'D': /*LEFT key*/
 					if(shell -> cmd_idx > 0) {
 						shell -> cmd_idx --;
-						printf("\033[D"); /*mov cursor left*/
+						shell_print("\033[D"); /*mov cursor left*/
 					}
 					break;
 				case 49: /*home key*/
 					console_getch(); //'~'
 					while(shell->cmd_idx > 0) {
 						shell->cmd_idx --;
-						printf("\033[D"); /*mov cursor left*/
+						shell_print("\033[D"); /*mov cursor left*/
 					}
 					break;
 				case 52: /*end key*/
 					console_getch(); //'~'
 					while(shell -> cmd_idx < len) {
 						shell -> cmd_idx ++;
-						printf("\033[C"); /*mov cursor right*/
+						shell_print("\033[C"); /*mov cursor right*/
 					}
 					break;
 				default:
@@ -274,7 +327,7 @@ int shell_ReadLine(const char *prompt, char *str)
 						else if(idx != shell -> cmd_idx) {
 							//float support
 							idx --;
-							printf("\033[D"); /*left shift 1 char*/
+							shell_print("\033[D"); /*left shift 1 char*/
 							carry_flag = 1;
 							continue;
 						}
@@ -300,10 +353,10 @@ int shell_ReadLine(const char *prompt, char *str)
 					idx --;
 
 					/*terminal display*/
-					printf("\033[1C"); /*right shift 1 char*/
-					putchar(8); //it works for both putty and hyterm
-					putchar(tmp);
-					printf("\033[D"); /*left shift 1 char*/
+					shell_print("\033[1C"); /*right shift 1 char*/
+					shell_print("%c", 8); //it works for both putty and hyterm
+					shell_print("%c", tmp);
+					shell_print("\033[D"); /*left shift 1 char*/
 				} while(carry_flag);
 
 				if(idx == shell -> cmd_idx)
@@ -311,7 +364,7 @@ int shell_ReadLine(const char *prompt, char *str)
 
 				shell -> cmd_idx = -2 - shell -> cmd_idx;
 				ready = 1;
-				putchar('\n');
+				shell_print("%c", '\n');
 			}
 			break;
 		default:
@@ -335,12 +388,12 @@ int shell_ReadLine(const char *prompt, char *str)
 				shell -> cmd_idx ++;
 
 				/*terminal display*/
-				putchar(ch);
+				shell_print("%c", ch);
 				if(offset < len) {
-					printf("\033[s"); /*save cursor pos*/
-					printf("\033[K"); /*clear contents after cursor*/
-					printf(buf);
-					printf("\033[u"); /*restore cursor pos*/
+					shell_print("\033[s"); /*save cursor pos*/
+					shell_print("\033[K"); /*clear contents after cursor*/
+					shell_print(buf);
+					shell_print("\033[u"); /*restore cursor pos*/
 				}
 			}
 			continue;
