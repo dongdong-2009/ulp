@@ -29,7 +29,7 @@ static int cmd_nrf_chat(void)
 	dev_ioctl(fd, WL_SET_FREQ, wl_freq);
 	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
 	dev_ioctl(fd, WL_SET_MODE, wl_mode);
-	dev_ioctl(fd, START);
+	dev_ioctl(fd, WL_START);
 
 	printf("if it doesn't works, pls check the nrf work mode: prx = %d?\n", wl_mode);
 	printf("pls type kill to exit ...\n");
@@ -64,7 +64,7 @@ static int cmd_nrf_chat(void)
 			printf("\nnrf tx: ");
 	}
 
-	dev_ioctl(fd, STOP);
+	dev_ioctl(fd, WL_STOP);
 	dev_close(fd);
 	sys_free(txstr);
 	sys_free(rxstr);
@@ -96,7 +96,7 @@ static int cmd_nrf_speed(void)
 	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
 	dev_ioctl(fd, WL_SET_MODE, wl_mode);
 	dev_ioctl(fd, WL_ERR_FUNC, nrf_onfail);
-	dev_ioctl(fd, START);
+	dev_ioctl(fd, WL_START);
 
 	printf("if it doesn't works, pls check the nrf work mode: prx = %d?\n", wl_mode);
 	printf("pls press any key to exit ...\n");
@@ -159,7 +159,7 @@ static int cmd_nrf_speed(void)
 		}
 	} while(!console_IsNotEmpty());
 	printf("\n");
-	dev_ioctl(fd, STOP);
+	dev_ioctl(fd, WL_STOP);
 	sys_free(buf);
 	dev_close(fd);
 	return 0;
