@@ -281,7 +281,7 @@ int nrf_update(struct nrf_priv_s *priv)
 					pipe->timer = time_get(pipe->timeout);
 				if(time_left(pipe->timer) < 0) { //timeout, flush?
 					ecode = WL_ERR_TX_TIMEOUT;
-					onfail(ecode);
+					onfail(ecode, pipe->addr);
 					pipe->timer = 0;
 				}
 			}
@@ -372,7 +372,7 @@ int nrf_update(struct nrf_priv_s *priv)
 					pipe->timer = time_get(pipe->timeout);
 				if(time_left(pipe->timer) < 0) { //timeout, flush?
 					ecode = WL_ERR_TX_TIMEOUT;
-					onfail(ecode);
+					onfail(ecode, pipe->addr);
 					pipe->timer = 0;
 				}
 			}

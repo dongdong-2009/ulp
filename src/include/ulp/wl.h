@@ -15,7 +15,7 @@ enum {
 	WL_ERR_RX_HW, //onfail(ecode)
 	WL_ERR_RX_FRAME, //onfail(ecode, unsigned char * frame, unsigned char len)
 	WL_ERR_TX_HW, //onfail(ecode)
-	WL_ERR_TX_TIMEOUT, //onfail(ecode), caller may need to flush the tbuf&fifo?
+	WL_ERR_TX_TIMEOUT, //onfail(ecode, addr), caller may need to flush the tbuf&fifo?
 };
 
 //FRAME TYPE, note: for nrf, byte0 is frame type as below
