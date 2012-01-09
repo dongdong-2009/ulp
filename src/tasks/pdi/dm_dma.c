@@ -17,21 +17,11 @@
 
 #define PDI_DEBUG	1					//DEBUG MODEL
 
-static const can_msg_t dm_clrdtc_msg = {
-	0x607, 8, {0x04, 0x2e, 0xfe, 0x90, 0xaa, 0, 0, 0}, 0
-};
-static const can_msg_t dm_errcode_msg = {
-	0x607, 8, {0x03, 0x22, 0xfe, 0x80, 0, 0, 0, 0}, 0
-};
-static const can_msg_t dm_getsn_msg = {
-	0x607, 8, {0x03, 0x22, 0xfe, 0x8d, 0, 0, 0, 0}, 0
-};
-static const can_msg_t dm_reqseed_msg = {
-	0x607, 8, {0x02, 0x27, 0x7d, 0, 0, 0, 0, 0}, 0
-};
-static const can_msg_t dm_start_msg = {
-	0x607, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0
-};
+static const can_msg_t dm_clrdtc_msg =		{0x607, 8, {0x04, 0x2e, 0xfe, 0x90, 0xaa, 0, 0, 0}, 0};
+static const can_msg_t dm_errcode_msg =		{0x607, 8, {0x03, 0x22, 0xfe, 0x80, 0, 0, 0, 0}, 0};
+static const can_msg_t dm_getsn_msg =		{0x607, 8, {0x03, 0x22, 0xfe, 0x8d, 0, 0, 0, 0}, 0};
+static const can_msg_t dm_reqseed_msg =		{0x607, 8, {0x02, 0x27, 0x7d, 0, 0, 0, 0, 0}, 0};
+static const can_msg_t dm_start_msg =		{0x607, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
 
 static const mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
@@ -382,57 +372,6 @@ static int dm_check_init(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
-static void dm_process(void)
-{
-	const struct pdi_cfg_s* pdi_cfg_file;
-	char bcode[15];
-	if(target_on())
-		start_botton_on();
-	else start_botton_off();
-	if(ls1203_Read(&pdi_ls1203, bcode) == 0) {
-
-		start_botton_off();
-		pdi_led_start();
-		bcode[14] = '\0';						//TBD
-
-		memcpy(bcode_1, bcode, 14);
-		printf("##START##SB-");
-		printf(bcode,"\0");
-		printf("##END##\n");
-		bcode[5] = '\0';
-		//some verites need esc check
-		if (memcmp(bcode + 3, "DL", 2) == 0)
-			esc_flag = 0;
-		if (memcmp(bcode + 3, "DK", 2) == 0)
-			esc_flag = 0;
-		if (memcmp(bcode + 3, "PK", 2) == 0)
-			esc_flag = 0;
-
-		printf("##START##STATUS-5##END##\n");
-		pdi_cfg_file = pdi_cfg_get(bcode);
-
-		if(target_on()) {
-			if(pdi_cfg_file == NULL) {			//是否有此配置文件
-				pdi_fail_action();
-				printf("##START##EC-No This Config File##END##\n");
-			} else {
-
-				dm_check_init(pdi_cfg_file);		//relay config
-
-				pdi_IGN_on();
-
-				if(dm_check() == 0)
-					pdi_pass_action();
-				else
-					pdi_fail_action();
-			}
-		} else {
-			target_noton_action();
-			printf("##START##EC-target is not on the right position##END##\n");
-		}
-	}
-}
-
 static int dm_esc_check()
 {
 	int i;
@@ -474,7 +413,7 @@ static int dm_check_barcode()
 			return 1;
 	}
 
-	//dm_data_buf[] = '\0';
+	dm_data_buf[14] = '\0';
 	printf("##START##RB-");
 	printf(dm_data_buf);
 	printf("##END##\n");
@@ -530,7 +469,7 @@ static int dm_check()
 		printf("%s", temp);
 		printf("##END##\n");
 	}
-
+	pdi_IGN_on();
 	dm_StartSession();
 
 	if(dm_check_barcode()) {
@@ -547,7 +486,7 @@ static int dm_check()
 	}
 
 	if (num_fault) {
-		dm_clear_dtc();
+		//dm_clear_dtc();
 		printf("##START##EC-");
 		printf("num of fault is: %d\n", num_fault);
 		for (i = 0; i < num_fault*2; i += 2)
@@ -583,6 +522,55 @@ void pdi_init(void)
 	dm_InitMsg();
 }
 
+static void dm_process(void)
+{
+	const struct pdi_cfg_s* pdi_cfg_file;
+	char bcode[15];
+	if(target_on())
+		start_botton_on();
+	else start_botton_off();
+	if(ls1203_Read(&pdi_ls1203, bcode) == 0) {
+
+		start_botton_off();
+		pdi_led_start();
+		bcode[14] = '\0';
+
+		memcpy(bcode_1, bcode, 14);
+		printf("##START##SB-");
+		printf(bcode,"\0");
+		printf("##END##\n");
+		bcode[5] = '\0';
+
+		//some verites need esc check
+		if (memcmp(bcode + 3, "DL", 2) == 0)
+			esc_flag = 0;
+		if (memcmp(bcode + 3, "DK", 2) == 0)
+			esc_flag = 0;
+		if (memcmp(bcode + 3, "PK", 2) == 0)
+			esc_flag = 0;
+
+		printf("##START##STATUS-5##END##\n");
+		pdi_cfg_file = pdi_cfg_get(bcode);
+
+		if(target_on()) {
+			if(pdi_cfg_file == NULL) {			//是否有此配置文件
+				pdi_fail_action();
+				printf("##START##EC-No This Config File##END##\n");
+			} else {
+				dm_check_init(pdi_cfg_file);		//relay config
+
+				if(dm_check() == 0)
+					pdi_pass_action();
+				else
+					pdi_fail_action();
+			}
+		} else {
+			target_noton_action();
+			printf("##START##EC-target is not on the right position##END##\n");
+		}
+	}
+}
+
 int main(void)
 {
 	ulp_init();
@@ -603,7 +591,6 @@ static int cmd_dm_func(int argc, char *argv[])
 	const char *usage = {
 		"dm , usage:\n"
 		"dm fault\n"
-		"dm clear\n"
 		"dm batt on/off\n"
 		"dm start, start the diagnostic seesion\n"
 	};
@@ -626,19 +613,14 @@ static int cmd_dm_func(int argc, char *argv[])
 					printf("0x%2x, 0x%2x\n", dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
 			}
 		}
-		//clear error code
-		if(argv[1][0] == 'c') {
-			dm_StartSession();
-			if (dm_clear_dtc())
-				printf("##ERROR##\n");
-			else
-				printf("##OK##\n");
-		}
+
 		// start the diagnostic session
 		if(argv[1][0] == 's') {
 			dm_StartSession();
 		}
 	}
+
+	//power on/off
 	if(argc == 3) {
 		if(argv[1][0] == 'b') {
 			if(argv[2][1] == 'n')
@@ -654,3 +636,32 @@ static int cmd_dm_func(int argc, char *argv[])
 const cmd_t cmd_dm = {"dm", cmd_dm_func, "dm cmd i/f"};
 DECLARE_SHELL_CMD(cmd_dm)
 #endif
+
+static int cmd_pdi_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"pdi , usage:\n"
+		"pdi clear\n"
+	};
+
+	if (argc < 2) {
+		printf("%s", usage);
+		return 0;
+	}
+	//clear error code
+	if(argc == 2) {
+		if(argv[1][0] == 'c') {
+			pdi_IGN_on();
+			dm_StartSession();
+			if (dm_clear_dtc())
+				printf("##ERROR##\n");
+			else
+				printf("##OK##\n");
+			pdi_IGN_off();
+		}
+	}
+
+	return 0;
+}
+const cmd_t cmd_pdi = {"pdi", cmd_pdi_func, "pdi cmd i/f"};
+DECLARE_SHELL_CMD(cmd_pdi)

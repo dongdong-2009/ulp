@@ -19,27 +19,13 @@
 #define PDI_DEBUG	1
 
 //pdi_RCN7 can msg
-static const can_msg_t rc_clrdtc_msg = {
-	0x752, 8, {0x03, 0x3b, 0x9f, 0xff, 0, 0, 0, 0}, 0
-};
-static const can_msg_t rc_errcode_msg = {
-	0x752, 8, {0x03, 0x21, 0x90, 0x80, 0, 0, 0, 0}, 0
-};
-static const can_msg_t rc_connector_msg = {
-	0x752, 8, {0x03, 0x21, 0x90, 0xa2, 0, 0, 0, 0}, 0
-};
-static const can_msg_t rc_getsn_msg = {
-	0x752, 8, {0x03, 0x21, 0x90, 0xab, 0, 0, 0, 0}, 0
-};
-static const can_msg_t rc_getpart_msg = {
-	0x752, 8, {0x02, 0x21, 0x83, 0, 0, 0, 0, 0}, 0
-};
-static const can_msg_t rc_reqseed_msg = {
-	0x752, 8, {0x02, 0x27, 0x61, 0, 0, 0, 0, 0}, 0
-};
-static const can_msg_t rc_start_msg = {
-	0x752, 8, {0x02, 0x10, 0xc0, 0, 0, 0, 0, 0}, 0
-};
+static const can_msg_t rc_clrdtc_msg =		{	0x752, 8, {0x03, 0x3b, 0x9f, 0xff, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_errcode_msg =		{	0x752, 8, {0x03, 0x21, 0x90, 0x80, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_connector_msg =	{	0x752, 8, {0x03, 0x21, 0x90, 0xa2, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_getsn_msg =		{	0x752, 8, {0x03, 0x21, 0x90, 0xab, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_getpart_msg =		{	0x752, 8, {0x02, 0x21, 0x83, 0, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_reqseed_msg =		{	0x752, 8, {0x02, 0x27, 0x61, 0, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_start_msg =		{	0x752, 8, {0x02, 0x10, 0xc0, 0, 0, 0, 0, 0}, 0};
 
 static const mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
@@ -60,24 +46,32 @@ static char rc_data_buf[256];			//data buffer
 static char rc_fault_buf[64];			//fault buffer
 static char bcode_1[14];
 
-static int rc_check(const struct pdi_cfg_s *);
+//for pre-checking
+static int rc_init();
 static int rc_init_OK();
-static int rc_clear_dtc();
-static int rc_mdelay(int );
-static int rc_JAMA_check(const struct pdi_cfg_s *);
+static int rc_check_init(const struct pdi_cfg_s *);
 static int rc_StartSession();
+
+//for checking
+static int rc_check(const struct pdi_cfg_s *);
+static int rc_clear_dtc();
+static int rc_JAMA_check(const struct pdi_cfg_s *);
 static int rc_check_barcode();
 static int rc_part_check();
 static int rc_GetCID(short cid, char *data);
-static int rc_check_init(const struct pdi_cfg_s *);
 static int rc_GetFault(char *data, int * pnum_fault);
+static void rc_process();
+
+//after checking
 static int pdi_pass_action();
 static int pdi_fail_action();
 static int pdi_led_start();
 static int target_noton_action();
 static int counter_pass_add();
 static int counter_fail_add();
-static void rc_process();
+
+//for other function
+static int rc_mdelay(int );
 
 /**************************************************************************/
 /************         Local funcitons                         *************/
@@ -353,9 +347,9 @@ static int rc_JAMA_check(const struct pdi_cfg_s *sr)
 			return 1;
 		}
 
-		if(pdi_verify(pdi_cfg_rule, rc_data_buf) == 0) {
+		if(pdi_verify(pdi_cfg_rule, rc_data_buf) == 0)
 			continue;
-		} else {
+		else {
 			printf("##START##EC-JAMA Wrong##END##\n");
 			return 1;
 		}
@@ -436,26 +430,28 @@ static int rc_check(const struct pdi_cfg_s *sr)
 	int i, num_fault, try_times = 5;
 
 	pdi_IGN_on();
-
 	rc_mdelay(1000);
-
+	rc_StartSession();
+	//check barcode
 	if(rc_check_barcode()) {
 		printf("##START##EC-Barcode Wrong##END##\n");
 		return 1;
 	}
-
+	//check JAMA
 	if(rc_JAMA_check(sr)) {
 		printf("##START##EC-JAMA Wrong##END##\n");
 		return 1;
 	}
-
+	//check part NO.
 	if(rc_part_check()) {
 		printf("##START##EC-Partnumber Wrong##END##\n");
 		return 1;
 	}
 
-	rc_mdelay(9000);
+	rc_mdelay(7000);
+	rc_StartSession();
 
+	//check error code
 	while (rc_GetFault(rc_fault_buf, &num_fault)) {
 		try_times --;
 		if (try_times < 0) {
@@ -477,7 +473,7 @@ static int rc_check(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
-void pdi_init(void)
+void rc_init(void)
 {
 	can_cfg_t cfg_pdi_can = {
 		.baud = 500000,
@@ -524,7 +520,7 @@ static void rc_process(void)
 				pdi_fail_action();
 		} else {
 			target_noton_action();
-			printf("##START##EC-target is not on the right position##END##\n");
+			printf("##START##EC-Target is not on the right position##END##\n");
 		}
 	}
 }
@@ -532,7 +528,7 @@ static void rc_process(void)
 int main(void)
 {
 	ulp_init();
-	pdi_init();
+	rc_init();
 	rc_init_OK();
 	while(1) {
 		rc_process();
@@ -548,7 +544,6 @@ static int cmd_rc_func(int argc, char *argv[])
 	const char *usage = {
 		"rc , usage:\n"
 		"rc fault\n"
-		"rc clear\n"
 		"rc batt on/off\n"
 		"rc start, start the diagnostic seesion\n"
 	};
@@ -569,12 +564,6 @@ static int cmd_rc_func(int argc, char *argv[])
 					printf("0x%2x, 0x%2x\n", rc_fault_buf[i]&0xff, rc_fault_buf[i+1]&0xff);
 			}
 		}
-		if(argv[1][0] == 'c') {
-			if (rc_clear_dtc())
-				printf("##ERROR##\n");
-			else
-				printf("##OK##\n");
-		}
 
 		// start the diagnostic session
 		if(argv[1][0] == 's') {
@@ -582,6 +571,7 @@ static int cmd_rc_func(int argc, char *argv[])
 		}
 	}
 
+	// power on/off
 	if(argc == 3) {
 		if(argv[1][0] == 'b') {
 			if(argv[2][1] == 'n')
@@ -597,3 +587,32 @@ static int cmd_rc_func(int argc, char *argv[])
 const cmd_t cmd_rc = {"rc", cmd_rc_func, "rc cmd i/f"};
 DECLARE_SHELL_CMD(cmd_rc)
 #endif
+
+static int cmd_pdi_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"pdi , usage:\n"
+		"pdi clear\n"
+	};
+
+	if (argc < 2) {
+		printf("%s", usage);
+		return 0;
+	}
+	//clear error code
+	if(argc == 2) {
+		if(argv[1][0] == 'c') {
+			pdi_IGN_on();
+			rc_StartSession();
+			if (rc_clear_dtc())
+				printf("##ERROR##\n");
+			else
+				printf("##OK##\n");
+			pdi_IGN_off();
+		}
+	}
+
+	return 0;
+}
+const cmd_t cmd_pdi = {"pdi", cmd_pdi_func, "pdi cmd i/f"};
+DECLARE_SHELL_CMD(cmd_pdi)

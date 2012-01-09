@@ -111,6 +111,7 @@ static int counter_fail_add();
 static int sdm_init_OK();
 
 //for test consequence
+static int sdm_init();
 static int sdm_check_init(const struct pdi_cfg_s *);
 static int sdm_check(const struct pdi_cfg_s *);
 static void sdm_process();
@@ -536,7 +537,7 @@ static int sdm_check(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
-void pdi_init(void)
+void sdm_init(void)
 {
 	can_cfg_t cfg_pdi_can = {
 		.baud = 33330,
@@ -749,7 +750,7 @@ static int sdm_sleep(void)
 int main(void)
 {
 	ulp_init();
-	pdi_init();
+	sdm_init();
 	sdm_init_OK();
 	while(1) {
 		sdm_process();
