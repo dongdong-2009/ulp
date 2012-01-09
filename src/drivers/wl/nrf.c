@@ -198,7 +198,6 @@ static int nrf_hw_init(struct nrf_priv_s *priv)
 	nrf_hw_set_addr(chip, pipe->index, pipe->addr);
 
 	nrf_write_reg(STATUS, RX_DR | TX_DS | MAX_RT ); //clear rx_dr irq flag
-	ce_set(1);
 	return 0;
 }
 
@@ -511,41 +510,33 @@ static int nrf_ioctl(int fd, int request, va_list args)
 		break;
 
 	case WL_SET_MODE:
-		ce_set(0);
 		mode = (char) va_arg(args, int);
 		if(mode != chip->mode) {
 			ret = nrf_hw_set_mode(chip, mode);
 			chip->mode = (char) mode;
 			nrf_flush(priv);
 		}
-		ce_set(1);
 		break;
 
 	case WL_SET_ADDR:
-		ce_set(0);
 		addr = va_arg(args, unsigned);
 		if(addr != pipe->addr) {
 			ret = nrf_hw_set_addr(chip, pipe->index, addr);
 			pipe->addr = addr;
 			nrf_flush(priv);
 		}
-		ce_set(1);
 		break;
 
 	case WL_SET_FREQ:
-		ce_set(0);
 		freq = va_arg(args, int);
 		if(freq != chip->freq) {
 			ret = nrf_hw_set_freq(chip, freq);
 			chip->freq = freq;
 		}
-		ce_set(1);
 		break;
 
 	case WL_FLUSH:
-		ce_set(0);
 		nrf_flush(priv);
-		ce_set(1);
 		break;
 
 	case WL_SEND: //to send a custom frame in blocked, unbuffered method
@@ -558,7 +549,12 @@ static int nrf_ioctl(int fd, int request, va_list args)
 		}
 		ret = pipe->cf_ecode;
 		break;
-
+	case WL_START:
+		ce_set(1);
+		break;
+	case WL_STOP:
+		ce_set(0);
+		break;
 	default:
 		ret = -1;
 		break;

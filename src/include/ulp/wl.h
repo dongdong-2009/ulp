@@ -45,6 +45,8 @@ enum {
 	/*to insert a custom frame to send fifo, ioctl(fd, WL_SEND, frame, timeout) buf, format: len(note: max 15bytes when 2MBPS), type, d0, d1 ..
 	to wait until the frame is sent to hw fifo*/
 	WL_SEND,
+	WL_START,
+	WL_STOP,
 };
 
 /*nrf24l01*/
