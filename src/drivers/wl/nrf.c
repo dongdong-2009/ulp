@@ -223,7 +223,7 @@ int nrf_update(struct nrf_priv_s *priv)
 	struct nrf_chip_s *chip;
 	char status, fifo_status, n, frame[32];
 	int (*onfail)(int ecode, ...);
-	int ecode = WL_ERR_OK;
+	int rbuf_full = 0, ecode = WL_ERR_OK;
 	//assert(priv != NULL);
 	pipe = priv->pipe;
 	//assert(pipe != NULL);
@@ -261,6 +261,7 @@ int nrf_update(struct nrf_priv_s *priv)
 			nrf_read_buf(R_RX_PL_WID, &n, 1);
 			if(n > 0) {
 				if(buf_left(&pipe->rbuf) < n - 1) {
+					rbuf_full = 1;
 					break;
 				}
 				nrf_read_buf(R_RX_PAYLOAD, frame, n);
@@ -318,7 +319,7 @@ int nrf_update(struct nrf_priv_s *priv)
 				}
 			}
 			else {
-				if(!(fifo_status & FIFO_STATUS_EMPTY)) { //no space to recv now
+				if(!rbuf_full) { //no space to recv now
 					frame[0] = WL_FRAME_DATA;
 					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
 					nrf_write_buf(W_TX_PAYLOAD, frame, n + 1); //nrf count the bytes automatically
@@ -326,8 +327,8 @@ int nrf_update(struct nrf_priv_s *priv)
 				}
 			}
 
-			//no more data in tbuf
-			if(n == 0)
+			//no more data to send
+			if(buf_size(&pipe->tbuf) == 0)
 				break;
 
 			fifo_status = nrf_read_reg(FIFO_STATUS);
