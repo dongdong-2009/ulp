@@ -9,14 +9,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "i2c.h"
-//#include "sys/sys.h"
-//#include "nvm.h"
-//#include <ctype.h>
 
 #define MA_INDICATOR_FIFOSIZE 4
 #define MA_ID_ADDRESS 0
 #define MA_COUNTER_ADDRESS 64
-
 
 static enum {
 	MA_INDICATOR_STM_NULL,
@@ -56,12 +52,17 @@ static int Ma_EEPROM_Operation(unsigned int address, unsigned char *buffer, int 
 {
 	switch(operation) {
 	case 0:
-		if(i2c1.rbuf(0xa0, address, 1, buffer, length))
+		if(i2cs.rbuf(0x50, address, 1, buffer, length))
 			return -1;
 		return 0;
 	case 1:
-		if(i2c1.wbuf(0xa0, address, 1, buffer, length))
-			return -1;
+		for(int i = 0; i < length; i++) {
+			if(i2cs.wbuf(0x50, address, 1, buffer, 1))
+				return -1;
+			buffer++;
+			address++;
+			udelay(50000);
+		}
 		return 0;
 	default:
 		return -1;
@@ -92,15 +93,15 @@ static int Ma_Device_Operation(int device, int operation)
 	switch(device) {
 	case 1:
 		if(operation)
-			GPIO_SetBits(GPIOB, GPIO_Pin_6);
+			GPIO_SetBits(GPIOC, GPIO_Pin_6);
 		else
-			GPIO_ResetBits(GPIOB, GPIO_Pin_6);
+			GPIO_ResetBits(GPIOC, GPIO_Pin_6);
 		return 0;
 	case 2:
 		if(operation)
-			GPIO_SetBits(GPIOB, GPIO_Pin_7);
+			GPIO_SetBits(GPIOC, GPIO_Pin_7);
 		else
-			GPIO_ResetBits(GPIOB, GPIO_Pin_7);
+			GPIO_ResetBits(GPIOC, GPIO_Pin_7);
 		return 0;
 	default:
 		return -1;
@@ -171,7 +172,7 @@ static int Ma_Data_Handle(unsigned short *data, unsigned char *v)
 
 static void Ma_EEPROM_Init()
 {
-	i2c1.init(&ma_i2c);
+	i2cs.init(&ma_i2c);
 }
 
 static void Ma_LED_Init()
@@ -181,9 +182,10 @@ static void Ma_LED_Init()
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO | RCC_APB2Periph_TIM1,ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
 
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
 	TIM_OCInitTypeDef TIM_OCInitStructure;
@@ -204,6 +206,7 @@ static void Ma_LED_Init()
 	TIM_OC4PreloadConfig(TIM2, TIM_OCPreload_Enable);
 
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
+	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OCInitStructure.TIM_Pulse = 0;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 
@@ -225,7 +228,7 @@ static void Ma_Device_Init()
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 
-	GPIO_ResetBits(GPIOB, GPIO_Pin_6 | GPIO_Pin_7);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_6 | GPIO_Pin_7);
 }
 
 static void Ma_Button_Init()
@@ -320,7 +323,7 @@ static void Ma_Indicator_Update()
 		SPI_Cmd(SPI1, ENABLE);
 		DMA_Cmd(DMA1_Channel2, ENABLE);
 		GPIO_ResetBits(GPIOB, GPIO_Pin_11);
-		ma_indicator_timer = time_get(250);
+		ma_indicator_timer = time_get(500);
 		break;
 	case MA_INDICATOR_STM_RUN:
 		n = DMA_GetCurrDataCounter(DMA1_Channel2);
@@ -330,7 +333,7 @@ static void Ma_Indicator_Update()
 		}
 		else {
 			if(time_left(ma_indicator_timer) < 0) {
-				printf("	error:	no data\n");
+				printf("error:	timeout\n");
 				ma_indicator_stm = MA_INDICATOR_STM_NULL;
 			}
 		}
@@ -363,12 +366,12 @@ static int cmd_ma_func(int argc, char *argv[])
 
 	if(argc == 3 && !strcmp(argv[1], "get")) {
 		if(!strcmp(argv[2], "value")) {
-			ma_indicator_stm = MA_INDICATOR_STM_RUN;
+			ma_indicator_stm = MA_INDICATOR_STM_INIT;
 			return 0;
 		}
 		else if(!strcmp(argv[2], "id")) {
 			if(Ma_EEPROM_Operation(MA_ID_ADDRESS, ID, 64, 0)) {
-				printf("operation fail");
+				printf("operation fail\n");
 				return -1;
 			}
 			printf("ID = %s\n", ID);
@@ -376,14 +379,15 @@ static int cmd_ma_func(int argc, char *argv[])
 		}
 		else if(!strcmp(argv[2], "counter")) {
 			if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (unsigned char *)&counter, sizeof(counter), 0)) {
-				printf("operation fail");
+				printf("operation fail\n");
 				return -1;
 			}
 			printf("counter = %d\n", counter);
 			return 0;
 		}
 		else if(!strcmp(argv[2], "button")) {
-			printf("%d\n", Ma_Button_Check());
+			printf("%x\n", Ma_Button_Check());
+			return 0;
 		}
 		else {
 			printf("error: command is wrong!!\n");
@@ -397,45 +401,45 @@ static int cmd_ma_func(int argc, char *argv[])
 		if(!strcmp(argv[2], "ledr")) {
 			sscanf(argv[3], "%d", &a);
 			if(Ma_LED_Operation(LED_R, a)) {
-				printf("operation fail");
+				printf("operation fail\n");
 				return -1;
 			}
-			printf("operation success");
+			printf("operation success\n");
 			return 0;
 		}
 		else if(!strcmp(argv[2], "ledy")) {
 			sscanf(argv[3], "%d", &a);
 			if(Ma_LED_Operation(LED_Y, a)) {
-				printf("operation fail");
+				printf("operation fail\n");
 				return -1;
 			}
-			printf("operation success");
+			printf("operation success\n");
 			return 0;
 		}
 		else if(!strcmp(argv[2], "ledg")) {
 			sscanf(argv[3], "%d", &a);
 			if(Ma_LED_Operation(LED_G, a)) {
-				printf("operation fail");
+				printf("operation fail\n");
 				return -1;
 			}
-			printf("operation success");
+			printf("operation success\n");
 			return 0;
 		}
 		else if(!strcmp(argv[2], "device1")) {
 			if(!strcmp(argv[3], "on")) {
 				if(Ma_Device_Operation(1, 1)) {
-					printf("operation fail");
+					printf("operation fail\n");
 					return -1;
 				}
-				printf("operation success");
+				printf("operation success\n");
 				return 0;
 			}
 			else if(!strcmp(argv[3], "off")) {
 				if(Ma_Device_Operation(1, 0)) {
-					printf("operation fail");
+					printf("operation fail\n");
 					return -1;
 				}
-				printf("operation success");
+				printf("operation success\n");
 				return 0;
 			}
 			else {
@@ -447,18 +451,18 @@ static int cmd_ma_func(int argc, char *argv[])
 		else if(!strcmp(argv[2], "device2")) {
 			if(!strcmp(argv[3], "on")) {
 				if(Ma_Device_Operation(2, 1)) {
-					printf("operation fail");
+					printf("operation fail\n");
 					return -1;
 				}
-				printf("operation success");
+				printf("operation success\n");
 				return 0;
 			}
 			else if(!strcmp(argv[3], "off")) {
 				if(Ma_Device_Operation(2, 0)) {
-					printf("operation fail");
+					printf("operation fail\n");
 					return -1;
 				}
-				printf("operation success");
+				printf("operation success\n");
 				return 0;
 			}
 			else {
@@ -469,34 +473,34 @@ static int cmd_ma_func(int argc, char *argv[])
 		}
 		else if(!strcmp(argv[2], "id")) {
 			if(strlen(argv[3]) > 63) {
-				printf("operation fail");
+				printf("operation fail\n");
 					return -1;
 			}
 			strcpy(ID, argv[3]);
-			if(Ma_EEPROM_Operation(MA_ID_ADDRESS, ID, strlen(ID), 1)) {
-				printf("operation fail");
+			if(Ma_EEPROM_Operation(MA_ID_ADDRESS, ID, strlen(ID) + 1, 1)) {
+				printf("operation fail\n");
 				return -1;
 			}
-			printf("operation success");
+			printf("operation success\n");
 			return 0;
 		}
 		else if(!strcmp(argv[2], "counter")) {
 			if(!strcmp(argv[3], "+")) {
 				counter++;
 				if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (unsigned char *)&counter, sizeof(counter), 1)) {
-					printf("operation fail");
+					printf("operation fail\n");
 					return -1;
 				}
-				printf("operation success");
+				printf("operation success\n");
 				return 0;
 			}
 			else {
 				sscanf(argv[3], "%d", &counter);
 				if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (unsigned char *)&counter, sizeof(counter), 1)) {
-					printf("operation fail");
+					printf("operation fail\n");
 					return -1;
 				}
-				printf("operation success");
+				printf("operation success\n");
 				return 0;
 			}
 		}
@@ -523,17 +527,14 @@ static void Ma_Init()
 	Ma_Button_Init();
 	Ma_EEPROM_Init();
 	Ma_Indicator_Init();
-	counter = 7;
-	Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (unsigned char *)&counter, sizeof(counter), 1);
-	counter = 0;
-	if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (unsigned char *)&counter, sizeof(counter), 0))
-		printf("read counter fail");
-	else
-		printf("read counter success");
 	if(Ma_EEPROM_Operation(MA_ID_ADDRESS, ID, 64, 0))
-		printf("read ID fail");
+		printf("read ID fail\n");
 	else
-		printf("read ID success");
+		printf("ID = %s\n", ID);
+	if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (unsigned char *)&counter, sizeof(counter), 0))
+		printf("read counter fail\n");
+	else
+		printf("counter = %d\n", counter);
 }
 
 static void Ma_Update()
