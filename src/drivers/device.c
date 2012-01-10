@@ -14,7 +14,7 @@
 struct class_s {
 	const char *name;
 	struct list_head list; //next class in all class list
-	struct list_head devs; //head of devs of this class
+	struct list_head dev_queue; //head of devs of this class
 };
 
 static LIST_HEAD(dev_class_queue);
@@ -92,13 +92,12 @@ int dev_register(const char *name, const void *pcfg)
 	INIT_LIST_HEAD(&new->lcls);
 	new->pdrv = drv_open(name);
 	new->priv = NULL;
-	new->pcfg = pcfg;
 
 	//add the specified device to the all dev list
 	list_add_tail(&new->list, &dev_queue);
 	if(new->pdrv != NULL && new->pdrv->ops->init != NULL) {
 		init = new->pdrv->ops->init;
-		return (*init)((int)new, new->pcfg);
+		return (*init)((int)new, pcfg);
 	}
 	return 0;
 }
@@ -107,25 +106,28 @@ int dev_open(const char *name, const char *mode)
 {
 	int ret;
 	struct device_s *dev = dev_class_get(name);
-	int (*open)(int fd, const void *pcfg);
+	int (*open)(int fd, int mode);
 
 	if(dev == NULL)
 		dev = dev_get(name);
 
 	if(dev == NULL)
-		return -1;
+		return 0;
 
 	if(dev->pdrv == NULL) //no driver found
-		return -1;
+		return 0;
+
+	if(dev->ref > 0)
+		return 0; //shared open are not allowed yet
 
 	open = dev->pdrv->ops->open;
 	if(open != NULL) {
-		ret = (*open)((int)dev, dev->pcfg);
+		ret = (*open)((int)dev, 0);
 		if(ret)
-			return -1;
+			return 0;
 	}
 
-	dev->ref += (dev->ref > 0) ? 1 : 0;
+	dev->ref += 1;
 	return (int)dev;
 }
 
@@ -195,7 +197,7 @@ int dev_close(int fd)
 	int (*close)(int fd);
 
 	assert(dev != NULL);
-	dev->ref -= (dev->ref > 0) ? 1 : 0;
+	dev->ref -= 1;
 	close = dev->pdrv->ops->close;
 	if(close != NULL) {
 		ret = (*close)(fd);
@@ -225,12 +227,15 @@ int dev_class_register(const char *name, int fd)
 
 		new->name = name;
 		INIT_LIST_HEAD(&new->list);
-		INIT_LIST_HEAD(&new->devs);
+		INIT_LIST_HEAD(&new->dev_queue);
+
+		//add the new class to all class list
+		list_add_tail(&new->list, &dev_class_queue);
 	}
 
 	//add the specified device to the class dev list
 	assert(pdev != NULL);
-	list_add_tail(&pdev->lcls, &new->devs);
+	list_add_tail(&pdev->lcls, &new->dev_queue);
 	return 0;
 }
 
@@ -267,7 +272,7 @@ static struct device_s* dev_class_get(const char *name)
 
 	//search the dev in the class
 	n = 0;
-	list_for_each(pos, &new->devs) {
+	list_for_each(pos, &new->dev_queue) {
 		if(n == index) {
 			pdev = list_entry(pos, device_s, lcls);
 			break;

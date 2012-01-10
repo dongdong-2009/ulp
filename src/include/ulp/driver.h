@@ -8,12 +8,11 @@
 #include <stdarg.h>
 
 struct drv_ops_s {
-	/*automatically called when driver matches an device,
-	pls do not call dev_open() inside this function, because
-	all device list is incomplete yet*/
+	/*called when a new device is registered and matched with current driver,
+	do not try to open other device here because device list is not complete yet*/
 	int (*init)(int fd, const void *pcfg);
 
-	int (*open)(int fd, const void *pcfg);
+	int (*open)(int fd, int mode); //success return 0
 	int (*ioctl)(int fd, int request, va_list args);
 	int (*poll)(int fd, int event);
 	int (*read)(int fd, void *buf, int count);

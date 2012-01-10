@@ -12,7 +12,16 @@
 #include "priv/mcamos.h"
 #include "lcm.h"
 #include "ad9833.h"
+#include "mcp41x.h"
 #include "vvt.h"
+#include "nvm.h"
+
+#define VVT_DEBUG 1
+#if VVT_DEBUG
+#define DEBUG_TRACE(args)    (printf args)
+#else
+#define DEBUG_TRACE(args)
+#endif
 
 //for frequence varible
 static short ne58x_freq_value;
@@ -35,10 +44,8 @@ static lcm_dat_t cfg_data;
 static const char lcm_cmd = LCM_CMD_READ;;
 
 //local private
-static short vvt_counter; //0-719
-
-//working model
-static int vvt_default = 0;
+static short vvt_counter;      //0-719
+static int vvt_default = 0;    //working model
 
 //pravite varibles define
 static ad9833_t knock_dds = {
@@ -59,10 +66,23 @@ static ad9833_t wss_dds = {
 	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
 
+static mcp41x_t knock_vr = {
+	.bus = &spi1,
+	.idx = SPI_CS_PA4,
+};
+
 static ad9833_t rpm_dds = {
 	.bus = &spi2,
 	.idx = SPI_CS_PB12,
 	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV | AD9833_OPT_SPI_DMA,
+};
+
+static struct mcamos_s lcm = {
+	.can = &can1,
+	.baud = 500000,
+	.id_cmd = MCAMOS_MSG_CMD_ID,
+	.id_dat = MCAMOS_MSG_DAT_ID,
+	.timeout = 50,
 };
 
 static void lowlevel_Init(void);
@@ -71,6 +91,7 @@ static void vss_SetFreq(short hz);
 static void wss_SetFreq(short hz);
 static void pss_SetSpeed(short hz);
 static void knock_SetFreq(short hz);
+static void knock_SetStrength(short percent);
 static void pss_Enable(int on);
 static void knock_Enable(int en);
 static void pss_SetVolt(pss_ch_t ch, short mv);
@@ -79,23 +100,15 @@ static int vvt_GetConfigData(void);
 void vvt_Init(void)
 {
 	time_t overtime_cfg;
-	struct mcamos_s lcm = {
-		.can = &can1,
-		.baud = 500000,
-		.id_cmd = MCAMOS_MSG_CMD_ID,
-		.id_dat = MCAMOS_MSG_DAT_ID,
-		.timeout = 50,
-	};
-
-	mcamos_init_ex(&lcm);
 
 	//wait for lcm initialized
 	mdelay(500);
+	mcamos_init_ex(&lcm);
 	overtime_cfg = time_get(1000);
 	while(vvt_GetConfigData()) {
 		if (time_left(overtime_cfg) < 0) {
 			vvt_default = 1;
-			printf("Simulator Work in Default Status!");
+			DEBUG_TRACE(("##VVT Simulator Work in Default Status!##\n"));
 			break;
 		}
 	}
@@ -104,7 +117,7 @@ void vvt_Init(void)
 
 	if (vvt_default) {
 		//for frequence varible
-		ne58x_freq_value = 1000;
+		ne58x_freq_value = 300;
 		wss_freq_value = 100;
 		vss_freq_value = 100;
 		//for advanced gear
@@ -132,7 +145,7 @@ void vvt_Init(void)
 		knock_freq_value = cfg_data.knf;
 		knock_pos = cfg_data.knp;
 		knock_width = cfg_data.knw;
-		knock_strength = cfg_data.knk; //unit: mV
+		knock_strength = cfg_data.knk;
 #if 1
 		//for patten
 		misfire_pattern = 0;
@@ -149,13 +162,22 @@ void vvt_Init(void)
 	lowlevel_Init();
 	misfire_Init();
 
-	misfire_SetSpeed(ne58x_freq_value? ne58x_freq_value : 1);
+	misfire_SetSpeed(ne58x_freq_value? ne58x_freq_value : 10);
 	misfire_ConfigStrength(misfire_value);
 	misfire_ConfigPattern(misfire_pattern);
+
+	//set spi1 para for knock, vss, wss
+	ad9833_Init(&knock_dds);
 	wss_SetFreq(wss_freq_value);
 	vss_SetFreq(vss_freq_value);
 	knock_SetFreq(knock_freq_value);
+	//reset spi1 para for knock strength
+	mcp41x_Init(&knock_vr);
+	knock_SetStrength(knock_strength);
 	vvt_Start();
+	led_on(LED_GREEN);
+	led_on(LED_RED);
+	DEBUG_TRACE(("##VVT Simulator Init OK!##\n"));
 }
 
 void vvt_Update(void)
@@ -163,17 +185,30 @@ void vvt_Update(void)
 	//update lcm input
 	if (vvt_GetConfigData() == 0) {
 		//mcamos communication indicator
-		led_inv(LED_RED);
+		led_inv(LED_GREEN);
 
-		//frequence init
-		if (wss_freq_value != cfg_data.wss)
+		//frequence set for wss,vss,knock
+		if (wss_freq_value != cfg_data.wss) {
+			ad9833_Init(&wss_dds);
 			wss_SetFreq(cfg_data.wss);
-		if (vss_freq_value != cfg_data.vss)
+		}
+		if (vss_freq_value != cfg_data.vss) {
+			ad9833_Init(&vss_dds);
 			vss_SetFreq(cfg_data.vss);
-		if (knock_freq_value != cfg_data.knf)
+		}
+		if (knock_freq_value != cfg_data.knf) {
+			ad9833_Init(&knock_dds);
 			knock_SetFreq(cfg_data.knf);
+		}
+
+		//reset spi1 para for knock strength
+		if (knock_strength != cfg_data.knk) {
+			mcp41x_Init(&knock_vr);
+			knock_SetStrength(knock_strength);
+		}
+
 		if (ne58x_freq_value != cfg_data.rpm)
-			misfire_SetSpeed(cfg_data.rpm ? cfg_data.rpm : 1);
+			misfire_SetSpeed(cfg_data.rpm ? cfg_data.rpm : 10);
 		if (misfire_value != cfg_data.mfr)
 			misfire_ConfigStrength(misfire_value);
 		// if (misfire_pattern != (cfg_data.dio & 0x003f))
@@ -197,6 +232,8 @@ void vvt_Update(void)
 		misfire_pattern = cfg_data.dio & 0x003f;
 		knock_pattern = (cfg_data.dio >> 8) & 0x003f; //...D C B A
 #endif
+	} else {
+		led_inv(LED_RED);  //indicator mcamos error.
 	}
 }
 
@@ -262,8 +299,8 @@ void vvt_isr(void)
 
 void EXTI9_5_IRQHandler(void)
 {
-	EXTI->PR = EXTI_Line6;
 	vvt_isr();
+	EXTI->PR = EXTI_Line6;
 }
 
 int main(void)
@@ -286,7 +323,7 @@ static int vvt_GetConfigData(void)
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, &lcm_cmd, 1);
 	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, sizeof(cfg_data));
 	if (ret) {
-		printf("MCAMOS ERROR!\n");
+		DEBUG_TRACE(("##MCAMOS ERROR!##\n"));
 		return -1;
 	}
 	return 0;
@@ -384,6 +421,13 @@ static void knock_SetFreq(short hz)
 	fw <<= 16;
 	fw /= mclk;
 	ad9833_SetFreq(&knock_dds, fw);
+}
+
+static void knock_SetStrength(short percent)
+{
+	short temp;
+	temp = (percent << 8) / 100;
+	mcp41x_SetPos(&knock_vr, temp); /*0~255*/
 }
 
 static void pss_Enable(int on)
