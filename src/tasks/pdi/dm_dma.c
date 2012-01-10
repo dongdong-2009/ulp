@@ -32,7 +32,7 @@ static const mbi5025_t pdi_mbi5025 = {
 
 static const ls1203_t pdi_ls1203 = {
 		.bus = &uart2,
-		.data_len = 14,//长度没有定下来
+		.data_len = 14,
 		.dead_time = 20,
 };
 
@@ -89,10 +89,11 @@ static int counter_fail_add();
 static void dm_update();
 static void dm_InitMsg();
 static void dm_process();
+static void dm_init();
 
-/**************************************************************************/
-/************         Local funcitons                         *************/
-/**************************************************************************/
+/****************************************************************************/
+/************				Local funcitons						*************/
+/****************************************************************************/
 static int dm_mdelay(int ms)
 {
 	int left;
@@ -137,7 +138,7 @@ static void dm_InitMsg(void)
 	list_add(&dm_Testpresent_msg.list, &can_queue);
 }
 
-//for start the session
+// for start the session
 static int dm_StartSession(void)
 {
 	int i, msg_len, num_fault = 0;
@@ -161,7 +162,7 @@ static int dm_StartSession(void)
 	can_msg_print(&msg, "\n");
 #endif
 
-	//calculate the key from seed
+	// calculate the key from seed
 	seed[0] = (unsigned char)msg.data[3];
 	seed[1] = (unsigned char)msg.data[4];
 	result = seed[0] ^ seed[1];
@@ -172,7 +173,7 @@ static int dm_StartSession(void)
 
 	if (usdt_GetDiagFirstFrame(&sendkey_msg, 1, NULL, &msg, &msg_len))		//send key
 		return 1;
-	//judge the send key response
+	// judge the send key response
 	if ((msg.data[1] != 0x67) || (msg.data[2] != 0x7e))
 		return 1;
 #if PDI_DEBUG
@@ -201,14 +202,6 @@ static int dm_StartSession(void)
 		usdt_GetDiagLeftFrame(dm_msg_buf, msg_len);
 	for (i = 0; i < msg_len; i++)
 		can_msg_print(dm_msg_buf + i, "\n");
-
-	// get dtc code
-	// printf("\nDTC Code:\n");
-	// usdt_GetDiagFirstFrame(&dm_rddtc_msg, 1, NULL, dm_msg_buf, &msg_len);
-	// if (msg_len > 1)
-		// usdt_GetDiagLeftFrame(dm_msg_buf, msg_len);
-	// for (i = 0; i < msg_len; i++)
-		// can_msg_print(dm_msg_buf + i, "\n");
 
 	// clear error code
 	printf("\nClear Code:\n");
@@ -462,6 +455,8 @@ static int dm_check()
 	int i, num_fault = 0, try_times = 5, rate;
 	char temp[2];
 
+	pdi_IGN_on();
+
 	for (rate = 5; rate <= 95; rate ++) {
 		dm_mdelay(111);
 		printf("##START##STATUS-");
@@ -469,7 +464,7 @@ static int dm_check()
 		printf("%s", temp);
 		printf("##END##\n");
 	}
-	pdi_IGN_on();
+
 	dm_StartSession();
 
 	if(dm_check_barcode()) {
@@ -507,14 +502,14 @@ static int dm_check()
 	return 0;
 }
 
-void pdi_init(void)
+void dm_init(void)
 {
 	can_cfg_t cfg_pdi_can = {
 		.baud = 500000,
 	};
 
 	pdi_drv_Init();						//led,beep
-	mbi5025_Init(&pdi_mbi5025);			//SPI总线	移位寄存器
+	mbi5025_Init(&pdi_mbi5025);			//SPI bus	shift register
 	mbi5025_EnableOE(&pdi_mbi5025);
 	ls1203_Init(&pdi_ls1203);			//scanner
 	pdi_can_bus->init(&cfg_pdi_can);
@@ -553,11 +548,11 @@ static void dm_process(void)
 		pdi_cfg_file = pdi_cfg_get(bcode);
 
 		if(target_on()) {
-			if(pdi_cfg_file == NULL) {			//是否有此配置文件
+			if(pdi_cfg_file == NULL) {			//whether or not the config file exist
 				pdi_fail_action();
 				printf("##START##EC-No This Config File##END##\n");
 			} else {
-				dm_check_init(pdi_cfg_file);		//relay config
+				dm_check_init(pdi_cfg_file);	//relay config
 
 				if(dm_check() == 0)
 					pdi_pass_action();
@@ -574,7 +569,7 @@ static void dm_process(void)
 int main(void)
 {
 	ulp_init();
-	pdi_init();
+	dm_init();
 	pdi_init_OK();
 	while(1) {
 		dm_process();
