@@ -151,8 +151,8 @@ static int rc_StartSession(void)
 		can_msg_print(rc_msg_buf + i, "\n");
 
 	//tester point
-	printf("\nConnector Bar:\n");
-	usdt_GetDiagFirstFrame(&rc_connector_msg, 1, NULL, rc_msg_buf, &msg_len);
+	printf("\nPart:\n");
+	usdt_GetDiagFirstFrame(&rc_getpart_msg, 1, NULL, rc_msg_buf, &msg_len);
 	if (msg_len > 1)
 		usdt_GetDiagLeftFrame(rc_msg_buf, msg_len);
 	for (i = 0; i < msg_len; i++)
@@ -340,8 +340,8 @@ static int rc_JAMA_check(const struct pdi_cfg_s *sr)
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_JAMA:
 			printf("##START##EC-checking JAMA##END##\n");
-			if(JAMA_on()) rc_data_buf[0] = 0x00;//JAMA 塞子没有
-			else rc_data_buf[0] = 0x01;			//JAMA 塞子有
+			if(JAMA_on()) rc_data_buf[0] = 0x00;//JAMA present
+			else rc_data_buf[0] = 0x01;			//JAMA absent
 			break;
 		case PDI_RULE_UNDEF:
 			return 1;
@@ -402,8 +402,8 @@ static int rc_clear_dtc(void)
 	if (usdt_GetDiagFirstFrame(&rc_clrdtc_msg, 1, NULL, &msg, &msg_len))
 		return 1;
 	if (msg.data[1] != 0x7b)	//positive response is 0x7b
-		return 0;
-	return 1;
+		return 1;
+	return 0;
 }
 
 static int rc_GetFault(char *data, int * pnum_fault)
@@ -497,10 +497,10 @@ void rc_init(void)
 		.baud = 500000,
 	};
 
-	pdi_drv_Init();//led,beep
-	mbi5025_Init(&pdi_mbi5025);//SPI总线	移位寄存器
+	pdi_drv_Init();					//led,beep
+	mbi5025_Init(&pdi_mbi5025);		//SPI bus	shift register
 	mbi5025_EnableOE(&pdi_mbi5025);
-	ls1203_Init(&pdi_ls1203);//scanner
+	ls1203_Init(&pdi_ls1203);		//scanner
 	pdi_can_bus->init(&cfg_pdi_can);
 	usdt_Init(pdi_can_bus);
 }
@@ -528,7 +528,7 @@ static void rc_process(void)
 		pdi_cfg_file = pdi_cfg_get(bcode);
 
 		if(target_on()) {
-			if(pdi_cfg_file == NULL) {			//是否有此配置文件
+			if(pdi_cfg_file == NULL) {			//whether or not the config file exist
 				pdi_fail_action();
 				printf("##START##EC-No This Config File##END##\n");
 			}
@@ -562,9 +562,9 @@ static int cmd_rc_func(int argc, char *argv[])
 
 	const char *usage = {
 		"rc , usage:\n"
-		"rc fault\n"
-		"rc batt on/off\n"
-		"rc start, start the diagnostic seesion\n"
+		"rc fault		read the error code\n"
+		"rc batt on/off		battary on or off\n"
+		"rc start		start the diagnostic seesion\n"
 	};
 
 	if (argc < 2) {
@@ -611,7 +611,7 @@ static int cmd_pdi_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"pdi , usage:\n"
-		"pdi clear\n"
+		"pdi clear		clear the error code\n"
 	};
 
 	if (argc < 2) {
