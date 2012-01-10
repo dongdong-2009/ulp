@@ -251,11 +251,16 @@ static int cmd_upa_func(int argc, char *argv[])
 			list_for_each(pos, &upa_nest_queue) {
 				nest = list_entry(pos, upa_nest_s, list);
 				if(nest->addr == addr) {
+					nest->flag |= UPA_FLAG_SEL;
 					shell_trap(upa_uart_cnsl, &cmd_upa); //all cmds redirect to cmd_upa in uart console
 					shell_trap(upa_wl_cnsl, &cmd_monitor); //all cmds redirect to cmd_monitor in wireless console
 					shell_lock(upa_uart_cnsl, 1);
 					upa_status = UPA_STATUS_INVALID; //force mode change in upa_update
-					break;
+				}
+				else {
+					if(nest->flag & UPA_FLAG_SEL) { //unsel
+						nest->flag &= ~UPA_FLAG_SEL;
+					}
 				}
 			}
 
