@@ -25,6 +25,7 @@ int nest_init(void)
 	task_Init();
 	cncb_init();
 	nest_message_init();
+	nest_wl_init();
 	if(nest_flag_ignore == -1)
 		nest_flag_ignore = 0;
 #ifdef CONFIG_NEST_ID
@@ -38,6 +39,7 @@ int nest_init(void)
 int nest_update(void)
 {
 	task_Update();
+	nest_wl_update();
 	return 0;
 }
 

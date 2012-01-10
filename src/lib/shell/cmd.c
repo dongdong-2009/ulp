@@ -203,7 +203,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 	ret = 0;
 	argc = __cmd_parse(clst -> cmdline, clst -> len, argv, CONFIG_SHELL_NR_PARA_MAX);
 	if(argc > 0) {
-		cmd = __name2cmd(argv[0]);
+		cmd = (cmd_queue->trap != NULL) ? cmd_queue->trap : __name2cmd(argv[0]);
 		if(cmd != NULL) {
 			if(clst -> ms >= 0) {
 				clst -> deadline = time_get(clst -> ms);
@@ -228,6 +228,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 int cmd_queue_init(struct cmd_queue_s *cq)
 {
 	cq -> flag = 0;
+	cq -> trap = NULL;
 	INIT_LIST_HEAD(&cq -> cmd_list);
 	return 0;
 }

@@ -118,7 +118,7 @@ int dev_open(const char *name, const char *mode)
 		return 0;
 
 	if(dev->ref > 0)
-		return 0; //shared open are not allowed yet
+		return (int)dev; //shared open are not allowed yet
 
 	open = dev->pdrv->ops->open;
 	if(open != NULL) {
