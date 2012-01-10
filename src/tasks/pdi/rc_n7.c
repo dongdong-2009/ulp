@@ -19,13 +19,13 @@
 #define PDI_DEBUG	1
 
 //pdi_RCN7 can msg
-static const can_msg_t rc_clrdtc_msg =		{	0x752, 8, {0x03, 0x3b, 0x9f, 0xff, 0, 0, 0, 0}, 0};
-static const can_msg_t rc_errcode_msg =		{	0x752, 8, {0x03, 0x21, 0x90, 0x80, 0, 0, 0, 0}, 0};
-static const can_msg_t rc_connector_msg =	{	0x752, 8, {0x03, 0x21, 0x90, 0xa2, 0, 0, 0, 0}, 0};
-static const can_msg_t rc_getsn_msg =		{	0x752, 8, {0x03, 0x21, 0x90, 0xab, 0, 0, 0, 0}, 0};
-static const can_msg_t rc_getpart_msg =		{	0x752, 8, {0x02, 0x21, 0x83, 0, 0, 0, 0, 0}, 0};
-static const can_msg_t rc_reqseed_msg =		{	0x752, 8, {0x02, 0x27, 0x61, 0, 0, 0, 0, 0}, 0};
-static const can_msg_t rc_start_msg =		{	0x752, 8, {0x02, 0x10, 0xc0, 0, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_clrdtc_msg =		{0x752, 8, {0x03, 0x3b, 0x9f, 0xff, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_errcode_msg =		{0x752, 8, {0x03, 0x21, 0x90, 0x80, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_connector_msg =	{0x752, 8, {0x03, 0x21, 0x90, 0xa2, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_getsn_msg =		{0x752, 8, {0x03, 0x21, 0x90, 0xab, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_getpart_msg =		{0x752, 8, {0x02, 0x21, 0x83, 0, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_reqseed_msg =		{0x752, 8, {0x02, 0x27, 0x61, 0, 0, 0, 0, 0}, 0};
+static const can_msg_t rc_start_msg =		{0x752, 8, {0x02, 0x10, 0xc0, 0, 0, 0, 0, 0}, 0};
 
 static const mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
@@ -47,7 +47,7 @@ static char rc_fault_buf[64];			//fault buffer
 static char bcode_1[14];
 
 //for pre-checking
-static int rc_init();
+static void rc_init();
 static int rc_init_OK();
 static int rc_check_init(const struct pdi_cfg_s *);
 static int rc_StartSession();
@@ -427,10 +427,19 @@ static int rc_GetFault(char *data, int * pnum_fault)
 
 static int rc_check(const struct pdi_cfg_s *sr)
 {
-	int i, num_fault, try_times = 5;
+	int i, num_fault, try_times = 5, rate;
+	char temp[2];
 
 	pdi_IGN_on();
-	rc_mdelay(1000);
+	// delay 1s
+	for (rate = 5; rate <= 17; rate ++) {
+		rc_mdelay(89);
+		printf("##START##STATUS-");
+		sprintf(temp, "%d", rate);
+		printf("%s", temp);
+		printf("##END##\n");
+	}
+
 	rc_StartSession();
 	//check barcode
 	if(rc_check_barcode()) {
@@ -447,8 +456,15 @@ static int rc_check(const struct pdi_cfg_s *sr)
 		printf("##START##EC-Partnumber Wrong##END##\n");
 		return 1;
 	}
+	//delay 7s
+	for (rate = 17; rate <= 96; rate ++) {
+		rc_mdelay(89);
+		printf("##START##STATUS-");
+		sprintf(temp, "%d", rate);
+		printf("%s", temp);
+		printf("##END##\n");
+	}
 
-	rc_mdelay(7000);
 	rc_StartSession();
 
 	//check error code
@@ -469,6 +485,8 @@ static int rc_check(const struct pdi_cfg_s *sr)
 		printf("##END##\n");
 		return 1;
 	}
+
+	printf("##START##STATUS-100##END##\n");
 
 	return 0;
 }
@@ -506,6 +524,7 @@ static void rc_process(void)
 		printf("##END##\n");
 		bcode[5] = '\0';
 
+		printf("##START##STATUS-5##END##\n");
 		pdi_cfg_file = pdi_cfg_get(bcode);
 
 		if(target_on()) {
