@@ -591,10 +591,9 @@ static int nrf_read(int fd, void *buf, int count)
 	assert(priv != NULL);
 	pipe = priv->pipe;
 	assert(pipe != NULL);
-	while(buf_size(&pipe->rbuf) < count) { //you may call poll to avoid deadloop here
+	do {
 		nrf_update(priv);
-	}
-
+	} while(buf_size(&pipe->rbuf) < count); //you may call poll to avoid deadloop here
 	buf_pop(&pipe->rbuf, buf, count);
 	return count;
 }
@@ -606,10 +605,10 @@ static int nrf_write(int fd, const void *buf, int count)
 	assert(priv != NULL);
 	pipe = priv->pipe;
 	assert(pipe != NULL);
-	while(buf_left(&pipe->tbuf) < count) { //you may call poll to avoid deadloop here
-		nrf_update(priv);
-	}
 
+	do {
+		nrf_update(priv);
+	} while(buf_left(&pipe->tbuf) < count); //you may call poll to avoid deadloop here
 	buf_push(&pipe->tbuf, buf, count);
 	return count;
 }
