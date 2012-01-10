@@ -12,6 +12,7 @@
 
 /*private*/
 static struct cmd_queue_s *cmd_queue;
+static cmd_t *cmd_context;
 
 void cmd_Init(void)
 {
@@ -194,6 +195,12 @@ enum {
 	__CMD_EXEC_FLAG_CLOSE,
 };
 
+int cmd_trap(int enable)
+{
+	cmd_queue->trap = (enable) ? cmd_context : NULL;
+	return 0;
+}
+
 static int __cmd_exec(struct cmd_list_s *clst, int flag)
 {
 	int argc, ret;
@@ -203,7 +210,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 	ret = 0;
 	argc = __cmd_parse(clst -> cmdline, clst -> len, argv, CONFIG_SHELL_NR_PARA_MAX);
 	if(argc > 0) {
-		cmd = __name2cmd(argv[0]);
+		cmd_context = cmd = (cmd_queue->trap != NULL) ? cmd_queue->trap : __name2cmd(argv[0]);
 		if(cmd != NULL) {
 			if(clst -> ms >= 0) {
 				clst -> deadline = time_get(clst -> ms);
@@ -228,6 +235,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 int cmd_queue_init(struct cmd_queue_s *cq)
 {
 	cq -> flag = 0;
+	cq -> trap = NULL;
 	INIT_LIST_HEAD(&cq -> cmd_list);
 	return 0;
 }

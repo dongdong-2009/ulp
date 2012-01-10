@@ -28,6 +28,7 @@ struct cmd_list_s {
 
 struct cmd_queue_s {
 	int flag;
+	cmd_t *trap;
 	struct list_head cmd_list;
 };
 
@@ -45,6 +46,10 @@ void cmd_Update(void);
 int cmd_queue_init(struct cmd_queue_s *);
 int cmd_queue_update(struct cmd_queue_s *);
 int cmd_queue_exec(struct cmd_queue_s *, const char *);
+
+/*to capture all command process job to current cmd_t, note:
+this routine must be called in cmd_t.func()!!!*/
+int cmd_trap(int enable);
 
 /*common command related subroutines*/
 int cmd_pattern_get(const char *str); //get pattern from a string, such as: "0,2-5,8" or "all,1" for inverse selection
