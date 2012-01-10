@@ -16,6 +16,14 @@ static unsigned wl_freq __nvm;
 static unsigned wl_mode __nvm;
 static unsigned wl_addr __nvm;
 
+static int nrf_onfail(int ecode, ...)
+{
+	if(ecode != WL_ERR_TX_TIMEOUT)
+		printf("ecode = %d\n", ecode);
+	//assert(0); //!!! impossible: got rx_dr but no payload?
+	return 0;
+}
+
 static int cmd_nrf_chat(void)
 {
 	int ready, n, newdat;
@@ -29,6 +37,7 @@ static int cmd_nrf_chat(void)
 	dev_ioctl(fd, WL_SET_FREQ, wl_freq);
 	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
 	dev_ioctl(fd, WL_SET_MODE, wl_mode);
+	dev_ioctl(fd, WL_ERR_FUNC, nrf_onfail);
 	dev_ioctl(fd, WL_START);
 
 	printf("if it doesn't works, pls check the nrf work mode: prx = %d?\n", wl_mode);
@@ -79,14 +88,6 @@ static unsigned char nrf_byte_rx = 0; //byte been recv
 static time_t wl_timer;
 static int nrf_bytes_ts; //bytes tx in 1s
 static int nrf_bytes_rs; //bytes rx in 1s
-
-static int nrf_onfail(int ecode, ...)
-{
-	if(ecode != WL_ERR_TX_TIMEOUT)
-		printf("ecode = %d\n", ecode);
-	//assert(0); //!!! impossible: got rx_dr but no payload?
-	return 0;
-}
 
 static int cmd_nrf_speed(void)
 {
