@@ -59,6 +59,8 @@ void shell_Update(void)
 	struct list_head *pos;
 	list_for_each(pos, &shell_queue) {
 		shell = list_entry(pos, shell_s, list);
+		if(shell->config & SHELL_CONFIG_LOCK)
+			continue; //bypass shell update
 		console_select(shell -> console);
 		cmd_queue_update(&shell -> cmd_queue);
 		ok = shell_ReadLine(CONFIG_SHELL_PROMPT, NULL);
@@ -145,6 +147,24 @@ int shell_mute(const struct console_s *cnsl, int enable)
 		if(s->console == cnsl) {
 			enable = (enable) ? SHELL_CONFIG_MUTE : 0;
 			s->config &= ~SHELL_CONFIG_MUTE;
+			s->config |= enable;
+			ret = 0;
+			break;
+		}
+	}
+	return ret;
+}
+
+int shell_lock(const struct console_s *cnsl, int enable)
+{
+	struct shell_s *s;
+	struct list_head *pos;
+	int ret = -1;
+	list_for_each(pos, &shell_queue) {
+		s = list_entry(pos, shell_s, list);
+		if(s->console == cnsl) {
+			enable = (enable) ? SHELL_CONFIG_LOCK : 0;
+			s->config &= ~SHELL_CONFIG_LOCK;
 			s->config |= enable;
 			ret = 0;
 			break;

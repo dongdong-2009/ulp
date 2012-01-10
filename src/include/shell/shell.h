@@ -34,6 +34,7 @@ struct shell_s {
 
 	short status;
 	#define SHELL_CONFIG_MUTE (1<<0)
+	#define SHELL_CONFIG_LOCK (1<<1)
 	short config;
 
 	/*cmd line*/
@@ -56,7 +57,8 @@ void shell_Update(void);
 /*to dynamic register a new shell console device with specified history buffer size*/
 int shell_register(const struct console_s *);
 int shell_unregister(const struct console_s *);
-int shell_mute(const struct console_s *cnsl, int enable);
+int shell_mute(const struct console_s *cnsl, int enable); //disable shell echo
+int shell_lock(const struct console_s *cnsl, int enable); //disable shell input
 int shell_trap(const struct console_s *cnsl, cmd_t *cmd);
 
 /*to execute a specified cmd in specified console*/
