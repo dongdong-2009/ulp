@@ -258,7 +258,8 @@ int nrf_update(struct nrf_priv_s *priv)
 					nrf_read_buf(R_RX_PAYLOAD, frame, n);
 					nrf_write_reg(STATUS, RX_DR);
 					if(frame[0] == WL_FRAME_DATA) {
-						buf_push(&pipe->rbuf, frame + 1, n - 1);
+						if(n > 1)
+							buf_push(&pipe->rbuf, frame + 1, n - 1);
 					}
 					else {
 						ecode = WL_ERR_RX_FRAME;
@@ -382,6 +383,8 @@ int nrf_update(struct nrf_priv_s *priv)
 					frame[0] = WL_FRAME_DATA;
 					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
 					nrf_write_buf(W_TX_PAYLOAD, frame, n + 1); //nrf count the bytes automatically
+					if(n == 0)
+						break;
 				}
 				else { //to send a custom frame, wait until send out or max_rt
 					if(fifo_status & TX_FIFO_EMPTY) {
