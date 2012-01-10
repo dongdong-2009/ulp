@@ -252,18 +252,19 @@ int nrf_update(struct nrf_priv_s *priv)
 						1, prx lost link
 						2, prx rfifo full(maybe cpu is dead?:))
 						*/
-						break;
-					}
-
-					nrf_read_buf(R_RX_PAYLOAD, frame, n);
-					nrf_write_reg(STATUS, RX_DR);
-					if(frame[0] == WL_FRAME_DATA) {
-						if(n > 1)
-							buf_push(&pipe->rbuf, frame + 1, n - 1);
+						;
 					}
 					else {
-						ecode = WL_ERR_RX_FRAME;
-						onfail(ecode, frame, n);
+						nrf_read_buf(R_RX_PAYLOAD, frame, n);
+						nrf_write_reg(STATUS, RX_DR);
+						if(frame[0] == WL_FRAME_DATA) {
+							if(n > 1)
+								buf_push(&pipe->rbuf, frame + 1, n - 1);
+						}
+						else {
+							ecode = WL_ERR_RX_FRAME;
+							onfail(ecode, frame, n);
+						}
 					}
 				}
 				else {
