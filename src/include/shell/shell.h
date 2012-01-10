@@ -57,6 +57,7 @@ void shell_Update(void);
 int shell_register(const struct console_s *);
 int shell_unregister(const struct console_s *);
 int shell_mute(const struct console_s *cnsl, int enable);
+int shell_trap(const struct console_s *cnsl, cmd_t *cmd);
 
 /*to execute a specified cmd in specified console*/
 int shell_exec_cmd(const struct console_s *, const char *cmdline);

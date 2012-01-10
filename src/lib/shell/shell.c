@@ -153,6 +153,22 @@ int shell_mute(const struct console_s *cnsl, int enable)
 	return ret;
 }
 
+int shell_trap(const struct console_s *cnsl, cmd_t *cmd)
+{
+	struct shell_s *s;
+	struct list_head *pos;
+	int ret = -1;
+	list_for_each(pos, &shell_queue) {
+		s = list_entry(pos, shell_s, list);
+		if(s->console == cnsl) {
+			s->cmd_queue.trap = cmd;
+			ret = 0;
+			break;
+		}
+	}
+	return ret;
+}
+
 int shell_exec_cmd(const struct console_s *cnsl, const char *cmdline)
 {
 	struct list_head *pos;
