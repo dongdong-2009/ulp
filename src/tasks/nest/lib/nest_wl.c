@@ -28,7 +28,7 @@ int nest_wl_init(void)
 	dev_register("nrf", &nrf_cfg);
 	nest_wl_fd = dev_open("wl0", 0);
 	dev_ioctl(nest_wl_fd, WL_SET_FREQ, NEST_WL_FREQ);
-	dev_ioctl(nest_wl_fd, WL_ERR_TXMS, 100);
+	dev_ioctl(nest_wl_fd, WL_ERR_TXMS, NEST_WL_TXMS);
 	dev_ioctl(nest_wl_fd, WL_ERR_FUNC, nest_wl_onfail);
 
 	cnsl = console_register(nest_wl_fd);
@@ -43,7 +43,6 @@ int nest_wl_init(void)
 int nest_wl_update(void)
 {
 	char frame[33], n;
-	unsigned random;
 	if(time_left(nest_wl_timer) < 0) {
 		/*add a unique value to timeout to avoid all nest request monitor at the same time*/
 		nest_wl_timer = time_get(NEST_WL_MS +(nest_wl_addr & 0x0fff));
@@ -75,8 +74,10 @@ static int nest_wl_onfail(int ecode, ...)
 
 	va_start(args, ecode);
 	switch(ecode) {
-	case WL_ERR_TX_TIMEOUT:
-		break; //nest is in prx mode,target monitor/upa,  flush is not needed
+	case WL_ERR_TX_TIMEOUT: //something err, flush to avoid deadlock
+		dev_ioctl(nest_wl_fd, WL_FLUSH);
+		nest_wl_timer = 0; //force to reconnect
+		break;
 	case WL_ERR_RX_FRAME:
 		frame = va_arg(args, unsigned char *);
 		n = va_arg(args, char);
