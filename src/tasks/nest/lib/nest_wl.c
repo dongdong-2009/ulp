@@ -28,6 +28,7 @@ int nest_wl_init(void)
 	dev_register("nrf", &nrf_cfg);
 	nest_wl_fd = dev_open("wl0", 0);
 	dev_ioctl(nest_wl_fd, WL_SET_FREQ, NEST_WL_FREQ);
+	dev_ioctl(nest_wl_fd, WL_ERR_TXMS, 100);
 	dev_ioctl(nest_wl_fd, WL_ERR_FUNC, nest_wl_onfail);
 
 	cnsl = console_register(nest_wl_fd);

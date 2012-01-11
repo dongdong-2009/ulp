@@ -113,6 +113,7 @@ static int upa_Update(void)
 			shell_trap(upa_uart_cnsl, NULL);
 			shell_trap(upa_wl_cnsl, NULL);
 			dev_ioctl(upa_wl_fd, WL_SET_FREQ, NEST_WL_FREQ);
+			dev_ioctl(upa_wl_fd, WL_ERR_TXMS, 100);
 			dev_ioctl(upa_wl_fd, WL_ERR_FUNC, upa_wl_onfail);
 			dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PRX);
 			dev_ioctl(upa_wl_fd, WL_SET_ADDR, NEST_WL_ADDR);
@@ -295,7 +296,7 @@ static int cmd_upa_func(int argc, char *argv[])
 			shell_prompt(upa_uart_cnsl, "upa# ");
 			shell_trap(upa_wl_cnsl, NULL);
 			shell_trap(upa_uart_cnsl, NULL);
-			printf("upa deselect ok\n");
+			printf("upa exit ok\n");
 			return 0;
 		}
 
