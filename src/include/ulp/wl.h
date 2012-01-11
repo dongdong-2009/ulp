@@ -35,6 +35,7 @@ enum {
 
 /*IOCTL CMDS - there is no specific call sequency requirements*/
 enum {
+	WL_ERR_TXMS, /*set send timeout*/
 	WL_ERR_FUNC,
 	WL_SET_MODE, /*prx?*/
 	WL_SET_ADDR,

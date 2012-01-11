@@ -486,6 +486,9 @@ static int nrf_ioctl(int fd, int request, va_list args)
 
 	int ret = 0;
 	switch(request) {
+	case WL_ERR_TXMS:
+		pipe->timeout = va_arg(args, unsigned);
+		break;
 	case WL_ERR_FUNC:
 		addr = va_arg(args, int);
 		onfail = (int (*)(int ecode, ...))addr;
