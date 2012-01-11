@@ -12,13 +12,11 @@
 #include "sys/malloc.h"
 #include "uart.h"
 
-#define UPA_FLAG_MON (1<<0)
-#define UPA_FLAG_SEL (1<<1)
-
 struct upa_nest_s {
 	unsigned addr;
-	unsigned flag;
-	unsigned fail;
+	//unsigned flag;
+	char retry;
+	char reserved[3];
 	time_t timer; //update timer
 	struct list_head list;
 };
@@ -28,6 +26,12 @@ static int upa_wl_fd;
 static struct console_s *upa_wl_cnsl;
 #define upa_uart_cnsl ((struct console_s *) &uart2)
 static LIST_HEAD(upa_nest_queue);
+
+//cache, to avoid search upa_nest_queue every time
+static struct upa_nest_s *upa_nest_mon; //monitor nest
+static struct upa_nest_s *upa_nest_sel; //selected nest
+static struct upa_nest_s *upa_nest_cur; //current access nest
+
 static enum {
 	UPA_STATUS_INVALID,
 	UPA_STATUS_INIT,
@@ -37,26 +41,91 @@ static enum {
 	UPA_STATUS_PTX_UPD, //update each nest
 } upa_status, upa_status_next;
 
+static struct upa_nest_s* upa_mon_elect(void)
+{
+	struct upa_nest_s *nest, *hero = NULL;
+	struct list_head *pos;
+	char retry = 100;
+	list_for_each(pos, &upa_nest_queue) {
+		nest = list_entry(pos, upa_nest_s, list);
+		if(nest->retry < retry) {
+			hero = nest;
+			retry = nest->retry;
+		}
+	}
+	return hero;
+}
+
+static struct upa_nest_s* upa_nest_get(unsigned addr)
+{
+	struct upa_nest_s *nest, *found = NULL;
+	struct list_head *pos;
+
+	list_for_each(pos, &upa_nest_queue) {
+		nest = list_entry(pos, upa_nest_s, list);
+		if(nest->addr == addr) {
+			found = nest;
+			break;
+		}
+	}
+	return found;
+}
+
+static int upa_nest_new(unsigned addr)
+{
+	struct upa_nest_s *nest = NULL;
+
+	//search the nest in the list to avoid duplication
+	nest = upa_nest_get(addr);
+	if(nest != NULL)
+		return 0; //already exist
+
+	//create it
+	nest = sys_malloc(sizeof(struct upa_nest_s));
+	if(nest != NULL) {
+		nest->addr = addr;
+		nest->retry = 16; //i hate newbie!!! :)
+		nest->timer = 0;
+		list_add_tail(&nest->list, &upa_nest_queue);
+		return 0;
+	}
+
+	return -1; //no enough memory
+}
+
+static int upa_nest_bad(unsigned addr)
+{
+	struct upa_nest_s *nest = upa_nest_get(addr);
+	if(upa_nest_mon == nest) {
+		//change it, too disappointed ...
+		upa_nest_mon = NULL;
+		upa_status_next = UPA_STATUS_PTX_MON;
+	}
+	return 0;
+}
+
+static int upa_nest_update(void)
+{
+	int retry;
+	if(upa_nest_cur != NULL) {
+		dev_ioctl(upa_wl_fd, WL_GET_FAIL, &retry);
+		retry += upa_nest_cur->retry;
+		upa_nest_cur->retry = retry >> 1;
+	}
+	return 0;
+}
+
 static int upa_wl_onfail(int ecode, ...)
 {
 	unsigned addr;
 	va_list args;
-	struct upa_nest_s *nest;
-	struct list_head *pos;
 
 	va_start(args, ecode);
 	switch(ecode) {
 	case WL_ERR_TX_TIMEOUT:
 		addr = va_arg(args, unsigned);
-		//search the nest with the specified addr
-		list_for_each(pos, &upa_nest_queue) {
-			nest = list_entry(pos, upa_nest_s, list);
-			if(nest->addr == addr) {
-				nest->fail ++;
-				dev_ioctl(upa_wl_fd, WL_FLUSH);
-				break;
-			}
-		}
+		upa_nest_bad(addr);
+		dev_ioctl(upa_wl_fd, WL_FLUSH);
 		break;
 	default:
 		break;
@@ -113,10 +182,13 @@ static int upa_Update(void)
 			shell_trap(upa_uart_cnsl, NULL);
 			shell_trap(upa_wl_cnsl, NULL);
 			dev_ioctl(upa_wl_fd, WL_SET_FREQ, NEST_WL_FREQ);
-			dev_ioctl(upa_wl_fd, WL_ERR_TXMS, 100);
+			dev_ioctl(upa_wl_fd, WL_ERR_TXMS, NEST_WL_TXMS);
 			dev_ioctl(upa_wl_fd, WL_ERR_FUNC, upa_wl_onfail);
 			dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PRX);
 			dev_ioctl(upa_wl_fd, WL_SET_ADDR, NEST_WL_ADDR);
+			upa_nest_cur = NULL;
+			upa_nest_sel = NULL;
+			upa_nest_mon = NULL;
 		}
 		upa_status_next = UPA_STATUS_PRX;
 		break;
@@ -138,70 +210,68 @@ static int upa_Update(void)
 		}
 		break;
 	case UPA_STATUS_PTX_MON:
-		if(upa_status_next != upa_status) {
-			list_for_each(pos, &upa_nest_queue) {
-				nest = list_entry(pos, upa_nest_s, list);
-				if((nest->flag & UPA_FLAG_MON) && (time_left(upa_mon_timer) < 0)) {
-					upa_mon_timer = time_get(NEST_WL_MS);
-					upa_status = upa_status_next;
-					shell_lock(upa_uart_cnsl, 1);
-					dev_ioctl(upa_wl_fd, WL_STOP);
-					dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
-					dev_ioctl(upa_wl_fd, WL_SET_ADDR, nest->addr);
-					dev_ioctl(upa_wl_fd, WL_START);
-					shell_lock(upa_wl_cnsl, 0);
-					break;
-				}
+		if((upa_nest_mon == NULL) || (time_left(upa_mon_timer) < 0)) {
+			//maybe we need to elect a hero here?
+			upa_nest_mon = upa_mon_elect();
+		}
+
+		if(time_left(upa_mon_timer) < 0) {
+			upa_mon_timer = time_get(NEST_WL_MS/2);
+			upa_status = upa_status_next;
+			shell_lock(upa_uart_cnsl, 1);
+			shell_lock(upa_wl_cnsl, 0);
+			if(upa_nest_cur != upa_nest_mon) {
+				upa_nest_update();
+				upa_nest_cur = upa_nest_mon;
+				dev_ioctl(upa_wl_fd, WL_STOP);
+				dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
+				dev_ioctl(upa_wl_fd, WL_SET_ADDR, upa_nest_mon->addr);
+				dev_ioctl(upa_wl_fd, WL_START);
 			}
+			break;
 		}
 		upa_status_next = UPA_STATUS_PTX_SEL;
-		if(list_empty(&upa_nest_queue))
-			upa_status_next = UPA_STATUS_PRX;
 		break;
 	case UPA_STATUS_PTX_SEL:
-		if(upa_status_next != upa_status) {
-			upa_status = upa_status_next;
-			list_for_each(pos, &upa_nest_queue) {
-				nest = list_entry(pos, upa_nest_s, list);
-				if(nest->flag & UPA_FLAG_SEL)
-					break;
+		upa_status = upa_status_next;
+		shell_lock(upa_wl_cnsl, 0);
+		shell_lock(upa_uart_cnsl, 0);
+		if(upa_nest_sel != NULL) {
+			if(upa_nest_cur != upa_nest_sel) {
+				upa_nest_update();
+				upa_nest_cur = upa_nest_sel;
+				dev_ioctl(upa_wl_fd, WL_STOP);
+				dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
+				dev_ioctl(upa_wl_fd, WL_SET_ADDR, upa_nest_sel->addr);
+				dev_ioctl(upa_wl_fd, WL_START);
 			}
-			dev_ioctl(upa_wl_fd, WL_STOP);
-			dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
-			dev_ioctl(upa_wl_fd, WL_SET_ADDR, nest->addr);
-			dev_ioctl(upa_wl_fd, WL_START);
-			shell_lock(upa_wl_cnsl, 0);
-			shell_lock(upa_uart_cnsl, 0);
 		}
 		upa_status_next = UPA_STATUS_PTX_UPD;
-		if(list_empty(&upa_nest_queue))
-			upa_status_next = UPA_STATUS_PRX;
 		break;
 	case UPA_STATUS_PTX_UPD:
-		if(upa_status_next != upa_status) {
-			list_for_each(pos, &upa_nest_queue) {
-				nest = list_entry(pos, upa_nest_s, list);
-				if(time_left(nest->timer) < 0) {
-					nest->timer = time_get(NEST_WL_MS/2);
-					upa_status = upa_status_next;
-					shell_lock(upa_uart_cnsl, 1);
-
+		list_for_each(pos, &upa_nest_queue) {
+			nest = list_entry(pos, upa_nest_s, list);
+			if(time_left(nest->timer) < 0) {
+				nest->timer = time_get(NEST_WL_MS/2);
+				upa_status = upa_status_next;
+				shell_lock(upa_uart_cnsl, 1);
+				shell_lock(upa_wl_cnsl, 0);
+				upa_nest_update();
+				if(upa_nest_cur != nest) {
+					upa_nest_cur = nest;
 					dev_ioctl(upa_wl_fd, WL_STOP);
 					dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
 					dev_ioctl(upa_wl_fd, WL_SET_ADDR, nest->addr);
 					dev_ioctl(upa_wl_fd, WL_START);
-					shell_lock(upa_wl_cnsl, 0);
-
-					//send ping req to nest
-					n = sprintf(frame, "monitor ping\r");
-					dev_write(upa_wl_fd, frame, n);
-					break;
 				}
+
+				//send ping req to nest
+				n = sprintf(frame, "monitor ping\r");
+				dev_write(upa_wl_fd, frame, n);
+				break;
 			}
 		}
 		upa_status_next = UPA_STATUS_PTX_MON;
-		if(list_empty(&upa_nest_queue))
-			upa_status_next = UPA_STATUS_PRX;
 		break;
 	default:
 		upa_status_next = UPA_STATUS_INIT;
@@ -249,24 +319,17 @@ static int cmd_upa_func(int argc, char *argv[])
 	if(argc == 3) {
 		if(!strncmp(argv[1], "select", 3)) {
 			sscanf(argv[2], "%x", &addr);
-			list_for_each(pos, &upa_nest_queue) {
-				nest = list_entry(pos, upa_nest_s, list);
-				if(nest->addr == addr) {
-					nest->flag |= UPA_FLAG_SEL;
-					shell_trap(upa_uart_cnsl, &cmd_upa); //all cmds redirect to cmd_upa in uart console
-					shell_trap(upa_wl_cnsl, &cmd_monitor); //all cmds redirect to cmd_monitor in wireless console
-					shell_lock(upa_uart_cnsl, 1);
-					upa_status = UPA_STATUS_INVALID; //force mode change in upa_update
-					shell_prompt(upa_uart_cnsl, "nest# ");
-				}
-				else {
-					if(nest->flag & UPA_FLAG_SEL) { //unsel
-						nest->flag &= ~UPA_FLAG_SEL;
-					}
-				}
+			nest = upa_nest_get(addr);
+			if(nest != NULL) {
+				upa_nest_sel = nest;
+				shell_trap(upa_uart_cnsl, &cmd_upa); //all cmds redirect to cmd_upa in uart console
+				shell_trap(upa_wl_cnsl, &cmd_monitor); //all cmds redirect to cmd_monitor in wireless console
+				shell_lock(upa_uart_cnsl, 1);
+				shell_prompt(upa_uart_cnsl, "nest# ");
+				printf("upa select ok\n");
 			}
-
-			printf("upa select ok\n");
+			else
+				printf("upa select fail\n");
 			return 0;
 		}
 
@@ -286,13 +349,7 @@ static int cmd_upa_func(int argc, char *argv[])
 
 	if(argc == 2) {
 		if(!strcmp(argv[1], "exit")) {
-			list_for_each(pos, &upa_nest_queue) {
-				nest = list_entry(pos, upa_nest_s, list);
-				if(nest->flag & UPA_FLAG_SEL) {
-					nest->flag &= ~UPA_FLAG_SEL;
-					break;
-				}
-			}
+			upa_nest_sel = NULL;
 			shell_prompt(upa_uart_cnsl, "upa# ");
 			shell_trap(upa_wl_cnsl, NULL);
 			shell_trap(upa_uart_cnsl, NULL);
@@ -303,7 +360,7 @@ static int cmd_upa_func(int argc, char *argv[])
 		if(!strcmp(argv[1], "list")) {
 			list_for_each(pos, &upa_nest_queue) {
 				nest = list_entry(pos, upa_nest_s, list);
-				printf("upa nest %08x\n", nest->addr);
+				printf("upa nest %08x %02d\n", nest->addr, nest->retry);
 			}
 			return 0;
 		}
@@ -326,28 +383,9 @@ static int cmd_monitor_func(int argc, char *argv[])
 	};
 
 	if((argc == 3) && (!strcmp(argv[1], "newbie"))) {
-		struct upa_nest_s *nest = NULL;
-		struct list_head *pos;
 		unsigned addr;
-
-		//search the nest in the list to avoid duplication
 		sscanf(argv[2], "%x", &addr);
-		list_for_each(pos, &upa_nest_queue) {
-			nest = list_entry(pos, upa_nest_s, list);
-			if(nest->addr == addr)
-				break;
-		}
-
-		//create a new one if not found in current list
-		if(pos == &upa_nest_queue) {
-			nest = sys_malloc(sizeof(struct upa_nest_s));
-			if(nest != NULL) {
-				nest->addr = addr;
-				nest->fail = 0;
-				nest->flag = (list_empty(&upa_nest_queue)) ? UPA_FLAG_MON : 0;
-				list_add_tail(&nest->list, &upa_nest_queue);
-			}
-		}
+		upa_nest_new(addr);
 		if(1) {
 			console_select(upa_uart_cnsl);
 			printf("%s %s %s\n", argv[0], argv[1], argv[2]);
