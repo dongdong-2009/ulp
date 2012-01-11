@@ -31,7 +31,7 @@
 #include <string.h>
 
 struct nrf_pipe_s {
-	char index; //0-5
+	unsigned char fail; //for signal quanlity check, for ptx usage only
 	char timeout; // unit: ms
 	char cf_timeout; //custom frame send timeout
 	char cf_ecode; //custom frame err code
@@ -195,7 +195,7 @@ static int nrf_hw_init(struct nrf_priv_s *priv)
 
 	nrf_hw_set_freq(chip, chip->freq);
 	nrf_hw_set_mode(chip, chip->mode);
-	nrf_hw_set_addr(chip, pipe->index, pipe->addr);
+	nrf_hw_set_addr(chip, 0, pipe->addr);
 
 	nrf_write_reg(STATUS, RX_DR | TX_DS | MAX_RT ); //clear rx_dr irq flag
 	return 0;
@@ -292,6 +292,7 @@ int nrf_update(struct nrf_priv_s *priv)
 				ce_set(0);
 				//delay at least 10uS here ...
 				nrf_write_reg(STATUS, MAX_RT);
+				pipe->fail = (pipe->fail + 15) >> 1;
 				ce_set(1);
 			}
 
@@ -322,6 +323,7 @@ int nrf_update(struct nrf_priv_s *priv)
 				if(!rbuf_full) { //no space to recv now
 					frame[0] = WL_FRAME_DATA;
 					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
+					pipe->fail = (pipe->fail + (nrf_read_reg(OBSERVE_TX) & 0x0f)) >> 1;
 					nrf_write_buf(W_TX_PAYLOAD, frame, n + 1); //nrf count the bytes automatically
 					nrf_write_reg(STATUS, TX_DS);
 				}
@@ -372,6 +374,7 @@ int nrf_update(struct nrf_priv_s *priv)
 		if(fifo_status & TX_FIFO_EMPTY) {
 			n = pipe->cf[0];
 			memcpy(frame, pipe->cf + 1, n);
+			pipe->fail = (pipe->fail + (nrf_read_reg(OBSERVE_TX) & 0x0f)) >> 1;
 			nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
 			nrf_write_reg(STATUS, TX_DS);
 			//wait until send out or max rt
@@ -389,6 +392,7 @@ int nrf_update(struct nrf_priv_s *priv)
 						ce_set(0);
 						//delay at least 10uS here ...
 						nrf_write_reg(STATUS, MAX_RT);
+						pipe->fail = (pipe->fail + 15) >> 1;
 						ce_set(1);
 					}
 					else { //send timeout
@@ -431,10 +435,10 @@ static int nrf_init(int fd, const void *pcfg)
 	chip = (struct nrf_chip_s *)(pmem + sizeof(struct nrf_priv_s) + sizeof(struct nrf_pipe_s));
 
 	//init pipe0
-	pipe->index = 0;
 	pipe->timeout = CONFIG_WL_MS; //5ms
 	pipe->timer = 0;
 	pipe->addr = CONFIG_WL_ADDR;
+	pipe->fail = 0;
 	buf_init(&pipe->tbuf, CONFIG_WL_TBUF_SZ);
 	buf_init(&pipe->rbuf, CONFIG_WL_RBUF_SZ);
 	INIT_LIST_HEAD(&pipe->list);
@@ -481,7 +485,7 @@ static int nrf_ioctl(int fd, int request, va_list args)
 
 	int (*onfail)(int ecode, ...);
 	char mode;
-	unsigned addr;
+	unsigned addr, *p;
 	int freq;
 
 	int ret = 0;
@@ -507,8 +511,9 @@ static int nrf_ioctl(int fd, int request, va_list args)
 	case WL_SET_ADDR:
 		addr = va_arg(args, unsigned);
 		if(addr != pipe->addr) {
-			ret = nrf_hw_set_addr(chip, pipe->index, addr);
+			ret = nrf_hw_set_addr(chip, 0, addr);
 			pipe->addr = addr;
+			pipe->fail = 0;
 			nrf_flush(priv);
 		}
 		break;
@@ -519,6 +524,11 @@ static int nrf_ioctl(int fd, int request, va_list args)
 			ret = nrf_hw_set_freq(chip, freq);
 			chip->freq = freq;
 		}
+		break;
+
+	case WL_GET_FAIL: //get fail counter
+		p = va_arg(args, unsigned *);
+		*p = pipe->fail;
 		break;
 
 	case WL_FLUSH:
