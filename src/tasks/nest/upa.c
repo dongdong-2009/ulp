@@ -84,6 +84,7 @@ static int upa_Init(void)
 	assert(upa_wl_cnsl != NULL);
 	shell_register(upa_wl_cnsl);
 	shell_mute(upa_wl_cnsl, 1);
+	shell_prompt(upa_uart_cnsl, "upa# ");
 	dev_ioctl(upa_wl_fd, WL_FLUSH);
 	upa_status = UPA_STATUS_INVALID;
 	upa_status_next = UPA_STATUS_INIT;
@@ -232,7 +233,6 @@ DECLARE_SHELL_CMD(cmd_upa)
 const static cmd_t cmd_monitor = {"monitor", cmd_monitor_func, "nest wireless monitor cmds"};
 DECLARE_SHELL_CMD(cmd_monitor)
 
-
 static int cmd_upa_func(int argc, char *argv[])
 {
 	struct upa_nest_s *nest = NULL;
@@ -240,13 +240,13 @@ static int cmd_upa_func(int argc, char *argv[])
 	unsigned addr;
 	const char *usage = {
 		"upa select 1234567a		select current nest\n"
-		"upa deselect			exit upa from foward status\n"
+		"upa exit			exit upa from foward status\n"
 		"upa list			list all nests online\n"
 		"upa update on/off		enable/disable upa_update, debug purpose\n"
 	};
 
 	if(argc == 3) {
-		if(!strcmp(argv[1], "select")) {
+		if(!strncmp(argv[1], "select", 3)) {
 			sscanf(argv[2], "%x", &addr);
 			list_for_each(pos, &upa_nest_queue) {
 				nest = list_entry(pos, upa_nest_s, list);
@@ -256,6 +256,7 @@ static int cmd_upa_func(int argc, char *argv[])
 					shell_trap(upa_wl_cnsl, &cmd_monitor); //all cmds redirect to cmd_monitor in wireless console
 					shell_lock(upa_uart_cnsl, 1);
 					upa_status = UPA_STATUS_INVALID; //force mode change in upa_update
+					shell_prompt(upa_uart_cnsl, "nest# ");
 				}
 				else {
 					if(nest->flag & UPA_FLAG_SEL) { //unsel
@@ -283,7 +284,7 @@ static int cmd_upa_func(int argc, char *argv[])
 	}
 
 	if(argc == 2) {
-		if(!strcmp(argv[1], "deselect")) {
+		if(!strcmp(argv[1], "exit")) {
 			list_for_each(pos, &upa_nest_queue) {
 				nest = list_entry(pos, upa_nest_s, list);
 				if(nest->flag & UPA_FLAG_SEL) {
@@ -291,6 +292,7 @@ static int cmd_upa_func(int argc, char *argv[])
 					break;
 				}
 			}
+			shell_prompt(upa_uart_cnsl, "upa# ");
 			shell_trap(upa_wl_cnsl, NULL);
 			shell_trap(upa_uart_cnsl, NULL);
 			printf("upa deselect ok\n");
