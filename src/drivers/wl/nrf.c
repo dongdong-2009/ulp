@@ -31,10 +31,12 @@
 #include <string.h>
 
 struct nrf_pipe_s {
-	unsigned char fail; //for signal quanlity check, for ptx usage only
-	char timeout; // unit: ms
-	char cf_timeout; //custom frame send timeout
-	char cf_ecode; //custom frame err code
+	struct {
+		unsigned fail : 8; //for signal quanlity check, for ptx usage only
+		unsigned cf_timeout : 8; //custom frame send timeout
+		unsigned cf_ecode : 4; //custom frame err code
+		unsigned timeout : 12; // unit: ms
+	};
 	time_t timer; //send timer for both ptx and prx mode, it counts the ms elapsed that hw tx fifo keeps full
 	unsigned addr; //note: only low 8 bit effective in case not pipe0
 	circbuf_t tbuf; //mv to hw fifo by poll()
@@ -583,11 +585,11 @@ static int nrf_read(int fd, void *buf, int count)
 	assert(priv != NULL);
 	pipe = priv->pipe;
 	assert(pipe != NULL);
-	do {
-		nrf_update(priv);
-	} while(buf_size(&pipe->rbuf) < count); //you may call poll to avoid deadloop here
-	buf_pop(&pipe->rbuf, buf, count);
-	return count;
+	nrf_update(priv);
+	int n = buf_size(&pipe->rbuf);
+	n = (n < count) ? n : count; //!!!warnning: data may lost here
+	buf_pop(&pipe->rbuf, buf, n);
+	return n;
 }
 
 static int nrf_write(int fd, const void *buf, int count)
@@ -598,11 +600,11 @@ static int nrf_write(int fd, const void *buf, int count)
 	pipe = priv->pipe;
 	assert(pipe != NULL);
 
-	do { //!!!bug: deadloop never get out of here when rbuf also full!!!
-		nrf_update(priv);
-	} while(buf_left(&pipe->tbuf) < count); //you may call poll to avoid deadloop here
-	buf_push(&pipe->tbuf, buf, count);
-	return count;
+	nrf_update(priv);
+	int n = buf_left(&pipe->tbuf);
+	n = (n < count) ? n : count; //!!!warnning: data may lost here
+	buf_push(&pipe->tbuf, buf, n);
+	return n;
 }
 
 static const struct drv_ops_s nrf_ops = {
