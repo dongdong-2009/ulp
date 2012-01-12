@@ -31,12 +31,11 @@
 #include <string.h>
 
 struct nrf_pipe_s {
-	struct {
-		unsigned fail : 8; //for signal quanlity check, for ptx usage only
-		unsigned cf_timeout : 8; //custom frame send timeout
-		unsigned cf_ecode : 4; //custom frame err code
-		unsigned timeout : 12; // unit: ms
-	};
+	unsigned short retry; //for signal quanlity check, for ptx usage only
+	unsigned short retry_times;
+	unsigned short timeout; // unit: ms
+	unsigned char cf_timeout; //custom frame send timeout
+	unsigned char cf_ecode; //custom frame err code
 	time_t timer; //send timer for both ptx and prx mode, it counts the ms elapsed that hw tx fifo keeps full
 	unsigned addr; //note: only low 8 bit effective in case not pipe0
 	circbuf_t tbuf; //mv to hw fifo by poll()
@@ -61,6 +60,21 @@ struct nrf_priv_s  {
 	struct nrf_chip_s *chip;
 	struct nrf_pipe_s *pipe; //point to current pipe
 };
+
+static inline void nrf_retry_init(struct nrf_pipe_s *pipe)
+{
+	pipe->retry = 0;
+	pipe->retry_times = 0;
+}
+
+static inline void nrf_retry_update(struct nrf_pipe_s *pipe, unsigned retry)
+{
+	retry += pipe->retry;
+	if(retry <= 0xffff) { //avoid fold back
+		pipe->retry_times ++;
+		pipe->retry = retry;
+	}
+}
 
 #define cs_set(level) chip->spi->csel(chip->gpio_cs, level)
 #define ce_set(level) chip->spi->csel(chip->gpio_ce, level)
@@ -294,7 +308,7 @@ int nrf_update(struct nrf_priv_s *priv)
 				ce_set(0);
 				//delay at least 10uS here ...
 				nrf_write_reg(STATUS, MAX_RT);
-				pipe->fail = (pipe->fail + 15) >> 1;
+				nrf_retry_update(pipe, 15);
 				ce_set(1);
 			}
 
@@ -325,7 +339,7 @@ int nrf_update(struct nrf_priv_s *priv)
 				if(!rbuf_full) { //no space to recv now
 					frame[0] = WL_FRAME_DATA;
 					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
-					pipe->fail = (pipe->fail + (nrf_read_reg(OBSERVE_TX) & 0x0f)) >> 1;
+					nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
 					nrf_write_buf(W_TX_PAYLOAD, frame, n + 1); //nrf count the bytes automatically
 					nrf_write_reg(STATUS, TX_DS);
 				}
@@ -376,7 +390,7 @@ int nrf_update(struct nrf_priv_s *priv)
 		if(fifo_status & TX_FIFO_EMPTY) {
 			n = pipe->cf[0];
 			memcpy(frame, pipe->cf + 1, n);
-			pipe->fail = (pipe->fail + (nrf_read_reg(OBSERVE_TX) & 0x0f)) >> 1;
+			nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
 			nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
 			nrf_write_reg(STATUS, TX_DS);
 			//wait until send out or max rt
@@ -394,7 +408,7 @@ int nrf_update(struct nrf_priv_s *priv)
 						ce_set(0);
 						//delay at least 10uS here ...
 						nrf_write_reg(STATUS, MAX_RT);
-						pipe->fail = (pipe->fail + 15) >> 1;
+						nrf_retry_update(pipe, 15);
 						ce_set(1);
 					}
 					else { //send timeout
@@ -440,7 +454,7 @@ static int nrf_init(int fd, const void *pcfg)
 	pipe->timeout = CONFIG_WL_MS; //5ms
 	pipe->timer = 0;
 	pipe->addr = CONFIG_WL_ADDR;
-	pipe->fail = 0;
+	nrf_retry_init(pipe);
 	buf_init(&pipe->tbuf, CONFIG_WL_TBUF_SZ);
 	buf_init(&pipe->rbuf, CONFIG_WL_RBUF_SZ);
 	INIT_LIST_HEAD(&pipe->list);
@@ -487,7 +501,7 @@ static int nrf_ioctl(int fd, int request, va_list args)
 
 	int (*onfail)(int ecode, ...);
 	char mode;
-	unsigned addr, *p;
+	unsigned addr, *p, retry, times;
 	int freq;
 
 	int ret = 0;
@@ -515,7 +529,7 @@ static int nrf_ioctl(int fd, int request, va_list args)
 		if(addr != pipe->addr) {
 			ret = nrf_hw_set_addr(chip, 0, addr);
 			pipe->addr = addr;
-			pipe->fail = 0;
+			nrf_retry_init(pipe);
 			nrf_flush(priv);
 		}
 		break;
@@ -528,9 +542,13 @@ static int nrf_ioctl(int fd, int request, va_list args)
 		}
 		break;
 
-	case WL_GET_FAIL: //get fail counter
+	case WL_GET_FAIL: //get retry counter
 		p = va_arg(args, unsigned *);
-		*p = pipe->fail;
+		times = pipe->retry_times;
+		retry = pipe->retry;
+		retry = (times == 0) ? 0 : ((retry << (15 - 4)) / times); //range: 0-32767
+		*p = retry;
+		nrf_retry_init(pipe);
 		break;
 
 	case WL_FLUSH:
