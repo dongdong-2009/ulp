@@ -12,6 +12,7 @@
 
 static const struct console_s *cnsl; /*current console*/
 static const struct console_s *cnsl_def; /*system default console*/
+static const struct console_s *cnsl_old;
 
 void console_Init(void)
 {
@@ -41,7 +42,17 @@ void console_Init(void)
 
 int console_select(const struct console_s *new)
 {
+	cnsl_old = cnsl;
 	cnsl = (new == NULL) ? cnsl_def : new;
+	return 0;
+}
+
+int console_restore(void)
+{
+	const struct console_s *tmp;
+	tmp = cnsl;
+	cnsl = cnsl_old;
+	cnsl_old = tmp;
 	return 0;
 }
 

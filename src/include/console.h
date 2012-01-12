@@ -13,6 +13,7 @@ struct console_s {
 };
 
 int console_select(const struct console_s *);
+int console_restore(void);
 
 void console_Init(void);
 int console_putchar(char c);
