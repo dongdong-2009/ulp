@@ -14,9 +14,8 @@
 
 struct upa_nest_s {
 	unsigned addr;
-	//unsigned flag;
-	char retry;
-	char reserved[3];
+	unsigned short retry;
+	unsigned short retry_temp;
 	time_t timer; //update timer
 	struct list_head list;
 };
@@ -45,13 +44,18 @@ static struct upa_nest_s* upa_mon_elect(void)
 {
 	struct upa_nest_s *nest, *hero = NULL;
 	struct list_head *pos;
-	char retry = 100;
+	unsigned retry = 0xffff;
 	list_for_each(pos, &upa_nest_queue) {
 		nest = list_entry(pos, upa_nest_s, list);
-		if(nest->retry < retry) {
+		if(nest->retry < retry) { //max 32767
 			hero = nest;
 			retry = nest->retry;
 		}
+	}
+
+	if(upa_nest_mon != NULL) {
+		if(upa_nest_mon->retry - hero->retry > 50) //do not change the hero too frequently
+			hero = upa_nest_mon;
 	}
 	return hero;
 }
@@ -84,7 +88,8 @@ static int upa_nest_new(unsigned addr)
 	nest = sys_malloc(sizeof(struct upa_nest_s));
 	if(nest != NULL) {
 		nest->addr = addr;
-		nest->retry = 16; //i hate newbie!!! :)
+		nest->retry = 0x7fff; //i hate newbie!!! :)
+		nest->retry_temp = 0;
 		nest->timer = 0;
 		list_add_tail(&nest->list, &upa_nest_queue);
 		return 0;
@@ -104,15 +109,25 @@ static int upa_nest_bad(unsigned addr)
 	return 0;
 }
 
-static int upa_nest_update(void)
+static void upa_retry_fetch(struct upa_nest_s *nest)
 {
-	int retry;
-	if(upa_nest_cur != NULL) {
-		dev_ioctl(upa_wl_fd, WL_GET_FAIL, &retry);
-		retry += upa_nest_cur->retry;
-		upa_nest_cur->retry = retry >> 1;
+	unsigned retry;
+	if(nest != NULL) {
+		dev_ioctl(upa_wl_fd, WL_GET_FAIL, &retry); //max 32767
+		retry += nest->retry_temp;
+		if(nest->retry_temp != 0) {
+			retry >>= 1;
+		}
+		nest->retry_temp = retry;
 	}
-	return 0;
+}
+
+static void upa_retry_update(struct upa_nest_s *nest)
+{
+	if(nest != NULL) {
+		nest->retry = nest->retry_temp;
+		nest->retry_temp = 0;
+	}
 }
 
 static int upa_wl_onfail(int ecode, ...)
@@ -221,7 +236,7 @@ static int upa_Update(void)
 			shell_lock(upa_uart_cnsl, 1);
 			shell_lock(upa_wl_cnsl, 0);
 			if(upa_nest_cur != upa_nest_mon) {
-				upa_nest_update();
+				upa_retry_fetch(upa_nest_cur);
 				upa_nest_cur = upa_nest_mon;
 				dev_ioctl(upa_wl_fd, WL_STOP);
 				dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
@@ -238,7 +253,7 @@ static int upa_Update(void)
 		shell_lock(upa_uart_cnsl, 0);
 		if(upa_nest_sel != NULL) {
 			if(upa_nest_cur != upa_nest_sel) {
-				upa_nest_update();
+				upa_retry_fetch(upa_nest_cur);
 				upa_nest_cur = upa_nest_sel;
 				dev_ioctl(upa_wl_fd, WL_STOP);
 				dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
@@ -256,7 +271,8 @@ static int upa_Update(void)
 				upa_status = upa_status_next;
 				shell_lock(upa_uart_cnsl, 1);
 				shell_lock(upa_wl_cnsl, 0);
-				upa_nest_update();
+				upa_retry_fetch(upa_nest_cur);
+				upa_retry_update(nest);
 				if(upa_nest_cur != nest) {
 					upa_nest_cur = nest;
 					dev_ioctl(upa_wl_fd, WL_STOP);
@@ -309,6 +325,7 @@ static int cmd_upa_func(int argc, char *argv[])
 	struct upa_nest_s *nest = NULL;
 	struct list_head *pos;
 	unsigned addr;
+	static char *cmd_upa_sub = NULL;
 	const char *usage = {
 		"upa select 1234567a		select current nest\n"
 		"upa exit			exit upa from foward status\n"
@@ -364,6 +381,23 @@ static int cmd_upa_func(int argc, char *argv[])
 			}
 			return 0;
 		}
+
+		if(!strncmp(argv[1], "signal", 3)) {
+			if(upa_nest_sel != NULL) {
+				cmd_upa_sub = argv[1];
+				printf("\n");
+				return 1;
+			}
+			else {
+				printf("no nest selected\n");
+				return 0;
+			}
+		}
+	}
+
+	if(argc == 0 && (!strncmp(cmd_upa_sub, "signal", 3))) {
+		printf("\rsignal[%08x] = %d    ", upa_nest_sel->addr, upa_nest_sel->retry);
+		return 1;
 	}
 
 	if(strcmp(argv[0], "upa") && (upa_status == UPA_STATUS_PTX_SEL)) { //commands to be forwarded to wireless
