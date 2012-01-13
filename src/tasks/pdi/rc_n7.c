@@ -16,7 +16,7 @@
 #include "shell/cmd.h"
 #include "led.h"
 
-#define PDI_DEBUG	1
+#define PDI_DEBUG	0
 
 //pdi_RCN7 can msg
 static const can_msg_t rc_clrdtc_msg =		{0x752, 8, {0x03, 0x3b, 0x9f, 0xff, 0, 0, 0, 0}, 0};
@@ -133,7 +133,7 @@ static int rc_StartSession(void)
 	can_msg_print(&msg, "\n");
 #endif
 
-#if 1
+#if 0
 	//get serial number
 	printf("\nSN Code:\n");
 	usdt_GetDiagFirstFrame(&rc_getsn_msg, 1, NULL, rc_msg_buf, &msg_len);
@@ -250,6 +250,8 @@ static int counter_fail_add()
 
 static int pdi_fail_action()
 {
+	printf("##START##STATUS-100##END##\n");
+	pdi_IGN_off();
 	led_off(LED_GREEN);
 	led_off(LED_RED);
 	led_on(LED_RED);
@@ -262,6 +264,7 @@ static int pdi_fail_action()
 
 static int pdi_pass_action()
 {
+	pdi_IGN_off();
 	led_off(LED_GREEN);
 	led_off(LED_RED);
 	led_on(LED_GREEN);
@@ -333,26 +336,22 @@ static int rc_JAMA_check(const struct pdi_cfg_s *sr)
 	for(i = 0; i < sr->nr_of_rules; i ++) {
 		pdi_cfg_rule = pdi_rule_get(sr, i);
 		if (&pdi_cfg_rule == NULL) {
-			printf("##START##EC-no JAMA rule##END##\n");
+			printf("##START##EC-no JAMA rule...##END##\n");
 			return 1;
 		}
 
 		switch(pdi_cfg_rule->type) {
 		case PDI_RULE_JAMA:
-			printf("##START##EC-checking JAMA##END##\n");
-			if(JAMA_on()) rc_data_buf[0] = 0x00;//JAMA present
-			else rc_data_buf[0] = 0x01;			//JAMA absent
+			printf("##START##EC-Checking JAMA...##END##\n");
+			if(JAMA_on()) rc_data_buf[0] = 0x00;//JAMA absent
+			else rc_data_buf[0] = 0x01;			//JAMA present
 			break;
 		case PDI_RULE_UNDEF:
 			return 1;
 		}
 
-		if(pdi_verify(pdi_cfg_rule, rc_data_buf) == 0)
-			continue;
-		else {
-			printf("##START##EC-JAMA Wrong##END##\n");
-			return 1;
-		}
+		if(pdi_verify(pdi_cfg_rule, rc_data_buf) == 0) continue;
+		else return 1;
 	}
 
 	return 0;
@@ -363,6 +362,7 @@ static int rc_part_check()
 	int msg_len;
 	char part_data[20];
 	can_msg_t msg_res;
+	printf("##START##EC-Checking part NO.##END##\n");
 	if(usdt_GetDiagFirstFrame(&rc_getpart_msg, 1, NULL, &msg_res, &msg_len))
 		return 1;
 	if(msg_len > 1) {
@@ -370,11 +370,11 @@ static int rc_part_check()
 		if(usdt_GetDiagLeftFrame(rc_msg_buf, msg_len))
 			return 1;
 	}
+
 	//pickup partnumber
-	if(memcpy(part_data, (msg_res.data + 4), 4))
-		return 1;
-	if(memcpy((part_data + 4) ,(rc_msg_buf + 1)->data + 1 ,1))
-		return 1;
+	memcpy(part_data, (msg_res.data + 4), 4);
+	memcpy((part_data + 4) ,(rc_msg_buf + 1)->data + 1 ,1);
+
 	//check partnumber
 	if(memcmp(part_data, bcode_1 + 2, 3))
 		return 1;
@@ -386,7 +386,15 @@ static int rc_part_check()
 
 static int rc_check_barcode()
 {
-	rc_GetCID(0x90ab, rc_data_buf);
+	char read_bcode[14];
+	printf("##START##EC-Checking barcode...##END##\n");
+	if(rc_GetCID(0x90ab, rc_data_buf))
+		return 1;
+
+	memcpy(read_bcode, rc_data_buf, 14);
+	printf("##START##RB-");
+	printf(read_bcode,"\0");
+	printf("##END##\n");
 
 	if (memcmp(rc_data_buf, bcode_1, 14))
 		return 1;
@@ -441,21 +449,29 @@ static int rc_check(const struct pdi_cfg_s *sr)
 	}
 
 	rc_StartSession();
+
 	//check barcode
 	if(rc_check_barcode()) {
 		printf("##START##EC-Barcode Wrong##END##\n");
 		return 1;
 	}
+	printf("##START##EC-      Checking barcode Done...##END##\n");
+
 	//check JAMA
 	if(rc_JAMA_check(sr)) {
-		printf("##START##EC-JAMA Wrong##END##\n");
+		printf("##START##EC-JAMA wrong...##END##\n");
 		return 1;
 	}
+	printf("##START##EC-      Checking JAMA Done...##END##\n");
+
 	//check part NO.
 	if(rc_part_check()) {
-		printf("##START##EC-Partnumber Wrong##END##\n");
+		printf("##START##EC-Partnumber Wrong...##END##\n");
 		return 1;
 	}
+	printf("##START##EC-      Checking part NO. Done...##END##\n");
+
+	printf("##START##EC-Waiting for ECU ready...##END##\n");
 	//delay 7s
 	for (rate = 17; rate <= 96; rate ++) {
 		rc_mdelay(89);
@@ -471,7 +487,7 @@ static int rc_check(const struct pdi_cfg_s *sr)
 	while (rc_GetFault(rc_fault_buf, &num_fault)) {
 		try_times --;
 		if (try_times < 0) {
-			printf("##START##EC-read DTC error##END##\n");
+			printf("##START##EC-Read DTC error...##END##\n");
 			return 1;
 		}
 	}
@@ -479,9 +495,9 @@ static int rc_check(const struct pdi_cfg_s *sr)
 	if (num_fault) {
 		//rc_clear_dtc();
 		printf("##START##EC-");
-		printf("num of fault is: %d*", num_fault);
+		printf("num of fault is: %d\n", num_fault);
 		for (i = 0; i < num_fault*3; i += 3)
-			printf("0x%2x, 0x%2x, 0x%2x*", rc_fault_buf[i]&0xff, rc_fault_buf[i+1]&0xff, rc_fault_buf[i+2]&0xff);
+			printf("0x%2x, 0x%2x, 0x%2x\n", rc_fault_buf[i]&0xff, rc_fault_buf[i+1]&0xff, rc_fault_buf[i+2]&0xff);
 		printf("##END##\n");
 		return 1;
 	}
@@ -574,14 +590,18 @@ static int cmd_rc_func(int argc, char *argv[])
 
 	if(argc == 2) {
 		if(argv[1][0] == 'f') {
+			pdi_IGN_on();
+			rc_mdelay(100);
+			rc_StartSession();
 			if (rc_GetFault(rc_fault_buf, &num_fault))
 				printf("##ERROR##\n");
 			else {
 				printf("##OK##\n");
 				printf("num of fault is: %d\n", num_fault);
-				for (i = 0; i < num_fault*2; i += 2)
-					printf("0x%2x, 0x%2x\n", rc_fault_buf[i]&0xff, rc_fault_buf[i+1]&0xff);
+				for (i = 0; i < num_fault*3; i += 3)
+					printf("0x%2x, 0x%2x, 0x%2x\n", rc_fault_buf[i]&0xff, rc_fault_buf[i+1]&0xff, rc_fault_buf[i+2]&0xff);
 			}
+			pdi_IGN_off();
 		}
 
 		// start the diagnostic session
@@ -614,6 +634,8 @@ static int cmd_pdi_func(int argc, char *argv[])
 		"pdi clear		clear the error code\n"
 	};
 
+	int msg_len, num_fault, i;
+
 	if (argc < 2) {
 		printf("%s", usage);
 		return 0;
@@ -622,11 +644,11 @@ static int cmd_pdi_func(int argc, char *argv[])
 	if(argc == 2) {
 		if(argv[1][0] == 'c') {
 			pdi_IGN_on();
+			rc_mdelay(5000);
 			rc_StartSession();
-			if (rc_clear_dtc())
+			if(rc_clear_dtc())
 				printf("##ERROR##\n");
-			else
-				printf("##OK##\n");
+			else printf("##OK##\n");
 			pdi_IGN_off();
 		}
 	}
