@@ -29,7 +29,7 @@ struct ad5663_chip_s {
 };
 
 struct ad5663_buffer_s {
-	unsigned short dv;
+	unsigned dv : 16;
 	unsigned addr : 3;
 	unsigned cmd : 3;
 	unsigned resv : 2;

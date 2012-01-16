@@ -12,11 +12,11 @@ int gpcon_init(void)
 	GPIO_InitTypeDef GPIO_InitStructure;
 
 	//MISC
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_12;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
 	return 0;
 }
 
@@ -46,8 +46,7 @@ int gpcon_signal(int sig, int ops)
 
 	switch(sig) {
 	case SENSOR:
-		GPIO_WriteBit(GPIOA, GPIO_Pin_11, ba);
-		GPIO_WriteBit(GPIOA, GPIO_Pin_12, ba);
+		GPIO_WriteBit(GPIOB, GPIO_Pin_0, ba);
 		break;
 	default:
 		return -1;

@@ -11,6 +11,7 @@
 #include "common/circbuf.h"
 #include "linux/list.h"
 #include "sys/malloc.h"
+#include <stdlib.h>
 
 
 #define cs_set(level) chip->spi->csel(chip->gpio_cs, level)
@@ -21,23 +22,21 @@
 #define ad5663_write_buf(buf) __ad5663_write_buf(chip, buf, 3)
 static int __ad5663_write_buf(const struct ad5663_chip_s *chip, const char *buf, int count)
 {
-	int status;
-	ldac_set(0);
+	//ldac_set(0);
 	cs_set(0);
 	while(count > 0) {
-		status = spi_write(*buf++);
-		if(status != 0)
-			break;
-		count --;
+		printf("%x",(*buf)&0xff);
+		spi_write(*buf++);
+		count--;
 	}
 	cs_set(1);
-	ldac_set(1);
-	return status;
+	//ldac_set(1);
+	return 0;
 }
 
 static int ad5663_write(int fd, const void *buf, int count)
 {
-	int ret;
+	unsigned int ret;
 	struct ad5663_priv_s *priv = dev_priv_get(fd);
 	assert(priv != NULL);
 	struct ad5663_chip_s *chip = priv->chip;
@@ -57,15 +56,18 @@ static int ad5663_hw_init(struct ad5663_priv_s *priv)
 	//spi bus init
 	spi_cfg_t spi_cfg = SPI_CFG_DEF;
 	spi_cfg.cpol = 0,
-	spi_cfg.cpha = 0,
+	spi_cfg.cpha = 1,
 	spi_cfg.bits = 8,
 	spi_cfg.bseq = 0,     //LSB 0-1...-6-7
 	spi_cfg.freq = 8000000;
 	spi_cfg.csel = 1;
 	chip->spi->init(&spi_cfg);
-	cs_set(1);
-	ldac_set(1);
-	clr_set(1);
+	cs_set(0);
+        cs_set(1);
+	ldac_set(0);
+        //ldac_set(1);
+        clr_set(0);
+        clr_set(1);
 	return 0;
 }
 
@@ -109,7 +111,7 @@ static int ad5663_open(int fd, int mode)
 
 static int ad5663_ioctl(int fd, int request, va_list args)
 {
-	unsigned short dv;	//digital v
+	unsigned int dv;		//digital v
 	struct ad5663_priv_s *priv = dev_priv_get(fd);
 	struct ad5663_chip_s *chip;
 	struct ad5663_buffer_s *buffer;
@@ -118,7 +120,6 @@ static int ad5663_ioctl(int fd, int request, va_list args)
 	assert(chip != NULL);
 	buffer = priv->buffer;
 	assert(chip != NULL);
-	
 	//preprocess
 	int ret = 0;
 	switch(request) {
@@ -126,9 +127,9 @@ static int ad5663_ioctl(int fd, int request, va_list args)
 		buffer->cmd = DAC_RESET;
 		break;
 	case DAC_WRIN_UPDN:
-		dv = (unsigned short) va_arg(args, int);
-		buffer-> dv = dv;
 		buffer->cmd = DAC_WRIN_UPDN;
+		dv = (unsigned int) va_arg(args,int);
+		buffer->dv = dv;
 		break;
 	case DAC_CHOOSE_CHANNEL1:
 		buffer->addr = 0;

@@ -41,14 +41,19 @@ int ybs_mdelay(int ms)
 	return 0;
 }
 
-static int cmd_ad5663(int dv)
+static int cmd_ad5663(char *buf)
 {
+	float dv;
+	unsigned int ret;
 	int fd = dev_open("dac", 0);
 	dev_ioctl(fd, DAC_RESET);
 	dev_ioctl(fd, DAC_CHOOSE_CHANNEL1);
 	dev_write(fd,NULL,0);
 	ybs_mdelay(1);
-	dev_ioctl(fd, DAC_WRIN_UPDN,dv);
+	dv = atof(buf);
+	ret =(unsigned int)(((unsigned int)(dv*10000))<<16/25000);  //x/2.5*2^16
+	printf("\ntrue voltage dv=%f:\ndigital value ret=%d\n",dv,ret);
+	dev_ioctl(fd, DAC_WRIN_UPDN,ret);
 	dev_write(fd,NULL,0);
 	dev_close(fd);
 	return 0;
@@ -60,13 +65,11 @@ static int cmd_ad5663(int dv)
 //ybs shell command
 static int cmd_ybs_func(int argc, char *argv[])
 {
-	int dv;
-	const char *usage[] = {
-		{"ybs help            usage of ybs commond\n"},
-		{"ybs pmos            simulator resistor button,usage:pmos on/off\n"},
-		{"ybs ad5663          cmd of dac IC ad5663,usag:ad5663 xxx\n"}
+	const char *usage = {
+		"ybs help            usage of ybs commond\n"
+		"ybs pmos            simulator resistor button,usage:pmos on/off\n"
+		"ybs ad5663          cmd of dac IC ad5663,usag:ad5663 xxx\n"
 	};
-
 	if(argc > 1) {
 		if(!strcmp(argv[1], "pmos")) {
 			if(argc == 3){
@@ -80,16 +83,11 @@ static int cmd_ybs_func(int argc, char *argv[])
 				return -1;
 		}
 		if(!strcmp(argv[1], "ad5663")){
-			if(argc == 3){
-				dv = atoi(argv[2]);
-				printf("dv = %4d",dv);
-				return cmd_ad5663(dv);
-			}
-			else
-			printf("%s",usage[2]);
+			if(argc == 3)
+				return cmd_ad5663(argv[2]);
 		}
 	}
-	//printf("%s", usage);
+	printf("%s", usage);
 	return 0;
 }
 
