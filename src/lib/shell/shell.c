@@ -18,6 +18,7 @@
 static void cmd_GetHistory(char *cmd, int dir);
 static void cmd_SetHistory(const char *cmd);
 
+static const char *shell_prompt_def = CONFIG_SHELL_PROMPT;
 static LIST_HEAD(shell_queue);
 static struct shell_s *shell; /*current shell*/
 
@@ -63,7 +64,7 @@ void shell_Update(void)
 			continue; //bypass shell update
 		console_select(shell -> console);
 		cmd_queue_update(&shell -> cmd_queue);
-		ok = shell_ReadLine(CONFIG_SHELL_PROMPT, NULL);
+		ok = shell_ReadLine(shell->prompt, NULL);
 		if(ok)
 			cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
 		console_select(NULL); //restore system default console
@@ -85,6 +86,7 @@ int shell_register(const struct console_s *console)
 	shell -> cmd_buffer[0] = 0;
 	shell -> cmd_idx = -1;
 
+	shell -> prompt = shell_prompt_def;
 	shell -> cmd_hsz = CONFIG_SHELL_LEN_HIS_MAX;
 	shell -> cmd_history = NULL;
 	shell -> cmd_hrail = 0;
@@ -182,6 +184,22 @@ int shell_trap(const struct console_s *cnsl, cmd_t *cmd)
 		s = list_entry(pos, shell_s, list);
 		if(s->console == cnsl) {
 			s->cmd_queue.trap = cmd;
+			ret = 0;
+			break;
+		}
+	}
+	return ret;
+}
+
+int shell_prompt(const struct console_s *cnsl, const char *prompt)
+{
+	struct shell_s *s;
+	struct list_head *pos;
+	int ret = -1;
+	list_for_each(pos, &shell_queue) {
+		s = list_entry(pos, shell_s, list);
+		if(s->console == cnsl) {
+			s->prompt = prompt;
 			ret = 0;
 			break;
 		}

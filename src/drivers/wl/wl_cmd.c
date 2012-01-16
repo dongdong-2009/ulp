@@ -37,6 +37,7 @@ static int cmd_nrf_chat(void)
 	dev_ioctl(fd, WL_SET_FREQ, wl_freq);
 	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
 	dev_ioctl(fd, WL_SET_MODE, wl_mode);
+	dev_ioctl(fd, WL_ERR_TXMS, 5);
 	dev_ioctl(fd, WL_ERR_FUNC, nrf_onfail);
 	dev_ioctl(fd, WL_START);
 
@@ -96,6 +97,7 @@ static int cmd_nrf_speed(void)
 	dev_ioctl(fd, WL_SET_FREQ, wl_freq);
 	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
 	dev_ioctl(fd, WL_SET_MODE, wl_mode);
+	dev_ioctl(fd, WL_ERR_TXMS, 5);
 	dev_ioctl(fd, WL_ERR_FUNC, nrf_onfail);
 	dev_ioctl(fd, WL_START);
 

@@ -38,6 +38,7 @@ struct shell_s {
 	short config;
 
 	/*cmd line*/
+	const char *prompt;
 	char cmd_buffer[CONFIG_SHELL_LEN_CMD_MAX];
 	short cmd_idx;
 
@@ -60,6 +61,7 @@ int shell_unregister(const struct console_s *);
 int shell_mute(const struct console_s *cnsl, int enable); //disable shell echo
 int shell_lock(const struct console_s *cnsl, int enable); //disable shell input
 int shell_trap(const struct console_s *cnsl, cmd_t *cmd);
+int shell_prompt(const struct console_s *cnsl, const char *prompt);
 
 /*to execute a specified cmd in specified console*/
 int shell_exec_cmd(const struct console_s *, const char *cmdline);
