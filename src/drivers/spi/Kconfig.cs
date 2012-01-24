@@ -25,3 +25,7 @@ bool "PB0 as CS" CONFIG_SPI_CS_PB0
 #for apt c131 board mcp23s17
 bool "PD12 as CS" CONFIG_SPI_CS_PD12
 
+#for ybs board ad5663 ldac and clr pin
+bool "PA3 as CS" CONFIG_SPI_CS_PA3
+bool "PA2 as CS" CONFIG_SPI_CS_PA2
+
