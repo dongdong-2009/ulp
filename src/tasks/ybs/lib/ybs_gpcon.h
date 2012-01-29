@@ -28,5 +28,6 @@ enum {
 /*cncb api*/
 int gpcon_init(void);
 int gpcon_signal(int sig, int ops);
+int adc_init(void);
 
 #endif

@@ -497,7 +497,7 @@ void TIM3_IRQHandler(void)
 * Return         : None
 *******************************************************************************/
 extern void rckey_isr(void);
-void TIM4_IRQHandler(void)
+__weak void TIM4_IRQHandler(void)
 {
 #if CONFIG_DRIVER_RCKEY == 1
 	rckey_isr();
