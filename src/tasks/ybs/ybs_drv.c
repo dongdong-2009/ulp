@@ -1,5 +1,7 @@
 /*
+ * authors:
  * 	junjun@2011 initial version
+ * 	feng.ni@2012 the concentration is the essence
  */
 #include "sys/task.h"
 #include "ybs_gpcon.h"
@@ -36,20 +38,6 @@ int ybs_Update(void)
         }
 	return 0;
 }
-
-int ybs_mdelay(int ms)
-{
-	int left;
-	time_t deadline = time_get(ms);
-	do {
-		left = time_left(deadline);
-		if(left >= 10) { //system update period is expected less than 10ms
-			ybs_Update();
-		}
-	} while(left > 0);
-	return 0;
-}
-
 
 //ybs shell command
 static int cmd_ybs_func(int argc, char *argv[])
