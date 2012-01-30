@@ -12,75 +12,49 @@
 #include <shell/cmd.h>
 #include <string.h>
 
-union ad5663_cmd_s {
-	struct cmd_s {
-	unsigned dv : 16;
-	unsigned addr : 3;
-	unsigned cmd : 3;
-	unsigned resv : 2;
-	}cmd_s;
-	unsigned value;
-};
-
 struct ad5663_priv_s {
-	struct ad5663_cfg_s *cfg;
-	union ad5663_cmd_s *buffer;
+	const struct ad5663_cfg_s *cfg;
+	union {
+		struct {
+			unsigned dv : 16; //lsb
+			unsigned addr : 3;
+			unsigned cmd : 3;
+		};
+		unsigned value;
+	} dacmd;
 };
-
-static int fd;
 
 #define cs_set(level) cfg->spi->csel(cfg->gpio_cs, level)
 #define ldac_set(level) cfg->spi->csel(cfg->gpio_ldac, level)
 #define clr_set(level) cfg->spi->csel(cfg->gpio_clr, level)
-#define spi_write(val) cfg->spi->wreg(0, val)
-
-#define ad5663_write_buf(buf) __ad5663_write_buf(cfg, buf,3)
-static int __ad5663_write_buf(const struct ad5663_cfg_s *cfg, const unsigned int buf, int count)
-{
-	int temp;
-	cs_set(0);
-	while(count > 0) {
-		temp = buf>>(8*(count-1));
-		spi_write(temp);
-		count--;
-	}
-	cs_set(1);
-	return 0;
-}
+#define spi_write(val) cfg->spi->wreg(cfg->gpio_cs, val)
 
 static int ad5663_write(int fd, const void *buf, int count)
 {
-	unsigned int ret;
-	unsigned int dv;
 	struct ad5663_priv_s *priv = dev_priv_get(fd);
-	assert(priv != NULL);
-	struct ad5663_cfg_s *cfg = priv->cfg;
-	assert(cfg != NULL);
-	union ad5663_cmd_s *buffer;
-	buffer = priv->buffer;
-	assert(buffer != NULL);
-	buffer->cmd_s.cmd = 3; //write cmd of "Write to and update DAC channel n"
-	dv = atoi(buf);
-	buffer->cmd_s.dv = dv;
-	ret = ad5663_write_buf(buffer->value);
-	return ret;
+	const struct ad5663_cfg_s *cfg = priv->cfg;
+
+	priv->dacmd.dv = *(unsigned *)buf;
+	priv->dacmd.cmd = 3; //write cmd of "Write to and update DAC channel n"
+	spi_write(priv->dacmd.value);
+	return 0;
 }
 
 
 static int ad5663_hw_init(struct ad5663_priv_s *priv)
 {
-	struct ad5663_cfg_s *cfg = priv->cfg;
+	const struct ad5663_cfg_s *cfg = priv->cfg;
 	assert(cfg != NULL);
 	//spi bus init
 	spi_cfg_t spi_cfg = SPI_CFG_DEF;
 	spi_cfg.cpol = 1,
 	spi_cfg.cpha = 0,
-	spi_cfg.bits = 8,
-	spi_cfg.bseq = 1,     //LSB 0-1...-6-7
-	spi_cfg.freq = 8000000;
-	spi_cfg.csel = 1;
+	spi_cfg.bits = 24,
+	spi_cfg.bseq = 1, //msb
+	spi_cfg.freq = 50000000;
+	spi_cfg.csel = 0; //automatic control
 	cfg->spi->init(&spi_cfg);
-        cs_set(1);
+	cs_set(1);
 	ldac_set(0);
         clr_set(1);
 	return 0;
@@ -90,28 +64,14 @@ static int ad5663_hw_init(struct ad5663_priv_s *priv)
 static int ad5663_init(int fd, const void *pcfg)
 {
 	struct ad5663_priv_s *priv;
-	struct ad5663_cfg_s *cfg;
-	union ad5663_cmd_s *buffer;
-	const struct ad5663_cfg_s *temp = (struct ad5663_cfg_s *) pcfg;
-	char *pmem;
 
 	//malloc for device special data
-	pmem = sys_malloc(sizeof(struct ad5663_priv_s) + sizeof(struct ad5663_cfg_s)+ sizeof(union ad5663_cmd_s));
-	assert(pmem != NULL);
-	priv = (struct ad5663_priv_s *)pmem;
-	cfg = (struct ad5663_cfg_s *)(pmem + sizeof(struct ad5663_priv_s));
-	buffer = (union ad5663_cmd_s *)(pmem + sizeof(struct ad5663_priv_s) + sizeof(struct ad5663_cfg_s));
+	priv = sys_malloc(sizeof(struct ad5663_priv_s));
+	assert(priv != NULL);
 
 	//init cfg
-	cfg->spi = temp->spi;
-	cfg->gpio_cs = temp->gpio_cs;
-	cfg->gpio_ldac = temp->gpio_ldac;
-	cfg->gpio_clr = temp->gpio_clr;
-	cfg->ch = temp->ch;
-
-	//priv
-	priv->cfg = cfg;
-	priv->buffer = buffer;
+	priv->cfg = pcfg;
+	priv->dacmd.value = 0;
 	dev_priv_set(fd, priv);
 	return dev_class_register("dac",fd);
 }
@@ -127,24 +87,22 @@ static int ad5663_open(int fd, int mode)
 
 static int ad5663_ioctl(int fd, int request, va_list args)
 {
-	unsigned int ch;		//digital v
 	struct ad5663_priv_s *priv = dev_priv_get(fd);
-	struct ad5663_cfg_s *cfg;
-	union ad5663_cmd_s *buffer;
 	assert(priv != NULL);
-	cfg = priv->cfg;
-	assert(cfg != NULL);
-	buffer = priv->buffer;
-	assert(buffer != NULL);
 
-	int ret = 0;
+	int ch, *pbits, ret = 0;
 	switch(request) {
 	case DAC_GET_BITS:
-		return 16;
-	case DAC_CHOOSE_CH:
-		ch = (unsigned int) va_arg(args,int);
-		buffer->cmd_s.addr = ch;
-		cfg->ch = ch;
+		pbits = va_arg(args, int *);
+		*pbits = 16;
+		break;
+	case DAC_SET_CH:
+		ret = -1;
+		ch = va_arg(args, int);
+		if(ch >= 0 && ch <= 1) {
+			priv->dacmd.addr = ch;
+			ret = 0;
+		}
 		break;
 	default:
 		ret = -1;
@@ -185,15 +143,17 @@ static int cmd_ad5663_func(int argc, char *argv[])
 	};
 	if(argc > 1) {
 		if(argc == 3){
-			fd = dev_open("dac", 0);
-			dev_ioctl(fd,DAC_CHOOSE_CH,atoi(argv[1]));
-			dev_write(fd,argv[2],0);
-			return dev_close(fd);
+			int digit = atoi(argv[2]);
+			int fd = dev_open("dac", 0);
+			dev_ioctl(fd,DAC_SET_CH,atoi(argv[1]));
+			dev_write(fd,&digit,0);
+			dev_close(fd);
+			return 0;
 		}
 	}
 	printf("%s", usage);
 	return 0;
 }
 
-const static cmd_t cmd_ad5663 = {"ad5663", cmd_ad5663_func, "ad5663 debug command"};
+static const cmd_t cmd_ad5663 = {"ad5663", cmd_ad5663_func, "ad5663 debug command"};
 DECLARE_SHELL_CMD(cmd_ad5663)

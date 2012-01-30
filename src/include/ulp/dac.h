@@ -10,7 +10,7 @@
 /*IOCTL CMDS - there is no specific call sequency requirements*/
 enum {
 	DAC_GET_BITS,
-	DAC_CHOOSE_CH, /*choose channel*/
+	DAC_SET_CH, /*choose channel*/
 };
 
 /*for chip ad5663 16bit dac*/
