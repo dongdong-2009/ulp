@@ -7,7 +7,7 @@
 #ifndef __YBS_H_
 #define __YBS_H_
 
-#define YBS_F 50000 //unit: Hz
+#define YBS_US 20 //unit: us
 #define YBS_VO_MIN 2 //unit: V
 #define YBS_VO_MAX 20 //unit: V
 
