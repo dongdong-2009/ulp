@@ -40,27 +40,59 @@ static int ybs_cal(int *pgs, int *pvs)
 	int vi, vr, ve, vl, vh, i, vm;
 	int vr1, vr2, vi1, vi2, gs, gr, vs;
 
+#if 0
+	for(vr = 0; vr < v2d(2.6); vr += mv2d(10)) {
+		ybs_set_vr(vr);
+		ybs_mdelay(10);
+		vi = ybs_get_vi_mean();
+		printf("cal: vr = %d mv, vi = %d mv\n", d2mv(vr), d2mv(vi));
+	}
+	for(vr = mv2d(1370); vr < mv2d(1380); vr += uv2d(20)) {
+		ybs_set_vr(vr);
+		ybs_mdelay(10);
+		vi = ybs_get_vi_mean();
+		printf("cal: vr = %d uv, vi = %d mv\n", d2uv(vr), d2mv(vi));
+	}
+#endif
+
+#if 0
+	//adc noise performance
+	vr = mv2d(1370);
+	ybs_set_vr(vr);
+	ybs_mdelay(10);
+	vi = ybs_get_vi_mean();
+	printf("cal: vr = %d mv, vi = %d mv\n", d2mv(vr), d2mv(vi));
+	for(i = 0; i < 1024; i ++) {
+		vi = ybs_get_vi();
+		printf("cal: vr = %d mv, vi = %d mv\n", d2mv(vr), d2mv(vi));
+	}
+#endif
+
 	//test vr = 0
 	vr = v2d(0.0);
 	ve = v2d(3.0);
 	ybs_set_vr(vr);
 	ybs_mdelay(10);
 	vi = ybs_get_vi_mean(); //got it
+	//printf("cal: vr = %dmv, vi = %dmv", d2mv(vr), d2mv(vi));
 	if(vi < ve) {
-		printf("fail: vr = %dmv, vi = %dmv(<%dmv!)\n", d2mv(vr), d2mv(vi), d2mv(ve));
+		//printf("(<%dmv)...fail!!!\n", d2mv(ve));
 		return -1;
 	}
+	//printf("\n");
 
 	//test vr = 2v5
 	vr = v2d(2.5);
-	ve = v2d(0.3);
+	ve = v2d(1.0);
 	ybs_set_vr(vr);
 	ybs_mdelay(10);
 	vi = ybs_get_vi_mean(); //got it
+	//printf("cal: vr = %dmv, vi = %dmv", d2mv(vr), d2mv(vi));
 	if(vi > ve) {
-		printf("fail: vr = %dmv, vi = %dmv(>%dmv!)\n", d2mv(vr), d2mv(vi), d2mv(ve));
+		//printf("(>%dmv)...fail!!!\n", d2mv(vr), d2mv(vi));
 		return -1;
 	}
+	//printf("\n");
 
 	//search the mid point of Vref where vi = 2.5v(range 2.5v->0.5v, best for OPA)
 	vm = v2d(2.5);
@@ -79,9 +111,10 @@ static int ybs_cal(int *pgs, int *pvs)
 		}
 
 		//display
-		printf("cal %02d: vr = %08duv, vi = %04dmv\n", i, d2uv(vr), d2mv(vi));
+		//printf("cal: vr = %08duv, vi = %04dmv\n", d2uv(vr), d2mv(vi));
 	}
 
+	//printf("cal: vr = %08duv, vi = %04dmv\n", d2uv(vr), d2mv(vi));
 	vr1 = vr;
 	vi1 = vi;
 
@@ -102,9 +135,10 @@ static int ybs_cal(int *pgs, int *pvs)
 		}
 
 		//display
-		printf("cal: vr = %08duv, vi = %04dmv\n", d2uv(vr), d2mv(vi));
+		//printf("cal: vr = %08duv, vi = %04dmv\n", d2uv(vr), d2mv(vi));
 	}
 
+	//printf("cal: vr = %08duv, vi = %04dmv\n", d2uv(vr), d2mv(vi));
 	vr2 = vr;
 	vi2 = vi;
 
@@ -118,7 +152,7 @@ static int ybs_cal(int *pgs, int *pvs)
 	*pgs = gs;
 	*pvs = vs;
 
-	printf("cal: gs = %d, vs = %dmV\n", gs, d2mv(vs));
+	printf("cal: gs = %d, vs = %duV\n", gs, d2uv(vs));
 	return 0;
 }
 
