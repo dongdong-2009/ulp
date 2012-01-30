@@ -35,7 +35,7 @@ int spi_cs_set(int pin, int level);
 typedef struct {
 	unsigned cpol : 1; /*clock polarity, 0-> idle low level*/
 	unsigned cpha : 1; /*clock phase, 0-> first edge active*/
-	unsigned bits : 5; /*bits of a frame, 0~31*/
+	unsigned bits : 6; /*bits of a frame, 1~32*/
 	unsigned bseq : 1; /*bit sequency, 0->lsb*/
 	unsigned csel : 1; /*csel on/off, 1 -> cs signal will be manually controlled by csel() method */
 	unsigned freq;
