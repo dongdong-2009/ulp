@@ -7,7 +7,7 @@
 #ifndef __YBS_H_
 #define __YBS_H_
 
-#define YBS_US 20 //unit: us
+#define YBS_US 50 //unit: us
 #define YBS_VO_MIN 2 //unit: V
 #define YBS_VO_MAX 20 //unit: V
 
@@ -23,4 +23,12 @@
 void ybs_mdelay(int ms);
 void ybs_update(void);
 
+//digital filter
+struct filter_s {
+	int b0, b1, bn; //num
+	int a0, a1, an; //den
+	int xn_1, yn_1;
+};
+
+int filt(struct filter_s *f, int xn);
 #endif

@@ -144,15 +144,37 @@ int ybs_get_vi(void)
 	return d;
 }
 
+#define _bn 19
+#define _an 14
+static struct filter_s ybs_vi_filter = {
+	.bn = _bn,
+	.b0 = (int)(0.002931688216512629/*0.0006279240770159511*/ * (1 << _bn)),
+	.b1 = (int)(0.002931688216512629/*0.0006279240770159511*/ * (1 << _bn)),
+	.an = _an,
+	.a0 = (int)(1.0000000000000000000 * (1 << _an)),
+	.a1 = (int)(-0.99413662356697474 /*-0.9987441518459681*/ * (1 << _an)),
+
+	.xn_1 = 0,
+	.yn_1 = 0,
+};
+
 int ybs_get_vi_mean(void)
 {
-	int i, v = 0;
+	int i, v, vf = 0;
+	ybs_vi_filter.xn_1 = 0;
+	ybs_vi_filter.yn_1 = 0;
 	ybs_get_vi(); //old data, ignore
-	for(i = 0; i < 256; i ++) {
-		v += ybs_get_vi();
-		v >>= (i == 0) ? 0 : 1;
+	for(i = 0; i < 2000; i ++) {
+		//v += ybs_get_vi();
+		//v >>= (i == 0) ? 0 : 1;
+		v = ybs_get_vi();
+		vf = v >> 6;
+		vf = filt(&ybs_vi_filter, vf);
+
+		//printf("vori = %d mv, vfil = %d mv\n", d2mv(v), d2mv(vf << 6));
 	}
-	return v;
+	vf <<= 6;
+	return vf;
 }
 
 

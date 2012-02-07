@@ -7,8 +7,10 @@
 #ifndef __YBS_DRV_H_
 #define __YBS_DRV_H_
 
-#define VREF_DAC 2.5 //unit: V
-#define VREF_ADC 3.3 //unit: V
+#define VREF_DAC 2.5007 //unit: V
+#define VREF_ADC 3.2905 //unit: V
+#define VOUT_OFS 2.0000 //unit: V
+
 
 //timer ctrl
 void ybs_tim_set(int on);
