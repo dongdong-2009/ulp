@@ -87,3 +87,7 @@ mainmenu_option next_comment
 	source src/drivers/wl/Kconfig
 endmenu
 
+mainmenu_option next_comment
+	comment 'wdt config'
+	source src/drivers/wdt/Kconfig
+endmenu
