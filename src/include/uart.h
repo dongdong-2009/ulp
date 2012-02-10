@@ -52,5 +52,6 @@ extern uart_bus_t uartg;
 extern uart_bus_t uart0;
 extern uart_bus_t uart1;
 extern uart_bus_t uart2;
+extern uart_bus_t uart3;
 
 #endif /* __UART_H_ */
