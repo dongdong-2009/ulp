@@ -271,6 +271,10 @@ static int upa_Init(void)
 
 	dev_register("nrf", &nrf_cfg);
 	upa_wl_fd = dev_open("wl0", 0);
+	if(upa_wl_fd == 0) {
+		printf("init: device wl0 open failed!!!\n");
+		assert(0);
+	}
 	upa_wl_cnsl = console_register(upa_wl_fd);
 	assert(upa_wl_cnsl != NULL);
 	shell_register(upa_wl_cnsl);

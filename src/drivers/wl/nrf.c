@@ -196,7 +196,10 @@ static int nrf_hw_init(struct nrf_priv_s *priv)
 	//SELF DIAG
 	nrf_write_reg(TX_ADDR, 0x11);
 	char val = nrf_read_reg(TX_ADDR);
-	assert(val == 0x11);
+	if(val != 0x11) {
+		//hardware fault
+		return -1;
+	}
 
 	//setup pipe
 	nrf_write_reg(EN_AA, 0x01); //enable auto ack of pipe 0
@@ -484,7 +487,8 @@ static int nrf_open(int fd, int mode)
 	int ret;
 	assert(priv != NULL);
 	ret = nrf_hw_init(priv);
-	nrf_flush(priv);
+	if(!ret)
+		nrf_flush(priv);
 	return ret;
 }
 
