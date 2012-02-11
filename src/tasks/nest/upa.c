@@ -350,12 +350,12 @@ void main(void)
 			}
 
 			//2-3: a nest is selected?
-			shell_lock(upa_wl_cnsl, 0);
-			shell_lock(upa_uart_cnsl, 0);
 			if(upa_nest_sel != NULL) {
 				upa_nest_switch(upa_nest_sel);
-				task_Update();
 			}
+			shell_lock(upa_wl_cnsl, 0);
+			shell_lock(upa_uart_cnsl, 0);
+			task_Update();
 		}
 	}
 } // main
