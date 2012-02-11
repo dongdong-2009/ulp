@@ -139,7 +139,7 @@ int shell_unregister(const struct console_s *console)
 	return 0;
 }
 
-int shell_mute(const struct console_s *cnsl, int enable)
+int shell_mute_set(const struct console_s *cnsl, int enable)
 {
 	struct shell_s *s;
 	struct list_head *pos;
@@ -157,7 +157,7 @@ int shell_mute(const struct console_s *cnsl, int enable)
 	return ret;
 }
 
-int shell_lock(const struct console_s *cnsl, int enable)
+int shell_lock_set(const struct console_s *cnsl, int enable)
 {
 	struct shell_s *s;
 	struct list_head *pos;
