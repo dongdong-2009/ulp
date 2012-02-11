@@ -12,7 +12,8 @@ struct console_s {
 	int fd;
 };
 
-int console_select(const struct console_s *);
+const struct console_s* console_get(void);
+int console_set(const struct console_s *);
 int console_restore(void);
 
 void console_Init(void);

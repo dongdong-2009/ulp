@@ -40,7 +40,12 @@ void console_Init(void)
 #endif
 }
 
-int console_select(const struct console_s *new)
+const struct console_s* console_get(void)
+{
+	return cnsl;
+}
+
+int console_set(const struct console_s *new)
 {
 	cnsl_old = cnsl;
 	cnsl = (new == NULL) ? cnsl_def : new;
