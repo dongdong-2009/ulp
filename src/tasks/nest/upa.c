@@ -125,12 +125,16 @@ static int upa_nest_new(unsigned addr)
 }
 
 /* bad boy, neglect it ... */
-static int upa_nest_bad(unsigned addr)
+static int upa_nest_bad(struct upa_nest_s *nest)
 {
-	struct upa_nest_s *nest = upa_nest_get(addr);
 	if(upa_nest_mon == nest) {
 		//change it, too disappointed ...
 		upa_nest_mon = NULL;
+	}
+
+	if(upa_nest_cur == nest) {
+		dev_ioctl(upa_wl_fd, WL_FLUSH);
+		upa_nest_cur = NULL;
 	}
 
 	//remove it? yes!
@@ -143,7 +147,7 @@ int upa_nest_empty(void)
 	return list_empty(&upa_nest_queue);
 }
 
-/* redirect printf output to current active nest
+/* redirect printf output to wireless console
  * !!!do not write a string longer than 128 bytes
  */
 int upa_nest_printf(const char *fmt, ...)
@@ -153,10 +157,9 @@ int upa_nest_printf(const char *fmt, ...)
 	char str[128];
 	int n;
 
-	//target?
-	if(upa_nest_cur == NULL) {
+	//where's slave??? abort!
+	if(upa_nest_cur == NULL)
 		return -1;
-	}
 
 	//output to a string buf
 	va_start(args, fmt);
@@ -167,6 +170,7 @@ int upa_nest_printf(const char *fmt, ...)
 	while(dev_poll(upa_wl_fd, POLLOBUF) < n) {
 		task_Update();
 		if(time_left(timer) < 0) {
+			upa_nest_bad(upa_nest_cur);
 			return -1;
 		}
 	}
@@ -187,25 +191,18 @@ int upa_nest_switch(struct upa_nest_s *nest)
 	//close cur nest first
 	timer = time_get(NEST_WL_MS/10);
 	if(upa_nest_cur != NULL) {
-		upa_flag.shutup_ok = 0;
-		ecode = upa_nest_printf("monitor shutup\r");
-		if(ecode) {
-			return ecode; //send timeout
-		}
-
+		//"i am go now", it is  just a notice, may lost ...
+		upa_nest_printf("monitor shutup\r");
 		//wait for cmd "upa shutup\r" sent by target nest
+		upa_flag.shutup_ok = 0;
 		while(upa_flag.shutup_ok == 0) {
 			task_Update();
 			if(time_left(timer) < 0) {
 				//wait for nest response timeout
-				dev_ioctl(upa_wl_fd, WL_FLUSH);
-				upa_nest_bad(upa_nest_cur->addr);
-				upa_nest_cur = NULL;
-				return -1;
+				upa_nest_bad(upa_nest_cur);
+				break;
 			}
 		}
-
-		dev_ioctl(upa_wl_fd, WL_FLUSH);
 		upa_nest_cur = NULL;
 	}
 
@@ -222,6 +219,7 @@ int upa_nest_switch(struct upa_nest_s *nest)
 		dev_ioctl(upa_wl_fd, WL_SET_ADDR, nest->addr);
 		dev_ioctl(upa_wl_fd, WL_START);
 		upa_rssi_enable(nest);
+		upa_nest_cur = nest;
 
 		/* unlock uart shell */
 		if((upa_nest_sel == NULL) || (nest == upa_nest_sel)) {
@@ -230,22 +228,17 @@ int upa_nest_switch(struct upa_nest_s *nest)
 
 		//send cmd "monitor wakeup\r"
 		upa_flag.wakeup_ok = 0;
-		ecode = upa_nest_printf("monitor wakeup\r");
-		if(ecode) {
-			return ecode; //send timeout
-		}
+		upa_nest_printf("monitor wakeup\r");
 
 		//wait for cmd "upa wakeup\r" sent by target nest
 		while(upa_flag.wakeup_ok == 0) {
 			task_Update();
 			if(time_left(timer) < 0) {
 				//wait for nest response timeout
-				dev_ioctl(upa_wl_fd, WL_FLUSH);
-				upa_nest_bad(nest->addr);
+				upa_nest_bad(nest);
 				return -1;
 			}
 		}
-		upa_nest_cur = nest;
 	}
 	return 0;
 }
@@ -448,8 +441,7 @@ static int cmd_upa_func(int argc, char *argv[])
 	 * ASK: why does only argv[0] been forwarded?
 	 * ACK: pls refer api shell_trap() */
 	if((upa_nest_sel != NULL) && strcmp(argv[0], "upa")) {
-		dev_write(upa_wl_fd, argv[0], strlen(argv[0]));
-		dev_write(upa_wl_fd, "\r", 1);
+		upa_nest_printf("%s\r", argv[0]);
 		return 0;
 	}
 
