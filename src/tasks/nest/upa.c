@@ -212,11 +212,21 @@ int upa_nest_switch(struct upa_nest_s *nest)
 	//switch to new one
 	timer = time_get(NEST_WL_MS/10);
 	if(nest != NULL) {
+		/* disable uart shell_update to avoid data foward direction error */
+		if(upa_nest_sel != NULL && nest != upa_nest_sel) {
+			shell_lock(upa_uart_cnsl);
+		}
+
 		dev_ioctl(upa_wl_fd, WL_STOP);
 		dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
 		dev_ioctl(upa_wl_fd, WL_SET_ADDR, nest->addr);
 		dev_ioctl(upa_wl_fd, WL_START);
 		upa_rssi_enable(nest);
+
+		/* unlock uart shell */
+		if((upa_nest_sel == NULL) || (nest == upa_nest_sel)) {
+			shell_unlock(upa_uart_cnsl);
+		}
 
 		//send cmd "monitor wakeup\r"
 		upa_flag.wakeup_ok = 0;
@@ -295,13 +305,8 @@ void main(void)
 	printf("Power Conditioning - UPA\n");
 	printf("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
 
-	struct upa_nest_s *nest;
-	struct list_head *pos;
-
 	while(1){
 		//1, switch to prx mode
-		shell_unlock(upa_uart_cnsl);
-		shell_unlock(upa_wl_cnsl);
 		dev_ioctl(upa_wl_fd, WL_STOP);
 		dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PRX);
 		dev_ioctl(upa_wl_fd, WL_SET_ADDR, NEST_WL_ADDR);
@@ -311,10 +316,10 @@ void main(void)
 		}
 
 		//2, normal work mode
+		struct upa_nest_s *nest;
+		struct list_head *pos;
 		while(!upa_nest_empty() && (upa_flag.update_off == 0)) {
 			//2-1, handle  monitor
-			shell_lock(upa_uart_cnsl);
-			shell_unlock(upa_wl_cnsl);
 			if(upa_nest_mon != NULL) {
 				//2-1-1, fetch newbie info
 				upa_nest_switch(upa_nest_mon);
@@ -346,8 +351,6 @@ void main(void)
 				nest = list_entry(pos, upa_nest_s, list);
 				if(time_left(nest->timer) < 0) {
 					nest->timer = time_get(NEST_WL_MS/2);
-					shell_lock(upa_uart_cnsl);
-					shell_unlock(upa_wl_cnsl);
 					upa_nest_switch(nest);
 					upa_nest_printf("monitor ping\r");
 				}
@@ -357,8 +360,6 @@ void main(void)
 			if(upa_nest_sel != NULL) {
 				upa_nest_switch(upa_nest_sel);
 			}
-			shell_unlock(upa_wl_cnsl);
-			shell_unlock(upa_uart_cnsl);
 			task_Update();
 		}
 	}
@@ -394,7 +395,6 @@ static int cmd_upa_func(int argc, char *argv[])
 				upa_nest_sel = nest;
 				shell_trap(upa_uart_cnsl, &cmd_upa); //all cmds redirect to cmd_upa in uart console
 				shell_trap(upa_wl_cnsl, &cmd_monitor); //all cmds redirect to cmd_monitor in wireless console
-				shell_lock(upa_uart_cnsl);
 				shell_prompt(upa_uart_cnsl, "nest# ");
 				printf("upa select ok\n");
 			}
