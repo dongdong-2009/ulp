@@ -1,0 +1,16 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by david@2012
+#
+bool "wdt driver?" CONFIG_DRIVER_WDT
+if [ "$CONFIG_DRIVER_WDT" = "y" ]; then
+	int 'Config WDT update time(ms)' CONFIG_WDT_PERIOD 500
+fi
+if [ "$CONFIG_CPU_STM32" = "y" ]; then
+	choice 'iwdt start choice'	" \
+		IWDT_HW	CONFIG_STM32_WDTHW \
+		IWDT_SW	CONFIG_STM32_WDTSW \
+	" IWDT_HW
+fi
+
