@@ -19,7 +19,7 @@
 struct burn_data_s {
 	int vp, vp_avg, vp_min, vp_max; //immediate value, average value, unit:
 	int ip, ip_avg, ip_min, ip_max;
-	unsigned short tp, tp_set; //fire period, unit:mS, tp_set -> burn_ms
+	unsigned short tp, tp_set; //fire period, unit:uS, tp_set -> burn_us
 	unsigned short wp, wp_set; //fire pulse width, immediate value, unit: nS
 	unsigned short fire, lost; //fire&lost count, immediate value
 };
