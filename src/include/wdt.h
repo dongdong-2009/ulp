@@ -11,7 +11,8 @@
 //the range of watch dog update time is 1ms - 3000ms
 int wdt_init(int period);
 
-//feed the dog
-void wdt_update(void);
+void wdt_update(void);        //feed the dog
+int wdt_enable(void);
+int wdt_disable(void);
 
 #endif /*__WDT_H_*/

@@ -13,9 +13,7 @@
 void sys_Init(void)
 {
 	SystemInit();
-#ifdef CONFIG_DRIVER_WDT
 	wdt_init(CONFIG_WDT_PERIOD);
-#endif
 	time_Init();
 #if CONFIG_DRIVER_LED == 1
 	led_Init();
@@ -33,9 +31,7 @@ void sys_Update(void)
 #if CONFIG_DRIVER_LED == 1
 	led_Update();
 #endif
-#ifdef CONFIG_DRIVER_WDT
 	wdt_update();
-#endif
 }
 
 __weak void SystemInit (void)

@@ -6,11 +6,11 @@
 bool "wdt driver?" CONFIG_DRIVER_WDT
 if [ "$CONFIG_DRIVER_WDT" = "y" ]; then
 	int 'Config WDT update time(ms)' CONFIG_WDT_PERIOD 500
+	if [ "$CONFIG_CPU_STM32" = "y" ]; then
+		choice 'iwdt start choice'	" \
+			IWDT_HW_AUTO	CONFIG_STM32_WDTHW_AUTO \
+			IWDT_HW	CONFIG_STM32_WDTHW \
+			IWDT_SW	CONFIG_STM32_WDTSW \
+		" IWDT_HW
+	fi
 fi
-if [ "$CONFIG_CPU_STM32" = "y" ]; then
-	choice 'iwdt start choice'	" \
-		IWDT_HW	CONFIG_STM32_WDTHW \
-		IWDT_SW	CONFIG_STM32_WDTSW \
-	" IWDT_HW
-fi
-

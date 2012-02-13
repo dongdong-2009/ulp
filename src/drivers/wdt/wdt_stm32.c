@@ -10,11 +10,6 @@
 #include "ulp_time.h"
 #include "shell/cmd.h"
 
-//enable the watch time via "hardware option bit" in flash
-static int wdt_enable(void);
-//disable the watch time via "hardware option bit" in flash
-static int wdt_disable(void);
-
 /*
  *init the watch dog reset period(ms) time
  *the range of watch dog update time is 1 - 800(ms)
@@ -22,6 +17,8 @@ static int wdt_disable(void);
  */
 int wdt_init(int period)
 {
+#ifdef CONFIG_DRIVER_WDT
+
 	if (period < 1 || period > 800)
 		return 1;
 
@@ -39,7 +36,7 @@ int wdt_init(int period)
 #ifdef CONFIG_STM32_WDTSW
 	IWDG_Enable();
 #endif
-#ifdef CONFIG_STM32_WDTHW
+#ifdef CONFIG_STM32_WDTHW_AUTO
 	unsigned int temp;
 	//FLASH User Option Bytes values:IWDG_SW(Bit0), RST_STOP(Bit1) and RST_STDBY(Bit2).
 	temp = FLASH_GetUserOptionByte();
@@ -47,16 +44,19 @@ int wdt_init(int period)
 		wdt_enable();
 #endif
 
+#endif
 	return 0;
 }
 
 void wdt_update(void)
 {
+#ifdef CONFIG_DRIVER_WDT
 	IWDG_ReloadCounter();
+#endif
 }
 
 //enable the watch time via "hardware option bit" in flash
-static int wdt_enable(void)
+int wdt_enable(void)
 {
 	FLASH_Unlock();
 	FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
@@ -64,7 +64,6 @@ static int wdt_enable(void)
 	/* Enable IWDG (the LSI oscillator will be enabled by hardware) */
 	if ( FLASH_UserOptionByteConfig(OB_IWDG_HW, OB_STOP_NoRST, OB_STDBY_NoRST) == FLASH_COMPLETE) {
 		FLASH_Lock();
-		IWDG_Enable();
 		return 0;
 	} else {
 		FLASH_Lock();
@@ -73,7 +72,7 @@ static int wdt_enable(void)
 }
 
 //disable the watch time via "hardware option bit" in flash
-static int wdt_disable(void)
+int wdt_disable(void)
 {
 	FLASH_Unlock();
 	FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
@@ -88,7 +87,6 @@ static int wdt_disable(void)
 }
 
 #if 1
-#if CONFIG_STM32_WDTHW
 
 int cmd_wdt_func(int argc, char *argv[])
 {
@@ -96,9 +94,9 @@ int cmd_wdt_func(int argc, char *argv[])
 
 	const char * usage = { \
 		" usage:\n" \
-		" wdt init period(ms), init the watch with period(int ms)\n" \
-		" wdt enable, enable wdt\n"
-		" wdt disable, disable wdt\n"
+		" wdt init pd(ms), init the watch with period(int ms)\n" \
+		" wdt enable,      enable iwdt in flash option bit\n"
+		" wdt disable,     disable iwdt in flash option bit\n"
 	};
 
 	if(argc < 2) {
@@ -133,5 +131,4 @@ int cmd_wdt_func(int argc, char *argv[])
 
 const cmd_t cmd_wdt = {"wdt", cmd_wdt_func, "wdt cmds"};
 DECLARE_SHELL_CMD(cmd_wdt)
-#endif
 #endif
