@@ -4,6 +4,10 @@
 
 #include "config.h"
 #include "stm32f10x.h"
+#include <stdlib.h>
+#include <string.h>
+#include "ulp_time.h"
+#include "shell/cmd.h"
 
 /*
  *init the watch dog reset period(ms) time
@@ -35,7 +39,7 @@ int wdt_init(int period)
 
 void wdt_update(void)
 {
-	//IWDG_ReloadCounter();
+	IWDG_ReloadCounter();
 }
 
 //enable the watch time via "hardware option bit" in flash
@@ -43,6 +47,7 @@ int wdt_enable(void)
 {
 	FLASH_Unlock();
 	FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
+	FLASH_EraseOptionBytes();
 	/* Enable IWDG (the LSI oscillator will be enabled by hardware) */
 	if ( FLASH_UserOptionByteConfig(OB_IWDG_HW, OB_STOP_NoRST, OB_STDBY_NoRST) == FLASH_COMPLETE) {
 		FLASH_Lock();
@@ -58,6 +63,7 @@ int wdt_disable(void)
 {
 	FLASH_Unlock();
 	FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
+	FLASH_EraseOptionBytes();
 	if ( FLASH_UserOptionByteConfig(OB_IWDG_SW, OB_STOP_NoRST, OB_STDBY_NoRST) == FLASH_COMPLETE) {
 		FLASH_Lock();
 		return 0;
@@ -68,10 +74,7 @@ int wdt_disable(void)
 }
 
 #if 1
-#include <stdlib.h>
-#include <string.h>
-#include "ulp_time.h"
-#include "shell/cmd.h"
+#if CONFIG_STM32_WDTHW
 
 int cmd_wdt_func(int argc, char *argv[])
 {
@@ -116,4 +119,5 @@ int cmd_wdt_func(int argc, char *argv[])
 
 const cmd_t cmd_wdt = {"wdt", cmd_wdt_func, "wdt cmds"};
 DECLARE_SHELL_CMD(cmd_wdt)
+#endif
 #endif

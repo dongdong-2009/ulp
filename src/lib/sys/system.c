@@ -14,7 +14,7 @@ void sys_Init(void)
 {
 	SystemInit();
 #ifdef CONFIG_DRIVER_WDT
-	//wdt_init(CONFIG_WDT_PERIOD);
+	wdt_init(CONFIG_WDT_PERIOD);
 #endif
 	time_Init();
 #if CONFIG_DRIVER_LED == 1
