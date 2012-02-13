@@ -4,10 +4,16 @@
 
 #include "config.h"
 #include "stm32f10x.h"
+#include "wdt.h"
 #include <stdlib.h>
 #include <string.h>
 #include "ulp_time.h"
 #include "shell/cmd.h"
+
+//enable the watch time via "hardware option bit" in flash
+static int wdt_enable(void);
+//disable the watch time via "hardware option bit" in flash
+static int wdt_disable(void);
 
 /*
  *init the watch dog reset period(ms) time
@@ -33,6 +39,13 @@ int wdt_init(int period)
 #ifdef CONFIG_STM32_WDTSW
 	IWDG_Enable();
 #endif
+#ifdef CONFIG_STM32_WDTHW
+	unsigned int temp;
+	//FLASH User Option Bytes values:IWDG_SW(Bit0), RST_STOP(Bit1) and RST_STDBY(Bit2).
+	temp = FLASH_GetUserOptionByte();
+	if (temp & OB_IWDG_SW)
+		wdt_enable();
+#endif
 
 	return 0;
 }
@@ -43,7 +56,7 @@ void wdt_update(void)
 }
 
 //enable the watch time via "hardware option bit" in flash
-int wdt_enable(void)
+static int wdt_enable(void)
 {
 	FLASH_Unlock();
 	FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
@@ -51,6 +64,7 @@ int wdt_enable(void)
 	/* Enable IWDG (the LSI oscillator will be enabled by hardware) */
 	if ( FLASH_UserOptionByteConfig(OB_IWDG_HW, OB_STOP_NoRST, OB_STDBY_NoRST) == FLASH_COMPLETE) {
 		FLASH_Lock();
+		IWDG_Enable();
 		return 0;
 	} else {
 		FLASH_Lock();
@@ -59,7 +73,7 @@ int wdt_enable(void)
 }
 
 //disable the watch time via "hardware option bit" in flash
-int wdt_disable(void)
+static int wdt_disable(void)
 {
 	FLASH_Unlock();
 	FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
