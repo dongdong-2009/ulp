@@ -272,11 +272,11 @@ static int pdi_pass_action()
 	rc_mdelay(20);
 	printf("##START##EC-Test Result : No Error ##END##\n");
 	counter_pass_add();
-	rc_mdelay(1000);
+	rc_mdelay(800);
 	beep_off();
-	rc_mdelay(200);
+	rc_mdelay(150);
 	beep_on();
-	rc_mdelay(1000);
+	rc_mdelay(800);
 	beep_off();
 	return 0;
 }

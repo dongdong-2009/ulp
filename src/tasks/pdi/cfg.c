@@ -401,6 +401,7 @@ static int cmd_verify_func(int argc, char *argv[])
 	if(argc == 5) {
 		rule.type = PDI_RULE_UNDEF;
 		rule.type = (!strcmp(argv[1], "JAMA")) ? PDI_RULE_JAMA : rule.type;
+		rule.type = (!strcmp(argv[1], "ERROR")) ? PDI_RULE_ERROR : rule.type;
 
 		rule.echo_type = PDI_ECHO_UNDEF;
 		rule.echo_type= (!strcmp(argv[2], "HEX")) ? PDI_ECHO_HEX : rule.echo_type;

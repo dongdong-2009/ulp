@@ -15,7 +15,7 @@
 #include "shell/cmd.h"
 #include "led.h"
 
-#define PDI_DEBUG	1					//DEBUG MODEL
+#define PDI_DEBUG	0					//DEBUG MODEL
 
 static const can_msg_t dm_clrdtc_msg =		{0x607, 8, {0x04, 0x2e, 0xfe, 0x90, 0xaa, 0, 0, 0}, 0};
 static const can_msg_t dm_errcode_msg =		{0x607, 8, {0x03, 0x22, 0xfe, 0x80, 0, 0, 0, 0}, 0};
@@ -68,17 +68,18 @@ static can_msg_t dm_msg_buf[32];		//for multi frame buffer
 static char dm_data_buf[256];			//data buffer
 static char dm_fault_buf[64];			//fault buffer
 static char bcode_1[14];
-static int esc_flag = 1;
+//static int esc_flag = 1;
 
-static int dm_check();
 static int dm_clear_dtc();
 static int dm_mdelay(int );
 static int dm_esc_check();
 static int dm_StartSession();
 static int dm_check_barcode();
 static int dm_GetCID(short cid, char *data);
+static int dm_check(const struct pdi_cfg_s *);
 static int dm_GetFault(char *data, int * pnum_fault);
 static int dm_check_init(const struct pdi_cfg_s *);
+static int dm_error_check(char *, int *, const struct pdi_cfg_s *);
 static int pdi_pass_action();
 static int pdi_fail_action();
 static int pdi_led_start();
@@ -365,40 +366,68 @@ static int dm_check_init(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
-static int dm_esc_check()
+static int dm_error_check(char *fault, int *num, const struct pdi_cfg_s *sr)
 {
-	int i;
-	can_msg_t esc_msg;
-	time_t deadtime = time_get(100);
-	while(time_left(deadtime) > 0) {
-		if(pdi_can_bus -> recv(&esc_msg))
-			return 1;
-		switch(esc_msg.id) {
-		case 188:
-			esc_msg.data[6] &= 0xF8;
-			for(i = 0; i < 7; i ++) {
-				if(esc_msg.data[i] != 0x00)
+	int i, j, flag;
+	char dm_fault_temp[2];
+	const struct pdi_rule_s* pdi_cfg_rule;
+	for(i = 0; i < *num; i ++) {
+		flag = 0;
+		dm_fault_temp[0] = fault[i*2];
+		dm_fault_temp[1] = fault[(i*2) + 1];
+		for(j = 0; j < sr -> nr_of_rules; j ++) {
+			pdi_cfg_rule = pdi_rule_get(sr, j);
+			if(&pdi_cfg_rule == NULL) return 1;
+			switch(pdi_cfg_rule -> type) {
+				case PDI_RULE_ERROR:
+					if(pdi_verify(pdi_cfg_rule, dm_fault_temp) == 0) {
+						flag = 1;
+						break;
+					}
+				case PDI_RULE_UNDEF:
 					break;
 			}
-			if(i != 7)
-				return 1;
-		case 189:
-			esc_msg.data[1] &= 0xEF;
-			for(i = 0; i < 3; i ++) {
-				if(esc_msg.data[i] != 0x00)
-					break;
-			}
-			if(i != 3)
-				return 1;
+			if(flag == 1) break;
 		}
+		if(flag == 0) return 1; 
 	}
 	return 0;
 }
 
+// static int dm_esc_check()
+// {
+	// int i;
+	// can_msg_t esc_msg;
+	// time_t deadtime = time_get(100);
+	// while(time_left(deadtime) > 0) {
+		// if(pdi_can_bus -> recv(&esc_msg))
+			// return 1;
+		// switch(esc_msg.id) {
+		// case 188:
+			// esc_msg.data[6] &= 0xF8;
+			// for(i = 0; i < 7; i ++) {
+				// if(esc_msg.data[i] != 0x00)
+					// break;
+			// }
+			// if(i != 7)
+				// return 1;
+		// case 189:
+			// esc_msg.data[1] &= 0xEF;
+			// for(i = 0; i < 3; i ++) {
+				// if(esc_msg.data[i] != 0x00)
+					// break;
+			// }
+			// if(i != 3)
+				// return 1;
+		// }
+	// }
+	// return 0;
+// }
+
 static int dm_check_barcode()
 {
 	int try_times = 5;
-	printf("##START##EC-checking barcode##END##\n");
+	printf("##START##EC-Checking barcode##END##\n");
 
 	while (dm_GetCID(0xfe8d, dm_data_buf)) {
 		try_times --;
@@ -413,6 +442,8 @@ static int dm_check_barcode()
 
 	if(memcmp(dm_data_buf, bcode_1, 14))
 		return 1;
+
+	printf("##START##EC-      Done!##END##\n");
 
 	return 0;
 }
@@ -450,14 +481,14 @@ static int dm_GetFault(char *data, int * pnum_fault)
 
 }
 
-static int dm_check()
+static int dm_check(const struct pdi_cfg_s *sr)
 {
 	int i, num_fault = 0, try_times = 5, rate;
 	char temp[2];
 
 	pdi_IGN_on();
 
-	for (rate = 5; rate <= 95; rate ++) {
+	for (rate = 5; rate <= 20; rate ++) {
 		dm_mdelay(111);
 		printf("##START##STATUS-");
 		sprintf(temp, "%d", rate);
@@ -470,6 +501,16 @@ static int dm_check()
 	if(dm_check_barcode()) {
 		printf("##START##EC-Barcode Wrong##END##\n");
 		return 1;
+	}
+
+	printf("##START##EC-ECU will be ready!##END##\n");
+
+	for (rate = 21; rate <= 95; rate ++) {
+		dm_mdelay(111);
+		printf("##START##STATUS-");
+		sprintf(temp, "%d", rate);
+		printf("%s", temp);
+		printf("##END##\n");
 	}
 
 	while (dm_GetFault(dm_fault_buf, &num_fault)) {
@@ -487,15 +528,16 @@ static int dm_check()
 		for (i = 0; i < num_fault*2; i += 2)
 			printf("0x%2x, 0x%2x\n", dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
 		printf("##END##\n");
-		return 1;
+		if(dm_error_check(dm_fault_buf, &num_fault, sr)) return 1;
+		printf("##START##EC-These faults are acceptale!##END##\n");
 	}
 
-	if(esc_flag) {
-		if(dm_esc_check()) {
-			printf("##START##EC-ESC ERROR##END##\n");
-			return 1;
-		}
-	}
+	// if(esc_flag) {
+		// if(dm_esc_check()) {
+			// printf("##START##EC-ESC ERROR##END##\n");
+			// return 1;
+		// }
+	// }
 
 	printf("##START##STATUS-100##END##\n");
 
@@ -537,12 +579,12 @@ static void dm_process(void)
 		bcode[5] = '\0';
 
 		//some verites need esc check
-		if (memcmp(bcode + 3, "DL", 2) == 0)
-			esc_flag = 0;
-		if (memcmp(bcode + 3, "DK", 2) == 0)
-			esc_flag = 0;
-		if (memcmp(bcode + 3, "PK", 2) == 0)
-			esc_flag = 0;
+		// if (memcmp(bcode + 3, "DL", 2) == 0)
+			// esc_flag = 0;
+		// if (memcmp(bcode + 3, "DK", 2) == 0)
+			// esc_flag = 0;
+		// if (memcmp(bcode + 3, "PK", 2) == 0)
+			// esc_flag = 0;
 
 		printf("##START##STATUS-5##END##\n");
 		pdi_cfg_file = pdi_cfg_get(bcode);
@@ -554,7 +596,7 @@ static void dm_process(void)
 			} else {
 				dm_check_init(pdi_cfg_file);	//relay config
 
-				if(dm_check() == 0)
+				if(dm_check(pdi_cfg_file) == 0)
 					pdi_pass_action();
 				else
 					pdi_fail_action();
@@ -647,6 +689,7 @@ static int cmd_pdi_func(int argc, char *argv[])
 	if(argc == 2) {
 		if(argv[1][0] == 'c') {
 			pdi_IGN_on();
+			dm_mdelay(1500);
 			dm_StartSession();
 			if (dm_clear_dtc())
 				printf("##ERROR##\n");
