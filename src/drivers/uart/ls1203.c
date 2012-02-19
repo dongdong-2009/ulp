@@ -38,14 +38,14 @@ int ls1203_Read(const ls1203_t *chip, char *code_data)
 	return 1;
 }
 
-#if 1
+#if 0
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 static ls1203_t sr = {
 	.bus = &uart2,
-	.data_len = 19,
+	.data_len = 14,
 	.dead_time = 20,
 };
 static char pdi_barcode[19];

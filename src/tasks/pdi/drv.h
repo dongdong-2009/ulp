@@ -17,5 +17,6 @@ int pdi_IGN_on();
 int pdi_IGN_off();
 int start_botton_on();
 int start_botton_off();
+int JAMA_on();
 
 #endif

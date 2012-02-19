@@ -30,6 +30,18 @@ static const can_msg_t req_flow_msg = {
 	.dlc = 8,
 	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
+#elif CONFIG_PDI_RC
+static const can_msg_t req_flow_msg = {
+	.id = 0x752,
+	.dlc = 8,
+	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+#elif CONFIG_PDI_B515
+static const can_msg_t req_flow_msg = {
+	.id = 0x737,
+	.dlc = 8,
+	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
 #else
 static const can_msg_t req_flow_msg = {
 	.id = 0x38,
@@ -103,6 +115,36 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq, int req_len, can_filter_t cons
 		pResFilter = filter;
 
 	can_bus -> filt(pResFilter, 2);
+#endif
+
+#ifdef CONFIG_PDI_RC
+	can_filter_t filter[] = {
+		{
+			.id = 0x772,
+			.mask = 0xffff,
+			.flag = 0,
+		},
+	};
+
+	if (pResFilter == NULL)
+		pResFilter = filter;
+
+	can_bus -> filt(pResFilter, 1);
+#endif
+
+#ifdef CONFIG_PDI_B515
+	can_filter_t filter[] = {
+		{
+			.id = 0x73F,
+			.mask = 0xffff,
+			.flag = 0,
+		},
+	};
+
+	if (pResFilter == NULL)
+		pResFilter = filter;
+
+	can_bus -> filt(pResFilter, 1);
 #endif
 
 	assert(pReq);
