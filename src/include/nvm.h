@@ -16,6 +16,7 @@ int nvm_init(void);
 
 //move __nvm data from ".nvm.ram" to section ".nvm.flash"
 int nvm_save(void);
+int nvm_clear(void);
 
 //for power-down auto save function
 void nvm_isr(void);

@@ -843,7 +843,7 @@ void burn_Init()
 	burn_data.vp_min = 0xffff;
 	burn_flag_debug = FLAG_DEBUG_NONE;
 
-	if(burn_ms == 0xffff) { //set default value
+	if(nvm_is_null()) { //set default value
 		mos_delay_clks  = (unsigned short) (mos_delay_us_def * 36); //unit: 1/36 us
 		mos_close_clks  = (unsigned short) (mos_close_us_def * 36); //unit: 1/36 us
 		burn_ms = T;
