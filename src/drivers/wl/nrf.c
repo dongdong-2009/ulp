@@ -414,14 +414,14 @@ int nrf_update(struct nrf_priv_s *priv)
 						nrf_retry_update(pipe, 15);
 						ce_set(1);
 					}
-					else { //send timeout
-						nrf_write_reg(STATUS, MAX_RT);
-						nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
-						pipe->timer = 0;
-						pipe->cf = NULL;
-						pipe->cf_ecode = WL_ERR_TX_TIMEOUT;
-						break;
-					}
+				}
+				if(time_left(pipe->timer) < 0) { //send timeout
+					nrf_write_reg(STATUS, MAX_RT);
+					nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
+					pipe->timer = 0;
+					pipe->cf = NULL;
+					pipe->cf_ecode = WL_ERR_TX_TIMEOUT;
+					break;
 				}
 			}
 			pipe->timer = 0;
