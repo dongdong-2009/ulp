@@ -1,0 +1,8 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+#dac
+bool "enable dac " CONFIG_DRIVER_DAC

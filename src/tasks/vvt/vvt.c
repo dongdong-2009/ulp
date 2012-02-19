@@ -96,6 +96,7 @@ static void pss_Enable(int on);
 static void knock_Enable(int en);
 static void pss_SetVolt(pss_ch_t ch, short mv);
 static int vvt_GetConfigData(void);
+static int vvt_mdelay(int ms);
 
 void vvt_Init(void)
 {
@@ -184,8 +185,10 @@ void vvt_Update(void)
 {
 	//update lcm input
 	if (vvt_GetConfigData() == 0) {
+		vvt_mdelay(300);
 		//mcamos communication indicator
-		led_inv(LED_GREEN);
+		led_flash(LED_GREEN);
+		led_off(LED_RED);
 
 		//frequence set for wss,vss,knock
 		if (wss_freq_value != cfg_data.wss) {
@@ -233,7 +236,9 @@ void vvt_Update(void)
 		knock_pattern = (cfg_data.dio >> 8) & 0x003f; //...D C B A
 #endif
 	} else {
-		led_inv(LED_RED);  //indicator mcamos error.
+		vvt_mdelay(300);
+		led_flash(LED_RED);
+		led_off(LED_GREEN);  //indicator mcamos error.
 	}
 }
 
@@ -316,6 +321,21 @@ int main(void)
 /****************************************************************
 ****************** static local function  ******************
 ****************************************************************/
+
+static int vvt_mdelay(int ms)
+{
+	int left;
+	time_t deadline = time_get(ms);
+	do {
+		left = time_left(deadline);
+		if(left >= 10) { //system update period is expected less than 10ms
+			task_Update();
+		}
+	} while(left > 0);
+
+	return 0;
+}
+
 static int vvt_GetConfigData(void)
 {
 	int ret = 0;
@@ -466,7 +486,7 @@ static void pss_SetVolt(pss_ch_t ch, short mv)
 	}
 }
 
-#if 0
+#if 1
 #include "config.h"
 #include "shell/cmd.h"
 #include <stdio.h>
@@ -475,6 +495,47 @@ static void pss_SetVolt(pss_ch_t ch, short mv)
 #include "vvt.h"
 #include "misfire.h"
 
+static int cmd_knock_func(int argc, char *argv[])
+{
+	short hz;
+
+	const char *usage = {
+		"usage:\n"
+		" knock freq hz, set vvt knock freq hz\n"
+		" knock disable, disable knock signal output\n"
+		" knock enable , enable knock signal output\n"
+	};
+
+	if (argc > 1) {
+		ad9833_Init(&knock_dds);
+
+		if(!strcmp(argv[1], "freq") && (argc == 3)) {
+			hz = (short)atoi(argv[2]);
+			knock_SetFreq(hz);
+			return 0;
+		}
+
+		if(!strcmp(argv[1], "disable")) {
+			ad9833_Disable(&knock_dds);
+			return 0;
+		}
+
+		if(!strcmp(argv[1], "enable")) {
+			// ad9833_AddPhase(&knock_dds, 1024);
+			ad9833_Enable(&knock_dds);
+			return 0;
+		}
+	}
+
+	printf("%s", usage);
+
+	return 0;
+}
+
+cmd_t cmd_knock = {"knock", cmd_knock_func, "debug knock driver of vvt"};
+DECLARE_SHELL_CMD(cmd_knock)
+
+#if 0
 static int cmd_pss_func(int argc, char *argv[])
 {
 	int result = -1;
@@ -506,31 +567,6 @@ static int cmd_pss_func(int argc, char *argv[])
 
 cmd_t cmd_pss = {"pss", cmd_pss_func, "debug pss driver of vvt"};
 DECLARE_SHELL_CMD(cmd_pss)
-
-static int cmd_knock_func(int argc, char *argv[])
-{
-	int result = -1;
-	short hz;
-	
-	vvt_Stop();
-	if(!strcmp(argv[1], "freq") && (argc == 3)) {
-		hz = (short)atoi(argv[2]);
-		knock_SetFreq(hz);
-		result = 0;
-	}
-	
-	
-	if(result == -1) {
-		printf("uasge:\n");
-		printf(" knock freq 100\n");
-		printf(" knock volt 0 0\n");
-	}
-	
-	return 0;
-}
-
-cmd_t cmd_knock = {"knock", cmd_knock_func, "debug knock driver of vvt"};
-DECLARE_SHELL_CMD(cmd_knock)
 
 static int cmd_vvt_func(int argc, char *argv[])
 {
@@ -628,4 +664,5 @@ static int cmd_vvt_func(int argc, char *argv[])
 cmd_t cmd_vvt = {"vvt", cmd_vvt_func, "commands for vvt"};
 DECLARE_SHELL_CMD(cmd_vvt)
 
+#endif
 #endif
