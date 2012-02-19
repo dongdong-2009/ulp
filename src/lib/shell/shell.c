@@ -62,12 +62,12 @@ void shell_Update(void)
 		shell = list_entry(pos, shell_s, list);
 		if(shell->config & SHELL_CONFIG_LOCK)
 			continue; //bypass shell update
-		console_select(shell -> console);
+		console_set(shell -> console);
 		cmd_queue_update(&shell -> cmd_queue);
 		ok = shell_ReadLine(shell->prompt, NULL);
 		if(ok)
 			cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
-		console_select(NULL); //restore system default console
+		console_set(NULL); //restore system default console
 	}
 }
 
@@ -99,7 +99,7 @@ int shell_register(const struct console_s *console)
 	}
 
 	//new shell init
-	console_select(shell -> console);
+	console_set(shell -> console);
 	cmd_queue_init(&shell -> cmd_queue);
 #ifdef stdout
 	setbuf(stdout, 0);
@@ -107,7 +107,7 @@ int shell_register(const struct console_s *console)
 #endif
 	shell_print("\033c"); /*clear screen*/
 	shell_print("%s\n", CONFIG_BLDC_BANNER);
-	console_select(NULL);
+	console_set(NULL);
 	return 0;
 }
 
@@ -139,7 +139,7 @@ int shell_unregister(const struct console_s *console)
 	return 0;
 }
 
-int shell_mute(const struct console_s *cnsl, int enable)
+int shell_mute_set(const struct console_s *cnsl, int enable)
 {
 	struct shell_s *s;
 	struct list_head *pos;
@@ -157,7 +157,7 @@ int shell_mute(const struct console_s *cnsl, int enable)
 	return ret;
 }
 
-int shell_lock(const struct console_s *cnsl, int enable)
+int shell_lock_set(const struct console_s *cnsl, int enable)
 {
 	struct shell_s *s;
 	struct list_head *pos;
@@ -213,7 +213,7 @@ int shell_exec_cmd(const struct console_s *cnsl, const char *cmdline)
 	list_for_each(pos, &shell_queue) {
 		shell = list_entry(pos, shell_s, list);
 		if(shell -> console == cnsl) {
-			console_select(cnsl);
+			console_set(cnsl);
 			cmd_queue_exec(&shell -> cmd_queue, cmdline);
 			return 0;
 		}

@@ -43,3 +43,4 @@ bool "chip dac1x8s(8x10bit dac)" CONFIG_DRIVER_DAC1X8S
 bool "chip 74hct595 (shift register)" CONFIG_DRIVER_74HCT595
 bool "chip mbi5025 (shift register)" CONFIG_DRIVER_MBI5025
 bool "chip mcp23s17 (io expander)" CONFIG_DRIVER_MCP23S17
+bool "chip ad5663 16bit dac" CONFIG_DRIVER_AD5663

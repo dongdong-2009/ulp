@@ -58,8 +58,12 @@ void shell_Update(void);
 /*to dynamic register a new shell console device with specified history buffer size*/
 int shell_register(const struct console_s *);
 int shell_unregister(const struct console_s *);
-int shell_mute(const struct console_s *cnsl, int enable); //disable shell echo
-int shell_lock(const struct console_s *cnsl, int enable); //disable shell input
+int shell_mute_set(const struct console_s *cnsl, int enable); //disable shell echo
+#define shell_mute(cnsl) shell_mute_set(cnsl, 1)
+#define shell_unmute(cnsl) shell_mute_set(cnsl, 0)
+int shell_lock_set(const struct console_s *cnsl, int enable); //disable shell input
+#define shell_lock(cnsl) shell_lock_set(cnsl, 1)
+#define shell_unlock(cnsl) shell_lock_set(cnsl, 0)
 int shell_trap(const struct console_s *cnsl, cmd_t *cmd);
 int shell_prompt(const struct console_s *cnsl, const char *prompt);
 

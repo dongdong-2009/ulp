@@ -1,3 +1,9 @@
+/* upa for nest, design rules:
+ * 1) host <> upa <> nest(s)
+ * 2) cmds = "upa list" + "upa sel xxx" + ... + "upa exit"
+ * 3) bad nest handling =
+ * 	miaofng@2012 initial version
+ */
 #include "config.h"
 #include "ulp/debug.h"
 #include "ulp_time.h"
@@ -14,48 +20,72 @@
 
 struct upa_nest_s {
 	unsigned addr;
-	//unsigned flag;
-	char retry;
-	char reserved[3];
 	time_t timer; //update timer
 	struct list_head list;
 };
 
-static time_t upa_mon_timer;
 static int upa_wl_fd;
 static struct console_s *upa_wl_cnsl;
 #define upa_uart_cnsl ((struct console_s *) &uart2)
 static LIST_HEAD(upa_nest_queue);
 
-//cache, to avoid search upa_nest_queue every time
+static union {
+	struct {
+		unsigned update_off : 1;
+		unsigned shutup_ok : 1;
+		unsigned wakeup_ok : 1;
+	};
+	unsigned value;
+} upa_flag;
+
+static time_t upa_mon_timer; /*to avoid chat with monitor in every loop*/
 static struct upa_nest_s *upa_nest_mon; //monitor nest
 static struct upa_nest_s *upa_nest_sel; //selected nest
 static struct upa_nest_s *upa_nest_cur; //current access nest
 
-static enum {
-	UPA_STATUS_INVALID,
-	UPA_STATUS_INIT,
-	UPA_STATUS_PRX,
-	UPA_STATUS_PTX_MON, //update monitor nest
-	UPA_STATUS_PTX_SEL, //update selected nest
-	UPA_STATUS_PTX_UPD, //update each nest
-} upa_status, upa_status_next;
+/*not supported yet*/
+static void upa_rssi_init(struct upa_nest_s *nest)
+{
+}
+
+/*enable wl device rssi function*/
+static void upa_rssi_enable(const struct upa_nest_s *nest)
+{
+}
+
+/*return rssi value 0 - 99(best)*/
+static int upa_rssi_get(const struct upa_nest_s *nest)
+{
+	return 0;
+}
 
 static struct upa_nest_s* upa_mon_elect(void)
 {
 	struct upa_nest_s *nest, *hero = NULL;
 	struct list_head *pos;
-	char retry = 100;
+	int rssi, max = -1;
+
+	//to find the nest which has the biggest rssi
 	list_for_each(pos, &upa_nest_queue) {
 		nest = list_entry(pos, upa_nest_s, list);
-		if(nest->retry < retry) {
+		rssi = upa_rssi_get(nest);
+		if(rssi > max) {
 			hero = nest;
-			retry = nest->retry;
+			max = rssi;
 		}
 	}
+
+	if(upa_nest_mon != NULL) {
+		rssi = upa_rssi_get(upa_nest_mon);
+		if(max - rssi < 10) { //rssi may has 10% deviation
+			hero = upa_nest_mon;
+		}
+	}
+
 	return hero;
 }
 
+/* get nest through its address */
 static struct upa_nest_s* upa_nest_get(unsigned addr)
 {
 	struct upa_nest_s *nest, *found = NULL;
@@ -71,6 +101,7 @@ static struct upa_nest_s* upa_nest_get(unsigned addr)
 	return found;
 }
 
+/* a new nest is born */
 static int upa_nest_new(unsigned addr)
 {
 	struct upa_nest_s *nest = NULL;
@@ -84,8 +115,8 @@ static int upa_nest_new(unsigned addr)
 	nest = sys_malloc(sizeof(struct upa_nest_s));
 	if(nest != NULL) {
 		nest->addr = addr;
-		nest->retry = 16; //i hate newbie!!! :)
 		nest->timer = 0;
+		upa_rssi_init(nest);
 		list_add_tail(&nest->list, &upa_nest_queue);
 		return 0;
 	}
@@ -93,24 +124,121 @@ static int upa_nest_new(unsigned addr)
 	return -1; //no enough memory
 }
 
-static int upa_nest_bad(unsigned addr)
+/* bad boy, neglect it ... */
+static int upa_nest_bad(struct upa_nest_s *nest)
 {
-	struct upa_nest_s *nest = upa_nest_get(addr);
 	if(upa_nest_mon == nest) {
 		//change it, too disappointed ...
 		upa_nest_mon = NULL;
-		upa_status_next = UPA_STATUS_PTX_MON;
 	}
+
+	if(upa_nest_cur == nest) {
+		dev_ioctl(upa_wl_fd, WL_FLUSH);
+		upa_nest_cur = NULL;
+	}
+
+	//remove it? yes!
 	return 0;
 }
 
-static int upa_nest_update(void)
+/*there is no active nest on the queue ?*/
+int upa_nest_empty(void)
 {
-	int retry;
+	return list_empty(&upa_nest_queue);
+}
+
+/* redirect printf output to wireless console
+ * !!!do not write a string longer than 128 bytes
+ */
+int upa_nest_printf(const char *fmt, ...)
+{
+	va_list args;
+	time_t timer = time_get(NEST_WL_MS/10);
+	char str[128];
+	int n;
+
+	//where's slave??? abort!
+	if(upa_nest_cur == NULL)
+		return -1;
+
+	//output to a string buf
+	va_start(args, fmt);
+	n = vsnprintf(str, 128, fmt, args);
+	va_end(args);
+
+	//ensure there's enough space in tbuf
+	while(dev_poll(upa_wl_fd, POLLOBUF) < n) {
+		task_Update();
+		if(time_left(timer) < 0) {
+			upa_nest_bad(upa_nest_cur);
+			return -1;
+		}
+	}
+
+	//write to tbuf
+	dev_write(upa_wl_fd, str, n);
+	return 0;
+}
+
+int upa_nest_switch(struct upa_nest_s *nest)
+{
+	int ecode = 0;
+	time_t timer;
+
+	if(upa_nest_cur == nest)
+		return 0;
+
+	//close cur nest first
+	timer = time_get(NEST_WL_MS/10);
 	if(upa_nest_cur != NULL) {
-		dev_ioctl(upa_wl_fd, WL_GET_FAIL, &retry);
-		retry += upa_nest_cur->retry;
-		upa_nest_cur->retry = retry >> 1;
+		//"i am go now", it is  just a notice, may lost ...
+		upa_nest_printf("monitor shutup\r");
+		//wait for cmd "upa shutup\r" sent by target nest
+		upa_flag.shutup_ok = 0;
+		while(upa_flag.shutup_ok == 0) {
+			task_Update();
+			if(time_left(timer) < 0) {
+				//wait for nest response timeout
+				upa_nest_bad(upa_nest_cur);
+				break;
+			}
+		}
+		upa_nest_cur = NULL;
+	}
+
+	//switch to new one
+	timer = time_get(NEST_WL_MS/10);
+	if(nest != NULL) {
+		/* disable uart shell_update to avoid data foward direction error */
+		if(upa_nest_sel != NULL && nest != upa_nest_sel) {
+			shell_lock(upa_uart_cnsl);
+		}
+
+		dev_ioctl(upa_wl_fd, WL_STOP);
+		dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
+		dev_ioctl(upa_wl_fd, WL_SET_ADDR, nest->addr);
+		dev_ioctl(upa_wl_fd, WL_START);
+		upa_rssi_enable(nest);
+		upa_nest_cur = nest;
+
+		/* unlock uart shell */
+		if((upa_nest_sel == NULL) || (nest == upa_nest_sel)) {
+			shell_unlock(upa_uart_cnsl);
+		}
+
+		//send cmd "monitor wakeup\r"
+		upa_flag.wakeup_ok = 0;
+		upa_nest_printf("monitor wakeup\r");
+
+		//wait for cmd "upa wakeup\r" sent by target nest
+		while(upa_flag.wakeup_ok == 0) {
+			task_Update();
+			if(time_left(timer) < 0) {
+				//wait for nest response timeout
+				upa_nest_bad(nest);
+				return -1;
+			}
+		}
 	}
 	return 0;
 }
@@ -123,16 +251,13 @@ static int upa_wl_onfail(int ecode, ...)
 	va_start(args, ecode);
 	switch(ecode) {
 	case WL_ERR_TX_TIMEOUT:
-		addr = va_arg(args, unsigned);
-		upa_nest_bad(addr);
-		dev_ioctl(upa_wl_fd, WL_FLUSH);
 		break;
 	default:
 		break;
 	}
 	va_end(args);
 
-	console_select(upa_uart_cnsl);
+	console_set(upa_uart_cnsl);
 	printf("ecode = %d\n", ecode);
 	console_restore();
 
@@ -149,138 +274,23 @@ static int upa_Init(void)
 
 	dev_register("nrf", &nrf_cfg);
 	upa_wl_fd = dev_open("wl0", 0);
+	if(upa_wl_fd == 0) {
+		printf("init: device wl0 open failed!!!\n");
+		assert(0);
+	}
 	upa_wl_cnsl = console_register(upa_wl_fd);
 	assert(upa_wl_cnsl != NULL);
 	shell_register(upa_wl_cnsl);
-	shell_mute(upa_wl_cnsl, 1);
+	shell_mute(upa_wl_cnsl);
 	shell_prompt(upa_uart_cnsl, "upa# ");
 	dev_ioctl(upa_wl_fd, WL_FLUSH);
-	upa_status = UPA_STATUS_INVALID;
-	upa_status_next = UPA_STATUS_INIT;
+	upa_nest_mon = NULL;
+	upa_nest_sel = NULL;
+	upa_nest_cur = NULL;
+	upa_flag.value = 0;
 	return 0;
 }
 
-
-static int upa_Update(void)
-{
-	int ntx, nrx, n;
-	struct list_head *pos;
-	struct upa_nest_s *nest;
-	char frame[32];
-	ntx = dev_poll(upa_wl_fd, POLLOUT);
-	nrx = dev_poll(upa_wl_fd, POLLIN);
-	if(ntx != 0 || nrx != 0) //to avoid tbuf&rbuf flush
-		return 0;
-
-	//At least one nest exist when upa in ptx mode!!!
-	switch (upa_status_next) {
-	case UPA_STATUS_INIT:
-		if(upa_status_next != upa_status) {
-			upa_status = upa_status_next;
-			shell_lock(upa_uart_cnsl, 1);
-			shell_lock(upa_wl_cnsl, 1);
-			shell_trap(upa_uart_cnsl, NULL);
-			shell_trap(upa_wl_cnsl, NULL);
-			dev_ioctl(upa_wl_fd, WL_SET_FREQ, NEST_WL_FREQ);
-			dev_ioctl(upa_wl_fd, WL_ERR_TXMS, NEST_WL_TXMS);
-			dev_ioctl(upa_wl_fd, WL_ERR_FUNC, upa_wl_onfail);
-			dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PRX);
-			dev_ioctl(upa_wl_fd, WL_SET_ADDR, NEST_WL_ADDR);
-			upa_nest_cur = NULL;
-			upa_nest_sel = NULL;
-			upa_nest_mon = NULL;
-		}
-		upa_status_next = UPA_STATUS_PRX;
-		break;
-	case UPA_STATUS_PRX:
-		if(upa_status_next != upa_status) {
-			upa_status = upa_status_next;
-			//switch to PRX mode
-			dev_ioctl(upa_wl_fd, WL_STOP);
-			dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PRX);
-			dev_ioctl(upa_wl_fd, WL_SET_ADDR, NEST_WL_ADDR);
-
-			dev_ioctl(upa_wl_fd, WL_START);
-			shell_lock(upa_uart_cnsl, 0);
-			shell_lock(upa_wl_cnsl, 0);
-		}
-		else {
-			if(!list_empty(&upa_nest_queue))
-				upa_status_next = UPA_STATUS_PTX_MON;
-		}
-		break;
-	case UPA_STATUS_PTX_MON:
-		if((upa_nest_mon == NULL) || (time_left(upa_mon_timer) < 0)) {
-			//maybe we need to elect a hero here?
-			upa_nest_mon = upa_mon_elect();
-		}
-
-		if(time_left(upa_mon_timer) < 0) {
-			upa_mon_timer = time_get(NEST_WL_MS/2);
-			upa_status = upa_status_next;
-			shell_lock(upa_uart_cnsl, 1);
-			shell_lock(upa_wl_cnsl, 0);
-			if(upa_nest_cur != upa_nest_mon) {
-				upa_nest_update();
-				upa_nest_cur = upa_nest_mon;
-				dev_ioctl(upa_wl_fd, WL_STOP);
-				dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
-				dev_ioctl(upa_wl_fd, WL_SET_ADDR, upa_nest_mon->addr);
-				dev_ioctl(upa_wl_fd, WL_START);
-			}
-			break;
-		}
-		upa_status_next = UPA_STATUS_PTX_SEL;
-		break;
-	case UPA_STATUS_PTX_SEL:
-		upa_status = upa_status_next;
-		shell_lock(upa_wl_cnsl, 0);
-		shell_lock(upa_uart_cnsl, 0);
-		if(upa_nest_sel != NULL) {
-			if(upa_nest_cur != upa_nest_sel) {
-				upa_nest_update();
-				upa_nest_cur = upa_nest_sel;
-				dev_ioctl(upa_wl_fd, WL_STOP);
-				dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
-				dev_ioctl(upa_wl_fd, WL_SET_ADDR, upa_nest_sel->addr);
-				dev_ioctl(upa_wl_fd, WL_START);
-			}
-		}
-		upa_status_next = UPA_STATUS_PTX_UPD;
-		break;
-	case UPA_STATUS_PTX_UPD:
-		list_for_each(pos, &upa_nest_queue) {
-			nest = list_entry(pos, upa_nest_s, list);
-			if(time_left(nest->timer) < 0) {
-				nest->timer = time_get(NEST_WL_MS/2);
-				upa_status = upa_status_next;
-				shell_lock(upa_uart_cnsl, 1);
-				shell_lock(upa_wl_cnsl, 0);
-				upa_nest_update();
-				if(upa_nest_cur != nest) {
-					upa_nest_cur = nest;
-					dev_ioctl(upa_wl_fd, WL_STOP);
-					dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
-					dev_ioctl(upa_wl_fd, WL_SET_ADDR, nest->addr);
-					dev_ioctl(upa_wl_fd, WL_START);
-				}
-
-				//send ping req to nest
-				n = sprintf(frame, "monitor ping\r");
-				dev_write(upa_wl_fd, frame, n);
-				break;
-			}
-		}
-		upa_status_next = UPA_STATUS_PTX_MON;
-		break;
-	default:
-		upa_status_next = UPA_STATUS_INIT;
-		break;
-	}
-	return 0;
-}
-
-static char upa_update_disable = 0;
 void main(void)
 {
 	task_Init();
@@ -289,9 +299,62 @@ void main(void)
 	printf("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
 
 	while(1){
-		task_Update();
-		if(!upa_update_disable)
-			upa_Update();
+		//1, switch to prx mode
+		dev_ioctl(upa_wl_fd, WL_STOP);
+		dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PRX);
+		dev_ioctl(upa_wl_fd, WL_SET_ADDR, NEST_WL_ADDR);
+		dev_ioctl(upa_wl_fd, WL_START);
+		while(upa_nest_empty() || upa_flag.update_off) {
+			task_Update();
+		}
+
+		//2, normal work mode
+		struct upa_nest_s *nest;
+		struct list_head *pos;
+		while(!upa_nest_empty() && (upa_flag.update_off == 0)) {
+			//2-1, handle  monitor
+			if(upa_nest_mon != NULL) {
+				//2-1-1, fetch newbie info
+				upa_nest_switch(upa_nest_mon);
+				upa_nest_printf("monitor get\r");
+			}
+
+			//2-1-2, elect a new hero??
+			nest = upa_nest_mon;
+			if((nest == NULL) || (time_left(upa_mon_timer) < 0)) {
+				nest = upa_mon_elect();
+				upa_mon_timer = time_get(NEST_WL_MS/2);
+			}
+
+			if(nest != upa_nest_mon) {
+				//2-1-2-1, dismiss old monitor
+				if(upa_nest_mon != NULL) {
+					upa_nest_switch(upa_nest_mon);
+					upa_nest_printf("monitor clr\r");
+				}
+
+				//2-1-2-2, new monitor takes office
+				upa_nest_mon = nest;
+				upa_nest_switch(nest);
+				upa_nest_printf("monitor set\r");
+			}
+
+			//2-2: update each nest
+			list_for_each(pos, &upa_nest_queue) {
+				nest = list_entry(pos, upa_nest_s, list);
+				if(time_left(nest->timer) < 0) {
+					nest->timer = time_get(NEST_WL_MS/2);
+					upa_nest_switch(nest);
+					upa_nest_printf("monitor ping\r");
+				}
+			}
+
+			//2-3: a nest is selected?
+			if(upa_nest_sel != NULL) {
+				upa_nest_switch(upa_nest_sel);
+			}
+			task_Update();
+		}
 	}
 } // main
 
@@ -313,6 +376,7 @@ static int cmd_upa_func(int argc, char *argv[])
 		"upa select 1234567a		select current nest\n"
 		"upa exit			exit upa from foward status\n"
 		"upa list			list all nests online\n"
+		"upa rssi			dynamic display current rssi value\n"
 		"upa update on/off		enable/disable upa_update, debug purpose\n"
 	};
 
@@ -324,7 +388,6 @@ static int cmd_upa_func(int argc, char *argv[])
 				upa_nest_sel = nest;
 				shell_trap(upa_uart_cnsl, &cmd_upa); //all cmds redirect to cmd_upa in uart console
 				shell_trap(upa_wl_cnsl, &cmd_monitor); //all cmds redirect to cmd_monitor in wireless console
-				shell_lock(upa_uart_cnsl, 1);
 				shell_prompt(upa_uart_cnsl, "nest# ");
 				printf("upa select ok\n");
 			}
@@ -334,15 +397,7 @@ static int cmd_upa_func(int argc, char *argv[])
 		}
 
 		if(!strcmp(argv[1], "update")) {
-			upa_update_disable = strcmp(argv[2], "on");
-			if(upa_update_disable) {
-				shell_lock(upa_wl_cnsl, 1);
-				shell_lock(upa_uart_cnsl, 0);
-			}
-			else { 	//return
-				upa_status = UPA_STATUS_INVALID;
-				upa_status = UPA_STATUS_INIT;
-			}
+			upa_flag.update_off = (!strcmp(argv[2], "on")) ? 0 : 1;
 			return 0;
 		}
 	}
@@ -360,17 +415,36 @@ static int cmd_upa_func(int argc, char *argv[])
 		if(!strcmp(argv[1], "list")) {
 			list_for_each(pos, &upa_nest_queue) {
 				nest = list_entry(pos, upa_nest_s, list);
-				printf("upa nest %08x %02d\n", nest->addr, nest->retry);
+				printf("upa nest %08x %02d\n", nest->addr, upa_rssi_get(nest));
 			}
 			return 0;
 		}
+
+		if(!strncmp(argv[1], "rssi", 4)) {
+			if(upa_nest_sel != NULL) {
+				printf("\n");
+				return 1;
+			}
+			else {
+				printf("no nest is selected\n");
+				return 0;
+			}
+		}
 	}
 
-	if(strcmp(argv[0], "upa") && (upa_status == UPA_STATUS_PTX_SEL)) { //commands to be forwarded to wireless
-		dev_write(upa_wl_fd, argv[0], strlen(argv[0]));
-		dev_write(upa_wl_fd, "\r", 1);
+	if(argc == 0 && (!strncmp(argv[1], "rssi", 4))) {
+		printf("\rssi[%08x] = %d    ", upa_nest_sel->addr, upa_rssi_get(upa_nest_sel));
+		return 1;
+	}
+
+	/* forward commands to wireless except "upa xxx"
+	 * ASK: why does only argv[0] been forwarded?
+	 * ACK: pls refer api shell_trap() */
+	if((upa_nest_sel != NULL) && strcmp(argv[0], "upa")) {
+		upa_nest_printf("%s\r", argv[0]);
 		return 0;
 	}
+
 	printf("%s", usage);
 	return 0;
 }
@@ -387,20 +461,23 @@ static int cmd_monitor_func(int argc, char *argv[])
 		sscanf(argv[2], "%x", &addr);
 		upa_nest_new(addr);
 		if(1) {
-			console_select(upa_uart_cnsl);
+			console_set(upa_uart_cnsl);
 			printf("%s %s %s\n", argv[0], argv[1], argv[2]);
-			console_select(upa_wl_cnsl);
+			console_set(upa_wl_cnsl);
 		}
 		return 0;
 	}
 
-	if(strcmp(argv[0], "monitor") && (upa_status == UPA_STATUS_PTX_SEL)) { //commands to be forwarded to uart
-		console_select(upa_uart_cnsl);
+	/* forward response from wireless to uart console except*/
+	if(strcmp(argv[0], "monitor")) {
+		console_set(upa_uart_cnsl);
 		printf("%s\n", argv[0]);
-		console_select(upa_wl_cnsl);
+		console_set(upa_wl_cnsl);
 		return 0;
 	}
 
-	//printf("%s", usage);
+	if(console_get() == upa_uart_cnsl)
+		printf("%s", usage);
+
 	return 0;
 }

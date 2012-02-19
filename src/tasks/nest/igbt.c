@@ -5,9 +5,13 @@ there are 4 hardware modules in total:
 2, mos - spark discharge control module, core of spark waveform control --- HW TIMER - TIM2
 3, ipm - spark current measure module --- ADC1 DMA
 4, vpm - spark voltage measure module --- TIM3 DMA
+
+modification history:
+miaofng@2011	initial version
+miaofng@2012	spark period adaptive fit (0 - 65mS)
 */
 #include "config.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "ulp_time.h"
 #include "nvm.h"
 #include "sys/task.h"
@@ -66,6 +70,7 @@ static int burn_id __nvm; /*mcamos can cmd id*/
 /*burn system state machine*/
 static enum {
 	BURN_INIT,
+	BURN_MEAT,
 	BURN_IDLE, //1st pulse detected, idle duration, normal 36mS
 	BURN_MEAI, //current measurement duration, normal 4mS
 	BURN_MEAV, //voltage measurement duration, normal < 1mS
@@ -751,13 +756,14 @@ int pmm_Update(int ops, int ignore)
 			pmm_t1 = v;
 			pmm_t2 = t2;
 
+			burn_data.tp = det;
 			//det process
 			//burn_data.tp_max = (burn_data.tp_max > det) ? burn_data.tp_max : det;
 			//burn_data.tp_min = (burn_data.tp_max < det) ? burn_data.tp_min : det;
 			//burn_data.tp_avg = (burn_data.tp_avg + det) >> 1;
 
 			//debug
-			if((det > 21000) || (det < 19000)) {
+			if((burn_ms != 0) && ((det > burn_ms*1000 + 1000) || (det < burn_ms*1000 - 1000))) {
 				printf("%d	%03d.%03dmS\n", -time_left(burn_tick), det/1000, det%1000);
 			}
 		}
@@ -837,7 +843,7 @@ void burn_Init()
 	burn_data.vp_min = 0xffff;
 	burn_flag_debug = FLAG_DEBUG_NONE;
 
-	if(burn_ms == 0xffff) { //set default value
+	if(nvm_is_null()) { //set default value
 		mos_delay_clks  = (unsigned short) (mos_delay_us_def * 36); //unit: 1/36 us
 		mos_close_clks  = (unsigned short) (mos_close_us_def * 36); //unit: 1/36 us
 		burn_ms = T;
@@ -846,6 +852,7 @@ void burn_Init()
 		nvm_save();
 	}
 
+	burn_ms = 0; //adaptive spark period measurement, ignore obsolete nvm settings
 	vpm_ratio_cal = (vpm_ratio_cal > 0) ? vpm_ratio_cal : 1 << 12;
 	ipm_ratio_cal = (ipm_ratio_cal > 0) ? ipm_ratio_cal : 1 << 12;
 
@@ -856,7 +863,7 @@ void burn_Init()
 	mos_Init();
 	com_Init();
 	ipm_Init();
-        vpm_Init();
+	vpm_Init();
 }
 
 void Analysis(void)
@@ -882,18 +889,59 @@ void Analysis(void)
 	}
 }
 
+static unsigned short burn_us_temp;
+static unsigned short burn_us_times;
+
 void burn_Update()
 {
-	int flag, loop;
+	int flag, loop, delta;
 	com_Update();
 	do {
 		loop = 0;
 		switch(burn_state) {
+		case BURN_MEAT: //spark period measurement
+			flag = pmm_Update(UPDATE, 0);
+			if(flag) {
+				if(burn_us_times == 0) {
+					burn_us_temp = burn_data.tp;
+					burn_us_times ++;
+				}
+				else {
+					delta = burn_data.tp;
+					delta -= burn_us_temp;
+					if((delta < 3000) && (delta > -3000)) { // <3mS, the same one
+						delta /= 2; //to got average value
+						delta += burn_us_temp;
+						burn_us_temp = delta;
+						burn_us_times ++;
+						if(burn_us_times > 5) { //enough ...
+							delta = burn_us_temp % 1000;
+							delta = (delta > 500) ? 1 : 0;
+							burn_ms = burn_us_temp / 1000;
+							burn_ms += delta;
+							burn_state = BURN_INIT;
+						}
+					}
+					else { //not stable, new one got
+						burn_us_temp = burn_data.tp;
+						burn_us_times = 1;
+					}
+				}
+			}
+			break;
+
 		case BURN_INIT:
 			flag = pmm_Update(START, 1);
 			if(flag) {
-				burn_state = BURN_IDLE;
-				burn_timer = time_get(burn_ms - ipm_ms);
+				if(burn_ms != 0) {
+					burn_state = BURN_IDLE;
+					burn_timer = time_get(burn_ms - ipm_ms);
+				}
+				else {
+					burn_state = BURN_MEAT;
+					burn_us_temp = 0;
+					burn_us_times = 0;
+				}
 			}
 			break;
 

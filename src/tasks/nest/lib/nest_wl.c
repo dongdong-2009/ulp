@@ -27,6 +27,12 @@ int nest_wl_init(void)
 
 	dev_register("nrf", &nrf_cfg);
 	nest_wl_fd = dev_open("wl0", 0);
+	if(nest_wl_fd == 0) {
+		printf("init: device wl0 open failed!!!\n");
+		return -1;
+	}
+
+	//wireless configuration
 	dev_ioctl(nest_wl_fd, WL_SET_FREQ, NEST_WL_FREQ);
 	dev_ioctl(nest_wl_fd, WL_ERR_TXMS, NEST_WL_TXMS);
 	dev_ioctl(nest_wl_fd, WL_ERR_FUNC, nest_wl_onfail);
@@ -34,7 +40,7 @@ int nest_wl_init(void)
 	cnsl = console_register(nest_wl_fd);
 	assert(cnsl != NULL);
 	shell_register(cnsl);
-	shell_mute(cnsl, 1);
+	shell_mute(cnsl);
 	dev_ioctl(nest_wl_fd, WL_FLUSH);
 	return 0;
 }
@@ -43,6 +49,9 @@ int nest_wl_init(void)
 int nest_wl_update(void)
 {
 	char frame[33], n;
+	if(nest_wl_fd == 0)
+		return -1;
+
 	if(time_left(nest_wl_timer) < 0) {
 		/*add a unique value to timeout to avoid all nest request monitor at the same time*/
 		nest_wl_timer = time_get(NEST_WL_MS +(nest_wl_addr & 0x0fff));
@@ -86,7 +95,7 @@ static int nest_wl_onfail(int ecode, ...)
 		}
 		break;
 	default:
-		console_select(NULL);
+		console_set(NULL);
 		printf("ecode = %d\n", ecode);
 		console_restore();
 		break;
