@@ -1,11 +1,12 @@
 /*
  *	sky@2011 initial version
  *	miaofng@2011 rewrite
+ *	king@2011 modify
  *	note:
  *		TIM3 is shared by pwm output(pin remap) & learning capture function!!!
  */
 #include "config.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "stm32f10x.h"
 
 /*ori: ADDRESS_GPIO_Init*/
@@ -56,7 +57,7 @@ void card_init(void)
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 	GPIO_ResetBits(GPIOB, GPIO_InitStructure.GPIO_Pin);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_1;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
@@ -104,10 +105,11 @@ int card_getslot(void)
 
 static char card_power_on = 0;
 static char card_power_cnt = 0;
+
 int card_getpower(void)
 {
 	if(ADC_GetFlagStatus (ADC1, ADC_FLAG_EOC)) {
-		int mv = ADC_GetConversionValue(ADC1);
+		unsigned int mv = ADC_GetConversionValue(ADC1);
 		ADC_ClearFlag(ADC1, ADC_FLAG_EOC);
 		ADC_SoftwareStartConvCmd(ADC1, ENABLE);
 		mv = mv * 3300 / 4096 * 440 / 110; /*110K/(110K + 330K)*/
@@ -154,8 +156,10 @@ SLAVE_SEND		PA1/TIM2_CH2(HW BUG, PA0/TIM2_CH1 DMA CONFLICT WITH CNSL UART1)
 /*ori: TIM3_init*/
 /*ori: TIM3ch3_init*/
 /*ori: TIM3ch4_init*/
-int card_player_init(int min, int max, int div) //MIN/MAX CURRENT + SPEED
+int card_player_init(unsigned int min, unsigned int max,unsigned int div) //MIN/MAX CURRENT + SPEED
 {
+	max *= 75;
+	min *= 75;
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
@@ -181,7 +185,7 @@ int card_player_init(int min, int max, int div) //MIN/MAX CURRENT + SPEED
 
 	//TIM3 -> pwm, set low/high limit of current modulation
 	TIM_DeInit(TIM3);
-	TIM_TimeBaseStructure.TIM_Period = 1500;
+	TIM_TimeBaseStructure.TIM_Period = 3300;
 	TIM_TimeBaseStructure.TIM_Prescaler = 0;
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -190,10 +194,10 @@ int card_player_init(int min, int max, int div) //MIN/MAX CURRENT + SPEED
 
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = 900;
+	TIM_OCInitStructure.TIM_Pulse = max;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OC3Init(TIM3, &TIM_OCInitStructure);
-	TIM_OCInitStructure.TIM_Pulse = 100;
+	TIM_OCInitStructure.TIM_Pulse = min;
 	TIM_OC4Init(TIM3, &TIM_OCInitStructure);
 	TIM_Cmd(TIM3, ENABLE);
 
@@ -202,6 +206,37 @@ int card_player_init(int min, int max, int div) //MIN/MAX CURRENT + SPEED
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 	GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, ENABLE);
+	return 0;
+}
+
+int psi5_card_player_start(unsigned short *fifo, int n, int start_time)
+{
+	DMA_InitTypeDef DMA_InitStructure;
+	DMA_Cmd(DMA1_Channel7, DISABLE);
+	DMA_DeInit(DMA1_Channel7);
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)( &(TIM2->CCR2));;
+	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)(fifo);
+	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+	DMA_InitStructure.DMA_BufferSize = n;
+	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
+	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
+	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
+	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+	DMA_Init(DMA1_Channel7, &DMA_InitStructure);
+	DMA_Cmd(DMA1_Channel7, ENABLE);
+	TIM_DMACmd(TIM2, TIM_DMA_CC2, ENABLE);
+
+	TIM_SetCounter(TIM2, 0);
+	TIM_SetCompare2(TIM2, start_time); //first start bit always at time = start_time
+
+	TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_ForcedAction_Active); //idle
+	TIM_CCxCmd(TIM2, TIM_Channel_2, TIM_CCx_Enable);
+	TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_OCMode_Toggle);
+	TIM_CCxCmd(TIM2, TIM_Channel_2, TIM_CCx_Enable);
+	TIM_Cmd(TIM2, ENABLE);
 	return 0;
 }
 
@@ -266,6 +301,7 @@ int card_player_stop(void)
 	TIM_Cmd(TIM2, DISABLE);
 	TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_ForcedAction_Active); //idle
 	TIM_CCxCmd(TIM2, TIM_Channel_2, TIM_CCx_Enable);
+	DMA_ITConfig(DMA1_Channel7, DMA_IT_TC, DISABLE);
 	return 0;
 }
 

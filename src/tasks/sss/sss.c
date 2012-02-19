@@ -2,6 +2,7 @@
  *	sky@2011 initial version
  *	peng.guo@2011 modify
  *	miaofng@2011 rewrite
+ *	king@2011 modify
  *
  */
 #include "config.h"
@@ -16,7 +17,7 @@
 #include "sis.h"
 #include "nvm.h"
 #include "led.h"
-#include "debug.h"
+#include "ulp/debug.h"
 
 #define SSS_MAGIC 0x56784321
 #define SSS_LIST_SIZE	64
@@ -129,23 +130,51 @@ static int cmd_sss_config(const char *name, const char *para)
 	}
 
 	memset(&new, 0, sizeof(new));
-	new.protocol = SIS_PROTOCOL_DBS;
 	strncpy(new.name, name, 13);
-	n = sscanf(para, "0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x", \
-		&new.data[0], &new.data[1], &new.data[2], &new.data[3],  \
-		&new.data[4], &new.data[5], &new.data[6], &new.data[7],  \
-		&new.data[8], &new.data[9] \
-	);
-	new.cksum = 0 - sis_sum(&new, sizeof(new));
-
-	if(n == 10) {
-		memcpy(sis, &new, sizeof(new));
-		nvm_save();
-		return 0;
+	sscanf(para, "0x%x",&n);
+	switch(n) {
+	case SIS_PROTOCOL_PSI5:
+		int data[23];
+		n = sscanf(para, "0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,\
+			0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x",\
+			&data[0], &data[1], &data[2], &data[3], &data[4], &data[5], &data[6],\
+			&data[7], &data[8], &data[9], &data[10], &data[11], &data[12], &data[13],\
+			&data[14], &data[15], &data[16], &data[17], &data[18], &data[19], &data[20],\
+			&data[21], &data[22]\
+			);
+		if(n == 23) {
+			new.protocol = (char)data[0];
+			for(int i = 0; i < 22; i++)
+				new.data[i] = (char)data[i + 1];
+			new.cksum = 0 - sis_sum(&new, sizeof(new));
+			memcpy(sis, &new, sizeof(new));
+			nvm_save();
+			return 0;
+		}
+		printf("para not enough");
+		return -3;
+	case SIS_PROTOCOL_DBS:
+		int temp[11];
+		n = sscanf(para, "0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,\
+			0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x",\
+			&temp[0], &temp[1], &temp[2], &temp[3], &temp[4], &temp[5], &temp[6],\
+			&temp[7], &temp[8], &temp[9], &temp[10]\
+			);
+		if(n == 11) {
+			new.protocol = (char)temp[0];
+			for(int i = 0; i < 11; i++)
+				new.data[i] = (char)temp[i + 1];
+			new.cksum = 0 - sis_sum(&new, sizeof(new));
+			memcpy(sis, &new, sizeof(new));
+			nvm_save();
+			return 0;
+		}
+		printf("para not enough");
+		return -3;
+	default:
+		printf("This protocol is not exist");
+		return -1;
 	}
-
-	printf("para not enough");
-	return -3;
 }
 
 static int cmd_sss_select(const char *name, int bdn)
@@ -242,7 +271,7 @@ static int cmd_sss_learn(const char *name, int bdn)
 	};
 
 	memset(&sis, 0, sizeof(sis));
-	sis.protocol = SIS_PROTOCOL_DBS;
+	//sis.protocol = SIS_PROTOCOL_DBS;
 	strcpy(sis.name, name);
 
 	//communication with the sis board
@@ -337,7 +366,7 @@ static int cmd_sss_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"sss learn name <bdn>			add/modify new sensor automatically\n"
-		"sss config name speed,addr,trace0,..	add/modify/remove new sensor manually, 0x01 = 8000mps\n"
+		"sss config name protocol,data0,data1,..	add/modify/remove new sensor manually\n"
 		"sss select name <bdn>			select a sensor to be emulated, bdn is optional\n"
 		"sss query <bdn>				query specified board sensor info\n"
 		"sss list <name>				list all supported sensors\n"
@@ -349,12 +378,12 @@ static int cmd_sss_func(int argc, char *argv[])
 		ret = cmd_sss_list(name);
 	}
 
-	if((argc >= 3) && (!strcmp(argv[1], "config"))) {
+	else if((argc >= 3) && (!strcmp(argv[1], "config"))) {
 		char *para = (argc > 3) ? argv[3] : NULL;
 		ret = cmd_sss_config(argv[2], para);
 	}
 
-	if((argc >= 3) && (!strcmp(argv[1], "select"))) {
+	else if((argc >= 3) && (!strcmp(argv[1], "select"))) {
 		unsigned pat, i;
 		pat = (argc > 3) ? cmd_pattern_get(argv[3]) : 0xff << 1;
 		ret = (pat <= 1) ? -1 : 0;
@@ -367,7 +396,7 @@ static int cmd_sss_func(int argc, char *argv[])
 		}
 	}
 
-	if((argc >= 2) && (!strcmp(argv[1], "query"))) {
+	else if((argc >= 2) && (!strcmp(argv[1], "query"))) {
 		int pat, i;
 		pat = (argc > 2) ? cmd_pattern_get(argv[2]) : 0xff << 1;
 		ret = (pat <= 1) ? -1 : 0;
@@ -380,7 +409,7 @@ static int cmd_sss_func(int argc, char *argv[])
 		}
 	}
 
-	if((argc >= 3) && (!strcmp(argv[1], "learn"))) {
+	else if((argc >= 3) && (!strcmp(argv[1], "learn"))) {
 		int pat, i;
 		pat = (argc > 3) ? cmd_pattern_get(argv[3]) : 0x02;
 		ret = (pat <= 1) ? -1 : 0;
@@ -393,7 +422,7 @@ static int cmd_sss_func(int argc, char *argv[])
 		}
 	}
 
-	if((argc >= 2) && (!strcmp(argv[1], "save"))) {
+	else if((argc >= 2) && (!strcmp(argv[1], "save"))) {
 		int pat, i;
 		pat = (argc > 2) ? cmd_pattern_get(argv[2]) : 0xff << 1;
 		ret = (pat <= 1) ? -1 : 0;
@@ -406,7 +435,7 @@ static int cmd_sss_func(int argc, char *argv[])
 		}
 	}
 
-	if((argc >= 2) && (!strcmp(argv[1], "clear"))) {
+	else if((argc >= 2) && (!strcmp(argv[1], "clear"))) {
 		int pat, i;
 		pat = (argc > 2) ? cmd_pattern_get(argv[2]) : 0xff << 1;
 		ret = (pat <= 1) ? -1 : 0;
@@ -419,7 +448,7 @@ static int cmd_sss_func(int argc, char *argv[])
 		}
 	}
 
-	if((argc == 1) || (!strcmp(argv[1], "help")))
+	else if((argc == 1) || (!strcmp(argv[1], "help")))
 		printf("%s", usage);
 
 	if(ret == 0)
@@ -486,7 +515,7 @@ int main(void)
 {
 	task_Init();
 	sss_Init();
-        mdelay(300);
+	mdelay(300);
 	while(1) {
 #ifdef SSS_DEBUG_LOOP_TIME
 		printf("loop = %dmS\n", - time_left(sss_loop_timer));

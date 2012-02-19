@@ -5,3 +5,4 @@ obj-$(CONFIG_SSS_CARD_CTRL) += sss.o
 obj-$(CONFIG_SSS_CARD_SIS) += sis.o
 obj-$(CONFIG_SSS_CARD_SIS) += dbs.o
 obj-$(CONFIG_SSS_CARD_SIS) += sis_card.o
+obj-$(CONFIG_SSS_CARD_SIS) += psi5.o
