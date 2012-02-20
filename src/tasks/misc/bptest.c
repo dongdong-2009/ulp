@@ -15,6 +15,7 @@
 #include "sys/sys.h"
 #include "stm32f10x_gpio.h"
 
+/* init time define*/
 #define BP_SELFCHECK_TIME		8000 // for product self checking time
 #define BP_PowerOn_TIME			(1000 * 60 * 10) //for power on time 10 min
 #define BP_PowerOff_TIME		(1000 * 10) //for power off time 10 s
@@ -35,6 +36,9 @@ static int awl_times = 0;
 static int test_times = 0;
 static time_t poweron_timer;
 static int test_flag = 0;
+static time_t bp_on_time;
+static time_t bp_off_time;
+static time_t bp_sfcheck_time;
 
 static int bptest_mdelay(int ms);
 
@@ -55,6 +59,9 @@ void bptest_Init(void)
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
 	//for init state
+	bp_on_time = BP_PowerOn_TIME;
+	bp_off_time = BP_PowerOff_TIME;
+	bp_sfcheck_time = BP_SELFCHECK_TIME;
 	RY_CTRL(POWER_OFF);
 	bptest_mdelay(1000);
 }
@@ -65,22 +72,26 @@ void bptest_Update(void)
 		test_times ++;
 		printf("\nPrepare the <%d round> burn panel power on/off test...\n", test_times);
 		printf("Power on ...\n");
-		poweron_timer = time_get(BP_PowerOn_TIME);
+		poweron_timer = time_get(bp_on_time);
 		RY_CTRL(POWER_ON);
-		bptest_mdelay(BP_SELFCHECK_TIME);
+		bptest_mdelay(bp_sfcheck_time);
 		printf("Self checking is over ...\n");
 		while(time_left(poweron_timer) > 0) {  //for airbag warning lamp detect
 			task_Update();
 			if (GET_AWL() == AWL_ON) {
 				awl_times ++;
-				printf("test time left %d min\n", time_left(poweron_timer)/1000/60);
+				printf("test time left %d s\n", time_left(poweron_timer)/1000);
 				printf("awl times is %d \n", awl_times);
+				bptest_mdelay(3000);
+				break;
+			}
+			if (test_flag == 0) {
 				break;
 			}
 		}
 		printf("Power off ...\n");
 		RY_CTRL(POWER_OFF);
-		bptest_mdelay(BP_PowerOff_TIME);
+		bptest_mdelay(bp_off_time);
 		printf("##########This round test over!!!##########################\n");
 	}
 }
@@ -118,11 +129,16 @@ void main(void)
 
 int cmd_bp_func(int argc, char *argv[])
 {
+	int temp;
+
 	const char * usage = { \
 		" usage:\n" \
 		" bp start,   start the burn panel power on/off test\n" \
 		" bp status,  return the result of test\n"
 		" bp stop,    stop burn panel test\n"
+		" bp on,      set power on for the panel\n"
+		" bp off,     set power off for the panel\n"
+		" bp set on off sfcheck, set power on and power off time(s) and sfcheck time(s)\n"
 	};
 
 	if(argc < 2) {
@@ -136,10 +152,35 @@ int cmd_bp_func(int argc, char *argv[])
 
 	if (strcmp(argv[1], "status") == 0) {
 		printf("Test times is %d, Fail times is %d\n", test_times, awl_times);
+		printf("power on time is %d s\n", bp_on_time/1000);
+		printf("power off time is %d s\n", bp_off_time/1000);
+		printf("burn panel selfcheck time is %d s\n", bp_sfcheck_time/1000);
 	}
 
 	if (strcmp(argv[1], "stop") == 0) {
 		test_flag = 0;
+	}
+
+	if (strcmp(argv[1], "on") == 0) {
+		RY_CTRL(POWER_ON);
+		printf("Burn panel power on\n");
+	}
+
+	if (strcmp(argv[1], "off") == 0) {
+		RY_CTRL(POWER_OFF);
+		printf("Burn panel power off\n");
+	}
+
+	if (strcmp(argv[1], "set") == 0) {
+		sscanf(argv[2], "%d", &temp);
+		bp_on_time = (time_t)(temp * 1000);
+		printf("power on time is %d s\n", temp);
+		sscanf(argv[3], "%d", &temp);
+		bp_off_time = (time_t)(temp * 1000);
+		printf("power off time is %d s\n", temp);
+		sscanf(argv[4], "%d", &temp);
+		bp_sfcheck_time = (time_t)(temp * 1000);
+		printf("burn panel selfcheck time is %d s\n", temp);
 	}
 
 	return 0;
