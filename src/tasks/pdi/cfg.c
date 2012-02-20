@@ -323,6 +323,7 @@ static int cmd_file_func(int argc, char *argv[])
 				if(rule->type == PDI_RULE_DID) printf("DID ");
 				if(rule->type == PDI_RULE_DPID) printf("DPID ");
 				if(rule->type == PDI_RULE_JAMA) printf("JAMA ");
+				if(rule->type == PDI_RULE_ERROR) printf("ERROR ");
 
 				printf("%02X ", rule->para);
 
@@ -371,6 +372,7 @@ static int cmd_verify_func(int argc, char *argv[])
 		"verify DID B4 ASCII 16 20TAS5636E********* //explatation, optional\n"
 		"verify DPID 28 HEX 7 000000000000000000 //explation, optional\n"
 		"verify JAMA HEX 1 01 //explation, optional\n"
+		"verify ERROR HEX 2 8181 //explation, optional\n"
 	};
 
 	if(argc == 6) {
