@@ -8,3 +8,4 @@ obj-y += nest_power.o
 obj-y += nest_error.o
 obj-y += nest_chip.o
 obj-y += nest_burn.o
+obj-y += nest_wl.o

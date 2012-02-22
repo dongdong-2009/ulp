@@ -31,15 +31,18 @@
 #include <string.h>
 
 struct nrf_pipe_s {
-	short index; //0-5
-	short timeout; // unit: ms
+	unsigned short retry; //for signal quanlity check, for ptx usage only
+	unsigned short retry_times;
+	unsigned short timeout; // unit: ms
+	unsigned char cf_timeout; //custom frame send timeout
+	unsigned char cf_ecode; //custom frame err code
 	time_t timer; //send timer for both ptx and prx mode, it counts the ms elapsed that hw tx fifo keeps full
 	unsigned addr; //note: only low 8 bit effective in case not pipe0
 	circbuf_t tbuf; //mv to hw fifo by poll()
 	circbuf_t rbuf; //mv from hw fifo by poll()
 	struct list_head list;
 	int (*onfail)(int ecode, ...); //exception process func
-	char *frame; //custom frame to be sent, will be modified to NULL when sent
+	char *cf; //custom frame to be sent, will be modified to NULL when sent
 };
 
 struct nrf_chip_s {
@@ -57,6 +60,21 @@ struct nrf_priv_s  {
 	struct nrf_chip_s *chip;
 	struct nrf_pipe_s *pipe; //point to current pipe
 };
+
+static inline void nrf_retry_init(struct nrf_pipe_s *pipe)
+{
+	pipe->retry = 0;
+	pipe->retry_times = 0;
+}
+
+static inline void nrf_retry_update(struct nrf_pipe_s *pipe, unsigned retry)
+{
+	retry += pipe->retry;
+	if(retry <= 0xffff) { //avoid fold back
+		pipe->retry_times ++;
+		pipe->retry = retry;
+	}
+}
 
 #define cs_set(level) chip->spi->csel(chip->gpio_cs, level)
 #define ce_set(level) chip->spi->csel(chip->gpio_ce, level)
@@ -178,7 +196,10 @@ static int nrf_hw_init(struct nrf_priv_s *priv)
 	//SELF DIAG
 	nrf_write_reg(TX_ADDR, 0x11);
 	char val = nrf_read_reg(TX_ADDR);
-	assert(val == 0x11);
+	if(val != 0x11) {
+		//hardware fault
+		return -1;
+	}
 
 	//setup pipe
 	nrf_write_reg(EN_AA, 0x01); //enable auto ack of pipe 0
@@ -193,10 +214,9 @@ static int nrf_hw_init(struct nrf_priv_s *priv)
 
 	nrf_hw_set_freq(chip, chip->freq);
 	nrf_hw_set_mode(chip, chip->mode);
-	nrf_hw_set_addr(chip, pipe->index, pipe->addr);
+	nrf_hw_set_addr(chip, 0, pipe->addr);
 
 	nrf_write_reg(STATUS, RX_DR | TX_DS | MAX_RT ); //clear rx_dr irq flag
-	ce_set(1);
 	return 0;
 }
 
@@ -222,7 +242,7 @@ int nrf_update(struct nrf_priv_s *priv)
 	struct nrf_chip_s *chip;
 	char status, fifo_status, n, frame[32];
 	int (*onfail)(int ecode, ...);
-	int ecode = WL_ERR_OK;
+	int rbuf_full = 0, ecode = WL_ERR_OK;
 	//assert(priv != NULL);
 	pipe = priv->pipe;
 	//assert(pipe != NULL);
@@ -238,104 +258,60 @@ int nrf_update(struct nrf_priv_s *priv)
 	*/
 	status = nrf_read_reg(STATUS);
 	fifo_status = nrf_read_reg(FIFO_STATUS);
-	do {
-		if(chip->mode & WL_MODE_PRX) { //PRX
+
+	/*handle recv
+	prx: there's no enough space in rbuf, do not recv,
+	then prx will ignore,  which lead to ptx send fail and resend,
+	so there is two reason which may lead to ptx send fail:
+	1, prx lost link
+	2, prx rfifo full(maybe cpu is dead?:))
+
+	ptx: handle recv, from the ptx flow chart, the payload attached with ack may lost in case of ptx rxfifo is full???
+	because it doesn' check rxfifo is full or not, pls refer to chart page 31. From shockburst communication protocol point of view,
+	ptx cann't notice prx 'i'm full', that may lead to deadloop. So we need to check the rfifo to ensure we can recv before ptx send
+	the frame
+
+	ptx: there's no enough space in ptx rbuf, do not recv,
+	then ptx should give up send a frame at next step. */
+
+	if(status & RX_DR) {
+		do {
 			//handle recv
-			if(!(fifo_status & RX_FIFO_EMPTY)) {
-				nrf_read_buf(R_RX_PL_WID, &n, 1);
-				if(n > 0) {
-					if(buf_left(&pipe->rbuf) < n - 1) {
-						/*there's no enough space in rbuf, do not recv,
-						then prx will ignore,  which lead to ptx send fail and resend,
-						so there is two reason which may lead to ptx send fail:
-						1, prx lost link
-						2, prx rfifo full(maybe cpu is dead?:))
-						*/
-						break;
-					}
-
-					nrf_read_buf(R_RX_PAYLOAD, frame, n);
-					nrf_write_reg(STATUS, RX_DR);
-					if(frame[0] == WL_FRAME_DATA) {
+			nrf_read_buf(R_RX_PL_WID, &n, 1);
+			if(n > 0) {
+				if(buf_left(&pipe->rbuf) < n - 1) {
+					rbuf_full = 1;
+					break;
+				}
+				nrf_read_buf(R_RX_PAYLOAD, frame, n);
+				nrf_write_reg(STATUS, RX_DR);
+				if(frame[0] == WL_FRAME_DATA) {
+					if(n > 1)
 						buf_push(&pipe->rbuf, frame + 1, n - 1);
-					}
-					else {
-						ecode = WL_ERR_RX_FRAME;
-						onfail(ecode, frame, n);
-					}
 				}
 				else {
-					ecode = WL_ERR_RX_HW;
-					onfail(ecode);
+					ecode = WL_ERR_RX_FRAME;
+					onfail(ecode, frame, n);
 				}
 			}
+			else {
+				ecode = WL_ERR_RX_HW;
+				onfail(ecode);
+			}
+		fifo_status = nrf_read_reg(FIFO_STATUS);
+		} while(!(fifo_status & RX_FIFO_EMPTY));
+	}
 
-			//handle transmit
-			if(fifo_status & TX_FIFO_FULL) {
-				if(pipe->timer == 0)
-					pipe->timer = time_get(pipe->timeout);
-				if(time_left(pipe->timer) < 0) { //timeout, flush?
-					ecode = WL_ERR_TX_TIMEOUT;
-					onfail(ecode);
-					pipe->timer = 0;
-				}
-			}
-			else { //not full
-				pipe->timer = 0;
-				if(pipe->frame == NULL) {
-					frame[0] = WL_FRAME_DATA;
-					n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
-					n = buf_pop(&pipe->tbuf, frame + 1, n);
-				}
-				else { //to send a custom frame
-					n = pipe->frame[0];
-					memcpy(frame, pipe->frame, n);
-					pipe->frame = NULL;
-				}
-				if(n > 0) {
-					nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
-				}
-				if(status & TX_DS) {
-					nrf_write_reg(STATUS, TX_DS);
-				}
-			}
-		}
-		else { //PTX
-			/*handle recv, from the ptx flow chart, the payload attached with ack may lost in case of ptx rxfifo is full???
-			because it doesn' check rxfifo is full or not, pls refer to chart page 31. From shockburst communication protocol point of view,
-			ptx cann't notice prx 'i'm full', that may lead to deadloop. So we need to check the rfifo to ensure we can recv before ptx send
-			the frame*/
-			if(!(fifo_status & RX_FIFO_EMPTY)) {
-				nrf_read_buf(R_RX_PL_WID, &n, 1);
-				if(n > 0) {
-					if(buf_left(&pipe->rbuf) < (n -1)) {
-						/*there's no enough space in ptx rbuf, do not recv,
-						then ptx should give up send a frame at next step.
-						*/
-						break;
-					}
-					nrf_read_buf(R_RX_PAYLOAD, frame, n);
-					nrf_write_reg(STATUS, RX_DR);
-					if(frame[0] == WL_FRAME_DATA) {
-						buf_push(&pipe->rbuf, frame + 1, n - 1);
-					}
-					else {
-						ecode = WL_ERR_RX_FRAME;
-						onfail(ecode, frame, n);
-					}
-				}
-				else {
-					ecode = WL_ERR_RX_HW;
-					onfail(ecode);
-				}
-			}
-
-			//handle transmit
+	//send
+	fifo_status = nrf_read_reg(FIFO_STATUS);
+	if(1) { //if(status & (TX_DS|MAX_RT)) {
+		do {
 			if(status & MAX_RT) {
 				//resend until timeout
 				ce_set(0);
 				//delay at least 10uS here ...
 				nrf_write_reg(STATUS, MAX_RT);
+				nrf_retry_update(pipe, 15);
 				ce_set(1);
 			}
 
@@ -344,31 +320,115 @@ int nrf_update(struct nrf_priv_s *priv)
 					pipe->timer = time_get(pipe->timeout);
 				if(time_left(pipe->timer) < 0) { //timeout, flush?
 					ecode = WL_ERR_TX_TIMEOUT;
-					onfail(ecode);
+					onfail(ecode, pipe->addr);
 					pipe->timer = 0;
 				}
+				break;
 			}
-			else { //not full
-				pipe->timer = 0;
-				if(pipe->frame == NULL) {
-					frame[0] = WL_FRAME_DATA;
-					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
-				}
-				else { //to send a custom frame
-					n = pipe->frame[0];
-					memcpy(frame, pipe->frame, n);
-					pipe->frame = NULL;
-				}
-				if(status & TX_DS) {
+			pipe->timer = 0;
+			if(pipe->cf != NULL)
+				break;
+
+			if(chip->mode & WL_MODE_PRX) {
+				frame[0] = WL_FRAME_DATA;
+				n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
+				n = buf_pop(&pipe->tbuf, frame + 1, n);
+				if(n > 0) {
+					nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
 					nrf_write_reg(STATUS, TX_DS);
 				}
-				nrf_write_buf(W_TX_PAYLOAD, frame, n + 1); //nrf count the bytes automatically
 			}
-		}
+			else {
+				if(!rbuf_full) { //no space to recv now
+					frame[0] = WL_FRAME_DATA;
+					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
+					nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
+					nrf_write_buf(W_TX_PAYLOAD, frame, n + 1); //nrf count the bytes automatically
+					nrf_write_reg(STATUS, TX_DS);
+				}
+			}
 
-		status = nrf_read_reg(STATUS);
-		fifo_status = nrf_read_reg(FIFO_STATUS);
-	} while(status & (RX_DR|TX_DS|MAX_RT));
+			//no more data to send
+			if(buf_size(&pipe->tbuf) == 0)
+				break;
+
+			fifo_status = nrf_read_reg(FIFO_STATUS);
+		} while(!(fifo_status & TX_FIFO_FULL));
+	}
+
+	//prx send custom frame
+	if(pipe->cf != NULL && chip->mode == WL_MODE_PRX) {
+		if(fifo_status & TX_FIFO_EMPTY) {
+			n = pipe->cf[0];
+			memcpy(frame, pipe->cf, n);
+			nrf_write_buf(W_ACK_PAYLOAD(0), frame, n);
+			nrf_write_reg(STATUS, TX_DS);
+
+			//wait until send out or max rt
+			pipe->timer = time_get(pipe->cf_timeout);
+			while(1) {
+				status = nrf_read_reg(STATUS);
+				if(status & TX_DS) { //success
+					nrf_write_reg(STATUS, TX_DS);
+					pipe->cf = NULL;
+					pipe->cf_ecode = 0;
+					break;
+				}
+
+				if(time_left(pipe->timer) < 0) { //send timeout
+					nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
+					pipe->timer = 0;
+					pipe->cf = NULL;
+					pipe->cf_ecode = WL_ERR_TX_TIMEOUT;
+					break;
+				}
+			}
+			pipe->timer = 0;
+		}
+		return 0;
+	}
+
+	//ptx send custom frame
+	if(pipe->cf != NULL && chip->mode == WL_MODE_PTX) {
+		if(fifo_status & TX_FIFO_EMPTY) {
+			n = pipe->cf[0];
+			memcpy(frame, pipe->cf + 1, n);
+			nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
+			nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
+			nrf_write_reg(STATUS, TX_DS);
+			//wait until send out or max rt
+			pipe->timer = time_get(pipe->cf_timeout);
+			while(1) {
+				status = nrf_read_reg(STATUS);
+				if(status & TX_DS) { //success
+					nrf_write_reg(STATUS, TX_DS);
+					pipe->cf = NULL;
+					pipe->cf_ecode = 0;
+					break;
+				}
+				if(status & MAX_RT) { //fail, resend until timeout
+					if(time_left(pipe->timer) > 0) {
+						ce_set(0);
+						//delay at least 10uS here ...
+						nrf_write_reg(STATUS, MAX_RT);
+						nrf_retry_update(pipe, 15);
+						ce_set(1);
+					}
+				}
+				if(time_left(pipe->timer) < 0) { //send timeout
+					nrf_write_reg(STATUS, MAX_RT);
+					nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
+					pipe->timer = 0;
+					pipe->cf = NULL;
+					pipe->cf_ecode = WL_ERR_TX_TIMEOUT;
+					break;
+				}
+			}
+			pipe->timer = 0;
+		}
+		return 0;
+	}
+
 	return 0;
 }
 
@@ -394,10 +454,10 @@ static int nrf_init(int fd, const void *pcfg)
 	chip = (struct nrf_chip_s *)(pmem + sizeof(struct nrf_priv_s) + sizeof(struct nrf_pipe_s));
 
 	//init pipe0
-	pipe->index = 0;
 	pipe->timeout = CONFIG_WL_MS; //5ms
 	pipe->timer = 0;
 	pipe->addr = CONFIG_WL_ADDR;
+	nrf_retry_init(pipe);
 	buf_init(&pipe->tbuf, CONFIG_WL_TBUF_SZ);
 	buf_init(&pipe->rbuf, CONFIG_WL_RBUF_SZ);
 	INIT_LIST_HEAD(&pipe->list);
@@ -412,7 +472,7 @@ static int nrf_init(int fd, const void *pcfg)
 	INIT_LIST_HEAD(&chip->pipes);
 	list_add_tail(&pipe->list, &chip->pipes);
 	pipe->onfail = nrf_onfail; //default onfail func
-	pipe->frame = NULL;
+	pipe->cf = NULL;
 
 	//priv
 	priv->chip = chip;
@@ -427,7 +487,8 @@ static int nrf_open(int fd, int mode)
 	int ret;
 	assert(priv != NULL);
 	ret = nrf_hw_init(priv);
-	nrf_flush(priv);
+	if(!ret)
+		nrf_flush(priv);
 	return ret;
 }
 
@@ -444,14 +505,14 @@ static int nrf_ioctl(int fd, int request, va_list args)
 
 	int (*onfail)(int ecode, ...);
 	char mode;
-	unsigned addr;
+	unsigned addr, *p, retry, times;
 	int freq;
-
-	//preprocess
-	ce_set(0);
 
 	int ret = 0;
 	switch(request) {
+	case WL_ERR_TXMS:
+		pipe->timeout = va_arg(args, unsigned);
+		break;
 	case WL_ERR_FUNC:
 		addr = va_arg(args, int);
 		onfail = (int (*)(int ecode, ...))addr;
@@ -470,8 +531,9 @@ static int nrf_ioctl(int fd, int request, va_list args)
 	case WL_SET_ADDR:
 		addr = va_arg(args, unsigned);
 		if(addr != pipe->addr) {
-			ret = nrf_hw_set_addr(chip, pipe->index, addr);
+			ret = nrf_hw_set_addr(chip, 0, addr);
 			pipe->addr = addr;
+			nrf_retry_init(pipe);
 			nrf_flush(priv);
 		}
 		break;
@@ -484,26 +546,39 @@ static int nrf_ioctl(int fd, int request, va_list args)
 		}
 		break;
 
+	case WL_GET_FAIL: //get retry counter
+		p = va_arg(args, unsigned *);
+		times = pipe->retry_times;
+		retry = pipe->retry;
+		retry = (times == 0) ? 0 : ((retry << (15 - 4)) / times); //range: 0-32767
+		*p = retry;
+		nrf_retry_init(pipe);
+		break;
+
 	case WL_FLUSH:
 		nrf_flush(priv);
 		break;
 
-	case WL_SEND:
-		pipe->frame = va_arg(args, char *);
+	case WL_SEND: //to send a custom frame in blocked, unbuffered method
+		pipe->cf = va_arg(args, char *);
+		pipe->cf_timeout = (char) va_arg(args, int);
 		while(1) {
 			nrf_update(priv);
-			if(pipe->frame == NULL)
+			if(pipe->cf == NULL)
 				break;
 		}
+		ret = pipe->cf_ecode;
 		break;
-
+	case WL_START:
+		ce_set(1);
+		break;
+	case WL_STOP:
+		ce_set(0);
+		break;
 	default:
 		ret = -1;
 		break;
 	}
-
-	//post process
-	ce_set(1);
 	return ret;
 }
 
@@ -532,12 +607,11 @@ static int nrf_read(int fd, void *buf, int count)
 	assert(priv != NULL);
 	pipe = priv->pipe;
 	assert(pipe != NULL);
-	while(buf_size(&pipe->rbuf) < count) { //you may call poll to avoid deadloop here
-		nrf_update(priv);
-	}
-
-	buf_pop(&pipe->rbuf, buf, count);
-	return count;
+	nrf_update(priv);
+	int n = buf_size(&pipe->rbuf);
+	n = (n < count) ? n : count; //!!!warnning: data may lost here
+	buf_pop(&pipe->rbuf, buf, n);
+	return n;
 }
 
 static int nrf_write(int fd, const void *buf, int count)
@@ -547,12 +621,12 @@ static int nrf_write(int fd, const void *buf, int count)
 	assert(priv != NULL);
 	pipe = priv->pipe;
 	assert(pipe != NULL);
-	while(buf_left(&pipe->tbuf) < count) { //you may call poll to avoid deadloop here
-		nrf_update(priv);
-	}
 
-	buf_push(&pipe->tbuf, buf, count);
-	return count;
+	nrf_update(priv);
+	int n = buf_left(&pipe->tbuf);
+	n = (n < count) ? n : count; //!!!warnning: data may lost here
+	buf_push(&pipe->tbuf, buf, n);
+	return n;
 }
 
 static const struct drv_ops_s nrf_ops = {
