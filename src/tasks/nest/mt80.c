@@ -368,6 +368,10 @@ static void CyclingTest(void)
 		vsep_mask("PCH13"); //FPR Short to Ground?
 		vsep_mask("PCH14"); //SMR Short to Ground?
 		vsep_mask("PCH27"); //MPR Short to Ground?
+		vsep_mask("PCH17"); //LEGR Short to Battery, not committed by delphi!
+		vsep_mask("PCH18"); //VVT1 Short to Battery, not committed by delphi!
+		vsep_mask("PCH24"); //O2HTRD Short to Ground, not committed by delphi!
+		vsep_mask("PCH25"); //EVAP Short to Battery, not committed by delphi!
 		break;
 	default:
 		break;
