@@ -1000,6 +1000,7 @@ void main(void)
 {
 	task_Init();
 	burn_Init();
+	printf("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
 	while(1) {
 		task_Update();
 		burn_Update();
