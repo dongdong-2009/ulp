@@ -923,8 +923,8 @@ void burn_Update()
 						}
 					}
 					else { //not stable, new one got
-						burn_us_temp = burn_data.tp;
-						burn_us_times = 1;
+						burn_ms = 0;
+						burn_state = BURN_INIT;
 					}
 				}
 			}
