@@ -11,4 +11,5 @@ choice 'misc project configuration'	" \
 	ROWBOAT_SPC			CONFIG_MISC_SPC \
 	MICROMETER_ADAPTER		CONFIG_MISC_MA \
 	BurnPanel_PowerTest		CONFIG_MISC_BPTEST \
+	MUX_LOADBOX			CONFIG_MISC_MUX \
 " VALVE_HEAD_DEMO
