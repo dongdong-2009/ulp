@@ -345,6 +345,19 @@ static void CyclingTest(void)
 	if(nest_fail())
 		return;
 
+	if((bmr!= BM_28164665) && (bmr != BM_28190870)) //ignore other nest, requested by jingfeng
+		return;
+
+	//cyc ign, necessary???
+	if(!nest_ignore(RLY)) {
+		for(int cnt = 0; cnt < 75; cnt ++) {
+			RELAY_IGN_SET(0);
+			nest_mdelay(100);
+			RELAY_IGN_SET(1);
+			nest_mdelay(100);
+		}
+	}
+
 	hfps_init();
 	hfps_trap("STATUS_H", 0xff, 0x2f);
 	hfps_trap("STATUS_L", 0xff, 0x71);
@@ -476,16 +489,6 @@ void TestStart(void)
 			nest_error_set(PSV_FAIL, "PSV");
 			nest_message("PSV addr %04X : %02X \n",MFGDAT_ADDR+(int)&(((struct mfg_data_s *)0)->psv),mfg_data.psv);
 			return;
-		}
-	}
-
-	//cyc ign, necessary???
-	if(!nest_ignore(RLY)) {
-		for(int cnt = 0; cnt < 75; cnt ++) {
-			RELAY_IGN_SET(0);
-			nest_mdelay(100);
-			RELAY_IGN_SET(1);
-			nest_mdelay(100);
 		}
 	}
 }
