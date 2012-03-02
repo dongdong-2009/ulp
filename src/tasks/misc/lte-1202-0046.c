@@ -3,13 +3,15 @@
  */
 
 #include "config.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "ulp_time.h"
 #include "stm32f10x_gpio.h"
 #include "sys/task.h"
 #include "mbi5025.h"
 #include "dac.h"
 #include "shell/cmd.h"
+#include "stm32f10x.h"
+#include "led.h"
 
 static const mbi5025_t ict_mbi5025 = {
 		.bus = &spi2,
@@ -20,10 +22,11 @@ static const mbi5025_t ict_mbi5025 = {
 
 void ict_Init(void)
 {
+	led_Init();
+	led_flash(LED_GREEN);
 	GPIO_InitTypeDef GPIO_InitStructure;
 	ADC_InitTypeDef ADC_InitStructure;
 	NVIC_InitTypeDef NVIC_InitStructure;
-	DMA_InitTypeDef DMA_InitStructure;
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD|RCC_APB2Periph_GPIOC|RCC_APB2Periph_GPIOB|RCC_APB2Periph_GPIOA, ENABLE);
 	RCC_ADCCLKConfig(RCC_PCLK2_Div8); /*72Mhz/8 = 9Mhz*/
@@ -83,7 +86,6 @@ void ict_Init(void)
 	ADC_AnalogWatchdogCmd(ADC2, ADC_AnalogWatchdog_SingleRegEnable);
 	ADC_ITConfig(ADC2, ADC_IT_AWD, DISABLE);
 
-	NVIC_InitTypeDef NVIC_InitStructure;
 	NVIC_InitStructure.NVIC_IRQChannel = ADC1_2_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
@@ -119,11 +121,6 @@ void ADC1_2_IRQHandler(void)
 	ADC_ClearITPendingBit(ADC1, ADC_IT_AWD);
 	ADC_ClearITPendingBit(ADC2, ADC_IT_AWD);
 	//set relay
-}
-
-void ict_Update(void)
-{
-
 }
 
 void main(void)
