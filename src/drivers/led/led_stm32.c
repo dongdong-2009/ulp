@@ -13,13 +13,13 @@ void led_hwInit(void)
 #if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1) || (CONFIG_TASK_SSS == 1)
 	/* Enable GPIOA,GPIOC clock */
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
-  
+
 	/* Configure PC.10 as Output push-pull */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
-  
+
 	/* Configure PC.12 as Output push-pull */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
@@ -28,7 +28,7 @@ void led_hwInit(void)
 #elif CONFIG_MISC_VHD == 1
 	//PC6->red, PC7->yellow, PC8->green
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
-  
+
 	/* Configure PC.6, PC.7, PC.8 as Output push-pull */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
@@ -37,7 +37,7 @@ void led_hwInit(void)
 #elif CONFIG_TASK_PDI == 1
 	//PE0->red, PE1->green
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
-  
+
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
@@ -45,7 +45,7 @@ void led_hwInit(void)
 #elif CONFIG_MISC_ICT == 1
 	//PC8 led green
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
-  
+
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
@@ -73,7 +73,7 @@ void led_hwSetStatus(led_t led, led_status_t status)
 		default:
 			return;
 	}
-	
+
 	switch(led) {
 		case LED_GREEN:
 #if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1) || (CONFIG_TASK_SSS == 1)

@@ -373,6 +373,7 @@ static int cmd_verify_func(int argc, char *argv[])
 		"verify DPID 28 HEX 7 000000000000000000 //explation, optional\n"
 		"verify JAMA HEX 1 01 //explation, optional\n"
 		"verify ERROR HEX 2 8181 //explation, optional\n"
+		"verify PART HEX 17 444D2020202039353931302d345A303030 //part NO.\n"
 	};
 
 	if(argc == 6) {
@@ -404,6 +405,7 @@ static int cmd_verify_func(int argc, char *argv[])
 		rule.type = PDI_RULE_UNDEF;
 		rule.type = (!strcmp(argv[1], "JAMA")) ? PDI_RULE_JAMA : rule.type;
 		rule.type = (!strcmp(argv[1], "ERROR")) ? PDI_RULE_ERROR : rule.type;
+		rule.type = (!strcmp(argv[1], "PART")) ? PDI_RULE_PART : rule.type;
 
 		rule.echo_type = PDI_ECHO_UNDEF;
 		rule.echo_type= (!strcmp(argv[2], "HEX")) ? PDI_ECHO_HEX : rule.echo_type;

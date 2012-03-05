@@ -326,7 +326,7 @@ static int b515_check_init(const struct pdi_cfg_s *sr)
 	return 0;
 }
 
-static int b515_check_bab515ode()
+static int b515_check_barcode()
 {
 	b515_GetCID(0xfd47, b515_data_buf);
 
@@ -376,7 +376,7 @@ static int b515_check()
 
 	b515_mdelay(10000);
 
-	if(b515_check_bab515ode()) {
+	if(b515_check_barcode()) {
 		printf("##START##EC-Barcode Wrong##END##\n");
 		return 1;
 	}

@@ -79,6 +79,7 @@ static int dm_GetCID(short cid, char *data);
 static int dm_check(const struct pdi_cfg_s *);
 static int dm_GetFault(char *data, int * pnum_fault);
 static int dm_check_init(const struct pdi_cfg_s *);
+static int dm_part_check(const struct pdi_cfg_s *);
 static int dm_error_check(char *, int *, const struct pdi_cfg_s *);
 static int pdi_pass_action();
 static int pdi_fail_action();
@@ -389,11 +390,34 @@ static int dm_error_check(char *fault, int *num, const struct pdi_cfg_s *sr)
 			}
 			if(flag == 1) break;
 		}
-		if(flag == 0) return 1; 
+		if(flag == 0) return 1;
 	}
 	return 0;
 }
 
+static int dm_part_check(const struct pdi_cfg_s *sr)
+{
+	int i;
+	const struct pdi_rule_s* pdi_cfg_rule;
+	dm_GetCID(0xf100, dm_data_buf);
+	for(i = 0; i < sr -> nr_of_rules; i ++) {
+		pdi_cfg_rule = pdi_rule_get(sr, i);
+		if(&pdi_cfg_rule == NULL) return 1;
+		switch(pdi_cfg_rule -> type) {
+			case PDI_RULE_PART:
+				if(pdi_verify(pdi_cfg_rule, dm_data_buf) == 0)
+					return 0;
+				else {
+					printf("##START##EC-Part NO. Wrong...##END##\n");
+					return 1;
+				}
+			case PDI_RULE_UNDEF;
+				break;
+		}
+	}
+	printf("##START##EC-No Part NO. in Config Files...##END##\n");
+	return 1;
+}
 // static int dm_esc_check()
 // {
 	// int i;
@@ -503,6 +527,10 @@ static int dm_check(const struct pdi_cfg_s *sr)
 		return 1;
 	}
 
+	if(dm_part_check(sr)) {
+		return 1;
+	}
+
 	printf("##START##EC-ECU will be ready!##END##\n");
 
 	for (rate = 21; rate <= 95; rate ++) {
@@ -603,7 +631,7 @@ static void dm_process(void)
 			}
 		} else {
 			target_noton_action();
-			printf("##START##EC-target is not on the right position##END##\n");
+			printf("##START##EC-Target Is Not on The Right Position##END##\n");
 		}
 	}
 }
