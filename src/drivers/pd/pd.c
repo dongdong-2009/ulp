@@ -7,7 +7,7 @@
 #include "lcd.h"
 #include <stdlib.h>
 #include <string.h>
-#include "FreeRTOS.h"
+#include "src/lib/FreeRTOS/Source/include/FreeRTOS.h"
 #include "common/glib.h"
 #include "pd.h"
 #include "tsc2046.h"
