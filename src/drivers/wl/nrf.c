@@ -12,7 +12,7 @@
 #include "config.h"
 #include "spi.h"
 #include "nrf.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "ulp_time.h"
 #include "wl.h"
 

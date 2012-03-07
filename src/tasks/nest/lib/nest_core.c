@@ -7,7 +7,7 @@
 #include "sys/task.h"
 #include <sys/sys.h>
 #include <shell/cmd.h>
-#include "debug.h"
+#include "ulp/debug.h"
 #include "ulp_time.h"
 #include "nvm.h"
 

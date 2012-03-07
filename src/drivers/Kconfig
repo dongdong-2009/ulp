@@ -88,7 +88,11 @@ mainmenu_option next_comment
 endmenu
 
 mainmenu_option next_comment
+	comment 'wdt config'
+	source src/drivers/wdt/Kconfig
+endmenu
+
+mainmenu_option next_comment
 	comment 'dac config'
 	source src/drivers/dac/Kconfig
 endmenu
-
