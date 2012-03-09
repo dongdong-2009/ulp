@@ -27,11 +27,13 @@ void ict_Init(void)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	ADC_InitTypeDef ADC_InitStructure;
 	NVIC_InitTypeDef NVIC_InitStructure;
+	DAC_InitTypeDef DAC_InitStructure;
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD|RCC_APB2Periph_GPIOC|RCC_APB2Periph_GPIOB|RCC_APB2Periph_GPIOA, ENABLE);
 	RCC_ADCCLKConfig(RCC_PCLK2_Div8); /*72Mhz/8 = 9Mhz*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC2, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
 
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8|GPIO_Pin_9|GPIO_Pin_12|GPIO_Pin_13;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -48,7 +50,7 @@ void ict_Init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_6|GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_6|GPIO_Pin_7;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
@@ -86,6 +88,21 @@ void ict_Init(void)
 	ADC_AnalogWatchdogCmd(ADC2, ADC_AnalogWatchdog_SingleRegEnable);
 	ADC_ITConfig(ADC2, ADC_IT_AWD, DISABLE);
 
+	// DAC_InitStructure.DAC_Trigger = DAC_Trigger_T2_TRGO;
+	// DAC_InitStructure.DAC_WaveGeneration = DAC_WaveGeneration_Triangle;
+	// DAC_InitStructure.DAC_LFSRUnmask_TriangleAmplitude = DAC_TriangleAmplitude_2047;
+	// DAC_InitStructure.DAC_OutputBuffer = DAC_OutputBuffer_Disable;
+	DAC_StructInit(&DAC_InitStructure);
+	DAC_Init(DAC_Channel_1,&DAC_InitStructure); 
+
+	// DAC_InitStructure.DAC_LFSRUnmask_TriangleAmplitude = DAC_TriangleAmplitude_2047;
+	DAC_StructInit(&DAC_InitStructure);
+	DAC_Init(DAC_Channel_2,&DAC_InitStructure); 
+
+	DAC_Cmd(DAC_Channel_1, ENABLE);
+	DAC_Cmd(DAC_Channel_2, ENABLE);
+	DAC_SetChannel2Data(DAC_Align_12b_R, 0xCCC);
+
 	NVIC_InitStructure.NVIC_IRQChannel = ADC1_2_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
@@ -107,15 +124,13 @@ void ict_Init(void)
 
 	mbi5025_Init(&ict_mbi5025);
 	mbi5025_EnableOE(&ict_mbi5025);
-	dac_ch1.init(NULL);
-	dac_ch2.init(NULL);
 }
 
 void ADC1_2_IRQHandler(void)
 {
+	int a;
 	if(ADC_GetFlagStatus(ADC1, ADC_FLAG_AWD) == SET)
-		//set relay
-	else //set relay
+		a=1;
 	ADC_ITConfig(ADC1, ADC_IT_AWD, DISABLE);
 	ADC_ITConfig(ADC2, ADC_IT_AWD, DISABLE);
 	ADC_ClearITPendingBit(ADC1, ADC_IT_AWD);

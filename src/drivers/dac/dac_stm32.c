@@ -20,7 +20,7 @@ static int dac_ch1_init(const dac_cfg_t * cfg)
 	/* Once the DAC channel is enabled, the corresponding GPIO pin is automatically
 	connected to the DAC converter. In order to avoid parasitic consumption,
 	the GPIO pin should be configured in analog */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
