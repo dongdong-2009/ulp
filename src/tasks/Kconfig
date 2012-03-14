@@ -20,6 +20,7 @@ fi
 bool "enable APT application" CONFIG_TASK_APT
 bool "autoliv pdi project" CONFIG_TASK_PDI
 bool "misc applications?" CONFIG_TASK_MISC
+bool "engine simulator applications?" CONFIG_TASK_SIMULATOR
 
 mainmenu_option next_comment
 	comment 'tasks detail configuration'
