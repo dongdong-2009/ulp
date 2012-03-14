@@ -42,7 +42,8 @@ struct mfg_data_s {
 	char fb[0x17]; //0x8020 - 0x8036 fault bytes write back
 	char rsv3; //0x8037
 	unsigned short vp[4]; //0x8038 - 0x803f
-	unsigned short ip[4]; //0x8040 - 0x8048
+	unsigned short ip[4]; //0x8040 - 0x8047
+	unsigned char wp[4]; //0x8048 - 0x804b, peak width, unit: uS, resolution: 1uS
 } mfg_data;
 
 //base model id
@@ -405,7 +406,7 @@ static void CyclingTest(void)
 		while(nest_time_left(deadline) > 0) {
 			nest_update();
 			nest_light(RUNNING_TOGGLE);
-			fail = burn_verify(mfg_data.vp, mfg_data.ip);
+			fail = burn_verify(mfg_data.vp, mfg_data.ip, mfg_data.wp);
 			if(fail) {
 				nest_error_set(PULSE_FAIL, "Cycling");
 				break;

@@ -34,6 +34,7 @@ enum {
 	BURN_CH_COILB,
 	BURN_CH_COILC,
 	BURN_CH_COILD,
+	BURN_CH_NR,
 };
 
 /*note: you may need to re-init can bus after these function call*/
@@ -41,6 +42,6 @@ int burn_init(void);
 int burn_mask(int ch);
 int burn_config(int ch, unsigned short vpm_ratio, unsigned short ipm_ratio, int save);
 int burn_read(int ch, struct burn_data_s *result);
-int burn_verify(unsigned short *vp, unsigned short *ip);
+int burn_verify(unsigned short *vp, unsigned short *ip, unsigned char *wp);
 
 #endif
