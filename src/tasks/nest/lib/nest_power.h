@@ -46,9 +46,12 @@ static inline void RELAY_ETCBAT_SET(int ON)
 }
 static inline void RELAY_LOCK_SET(int ON)
 {
-#ifndef CONFIG_NEST_MT80_OLD
+#if CONFIG_NEST_MT60_OLD == 1
 	if(ON) cncb_signal(SIG3, SIG_HI);
 	else cncb_signal(SIG3, SIG_LO);
+#elif CONFIG_NEST_MT80_OLD == 1
+	if(ON) cncb_signal(SIG5, SIG_HI); //newly added by pengtao
+	else cncb_signal(SIG5, SIG_LO);
 #endif
 }
 #endif /*CONFIG_NEST_MT60_OLD*/
