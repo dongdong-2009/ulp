@@ -17,6 +17,10 @@
 #include <string.h>
 #include <stm32f10x_adc.h>
 
+#define mA2d(mA) ((mA) * (20 * 4096) / 2500) //max4172, 2K => V = I * 20
+#define d2mA(d) ((d) * 2500 / (20 * 4096))
+#define d2mv(d) (((d) * (5 * 2500)) >> 12) //adc:  d = mv * 0.2(3KOhm / 3K + 12K) * 4096 / 2500
+#define mv2d(mv) (((mv) << 12) / (5 * 2500)) //dac:  mv = d / 4096 * 2500(Vref) * 5(OPA551 gain)
 
 static const mbi5025_t ict_mbi5025 = {
 		.bus = &spi2,
@@ -25,7 +29,8 @@ static const mbi5025_t ict_mbi5025 = {
 		.oe_pin = SPI_CS_PD9,
 };
 
-static int dac_out1 = 0, dac_out2 = 0;
+static int ict_vexp_1, ict_vset_1, ict_vget_1; //unit: mV
+static int ict_vexp_2, ict_vset_2, ict_vget_2; //unit: mV
 
 void ict_Init(void)
 {
@@ -65,83 +70,64 @@ void ict_Init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	// ADC1 config
+	// DAC config
+	DAC_StructInit(&DAC_InitStructure);
+	DAC_Init(DAC_Channel_1, &DAC_InitStructure);
+	DAC_Cmd(DAC_Channel_1, ENABLE);
+
+	DAC_StructInit(&DAC_InitStructure);
+	DAC_Init(DAC_Channel_2, &DAC_InitStructure);
+	DAC_Cmd(DAC_Channel_2, ENABLE);
+
+	/* ADC1 config, Power Ouput Voltage sampling,
+	V1 = ADC1_CH2 = PA2 = ADC123_IN2
+	V2 = ADC2_CH7 = PA7 = ADC12_IN7
+	*/
 	ADC_DeInit(ADC1);
-	ADC_StructInit(&ADC_InitStructure);
-	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
-	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
-	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
-	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
-	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
-	ADC_InitStructure.ADC_NbrOfChannel = 0;
-	ADC_Init(ADC1, &ADC_InitStructure);
-
-	ADC_InjectedSequencerLengthConfig(ADC1, 2);
-	ADC_InjectedChannelConfig(ADC1, ADC_Channel_1, 1, ADC_SampleTime_71Cycles5); //9Mhz/(71.5 + 12.5) = 107.1Khz
-	ADC_InjectedChannelConfig(ADC1, ADC_Channel_6, 2, ADC_SampleTime_71Cycles5);
-	ADC_SoftwareStartInjectedConvCmd(ADC1, ENABLE);
-
-	ADC_Cmd(ADC1, ENABLE);
-
-	// ADC2 config
-	ADC_DeInit(ADC2);
-	ADC_StructInit(&ADC_InitStructure);
-	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
-	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
-	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
-	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
-	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
-	ADC_Init(ADC2, &ADC_InitStructure);
-
-	ADC_RegularChannelConfig(ADC2, ADC_Channel_7, 1, ADC_SampleTime_71Cycles5); //9Mhz/(71.5 + 12.5) = 107.1Khz
-	ADC_Cmd(ADC2, ENABLE);
-
-	// ADC3 config
-	ADC_DeInit(ADC3);
 	ADC_StructInit(&ADC_InitStructure);
 	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
 	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
 	ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
 	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
 	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
-	ADC_Init(ADC3, &ADC_InitStructure);
+	ADC_InitStructure.ADC_NbrOfChannel = 0;
+	ADC_Init(ADC1, &ADC_InitStructure);
 
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_2, 1, ADC_SampleTime_71Cycles5); //9Mhz/(71.5 + 12.5) = 107.1Khz
-	ADC_Cmd(ADC3, ENABLE);
+	ADC_InjectedSequencerLengthConfig(ADC1, 2);
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_2, 1, ADC_SampleTime_71Cycles5); //9Mhz/(71.5 + 12.5) = 107.1Khz
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_7, 2, ADC_SampleTime_71Cycles5);
+	ADC_Cmd(ADC1, ENABLE);
 
-	// AWD & IRQ config
-	ADC_AnalogWatchdogThresholdsConfig(ADC2, 0xCCC,0x000);
-	ADC_AnalogWatchdogSingleChannelConfig(ADC2, ADC_Channel_2);
+	ADC_ResetCalibration(ADC1);
+	while (ADC_GetResetCalibrationStatus(ADC1));
+	ADC_StartCalibration(ADC1);
+	while (ADC_GetCalibrationStatus(ADC1));
+	ADC_SoftwareStartInjectedConvCmd(ADC1, ENABLE);
+
+	/* ADC2 config, current sampling & over current protection
+	 * I1 = ADC1_CH1 = PA1 = ADC123_IN1
+	 */
+	ADC_DeInit(ADC2);
+	ADC_StructInit(&ADC_InitStructure);
+	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
+	ADC_InitStructure.ADC_ScanConvMode = DISABLE;
+	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
+	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+	ADC_Init(ADC2, &ADC_InitStructure);
+
+	ADC_RegularChannelConfig(ADC2, ADC_Channel_1, 1, ADC_SampleTime_71Cycles5); //9Mhz/(71.5 + 12.5) = 107.1Khz
+
+	ADC_Cmd(ADC2, ENABLE);
+	ADC_ResetCalibration(ADC2);
+	while (ADC_GetResetCalibrationStatus(ADC2));
+	ADC_StartCalibration(ADC2);
+	while (ADC_GetCalibrationStatus(ADC2));
+
+	ADC_AnalogWatchdogThresholdsConfig(ADC2, mA2d(100), 0x000);
+	ADC_AnalogWatchdogSingleChannelConfig(ADC2, ADC_Channel_1);
 	ADC_AnalogWatchdogCmd(ADC2, ADC_AnalogWatchdog_SingleRegEnable);
-	ADC_ITConfig(ADC2, ADC_IT_AWD, DISABLE);
 
-	ADC_AnalogWatchdogThresholdsConfig(ADC3, 0xCCC,0x000);
-	ADC_AnalogWatchdogSingleChannelConfig(ADC3, ADC_Channel_1);
-	ADC_AnalogWatchdogCmd(ADC3, ADC_AnalogWatchdog_SingleRegEnable);
-	ADC_ITConfig(ADC3, ADC_IT_AWD, DISABLE);
-
-
-	// DAC cinfig
-	DAC_StructInit(&DAC_InitStructure);
-	DAC_Init(DAC_Channel_1,&DAC_InitStructure);
-
-	DAC_StructInit(&DAC_InitStructure);
-	DAC_Init(DAC_Channel_2,&DAC_InitStructure);
-
-	DAC_Cmd(DAC_Channel_1, ENABLE);
-	DAC_Cmd(DAC_Channel_2, ENABLE);
-
-	// TIM config
-	TIM_TimeBaseStructure.TIM_Period = 36000;
-	TIM_TimeBaseStructure.TIM_Prescaler = 0; /*Fclk = 36MHz*/
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
-	TIM_ClearFlag(TIM2, TIM_FLAG_Update);
-	TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
-	TIM_Cmd(TIM2, ENABLE);
-
-	// NVIC config
 	NVIC_InitTypeDef NVIC_InitStructure;
 	NVIC_InitStructure.NVIC_IRQChannel = ADC1_2_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
@@ -149,11 +135,54 @@ void ict_Init(void)
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
+	//START
+	ADC_ITConfig(ADC2, ADC_IT_AWD, ENABLE);
+	ADC_SoftwareStartConvCmd(ADC2, ENABLE);
+
+	/* ADC3 config, current sampling & over current protection
+	 * I2 = ADC2_CH6 = PA6 = ADC12_IN6
+	 */
+	ADC_DeInit(ADC3);
+	ADC_StructInit(&ADC_InitStructure);
+	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
+	ADC_InitStructure.ADC_ScanConvMode = DISABLE;
+	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
+	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+	ADC_Init(ADC3, &ADC_InitStructure);
+
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_6, 1, ADC_SampleTime_71Cycles5); //9Mhz/(71.5 + 12.5) = 107.1Khz
+
+	ADC_Cmd(ADC3, ENABLE);
+	ADC_ResetCalibration(ADC3);
+	while (ADC_GetResetCalibrationStatus(ADC3));
+	ADC_StartCalibration(ADC3);
+	while (ADC_GetCalibrationStatus(ADC3));
+	ADC_SoftwareStartConvCmd(ADC3, ENABLE);
+
+	ADC_AnalogWatchdogThresholdsConfig(ADC3, mA2d(100),0x000);
+	ADC_AnalogWatchdogSingleChannelConfig(ADC3, ADC_Channel_6);
+	ADC_AnalogWatchdogCmd(ADC3, ADC_AnalogWatchdog_SingleRegEnable);
+
 	NVIC_InitStructure.NVIC_IRQChannel = ADC3_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
+
+	//START
+	ADC_ITConfig(ADC3, ADC_IT_AWD, ENABLE);
+	ADC_SoftwareStartConvCmd(ADC3, ENABLE);
+
+	// TIM config
+	TIM_TimeBaseStructure.TIM_Period = 100 - 1; //Fclk = 10KHz /100  = 100Hz
+	TIM_TimeBaseStructure.TIM_Prescaler = 7200 - 1; //prediv to 72MHz to 10KHz
+	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+	TIM_ClearFlag(TIM2, TIM_FLAG_Update);
+	TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
+	TIM_Cmd(TIM2, ENABLE);
 
 	NVIC_InitStructure.NVIC_IRQChannel = TIM2_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
@@ -161,68 +190,46 @@ void ict_Init(void)
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
-	// ADC calibration
-	ADC_ResetCalibration(ADC1);
-	while (ADC_GetResetCalibrationStatus(ADC1));
-	ADC_StartCalibration(ADC1);
-	while (ADC_GetCalibrationStatus(ADC1));
-
-	ADC_ResetCalibration(ADC2);
-	while (ADC_GetResetCalibrationStatus(ADC2));
-	ADC_StartCalibration(ADC2);
-	while (ADC_GetCalibrationStatus(ADC2));
-
-	ADC_ResetCalibration(ADC3);
-	while (ADC_GetResetCalibrationStatus(ADC3));
-	ADC_StartCalibration(ADC3);
-	while (ADC_GetCalibrationStatus(ADC3));
-
 	mbi5025_Init(&ict_mbi5025);
 	mbi5025_EnableOE(&ict_mbi5025);
 }
 
 void ADC1_2_IRQHandler(void)
 {
+	//over current, turn off relay
 	GPIO_ResetBits(GPIOD, GPIO_Pin_13);
-	ADC_ITConfig(ADC2, ADC_IT_AWD, DISABLE);
 	ADC_ClearITPendingBit(ADC2, ADC_IT_AWD);
-	//set relay
 }
 
 void ADC3_IRQHandler(void)
 {
+	//over current, turn off relay
 	GPIO_ResetBits(GPIOD, GPIO_Pin_12);
-	ADC_ITConfig(ADC3, ADC_IT_AWD, DISABLE);
 	ADC_ClearITPendingBit(ADC3, ADC_IT_AWD);
-	//set relay
 }
 
 void TIM2_IRQHandler(void)
 {
-	u16 adc_v1, adc_v2;
-	int del1, del2;
-	if(TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
-		TIM_ClearITPendingBit(TIM2, TIM_FLAG_Update);
+	int d, mv;
 
-	//read
-	adc_v1 = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
-	adc_v2 = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_2);
+	//handle power 1
+	d = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
+	ict_vget_1 = d2mv(d);
+	mv = ict_vget_1 - ict_vexp_1;
+	ict_vout_1 -= mv;
+	d = mv2d(ict_vout_1);
+	DAC_SetChannel1Data(DAC_Align_12b_R, d);
 
-	//adjustment dac1
-	if(adc_v1 > (dac_out1 * 4 /5 * (0xfff) /10000))
-		del1 = adc_v1 - (dac_out1 * 4 /5 * (0xfff) /10000);
-	else del1 = (dac_out1 * 4 /5 * (0xfff) /10000) - adc_v1;
-	//adjustment dac2
-	if(adc_v2 > (dac_out2 * 4 /5 * (0xfff) /10000))
-		del2 = adc_v2 - (dac_out2 * 4 /5 * (0xfff) /10000);
-	else del2 = (dac_out2 * 4 /5 * (0xfff) /10000) - adc_v2;
+	//handle power 2
+	d = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_2);
+	ict_vget_2 = d2mv(d);
+	mv = ict_vget_2 - ict_vexp_2;
+	ict_vout_2 -= mv;
+	d = mv2d(ict_vout_2);
+	DAC_SetChannel2Data(DAC_Align_12b_R, d);
 
-	//output
-	DAC_SetChannel1Data(DAC_Align_12b_R, (dac_out1 * 4 /5 * (0xfff) /10000 + del1));
-	DAC_SetChannel1Data(DAC_Align_12b_R, (dac_out2 * 4 /5 * (0xfff) /10000 + del2));
-
-	//enable adc
 	ADC_SoftwareStartInjectedConvCmd(ADC1, ENABLE);
+	TIM_ClearITPendingBit(TIM2, TIM_FLAG_Update);
 }
 
 void main(void)
@@ -237,47 +244,46 @@ void main(void)
 
 static int cmd_ict_func(int argc, char *argv[])
 {
-	int temp = 0;
+	int mv, temp = 0;
 	int i;
 
 	const char * usage = { \
 		" usage:\n" \
 		" ict relay xx xx xx ..., write value to set relay \n" \
-		" ict power_1 5123, set power_1 value 0~10000mv \n" \
-		" ict power_2 5123, set power_2 value 0~10000mv \n" \
+		" ict v1 5123, set power_1 value 0~10000mv \n" \
+		" ict v2 5123, set power_2 value 0~10000mv \n" \
 	};
 
-	if (argc > 1) {
-		if (argv[1][0] == 'r') {
-			for (i = 0; i < (argc - 2); i++) {
-				sscanf(argv[2+i], "%x", &temp);
-				mbi5025_WriteByte(&ict_mbi5025, temp);
-			}
-			spi_cs_set(ict_mbi5025.load_pin, 1);
-			spi_cs_set(ict_mbi5025.load_pin, 0);
-			printf("%d Bytes Write Successful!\n", argc-2);
+	if (argc > 2 && !strcmp(argv[1], "relay")) {
+		for (i = 0; i < (argc - 2); i++) {
+			sscanf(argv[2+i], "%x", &temp);
+			mbi5025_WriteByte(&ict_mbi5025, temp);
 		}
-		if (argv[1][0] == 'p') {
-			if(atoi(argv[2]) < 0 || atoi(argv[2]) > 10000)
-				printf("input error ,please input a value between 0 and 10000!\n");
-			else {
-				if(argv[1][6] == '1') {
-					dac_out1 = atoi(argv[2]);
-					TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
-				}
-				if(argv[1][6] == '2') {
-					dac_out2 = atoi(argv[2]);
-					TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
-				}
-			}
-		}
-	}
-
-	if(argc < 2) {
-		printf(usage);
+		spi_cs_set(ict_mbi5025.load_pin, 1);
+		spi_cs_set(ict_mbi5025.load_pin, 0);
+		printf("##0##");
 		return 0;
 	}
 
+	if(argc == 3 && !strcmp(argv[1], "v1")) {
+		mv = argv[2];
+		if(mv >= 0 && mv <= 10000) {
+			ict_vexp_1 = mv;
+			printf("##0##");
+			return 0;
+		}
+	}
+
+	if(argc == 3 && !strcmp(argv[1], "v2")) {
+		mv = argv[2];
+		if(mv >= 0 && mv <= 10000) {
+			ict_vexp_2 = mv;
+			printf("##0##");
+			return 0;
+		}
+	}
+
+	printf(usage);
 	return 0;
 }
 const cmd_t cmd_ict = {"ict", cmd_ict_func, "ict cmd"};
