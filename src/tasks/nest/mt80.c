@@ -501,7 +501,7 @@ void TestStop(void)
 
 	//store fault bytes back to dut
 	addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> fb[0];
-	size = sizeof(mfg_data.fb) + 17; //+rsv3 + vp[4] + ip[4]
+	size = sizeof(mfg_data.fb) + 21; //+rsv3 + vp[4] + ip[4] + wp[4]
 	fail += Write_Memory(addr, mfg_data.fb, size);
 
 	//store nest_psv & nest_nec
