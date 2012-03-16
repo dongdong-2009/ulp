@@ -289,7 +289,7 @@ int burn_verify(unsigned short *vp, unsigned short *ip, unsigned char *wp)
 			if(ip != NULL)
 				ip[ch] = burn_data.ip_max;
 			if(wp != NULL) {
-				unsigned char us = (unsigned char)burn_data.wp;
+				unsigned char us = (unsigned char)(burn_data.wp / 1000);
 				wp[ch] = burn_wp[ch] = (us > burn_wp[ch]) ? us : burn_wp[ch];
 			}
 
