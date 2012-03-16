@@ -186,7 +186,7 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq, int req_len, can_filter_t cons
 #endif
 
 	//recv reponse, get the first frame
-	over_time = time_get(200);
+	over_time = time_get(400);
 	do {
 		if (time_left(over_time) < 0)
 			return 1;

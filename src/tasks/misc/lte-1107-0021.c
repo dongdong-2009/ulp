@@ -1,3 +1,7 @@
+/*
+ * 	peng.guo@2011 initial version
+ */
+
 #include "config.h"
 #include "debug.h"
 #include "ulp_time.h"
