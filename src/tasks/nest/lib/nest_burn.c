@@ -21,6 +21,7 @@
 #define BURN_VL_DEF	400 //Vpmin unit: V
 #define BURN_IL_DEF	11000 //Ipmax unit: mA
 #define BURN_WL_DEF	5000 //peak width unit: nS
+#define BURN_IL_MIN	2000 //ip min unit:mA
 
 static int burn_vl __nvm;
 static int burn_il __nvm;
@@ -302,6 +303,11 @@ int burn_verify(unsigned short *vp, unsigned short *ip, unsigned char *wp)
 			if(burn_data.ip_max > burn_il) {
 				nest_message("burn board channel %d ip(=%dmA) higher than threshold(=%dmA)\n", ch, burn_data.ip_max, burn_il);
 				ret = -5;
+				break;
+			}
+			if(burn_data.ip_max < BURN_IL_MIN) {
+				nest_message("burn board channel %d ip(=%dmA) lower than threshold(=%dmA)\n", ch, burn_data.ip_max, BURN_IL_MIN);
+				ret = -6;
 				break;
 			}
 		}
