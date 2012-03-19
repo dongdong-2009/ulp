@@ -42,7 +42,8 @@ struct mfg_data_s {
 	char fb[0x17]; //0x8020 - 0x8036 fault bytes write back
 	char rsv3; //0x8037
 	unsigned short vp[4]; //0x8038 - 0x803f
-	unsigned short ip[4]; //0x8040 - 0x8048
+	unsigned short ip[4]; //0x8040 - 0x8047
+	unsigned char wp[4]; //0x8048 - 0x804b, peak width, unit: uS, resolution: 1uS
 } mfg_data;
 
 //base model id
@@ -345,6 +346,19 @@ static void CyclingTest(void)
 	if(nest_fail())
 		return;
 
+	if((bmr!= BM_28164665) && (bmr != BM_28190870)) //ignore other nest, requested by jingfeng
+		return;
+
+	//cyc ign, necessary???
+	if(!nest_ignore(RLY)) {
+		for(int cnt = 0; cnt < 75; cnt ++) {
+			RELAY_IGN_SET(0);
+			nest_mdelay(100);
+			RELAY_IGN_SET(1);
+			nest_mdelay(100);
+		}
+	}
+
 	hfps_init();
 	hfps_trap("STATUS_H", 0xff, 0x2f);
 	hfps_trap("STATUS_L", 0xff, 0x71);
@@ -368,6 +382,10 @@ static void CyclingTest(void)
 		vsep_mask("PCH13"); //FPR Short to Ground?
 		vsep_mask("PCH14"); //SMR Short to Ground?
 		vsep_mask("PCH27"); //MPR Short to Ground?
+		vsep_mask("PCH17"); //LEGR Short to Battery, not committed by delphi!
+		vsep_mask("PCH18"); //VVT1 Short to Battery, not committed by delphi!
+		vsep_mask("PCH24"); //O2HTRD Short to Ground, not committed by delphi!
+		vsep_mask("PCH25"); //EVAP Short to Battery, not committed by delphi!
 		break;
 	default:
 		break;
@@ -388,7 +406,7 @@ static void CyclingTest(void)
 		while(nest_time_left(deadline) > 0) {
 			nest_update();
 			nest_light(RUNNING_TOGGLE);
-			fail = burn_verify(mfg_data.vp, mfg_data.ip);
+			fail = burn_verify(mfg_data.vp, mfg_data.ip, mfg_data.wp);
 			if(fail) {
 				nest_error_set(PULSE_FAIL, "Cycling");
 				break;
@@ -472,16 +490,6 @@ void TestStart(void)
 			nest_error_set(PSV_FAIL, "PSV");
 			nest_message("PSV addr %04X : %02X \n",MFGDAT_ADDR+(int)&(((struct mfg_data_s *)0)->psv),mfg_data.psv);
 			return;
-		}
-	}
-
-	//cyc ign, necessary???
-	if(!nest_ignore(RLY)) {
-		for(int cnt = 0; cnt < 75; cnt ++) {
-			RELAY_IGN_SET(0);
-			nest_mdelay(100);
-			RELAY_IGN_SET(1);
-			nest_mdelay(100);
 		}
 	}
 }

@@ -1,8 +1,9 @@
 /*
  *	miaofng@2011 initial version
+ *	king@2011 modify
  */
 #include "config.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "ulp_time.h"
 #include "dbs.h"
 #include "sis_card.h"
@@ -106,7 +107,7 @@ void dbs_init(struct dbs_sensor_s *sensor, void *cfg)
 {
 	int div = (1 << (sensor->speed - 1));
 	div *= 205; //72MHz / 205 / 2 = 5.694uS, 8000mps => T=5.35~5.95uS
-	card_player_init(5, 25, div);
+	card_player_init(3, 26, div);
 	memcpy(&dbs_sensor, sensor, sizeof(dbs_sensor));
 	dbs_stm = DBS_STM_INIT;
 	dbs_timer = 0;
@@ -241,7 +242,7 @@ static int dbs_learn_speed(struct dbs_sensor_s *sensor, int n)
 			if(i < 5)
 				break;
 			else
-				us_min = min;
+				return -1;//us_min = min;
 		}
 	} while(us_min <= us_max);
 

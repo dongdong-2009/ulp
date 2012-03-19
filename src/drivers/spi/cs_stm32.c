@@ -99,6 +99,18 @@ int spi_cs_init(void)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 #endif
 
+#ifdef CONFIG_SPI_CS_PD8
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+#endif
+
+#ifdef CONFIG_SPI_CS_PD9
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+#endif
+
 	return 0;
 }
 
@@ -191,6 +203,17 @@ int spi_cs_set(int addr, int level)
 	}
 #endif
 
+#ifdef CONFIG_SPI_CS_PD8
+	if(addr == SPI_CS_PD8) {
+		GPIO_WriteBit(GPIOD, GPIO_Pin_8, ba);
+	}
+#endif
+
+#ifdef CONFIG_SPI_CS_PD9
+	if(addr == SPI_CS_PD9) {
+		GPIO_WriteBit(GPIOD, GPIO_Pin_9, ba);
+	}
+#endif
 	return 0;
 }
 

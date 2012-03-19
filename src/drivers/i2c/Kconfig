@@ -10,7 +10,13 @@ if [ "$CONFIG_I2C_SOFT" = "y" ]; then
 	choice 'bus pinmap type'	" \
 		HW_I2C1	CONFIG_I2C_PINMAP_I2C1 \
 		HW_I2C2	CONFIG_I2C_PINMAP_I2C2 \
+		HW_I2C1_REMAP	CONFIG_I2C_REMAP_I2C1 \
 	" HW_I2C2
 fi
 bool "chip at24cxx(eeprom)" CONFIG_DRIVER_AT24CXX
 bool "chip mcp23017 (IO explander)" CONFIG_DRIVER_MCP23017
+if [ "$CONFIG_DRIVER_I2C1" = "y" ]; then
+	if [ "$CONFIG_CPU_STM32" = "y" ]; then
+		bool "remap PB8/9 as SCL/SDA pin" CONFIG_I2C1_REMAP
+	fi
+fi

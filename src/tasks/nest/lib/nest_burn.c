@@ -242,7 +242,8 @@ static int burn_calibrate(void)
 	return ret;
 }
 
-int burn_verify(unsigned short *vp, unsigned short *ip)
+static unsigned char burn_wp[BURN_CH_NR] = {0, 0, 0, 0};
+int burn_verify(unsigned short *vp, unsigned short *ip, unsigned char *wp)
 {
 	int ret, ch;
 	struct burn_data_s burn_data;
@@ -287,6 +288,10 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 				vp[ch] = burn_data.vp_min;
 			if(ip != NULL)
 				ip[ch] = burn_data.ip_max;
+			if(wp != NULL) {
+				unsigned char us = (unsigned char)burn_data.wp;
+				wp[ch] = burn_wp[ch] = (us > burn_wp[ch]) ? us : burn_wp[ch];
+			}
 
 			if(burn_data.vp_min < burn_vl) {
 				nest_message("burn board channel %d vp(=%dV) lower than threshold(=%dV)\n", ch, burn_data.vp_min, burn_vl);

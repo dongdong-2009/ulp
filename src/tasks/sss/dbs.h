@@ -1,5 +1,6 @@
 /*
  * 	miaofng@2011 initial version
+ *	king@2011 modify
  *	DBS = Data-Based Satellite Communication Standard(Manchester Protocol)
  *	ref protocol document: DELPHI CS-10006398-001.01
  *	First Used Model Year 2007
