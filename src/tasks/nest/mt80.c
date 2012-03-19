@@ -480,7 +480,7 @@ void TestStart(void)
 	chips_bind();
 
 	//preset glvar
-	mfg_data.nest_psv = (char) ((nest_info_get() -> id_base) && 0x7f);
+	mfg_data.nest_psv = (char) ((nest_info_get() -> id_base) & 0x7f);
 	mfg_data.nest_nec = 0x00; //no err
 	memset(mfg_data.fb, 0x00, sizeof(mfg_data.fb) + 17); //+vp[4], ip[4]
 
