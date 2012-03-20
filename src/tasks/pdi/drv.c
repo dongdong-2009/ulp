@@ -62,8 +62,8 @@
 #define Beep_on				(1<<6)
 #define swcan_mode0			(1<<10)
 #define swcan_mode1			(1<<11)
-#define battary_on			(1<<13)
-#define IGN_on				(1<<15)
+#define battary_on			(1<<15)
+#define IGN_on				(1<<13)
 #endif
 //static time_t check_fail_beep;
 int pdi_batt_on()

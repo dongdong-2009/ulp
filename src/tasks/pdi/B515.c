@@ -19,21 +19,11 @@
 #define PDI_DEBUG	1
 
 //pdi_B515 can msg
-static const can_msg_t b515_clrdtc_msg = {
-	0x737, 8, {0x03, 0x3b, 0x9f, 0xff, 0, 0, 0, 0}, 0
-};
-static const can_msg_t b515_errcode_msg = {
-	0x737, 8, {0x03, 0x22, 0xfd, 0x39, 0, 0, 0, 0}, 0
-};
-static const can_msg_t b515_getsn_msg = {
-	0x737, 8, {0x03, 0x22, 0xfd, 0x74, 0, 0, 0, 0}, 0
-};
-static const can_msg_t b515_reqseed_msg = {
-	0x737, 8, {0x02, 0x27, 0x61, 0, 0, 0, 0, 0}, 0
-};
-static const can_msg_t b515_start_msg = {
-	0x737, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0
-};
+static const can_msg_t b515_clrdtc_msg	=	{0x737, 8, {0x03, 0x3b, 0x9f, 0xff, 0, 0, 0, 0}, 0};
+static const can_msg_t b515_errcode_msg	=	{0x737, 8, {0x03, 0x22, 0xfd, 0x39, 0, 0, 0, 0}, 0};
+static const can_msg_t b515_getsn_msg	=	{0x737, 8, {0x03, 0x22, 0xfd, 0x74, 0, 0, 0, 0}, 0};
+static const can_msg_t b515_reqseed_msg	=	{0x737, 8, {0x02, 0x27, 0x61, 0, 0, 0, 0, 0}, 0};
+static const can_msg_t b515_start_msg	=	{0x737, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
 
 static const mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
@@ -59,7 +49,7 @@ static int b515_init_OK();
 static int b515_clear_dtc();
 static int b515_mdelay(int );
 static int b515_StartSession();
-static int b515_check_bab515ode();
+static int b515_check_barcode();
 static int b515_GetCID(short cid, char *data);
 static int b515_check_init(const struct pdi_cfg_s *);
 static int b515_GetFault(char *data, int * pnum_fault);
@@ -149,13 +139,6 @@ static int b515_StartSession(void)
 		can_msg_print(pdi_msg_buf + i, "\n");
 
 	//tester point
-	printf("\nConnector Bar:\n");
-	usdt_GetDiagFirstFrame(&b515_connector_msg, 1, NULL, pdi_msg_buf, &msg_len);
-	if (msg_len > 1)
-		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
-	for (i = 0; i < msg_len; i++)
-		can_msg_print(pdi_msg_buf + i, "\n");
-
 	if (b515_GetFault(b515_fault_buf, &num_fault))
 		printf("##ERROR##\n");
 	else {
@@ -381,11 +364,6 @@ static int b515_check()
 		return 1;
 	}
 
-	if(b515_connector_check()) {
-		printf("##START##EC-Connecter Bar Wrong##END##\n");
-		return 1;
-	}
-
 	while (b515_GetFault(b515_fault_buf, &num_fault)) {
 		try_times --;
 		if (try_times < 0) {
@@ -399,7 +377,7 @@ static int b515_check()
 		printf("##START##EC-");
 		printf("num of fault is: %d*", num_fault);
 		for (i = 0; i < num_fault*3; i += 3)
-			printf("0x%2x, 0x%2x, 0x%2x*", b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff, b515_fault_buf[i+2]&0xff);
+			printf("0x%2x, 0x%2x, 0x%2x\n", b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff, b515_fault_buf[i+2]&0xff);
 		printf("##END##\n");
 		return 1;
 	}
