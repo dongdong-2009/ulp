@@ -26,6 +26,8 @@ enum {
 	SPI_CS_PD12,
 	SPI_CS_PA2,
 	SPI_CS_PA3,
+	SPI_CS_PD8,
+	SPI_CS_PD9,
 };
 
 //private

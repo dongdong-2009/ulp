@@ -21,6 +21,7 @@
 #define BURN_VL_DEF	400 //Vpmin unit: V
 #define BURN_IL_DEF	11000 //Ipmax unit: mA
 #define BURN_WL_DEF	5000 //peak width unit: nS
+#define BURN_IL_MIN	2000 //ip min unit:mA
 
 static int burn_vl __nvm;
 static int burn_il __nvm;
@@ -242,7 +243,8 @@ static int burn_calibrate(void)
 	return ret;
 }
 
-int burn_verify(unsigned short *vp, unsigned short *ip)
+static unsigned char burn_wp[BURN_CH_NR] = {0, 0, 0, 0};
+int burn_verify(unsigned short *vp, unsigned short *ip, unsigned char *wp)
 {
 	int ret, ch;
 	struct burn_data_s burn_data;
@@ -287,6 +289,10 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 				vp[ch] = burn_data.vp_min;
 			if(ip != NULL)
 				ip[ch] = burn_data.ip_max;
+			if(wp != NULL) {
+				unsigned char us = (unsigned char)(burn_data.wp / 1000);
+				wp[ch] = burn_wp[ch] = (us > burn_wp[ch]) ? us : burn_wp[ch];
+			}
 
 			if(burn_data.vp_min < burn_vl) {
 				nest_message("burn board channel %d vp(=%dV) lower than threshold(=%dV)\n", ch, burn_data.vp_min, burn_vl);
@@ -297,6 +303,11 @@ int burn_verify(unsigned short *vp, unsigned short *ip)
 			if(burn_data.ip_max > burn_il) {
 				nest_message("burn board channel %d ip(=%dmA) higher than threshold(=%dmA)\n", ch, burn_data.ip_max, burn_il);
 				ret = -5;
+				break;
+			}
+			if(burn_data.ip_max < BURN_IL_MIN) {
+				nest_message("burn board channel %d ip(=%dmA) lower than threshold(=%dmA)\n", ch, burn_data.ip_max, BURN_IL_MIN);
+				ret = -6;
 				break;
 			}
 		}

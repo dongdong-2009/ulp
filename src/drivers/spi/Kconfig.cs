@@ -13,6 +13,8 @@ bool "PB12/SPI2_NSS as CS" CONFIG_SPI_CS_PB12
 bool "PC3 as CS" CONFIG_SPI_CS_PC3
 bool "PC4 as CS" CONFIG_SPI_CS_PC4
 bool "PC5 as CS" CONFIG_SPI_CS_PC5
+bool "PD8 as CS" CONFIG_SPI_CS_PD8
+bool "PD9 as CS" CONFIG_SPI_CS_PD9
 
 #for goldbull board TP_CS
 bool "PC8 as CS" CONFIG_SPI_CS_PC8

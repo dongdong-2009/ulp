@@ -17,10 +17,10 @@ static int dac_ch1_init(const dac_cfg_t * cfg)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	/* DAC Periph clock enable */
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
-	/* Once the DAC channel is enabled, the corresponding GPIO pin is automatically 
-	connected to the DAC converter. In order to avoid parasitic consumption, 
+	/* Once the DAC channel is enabled, the corresponding GPIO pin is automatically
+	connected to the DAC converter. In order to avoid parasitic consumption,
 	the GPIO pin should be configured in analog */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
@@ -28,7 +28,7 @@ static int dac_ch1_init(const dac_cfg_t * cfg)
 	DAC_StructInit(&DAC_InitStructure);
 	DAC_Init(DAC_Channel_1, &DAC_InitStructure);
 
-	/* Enable DAC Channel1: Once the DAC channel1 is enabled, PA.04 is 
+	/* Enable DAC Channel1: Once the DAC channel1 is enabled, PA.04 is
 	automatically connected to the DAC converter. */
 	DAC_Cmd(DAC_Channel_1, ENABLE);
 
@@ -51,8 +51,8 @@ static int dac_ch2_init(const dac_cfg_t * cfg)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	/* DAC Periph clock enable */
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
-	/* Once the DAC channel is enabled, the corresponding GPIO pin is automatically 
-	connected to the DAC converter. In order to avoid parasitic consumption, 
+	/* Once the DAC channel is enabled, the corresponding GPIO pin is automatically
+	connected to the DAC converter. In order to avoid parasitic consumption,
 	the GPIO pin should be configured in analog */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
@@ -62,7 +62,7 @@ static int dac_ch2_init(const dac_cfg_t * cfg)
 	DAC_StructInit(&DAC_InitStructure);
 	DAC_Init(DAC_Channel_2, &DAC_InitStructure);
 
-	/* Enable DAC Channel1: Once the DAC channel1 is enabled, PA.04 is 
+	/* Enable DAC Channel1: Once the DAC channel1 is enabled, PA.04 is
 	automatically connected to the DAC converter. */
 	DAC_Cmd(DAC_Channel_2, ENABLE);
 

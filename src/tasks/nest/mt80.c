@@ -42,7 +42,8 @@ struct mfg_data_s {
 	char fb[0x17]; //0x8020 - 0x8036 fault bytes write back
 	char rsv3; //0x8037
 	unsigned short vp[4]; //0x8038 - 0x803f
-	unsigned short ip[4]; //0x8040 - 0x8048
+	unsigned short ip[4]; //0x8040 - 0x8047
+	unsigned char wp[4]; //0x8048 - 0x804b, peak width, unit: uS, resolution: 1uS
 } mfg_data;
 
 //base model id
@@ -405,7 +406,7 @@ static void CyclingTest(void)
 		while(nest_time_left(deadline) > 0) {
 			nest_update();
 			nest_light(RUNNING_TOGGLE);
-			fail = burn_verify(mfg_data.vp, mfg_data.ip);
+			fail = burn_verify(mfg_data.vp, mfg_data.ip, mfg_data.wp);
 			if(fail) {
 				nest_error_set(PULSE_FAIL, "Cycling");
 				break;
@@ -479,7 +480,7 @@ void TestStart(void)
 	chips_bind();
 
 	//preset glvar
-	mfg_data.nest_psv = (char) ((nest_info_get() -> id_base) && 0x7f);
+	mfg_data.nest_psv = (char) ((nest_info_get() -> id_base) & 0x7f);
 	mfg_data.nest_nec = 0x00; //no err
 	memset(mfg_data.fb, 0x00, sizeof(mfg_data.fb) + 17); //+vp[4], ip[4]
 
@@ -500,7 +501,7 @@ void TestStop(void)
 
 	//store fault bytes back to dut
 	addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> fb[0];
-	size = sizeof(mfg_data.fb) + 17; //+rsv3 + vp[4] + ip[4]
+	size = sizeof(mfg_data.fb) + 21; //+rsv3 + vp[4] + ip[4] + wp[4]
 	fail += Write_Memory(addr, mfg_data.fb, size);
 
 	//store nest_psv & nest_nec

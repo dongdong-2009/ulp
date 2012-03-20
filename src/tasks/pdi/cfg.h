@@ -17,6 +17,7 @@ enum pdi_rule_type {
 	PDI_RULE_DID,
 	PDI_RULE_DPID,
 	PDI_RULE_ERROR,
+	PDI_RULE_PART,
 	PDI_RULE_UNDEF,
 };
 
