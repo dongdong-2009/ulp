@@ -29,11 +29,19 @@ static struct console_s *upa_wl_cnsl;
 #define upa_uart_cnsl ((struct console_s *) &uart2)
 static LIST_HEAD(upa_nest_queue);
 
+#define UPA_MS_DEF 1000
+#define UPA_MS_MON 30000
+#define UPA_MS_UPD 1000
+
 static union {
 	struct {
 		unsigned update_off : 1;
-		unsigned shutup_ok : 1;
-		unsigned wakeup_ok : 1;
+		unsigned monitor_shutup : 1;
+		unsigned monitor_wakeup : 1;
+		unsigned monitor_over : 1;
+		unsigned monitor_clr : 1;
+		unsigned monitor_set : 1;
+		unsigned monitor_ping : 1;
 	};
 	unsigned value;
 } upa_flag;
@@ -42,6 +50,15 @@ static time_t upa_mon_timer; /*to avoid chat with monitor in every loop*/
 static struct upa_nest_s *upa_nest_mon; //monitor nest
 static struct upa_nest_s *upa_nest_sel; //selected nest
 static struct upa_nest_s *upa_nest_cur; //current access nest
+
+#define debug(lvl, ...) do { \
+	if(lvl >= 0) { \
+		console_set(NULL); \
+		printf("%s: ", __func__); \
+		printf(__VA_ARGS__); \
+		console_restore(); \
+	} \
+} while (0)
 
 /*not supported yet*/
 static void upa_rssi_init(struct upa_nest_s *nest)
@@ -127,13 +144,15 @@ static int upa_nest_new(unsigned addr)
 /* bad boy, neglect it ... */
 static int upa_nest_bad(struct upa_nest_s *nest)
 {
+	assert(nest != NULL);
+	debug(0, "%08x\n", nest->addr);
 	if(upa_nest_mon == nest) {
 		//change it, too disappointed ...
 		upa_nest_mon = NULL;
 	}
 
 	if(upa_nest_cur == nest) {
-		dev_ioctl(upa_wl_fd, WL_FLUSH);
+		//dev_ioctl(upa_wl_fd, WL_FLUSH);
 		upa_nest_cur = NULL;
 	}
 
@@ -154,10 +173,9 @@ int upa_nest_printf(const char *fmt, ...)
 {
 	va_list args;
 	time_t timer = time_get(NEST_WL_MS/10);
-	char str[128];
-	int n;
+	static char str[128];
+	int n, ret;
 
-	//where's slave??? abort!
 	if(upa_nest_cur == NULL)
 		return -1;
 
@@ -170,14 +188,16 @@ int upa_nest_printf(const char *fmt, ...)
 	while(dev_poll(upa_wl_fd, POLLOBUF) < n) {
 		task_Update();
 		if(time_left(timer) < 0) {
+			debug(1, "obuf full\n");
 			upa_nest_bad(upa_nest_cur);
 			return -1;
 		}
 	}
 
 	//write to tbuf
-	dev_write(upa_wl_fd, str, n);
-	return 0;
+	ret = dev_write(upa_wl_fd, str, n);
+	ret = (ret == n) ? 0 : -1;
+	return ret;
 }
 
 int upa_nest_switch(struct upa_nest_s *nest)
@@ -189,16 +209,17 @@ int upa_nest_switch(struct upa_nest_s *nest)
 		return 0;
 
 	//close cur nest first
-	timer = time_get(NEST_WL_MS/10);
 	if(upa_nest_cur != NULL) {
+		//wait for cmd "upa shutup\r" sent by target nest
+		timer = time_get(UPA_MS_DEF);
+		upa_flag.monitor_shutup = 0;
 		//"i am go now", it is  just a notice, may lost ...
 		upa_nest_printf("monitor shutup\r");
-		//wait for cmd "upa shutup\r" sent by target nest
-		upa_flag.shutup_ok = 0;
-		while(upa_flag.shutup_ok == 0) {
+		while(upa_flag.monitor_shutup == 0) {
 			task_Update();
 			if(time_left(timer) < 0) {
 				//wait for nest response timeout
+				debug(1, "shutup fail\n");
 				upa_nest_bad(upa_nest_cur);
 				break;
 			}
@@ -207,40 +228,36 @@ int upa_nest_switch(struct upa_nest_s *nest)
 	}
 
 	//switch to new one
-	timer = time_get(NEST_WL_MS/10);
 	if(nest != NULL) {
-		/* disable uart shell_update to avoid data foward direction error */
-		if(upa_nest_sel != NULL && nest != upa_nest_sel) {
-			shell_lock(upa_uart_cnsl);
-		}
-
 		dev_ioctl(upa_wl_fd, WL_STOP);
 		dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PTX);
 		dev_ioctl(upa_wl_fd, WL_SET_ADDR, nest->addr);
 		dev_ioctl(upa_wl_fd, WL_START);
 		upa_rssi_enable(nest);
+
 		upa_nest_cur = nest;
 
-		/* unlock uart shell */
-		if((upa_nest_sel == NULL) || (nest == upa_nest_sel)) {
-			shell_unlock(upa_uart_cnsl);
-		}
-
 		//send cmd "monitor wakeup\r"
-		upa_flag.wakeup_ok = 0;
-		upa_nest_printf("monitor wakeup\r");
-
-		//wait for cmd "upa wakeup\r" sent by target nest
-		while(upa_flag.wakeup_ok == 0) {
-			task_Update();
-			if(time_left(timer) < 0) {
-				//wait for nest response timeout
-				upa_nest_bad(nest);
-				return -1;
+		upa_flag.monitor_wakeup = 0;
+		timer = time_get(UPA_MS_DEF);
+		ecode = upa_nest_printf("monitor wakeup\r");
+		if(!ecode) {
+			//wait for cmd "upa wakeup\r" sent by target nest
+			while(upa_flag.monitor_wakeup == 0) {
+				task_Update();
+				if(time_left(timer) < 0) {
+					//wait for nest response timeout
+					debug(1, "wakeup fail\n");
+					upa_nest_bad(nest);
+					ecode = -1;
+					break;
+				}
 			}
 		}
 	}
-	return 0;
+
+	upa_nest_cur = (ecode) ? NULL : nest;
+	return ecode;
 }
 
 static int upa_wl_onfail(int ecode, ...)
@@ -291,15 +308,146 @@ static int upa_Init(void)
 	return 0;
 }
 
+//poll monitor
+static void upa_update_mon(void)
+{
+	struct upa_nest_s *nest;
+	int ecode = 0;
+	time_t timer;
+
+	//fetch newbie info
+	if(upa_nest_mon != NULL) {
+		timer = time_get(UPA_MS_DEF);
+		upa_flag.monitor_over = 0;
+		ecode = upa_nest_switch(upa_nest_mon);
+		ecode += upa_nest_printf("monitor get\r");
+		if(!ecode) { //success, wait for monitor response until monitor say "monitor over" or timeout
+			while(upa_flag.monitor_over == 0) {
+				task_Update();
+				if(time_left(timer) <= 0) {
+					debug(1, "monitor get fail\n");
+					upa_nest_bad(upa_nest_mon);
+					ecode = -1;
+					break;
+				}
+			}
+		}
+	}
+
+	// :( monitor not response, dismiss it without say goodbye
+	if(ecode) {
+		upa_nest_mon = NULL;
+	}
+
+	//do we need a new monitor?
+	nest = upa_nest_mon;
+	if((nest == NULL) || (time_left(upa_mon_timer) < 0)) {
+		nest = upa_mon_elect();
+		upa_mon_timer = time_get(UPA_MS_MON);
+	}
+
+	if(nest == NULL || nest == upa_nest_mon)
+		return;
+
+	//dismiss old monitor, try our best to say goodbye ..
+	if(upa_nest_mon != NULL) {
+		timer = time_get(UPA_MS_DEF);
+		upa_flag.monitor_clr = 0;
+		ecode = upa_nest_switch(upa_nest_mon);
+		ecode += upa_nest_printf("monitor clr\r");
+		if(!ecode) { //success, wait for monitor response until monitor say "monitor clr" or timeout
+			while(upa_flag.monitor_clr == 0) {
+				task_Update();
+				if(time_left(timer) <= 0) {
+					debug(1, "monitor clr fail\n");
+					upa_nest_bad(upa_nest_mon);
+					ecode = -1;
+					break;
+				}
+			}
+		}
+	}
+
+	//new monitor takes office
+	timer = time_get(UPA_MS_DEF);
+	upa_flag.monitor_set = 0;
+	ecode = upa_nest_switch(nest);
+	ecode += upa_nest_printf("monitor set\r");
+	if(!ecode) { //success, wait for monitor response until monitor say "monitor set" or timeout
+		while(upa_flag.monitor_set == 0) {
+			task_Update();
+			if(time_left(timer) <= 0) {
+				debug(1, "monitor set fail\n");
+				upa_nest_bad(upa_nest_mon);
+				ecode = -1;
+				break;
+			}
+		}
+	}
+
+	//OK, Congratulations!!!
+	upa_nest_mon = nest;
+}
+
+static void upa_Update(void)
+{
+	struct upa_nest_s *nest;
+	struct list_head *pos;
+	int ecode = 0;
+	time_t timer;
+
+	//lock the uart console to avoid cmd_upa_func foward the commands to wrong nest
+	if(upa_nest_sel != NULL)
+		shell_lock(upa_uart_cnsl);
+
+	//poll monitor
+	upa_update_mon();
+
+	//update each nest
+	list_for_each(pos, &upa_nest_queue) {
+		nest = list_entry(pos, upa_nest_s, list);
+		if(time_left(nest->timer) < 0) {
+			timer = time_get(UPA_MS_DEF);
+			upa_flag.monitor_ping = 0;
+			ecode = upa_nest_switch(nest);
+			ecode += upa_nest_printf("monitor ping\r");
+			if(!ecode) { //success, wait for monitor response until monitor say "monitor ping" or timeout
+				while(upa_flag.monitor_ping == 0) {
+					task_Update();
+					if(time_left(timer) <= 0) {
+						debug(1, "monitor ping fail\n");
+						upa_nest_bad(nest);
+						ecode = -1;
+						break;
+					}
+				}
+				if(upa_flag.monitor_ping) {
+					nest->timer = time_get(UPA_MS_UPD);
+				}
+			}
+		}
+	}
+
+	//poll selected nest
+	if(upa_nest_sel != NULL) {
+		upa_nest_switch(upa_nest_sel);
+	}
+
+	//always unlock the uart cnsl before exit upa_Update
+	shell_unlock(upa_uart_cnsl);
+	task_Update();
+}
+
 void main(void)
 {
+
 	task_Init();
 	upa_Init();
 	printf("Power Conditioning - UPA\n");
 	printf("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
 
 	while(1){
-		//1, switch to prx mode
+		//switch to prx mode, wait for newbie request ...
 		dev_ioctl(upa_wl_fd, WL_STOP);
 		dev_ioctl(upa_wl_fd, WL_SET_MODE, WL_MODE_PRX);
 		dev_ioctl(upa_wl_fd, WL_SET_ADDR, NEST_WL_ADDR);
@@ -308,52 +456,9 @@ void main(void)
 			task_Update();
 		}
 
-		//2, normal work mode
-		struct upa_nest_s *nest;
-		struct list_head *pos;
+		//2,  i am a boss now :)
 		while(!upa_nest_empty() && (upa_flag.update_off == 0)) {
-			//2-1, handle  monitor
-			if(upa_nest_mon != NULL) {
-				//2-1-1, fetch newbie info
-				upa_nest_switch(upa_nest_mon);
-				upa_nest_printf("monitor get\r");
-			}
-
-			//2-1-2, elect a new hero??
-			nest = upa_nest_mon;
-			if((nest == NULL) || (time_left(upa_mon_timer) < 0)) {
-				nest = upa_mon_elect();
-				upa_mon_timer = time_get(NEST_WL_MS/2);
-			}
-
-			if(nest != upa_nest_mon) {
-				//2-1-2-1, dismiss old monitor
-				if(upa_nest_mon != NULL) {
-					upa_nest_switch(upa_nest_mon);
-					upa_nest_printf("monitor clr\r");
-				}
-
-				//2-1-2-2, new monitor takes office
-				upa_nest_mon = nest;
-				upa_nest_switch(nest);
-				upa_nest_printf("monitor set\r");
-			}
-
-			//2-2: update each nest
-			list_for_each(pos, &upa_nest_queue) {
-				nest = list_entry(pos, upa_nest_s, list);
-				if(time_left(nest->timer) < 0) {
-					nest->timer = time_get(NEST_WL_MS/2);
-					upa_nest_switch(nest);
-					upa_nest_printf("monitor ping\r");
-				}
-			}
-
-			//2-3: a nest is selected?
-			if(upa_nest_sel != NULL) {
-				upa_nest_switch(upa_nest_sel);
-			}
-			task_Update();
+			upa_Update();
 		}
 	}
 } // main
