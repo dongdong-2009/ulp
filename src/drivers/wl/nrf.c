@@ -342,8 +342,12 @@ int nrf_update(struct nrf_priv_s *priv)
 				if(!rbuf_full) { //no space to recv now
 					frame[0] = WL_FRAME_DATA;
 					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
+					if(n > 0)
+						n = n + 1; // please add a break point here!!!  :)
+					else
+						n = 1;
 					nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
-					nrf_write_buf(W_TX_PAYLOAD, frame, n + 1); //nrf count the bytes automatically
+					nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
 					nrf_write_reg(STATUS, TX_DS);
 				}
 			}
