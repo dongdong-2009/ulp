@@ -29,8 +29,8 @@ static const mbi5025_t ict_mbi5025 = {
 		.oe_pin = SPI_CS_PD9,
 };
 
-static int ict_vexp_1, ict_vset_1, ict_vget_1; //unit: mV
-static int ict_vexp_2, ict_vset_2, ict_vget_2; //unit: mV
+static int ict_vexp_1, ict_vout_1, ict_vget_1, ict_iget_1; //unit: mV
+static int ict_vexp_2, ict_vout_2, ict_vget_2, ict_iget_2; //unit: mV
 
 void ict_Init(void)
 {
@@ -48,7 +48,7 @@ void ict_Init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC3, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD| RCC_APB2Periph_GPIOC| RCC_APB2Periph_GPIOB| RCC_APB2Periph_GPIOA, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD| RCC_APB2Periph_GPIOC| RCC_APB2Periph_GPIOA, ENABLE);
 
 	// IO config
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12|GPIO_Pin_13;
@@ -60,11 +60,6 @@ void ict_Init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
-
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6|GPIO_Pin_7;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_6|GPIO_Pin_7;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
@@ -93,9 +88,12 @@ void ict_Init(void)
 	ADC_InitStructure.ADC_NbrOfChannel = 0;
 	ADC_Init(ADC1, &ADC_InitStructure);
 
-	ADC_InjectedSequencerLengthConfig(ADC1, 2);
-	ADC_InjectedChannelConfig(ADC1, ADC_Channel_2, 1, ADC_SampleTime_71Cycles5); //9Mhz/(71.5 + 12.5) = 107.1Khz
-	ADC_InjectedChannelConfig(ADC1, ADC_Channel_7, 2, ADC_SampleTime_71Cycles5);
+	ADC_InjectedSequencerLengthConfig(ADC1, 4);
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_2, 1, ADC_SampleTime_55Cycles5); //9Mhz/(71.5 + 12.5) = 107.1Khz
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_7, 2, ADC_SampleTime_55Cycles5);
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_1, 3, ADC_SampleTime_55Cycles5); //I0
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_6, 4, ADC_SampleTime_55Cycles5); //I1
+	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_None);
 	ADC_Cmd(ADC1, ENABLE);
 
 	ADC_ResetCalibration(ADC1);
@@ -190,6 +188,9 @@ void ict_Init(void)
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
+	GPIO_SetBits(GPIOD, GPIO_Pin_12);
+	GPIO_SetBits(GPIOD, GPIO_Pin_13);
+
 	mbi5025_Init(&ict_mbi5025);
 	mbi5025_EnableOE(&ict_mbi5025);
 }
@@ -197,14 +198,16 @@ void ict_Init(void)
 void ADC1_2_IRQHandler(void)
 {
 	//over current, turn off relay
-	GPIO_ResetBits(GPIOD, GPIO_Pin_13);
+	int temp = ADC_GetConversionValue(ADC2);
+	//printf("i1 = %d\n", temp);
+	GPIO_ResetBits(GPIOD, GPIO_Pin_12);
 	ADC_ClearITPendingBit(ADC2, ADC_IT_AWD);
 }
 
 void ADC3_IRQHandler(void)
 {
 	//over current, turn off relay
-	GPIO_ResetBits(GPIOD, GPIO_Pin_12);
+	GPIO_ResetBits(GPIOD, GPIO_Pin_13);
 	ADC_ClearITPendingBit(ADC3, ADC_IT_AWD);
 }
 
@@ -218,16 +221,26 @@ void TIM2_IRQHandler(void)
 	mv = ict_vget_1 - ict_vexp_1;
 	ict_vout_1 -= mv;
 	d = mv2d(ict_vout_1);
-	DAC_SetChannel1Data(DAC_Align_12b_R, d);
+	if(d < 0) d = 0;
+ 	DAC_SetChannel1Data(DAC_Align_12b_R, d);
 
 	//handle power 2
 	d = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_2);
 	ict_vget_2 = d2mv(d);
+	//printf("%d\n",ict_vget_2);
 	mv = ict_vget_2 - ict_vexp_2;
 	ict_vout_2 -= mv;
 	d = mv2d(ict_vout_2);
+	if(d < 0) d = 0;
 	DAC_SetChannel2Data(DAC_Align_12b_R, d);
 
+	//handle I1&I2
+	d = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_3);
+	ict_iget_1 = d2mA(d);
+	d = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_4);
+	ict_iget_2 = d2mA(d);
+	//printf("I1 = %d I2 = %d\n", i1, i2);
+	
 	ADC_SoftwareStartInjectedConvCmd(ADC1, ENABLE);
 	TIM_ClearITPendingBit(TIM2, TIM_FLAG_Update);
 }
@@ -244,14 +257,16 @@ void main(void)
 
 static int cmd_ict_func(int argc, char *argv[])
 {
-	int mv, temp = 0;
+	int mv, ma, temp = 0;
 	int i;
 
 	const char * usage = { \
 		" usage:\n" \
-		" ict relay xx xx xx ..., write value to set relay \n" \
-		" ict v1 5123, set power_1 value 0~10000mv \n" \
-		" ict v2 5123, set power_2 value 0~10000mv \n" \
+		" ict relay xx xx xx ...	write value to set relay \n" \
+		" ict v1 mV		set or get output voltage(0-10000) \n" \
+		" ict v2 mV		set or get output voltage(0-10000) \n" \
+		" ict i1 mA		set current limit or get current value(0-100) \n" \
+		" ict i2 mA		set current limit or get current value(0-100) \n" \
 	};
 
 	if (argc > 2 && !strcmp(argv[1], "relay")) {
@@ -261,28 +276,54 @@ static int cmd_ict_func(int argc, char *argv[])
 		}
 		spi_cs_set(ict_mbi5025.load_pin, 1);
 		spi_cs_set(ict_mbi5025.load_pin, 0);
-		printf("##0##");
+		printf("success!\n");
 		return 0;
 	}
 
 	if(argc == 3 && !strcmp(argv[1], "v1")) {
-		mv = argv[2];
+		mv = atoi(argv[2]);
 		if(mv >= 0 && mv <= 10000) {
 			ict_vexp_1 = mv;
-			printf("##0##");
+			printf("success!\n");
 			return 0;
 		}
 	}
 
 	if(argc == 3 && !strcmp(argv[1], "v2")) {
-		mv = argv[2];
+		mv = atoi(argv[2]);
 		if(mv >= 0 && mv <= 10000) {
 			ict_vexp_2 = mv;
-			printf("##0##");
+			printf("success!\n");
 			return 0;
 		}
 	}
-
+	
+	if(!strcmp(argv[1], "i1")) {
+		if(argc == 2) { //get current
+			printf("%dmA, success!\n", ict_iget_1);
+			return 0;
+		}
+		else if(argc == 3) { //set limit
+			ma = atoi(argv[2]);
+			ADC_AnalogWatchdogThresholdsConfig(ADC2, mA2d(ma),0x000);
+			printf("success!\n");
+			return 0;
+		}
+	}
+	
+	if(!strcmp(argv[1], "i2")) {
+		if(argc == 2) { //get current
+			printf("%dmA, success!\n", ict_iget_2);
+			return 0;
+		}
+		else if(argc == 3) { //set limit
+			ma = atoi(argv[2]);
+			ADC_AnalogWatchdogThresholdsConfig(ADC3, mA2d(ma),0x000);
+			printf("success!\n");
+			return 0;
+		}
+	}
+	
 	printf(usage);
 	return 0;
 }
