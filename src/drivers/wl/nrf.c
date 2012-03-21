@@ -258,6 +258,7 @@ int nrf_update(struct nrf_priv_s *priv)
 	*/
 	status = nrf_read_reg(STATUS);
 	fifo_status = nrf_read_reg(FIFO_STATUS);
+	nrf_write_reg(STATUS, status & 0xf0);
 
 	/*handle recv
 	prx: there's no enough space in rbuf, do not recv,
@@ -284,7 +285,7 @@ int nrf_update(struct nrf_priv_s *priv)
 					break;
 				}
 				nrf_read_buf(R_RX_PAYLOAD, frame, n);
-				nrf_write_reg(STATUS, RX_DR);
+				//nrf_write_reg(STATUS, RX_DR);
 				if(frame[0] == WL_FRAME_DATA) {
 					if(n > 1)
 						buf_push(&pipe->rbuf, frame + 1, n - 1);
@@ -310,7 +311,7 @@ int nrf_update(struct nrf_priv_s *priv)
 				//resend until timeout
 				ce_set(0);
 				//delay at least 10uS here ...
-				nrf_write_reg(STATUS, MAX_RT);
+				//nrf_write_reg(STATUS, MAX_RT);
 				nrf_retry_update(pipe, 15);
 				ce_set(1);
 			}
@@ -335,7 +336,7 @@ int nrf_update(struct nrf_priv_s *priv)
 				n = buf_pop(&pipe->tbuf, frame + 1, n);
 				if(n > 0) {
 					nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
-					nrf_write_reg(STATUS, TX_DS);
+					//nrf_write_reg(STATUS, TX_DS);
 				}
 			}
 			else {
@@ -348,7 +349,7 @@ int nrf_update(struct nrf_priv_s *priv)
 						n = 1;
 					nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
 					nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
-					nrf_write_reg(STATUS, TX_DS);
+					//nrf_write_reg(STATUS, TX_DS);
 				}
 			}
 
@@ -366,7 +367,7 @@ int nrf_update(struct nrf_priv_s *priv)
 			n = pipe->cf[0];
 			memcpy(frame, pipe->cf, n);
 			nrf_write_buf(W_ACK_PAYLOAD(0), frame, n);
-			nrf_write_reg(STATUS, TX_DS);
+			//nrf_write_reg(STATUS, TX_DS);
 
 			//wait until send out or max rt
 			pipe->timer = time_get(pipe->cf_timeout);
@@ -399,7 +400,7 @@ int nrf_update(struct nrf_priv_s *priv)
 			memcpy(frame, pipe->cf + 1, n);
 			nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
 			nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
-			nrf_write_reg(STATUS, TX_DS);
+			//nrf_write_reg(STATUS, TX_DS);
 			//wait until send out or max rt
 			pipe->timer = time_get(pipe->cf_timeout);
 			while(1) {
@@ -419,7 +420,7 @@ int nrf_update(struct nrf_priv_s *priv)
 						ce_set(1);
 					}
 				}
-				if(time_left(pipe->timer) < 0) { //send timeout
+				if(time_left(pipe->timer) <= 0) { //send timeout
 					nrf_write_reg(STATUS, MAX_RT);
 					nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
 					pipe->timer = 0;
