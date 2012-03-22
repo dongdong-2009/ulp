@@ -21,9 +21,9 @@ static void counter_init(const counter_cfg_t *cfg)
 	TIM_TimeBaseInit(TIMn, &TIM_TimeBaseStructure);
 }
 
-static void ch1_init(const counter_cfg_t *cfg);
+static void ch1_init(const counter_cfg_t *cfg)
 {
-	pwm_cfg_t def = COUNTER_CFG_DEF;
+	counter_cfg_t def = COUNTER_CFG_DEF;
 	cfg = (cfg == NULL) ? &def : cfg;
 	counter_init(cfg);
 
@@ -42,9 +42,9 @@ static void ch1_init(const counter_cfg_t *cfg);
 	TIM_Cmd(TIMn, ENABLE);
 }
 
-static int ch2_init(const pwm_cfg_t *cfg)
+static void ch2_init(const counter_cfg_t *cfg)
 {
-	pwm_cfg_t def = COUNTER_CFG_DEF;
+	counter_cfg_t def = COUNTER_CFG_DEF;
 	cfg = (cfg == NULL) ? &def : cfg;
 	counter_init(cfg);
 
@@ -68,9 +68,9 @@ static void counter_set(int val)
 	TIM_SetCounter(TIMn,val);
 }
 
-static int counter_get(int val)
+static int counter_get(void)
 {
-	return TIM_GetCounter(TIMn);;
+	return TIM_GetCounter(TIMn);
 }
 
 const counter_bus_t counter11 = {

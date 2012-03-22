@@ -9,7 +9,7 @@
 
 #define TIMn TIM3
 
-int pwm_init(const pwm_cfg_t *cfg)
+static int pwm_init(const pwm_cfg_t *cfg)
 {
 	int f, div;
 	RCC_ClocksTypeDef clks;
@@ -36,7 +36,7 @@ int pwm_init(const pwm_cfg_t *cfg)
 	return 0;
 }
 
-int ch1_init(const pwm_cfg_t *cfg)
+static int ch1_init(const pwm_cfg_t *cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
@@ -61,7 +61,7 @@ int ch1_init(const pwm_cfg_t *cfg)
 	return 0;
 }
 
-int ch2_init(const pwm_cfg_t *cfg)
+static int ch2_init(const pwm_cfg_t *cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
@@ -86,7 +86,7 @@ int ch2_init(const pwm_cfg_t *cfg)
 	return 0;
 }
 
-int ch3_init(const pwm_cfg_t *cfg)
+static int ch3_init(const pwm_cfg_t *cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
@@ -111,7 +111,7 @@ int ch3_init(const pwm_cfg_t *cfg)
 	return 0;
 }
 
-int ch4_init(const pwm_cfg_t *cfg)
+static int ch4_init(const pwm_cfg_t *cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
@@ -136,25 +136,25 @@ int ch4_init(const pwm_cfg_t *cfg)
 	return 0;
 }
 
-int ch1_set(int val)
+static int ch1_set(int val)
 {
 	TIM_SetCompare1(TIMn, val);
 	return 0;
 }
 
-int ch2_set(int val)
+static int ch2_set(int val)
 {
 	TIM_SetCompare2(TIMn, val);
 	return 0;
 }
 
-int ch3_set(int val)
+static int ch3_set(int val)
 {
 	TIM_SetCompare3(TIMn, val);
 	return 0;
 }
 
-int ch4_set(int val)
+static int ch4_set(int val)
 {
 	TIM_SetCompare4(TIMn, val);
 	return 0;

@@ -14,7 +14,7 @@ typedef struct {
 typedef struct {
 	void (*init)(const counter_cfg_t *cfg);
 	int (*get)(void);
-	int (*set)(int value);
+	void (*set)(int value);
 } counter_bus_t;
 
 #define COUNTER_CFG_DEF { \
