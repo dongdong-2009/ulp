@@ -240,7 +240,7 @@ void TIM2_IRQHandler(void)
 	d = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_4);
 	ict_iget_2 = d2mA(d);
 	//printf("I1 = %d I2 = %d\n", i1, i2);
-	
+
 	ADC_SoftwareStartInjectedConvCmd(ADC1, ENABLE);
 	TIM_ClearITPendingBit(TIM2, TIM_FLAG_Update);
 }
@@ -297,7 +297,7 @@ static int cmd_ict_func(int argc, char *argv[])
 			return 0;
 		}
 	}
-	
+
 	if(!strcmp(argv[1], "i1")) {
 		if(argc == 2) { //get current
 			printf("%dmA, success!\n", ict_iget_1);
@@ -310,7 +310,7 @@ static int cmd_ict_func(int argc, char *argv[])
 			return 0;
 		}
 	}
-	
+
 	if(!strcmp(argv[1], "i2")) {
 		if(argc == 2) { //get current
 			printf("%dmA, success!\n", ict_iget_2);
@@ -323,7 +323,7 @@ static int cmd_ict_func(int argc, char *argv[])
 			return 0;
 		}
 	}
-	
+
 	printf(usage);
 	return 0;
 }
