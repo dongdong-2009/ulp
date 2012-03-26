@@ -8,7 +8,7 @@
 #include "ulp_time.h"
 #include "sys/task.h"
 #include "priv/mcamos.h"
-#include "lcm.h"
+#include "weifu_lcm.h"
 #include "osd/osd.h"
 #include "key.h"
 #include "encoder.h"
@@ -42,7 +42,7 @@ static int get_wtout(void) {return lcm_dat.wtout;}
 const char str_eng_rpm[] = "Eng RPM";
 const char str_phase_diff[] = "Phase Diff";
 const char str_vss[] = "VSS";
-const char str_tim_dc[] = "Tim Duty Cycle";
+const char str_tim_dc[] = "Tim DC";
 const char str_hfmsig[] = "HFMSIG";
 const char str_hfmref[] = "HFMRef";
 const char str_eng_speed[] = "Eng Speed";
@@ -61,38 +61,38 @@ const osd_item_t items_phase_diff[] = {
 };
 
 const osd_item_t items_vss[] = {
-	{0, 3, 11, 1, (int)str_vss, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{11, 3, 4, 1, (int)get_vss, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{0, 2, 11, 1, (int)str_vss, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{11, 2, 4, 1, (int)get_vss, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
 const osd_item_t items_tim_dc[] = {
-	{0, 4, 11, 1, (int)str_tim_dc, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{11, 4, 4, 1, (int)get_tim_dc, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{0, 3, 11, 1, (int)str_tim_dc, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{11, 3, 4, 1, (int)get_tim_dc, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
 const osd_item_t items_hfmsig[] = {
-	{0, 5, 11, 1, (int)str_hfmsig, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{11, 5, 4, 1, (int)get_hfmsig, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{0, 4, 10, 1, (int)str_hfmsig, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{10, 4, 5, 1, (int)get_hfmsig, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
 const osd_item_t items_hfmref[] = {
-	{0, 6, 10, 1, (int)str_hfmref, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{10, 6, 5, 1, (int)get_hfmref, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{0, 5, 10, 1, (int)str_hfmref, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{10, 5, 5, 1, (int)get_hfmref, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
 const osd_item_t items_eng_speed[] = {
-	{0, 9, 11, 1, (int)str_eng_speed, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{11, 9, 4, 1, (int)get_eng_speed, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	{0, 8, 10, 1, (int)str_eng_speed, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{10, 8, 5, 1, (int)get_eng_speed, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
 	NULL,
 };
 
 const osd_item_t items_wtout[] = {
-	{0, 9, 11, 1, (int)str_wtout, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{11, 9, 4, 1, (int)get_wtout, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	{0, 9, 10, 1, (int)str_wtout, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{10, 9, 5, 1, (int)get_wtout, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
 	NULL,
 };
 
@@ -232,6 +232,8 @@ void lcm_Init(void)
 	int hdlg;
 	if(lcm_dat.crc != 0)
 		memset(&lcm_dat, 0, sizeof(lcm_dat));
+	lcm_dat.hfmsig = lcm_cfg.hfmsig_min;
+	lcm_dat.hfmref = lcm_cfg.hfmref_min;
 
 	hdlg = osd_ConstructDialog(&dlg);
 	osd_SetActiveDialog(hdlg);
