@@ -22,6 +22,24 @@ void axle_SetAmp(short amp);
 void op_Init(int option);    //such as 58x, 36x
 void op_SetAmp(short amp);
 
+//api for vss and wss, 
+void vss_Init(void);
+void wss_Init(void);
+void vss_SetFreq(short hz);
+void wss_SetFreq(short hz);
+
+//api for pwm output and counter input
+//counter1 : TIM1_CH4
+//counter2 : TIM2_CH2
+//pwm1 : TIM3_CH2
+//pwm2 : TIM4_CH2
+void counter1_Init(void);
+void counter2_Init(void);
+int counter1_GetValue(void);
+int counter2_GetValue(void);
+void pwm1_Init(int frq, int dc);
+void pwm2_Init(int frq, int dc);
+
 void driver_Init(void);
 void clock_Enable(int on);
 

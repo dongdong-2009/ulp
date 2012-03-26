@@ -13,6 +13,8 @@
 #include "nvm.h"
 #include "dac.h"
 #include "sim_driver.h"
+#include "pwm.h"
+#include "counter.h"
 
 #define SIMULATOR_DEBUG 1
 #if SIMULATOR_DEBUG
@@ -25,6 +27,18 @@
 static ad9833_t clock_dds = {
 	.bus = &spi2,
 	.idx = SPI_CS_PB12,
+	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
+};
+
+static ad9833_t vss_dds = {
+	.bus = &spi1,
+	.idx = SPI_CS_PB0, //real one
+	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
+};
+
+static ad9833_t wss_dds = {
+	.bus = &spi1,
+	.idx = SPI_CS_PB1,
 	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
 
@@ -102,3 +116,78 @@ void clock_Enable(int on)
 	NVIC_InitStructure.NVIC_IRQChannelCmd = (on > 0) ? ENABLE : DISABLE;
 	NVIC_Init(&NVIC_InitStructure);
 }
+
+void vss_Init(void)
+{
+	ad9833_Init(&vss_dds);
+}
+
+void wss_Init(void)
+{
+	ad9833_Init(&wss_dds);
+}
+
+void vss_SetFreq(short hz)
+{
+	unsigned mclk = (CONFIG_DRIVER_RPM_DDS_MCLK >> 16);
+	unsigned fw = hz;
+	fw <<= 16;
+	fw /= mclk;
+	ad9833_SetFreq(&vss_dds, fw);
+}
+
+void wss_SetFreq(short hz)
+{
+	unsigned mclk = (CONFIG_DRIVER_RPM_DDS_MCLK >> 16);
+	unsigned fw = hz;
+	fw <<= 16;
+	fw /= mclk;
+	ad9833_SetFreq(&wss_dds, fw);
+}
+
+void counter1_Init(void)
+{
+	counter11.init(NULL);
+}
+
+void counter2_Init(void)
+{
+	counter22.init(NULL);
+}
+
+int counter1_GetValue(void)
+{
+	return counter11.get();
+}
+
+int counter2_GetValue(void)
+{
+	return counter22.get();
+}
+
+//pwm1 : TIM3_CH2
+void pwm1_Init(int frq, int dc)
+{
+	pwm_cfg_t cfg;
+	const pwm_bus_t *pwm = &pwm32;
+
+	cfg.hz = frq;
+	cfg.fs = 100;
+
+	pwm->init(&cfg);
+	pwm->set(dc);
+}
+
+//pwm2 : TIM4_CH2
+void pwm2_Init(int frq, int dc)
+{
+	pwm_cfg_t cfg;
+	const pwm_bus_t *pwm = &pwm42;
+
+	cfg.hz = frq;
+	cfg.fs = 100;
+
+	pwm->init(&cfg);
+	pwm->set(dc);
+}
+

@@ -166,7 +166,7 @@ static int cmd_weifu_func(int argc, char *argv[])
 		printf(" weifu axle  100	unit: hz/rpm\n");
 		printf(" weifu phase 2		minus means advance, positive means delay\n");
 		printf(" weifu start		open the 58x output\n");
-		printf(" weifu stop			shut up the 58x output\n");
+		printf(" weifu stop 		shut up the 58x output\n");
 	}
 
 	return 0;
