@@ -30,6 +30,15 @@
 #include "sys/malloc.h"
 #include <string.h>
 
+#define debug(lvl, ...) do { \
+	if(lvl >= 0) { \
+		console_set(NULL); \
+		printf("%s: ", __func__); \
+		printf(__VA_ARGS__); \
+		console_restore(); \
+	} \
+} while (0)
+
 struct nrf_pipe_s {
 	unsigned short retry; //for signal quanlity check, for ptx usage only
 	unsigned short retry_times;
@@ -291,11 +300,13 @@ int nrf_update(struct nrf_priv_s *priv)
 				}
 				else {
 					ecode = WL_ERR_RX_FRAME;
+					debug(5, "rx strange frame\n");
 					onfail(ecode, frame, n);
 				}
 			}
 			else {
 				ecode = WL_ERR_RX_HW;
+				debug(5, "rx hw fault\n");
 				onfail(ecode);
 			}
 		fifo_status = nrf_read_reg(FIFO_STATUS);
@@ -320,6 +331,7 @@ int nrf_update(struct nrf_priv_s *priv)
 					pipe->timer = time_get(pipe->timeout);
 				if(time_left(pipe->timer) < 0) { //timeout, flush?
 					ecode = WL_ERR_TX_TIMEOUT;
+					debug(5, "tx timeout(addr = 0x%08x)\n", pipe->addr);
 					onfail(ecode, pipe->addr);
 					pipe->timer = 0;
 				}
