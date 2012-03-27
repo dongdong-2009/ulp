@@ -31,7 +31,7 @@
 #include <string.h>
 
 #define debug(lvl, ...) do { \
-	if(lvl >= 0) { \
+	if(lvl >= 2) { \
 		console_set(NULL); \
 		printf("%s: ", __func__); \
 		printf(__VA_ARGS__); \
@@ -251,7 +251,7 @@ int nrf_update(struct nrf_priv_s *priv)
 	struct nrf_chip_s *chip;
 	char status, fifo_status, n, frame[32];
 	int (*onfail)(int ecode, ...);
-	int rbuf_full = 0, ecode = WL_ERR_OK;
+	int i, ecode = WL_ERR_OK;
 	//assert(priv != NULL);
 	pipe = priv->pipe;
 	//assert(pipe != NULL);
@@ -267,7 +267,7 @@ int nrf_update(struct nrf_priv_s *priv)
 	*/
 	status = nrf_read_reg(STATUS);
 	fifo_status = nrf_read_reg(FIFO_STATUS);
-	nrf_write_reg(STATUS, status & 0xf0);
+	nrf_write_reg(STATUS, status & (RX_DR | TX_DS | MAX_RT));
 
 	/*handle recv
 	prx: there's no enough space in rbuf, do not recv,
@@ -285,41 +285,40 @@ int nrf_update(struct nrf_priv_s *priv)
 	then ptx should give up send a frame at next step. */
 
 	if(status & RX_DR) {
-		do {
-			//handle recv
+		for(i = 0; i < 3; i ++) { //3 rx fifo
+			//bytes to recv
 			nrf_read_buf(R_RX_PL_WID, &n, 1);
+			if(n > 0 && buf_left(&pipe->rbuf) < n - 1) {
+				break;
+			}
+
+			//read the payload
+			nrf_read_buf(R_RX_PAYLOAD, frame, n);
 			if(n > 0) {
-				if(buf_left(&pipe->rbuf) < n - 1) {
-					rbuf_full = 1;
-					break;
-				}
-				nrf_read_buf(R_RX_PAYLOAD, frame, n);
-				//nrf_write_reg(STATUS, RX_DR);
 				if(frame[0] == WL_FRAME_DATA) {
 					if(n > 1)
 						buf_push(&pipe->rbuf, frame + 1, n - 1);
 				}
 				else {
 					ecode = WL_ERR_RX_FRAME;
-					debug(5, "rx strange frame\n");
+					debug(1, "rx strange frame\n");
 					onfail(ecode, frame, n);
 				}
 			}
-			else {
-				ecode = WL_ERR_RX_HW;
-				debug(5, "rx hw fault\n");
-				onfail(ecode);
-			}
-		fifo_status = nrf_read_reg(FIFO_STATUS);
-		} while(!(fifo_status & RX_FIFO_EMPTY));
+
+			//are there any more data in fifo
+			fifo_status = nrf_read_reg(FIFO_STATUS);
+			if(fifo_status & RX_FIFO_EMPTY)
+				break;
+		}
 	}
 
-	//send
-	fifo_status = nrf_read_reg(FIFO_STATUS);
+	//send, note: for ptx recv purpose, dummy frame should be sent periodly
 	if(1) { //if(status & (TX_DS|MAX_RT)) {
-		do {
+		for(i = 0; i < 3; i ++) {
+			fifo_status = nrf_read_reg(FIFO_STATUS);
 			if(status & MAX_RT) {
-				//resend until timeout
+				//resend last packet until timeout
 				ce_set(0);
 				//delay at least 10uS here ...
 				//nrf_write_reg(STATUS, MAX_RT);
@@ -327,22 +326,24 @@ int nrf_update(struct nrf_priv_s *priv)
 				ce_set(1);
 			}
 
-			if(fifo_status & TX_FIFO_FULL) {
+			if(fifo_status & TX_FIFO_FULL) { // fifo is still full with the data loaded last time, check timeout timer
 				if(pipe->timer == 0)
 					pipe->timer = time_get(pipe->timeout);
 				if(time_left(pipe->timer) < 0) { //timeout, flush?
 					ecode = WL_ERR_TX_TIMEOUT;
-					debug(5, "tx timeout(addr = 0x%08x)\n", pipe->addr);
+					debug(1, "tx timeout(addr = 0x%08x)\n", pipe->addr);
 					onfail(ecode, pipe->addr);
 					pipe->timer = 0;
 				}
 				break;
 			}
+
+			//start to send data
 			pipe->timer = 0;
 			if(pipe->cf != NULL)
 				break;
 
-			if(chip->mode & WL_MODE_PRX) {
+			if(chip->mode & WL_MODE_PRX) { //prx mode send data
 				frame[0] = WL_FRAME_DATA;
 				n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
 				n = buf_pop(&pipe->tbuf, frame + 1, n);
@@ -351,18 +352,16 @@ int nrf_update(struct nrf_priv_s *priv)
 					//nrf_write_reg(STATUS, TX_DS);
 				}
 			}
-			else {
-				if(!rbuf_full) { //no space to recv now
-					frame[0] = WL_FRAME_DATA;
-					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
-					if(n > 0)
-						n = n + 1; // please add a break point here!!!  :)
-					else
-						n = 1;
-					nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
-					nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
-					//nrf_write_reg(STATUS, TX_DS);
-				}
+			else { //ptx mode send data, be care of ack_with_payload issue
+				frame[0] = WL_FRAME_DATA;
+				n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
+				if(n > 0)
+					n = n + 1; // please add a break point here!!!  :)
+				else
+					n = 1;
+				nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
+				nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
+				//nrf_write_reg(STATUS, TX_DS);
 			}
 
 			//no more data to send
@@ -370,7 +369,9 @@ int nrf_update(struct nrf_priv_s *priv)
 				break;
 
 			fifo_status = nrf_read_reg(FIFO_STATUS);
-		} while(!(fifo_status & TX_FIFO_FULL));
+			if(fifo_status & (TX_FIFO_FULL | RX_FIFO_FULL))
+				break;
+		}
 	}
 
 	//prx send custom frame
