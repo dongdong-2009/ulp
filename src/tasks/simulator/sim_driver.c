@@ -3,6 +3,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "stm32f10x.h"
 #include "config.h"
 #include "sys/task.h"
@@ -72,13 +73,13 @@ void clock_Init(void)
 	ad9833_Init(&clock_dds);
 }
 
-void clock_SetFreq(short hz)
+void clock_SetFreq(int hz)
 {
 	unsigned mclk = (CONFIG_DRIVER_RPM_DDS_MCLK >> 16);
-	unsigned fw = hz;
+	int64_t fw = hz;
 	fw <<= 16;
 	fw /= mclk;
-	ad9833_SetFreq(&clock_dds, fw);
+	ad9833_SetFreq(&clock_dds, (unsigned)fw);
 }
 
 void axle_Init(int option)  //such as 58x, 38x
@@ -86,9 +87,9 @@ void axle_Init(int option)  //such as 58x, 38x
 	dac_ch1.init(NULL);
 }
 
-void axle_SetFreq(short hz)
+void axle_SetFreq(int hz)
 {
-	clock_SetFreq(hz >> 4);
+	clock_SetFreq(hz << 4);
 }
 
 void axle_SetAmp(short amp)

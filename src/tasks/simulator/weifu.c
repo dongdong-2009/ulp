@@ -20,6 +20,14 @@
 #include "sim_driver.h"
 #include "nvm.h"
 #include "wave.h"
+#include "weifu_lcm.h"
+
+#define WEIFU_DEBUG 1
+#if WEIFU_DEBUG
+#define DEBUG_TRACE(args)    (printf args)
+#else
+#define DEBUG_TRACE(args)
+#endif
 
 // define the time clock reference
 static int axle_clock_cnt = 0;  //for axle gear
@@ -27,8 +35,24 @@ static int op_clock_cnt = 0;    //for oil pump gear
 static int op_tri_flag = 0;
 
 //for engine axle gear singal
-static int axle_cnt, op_cnt, phase_diff;
+static int axle_cnt, op_cnt;
 static int prev_axle_cnt, prev_op_cnt;
+
+static int phase_diff;
+static int eng_rpm;
+
+//for mcamos defines, com between lcm and core board
+static struct mcamos_s lcm = {
+	.can = &can1,
+	.baud = 500000,
+	.id_cmd = MCAMOS_MSG_CMD_ID,
+	.id_dat = MCAMOS_MSG_DAT_ID,
+	.timeout = 50,
+};
+static lcm_dat_t cfg_data;
+
+//private functions
+static int weifu_ConfigData(void);
 
 void weifu_Init(void)
 {
@@ -36,11 +60,28 @@ void weifu_Init(void)
 	axle_Init(0);
 	op_Init(0);
 
+	mcamos_init_ex(&lcm);
+	cfg_data.eng_speed = 500;
+	cfg_data.wtout = 300;
+
 	phase_diff = 2;
 }
 
 void weifu_Update(void)
 {
+	//communication update
+	weifu_ConfigData();
+	if (eng_rpm != cfg_data.eng_rpm) {
+		clock_SetFreq(cfg_data.eng_rpm << 4);
+		eng_rpm = cfg_data.eng_rpm;
+	}
+}
+
+void weifu_isr(void)
+{
+	axle_clock_cnt ++;
+	op_clock_cnt ++;
+
 	int temp, result = 0;
 
 	/**********  for axle and oil pump signal output  *******/
@@ -98,12 +139,6 @@ void weifu_Update(void)
 	}
 }
 
-void weifu_isr(void)
-{
-	axle_clock_cnt ++;
-	op_clock_cnt ++;
-}
-
 void EXTI9_5_IRQHandler(void)
 {
 	weifu_isr();
@@ -138,13 +173,36 @@ static int weifu_mdelay(int ms)
 	return 0;
 }
 
+static int weifu_ConfigData(void)
+{
+	int ret = 0;
+	char lcm_cmd = LCM_CMD_READ;
+	//communication with the lcm board
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, &lcm_cmd, 1);
+	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, sizeof(cfg_data) - 6);
+	if (ret) {
+		DEBUG_TRACE(("##MCAMOS ERROR!##\n"));
+		return -1;
+	}
+
+	lcm_cmd = LCM_CMD_WRITE;
+	//communication with the lcm board
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, &lcm_cmd, 1);
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR + 1, &cfg_data, sizeof(cfg_data));
+	if (ret) {
+		DEBUG_TRACE(("##MCAMOS ERROR!##\n"));
+		return -1;
+	}
+	return 0;
+}
+
 #if 1
 static int cmd_weifu_func(int argc, char *argv[])
 {
 	int result = -1;
 
 	if(!strcmp(argv[1], "axle") && (argc == 3)) {
-		clock_SetFreq((short)(atoi(argv[2])));
+		axle_SetFreq(atoi(argv[2]));
 		result = 0;
 	}
 

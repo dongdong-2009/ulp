@@ -13,11 +13,11 @@
 
 //clock reference functions
 void clock_Init(void);
-void clock_SetFreq(short hz);
+void clock_SetFreq(int hz);
 
 //for sine wave output functions, 58x, oil pump...
 void axle_Init(int option);  //such as 58x, 36x
-void axle_SetFreq(short hz);
+void axle_SetFreq(int hz);
 void axle_SetAmp(short amp);
 void op_Init(int option);    //such as 58x, 36x
 void op_SetAmp(short amp);
