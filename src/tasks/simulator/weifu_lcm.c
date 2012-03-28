@@ -17,7 +17,7 @@
 static mcamos_srv_t lcm_server;
 static lcm_dat_t lcm_dat __nvm;
 static lcm_cfg_t lcm_cfg = {
-	0, 1000, /*eng rpm*/
+	0, 5000, /*eng rpm*/
 	-10, 10,   /*phase diff*/
 	0, 5000, /*vss*/
 	0, 100, /*tim sensor duty cycle*/
@@ -210,7 +210,8 @@ static void serv_update(void)
 		memcpy(outbox, &lcm_dat, sizeof(lcm_dat));
 		break;
 	case LCM_CMD_WRITE:
-		memcpy(&lcm_dat, inbox + 1, sizeof(lcm_dat));
+		//only update eng_speed and wtout.
+		memcpy(&(lcm_dat.eng_speed), inbox + 1, 4);
 		break;
 	case LCM_CMD_SAVE:
 		ret = 0;
