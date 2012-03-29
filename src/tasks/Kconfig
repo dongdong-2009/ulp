@@ -15,6 +15,7 @@ choice 'task select'	" \
 	MATRIX		CONFIG_TASK_MATRIX \
 	NEST		CONFIG_TASK_NEST \
 	PDI		CONFIG_TASK_PDI \
+	Simulator	CONFIG_TASK_SIMULATOR \
 	SM		CONFIG_TASK_STEPMOTOR \
 	SSS		CONFIG_TASK_SSS \
 	VVT		CONFIG_TASK_VVT \
@@ -56,8 +57,12 @@ if [ "$CONFIG_TASK_NEST" = "y" ]; then
 	endmenu
 fi
 
-
-bool "engine simulator applications?" CONFIG_TASK_SIMULATOR
+if [ "$CONFIG_TASK_SIMULATOR" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'simulator'
+		source src/tasks/simulator/Kconfig
+	endmenu
+fi
 
 if [ "$CONFIG_TASK_PDI" = "y" ]; then
 	mainmenu_option next_comment

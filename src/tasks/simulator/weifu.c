@@ -47,7 +47,6 @@ static int axle_cnt, op_cnt;
 static int prev_axle_cnt, prev_op_cnt;
 static volatile int eng_factor, op_factor;
 static volatile int eng_rpm, op_rpm, phase_diff, vss, tim_dc, hfmsig, hfmref;
-static int eng_speed, wtout;
 
 //timer define for eng_speed and wtout
 static time_t eng_speed_timer;
