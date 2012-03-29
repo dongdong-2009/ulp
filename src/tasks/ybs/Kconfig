@@ -1,0 +1,5 @@
+#
+# Written by junjun@2011
+#
+
+bool "enable yarn break sensor application" CONFIG_TASK_YBS

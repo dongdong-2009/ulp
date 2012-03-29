@@ -7,7 +7,7 @@
 #ifndef __NRF_H_
 #define __NRF_H_
 
-#include "device.h"
+#include "ulp/device.h"
 
 //misc cmds
 #define NOP (0xff)
@@ -40,6 +40,7 @@ enum {
 #define RX_DR 0x40
 #define TX_DS 0x20
 #define MAX_RT 0x10
+#define TX_FULL 0x01
 
 	OBSERVE_TX,
 	CD,
@@ -59,10 +60,10 @@ enum {
 	RX_PW_P5,
 	FIFO_STATUS, /* -|TX_REUSE|TX_FULL|TX_EMPTY| - | - | RX_FULL | RX_EMPTY*/
 
-#define TX_FULL 0x20
-#define TX_EMPTY 0x10
-#define RX_FULL 0x02
-#define RX_EMPTY 0x01
+#define TX_FIFO_FULL 0x20
+#define TX_FIFO_EMPTY 0x10
+#define RX_FIFO_FULL 0x02
+#define RX_FIFO_EMPTY 0x01
 
 	DYNPD = 0x1c,
 	FEATURE = 0x1d,

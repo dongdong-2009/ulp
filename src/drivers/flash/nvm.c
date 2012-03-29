@@ -77,8 +77,6 @@ int nvm_init(void)
 	//fail ...
 	nvm_flag_null = 1;
 	return -1;
-
-
 }
 
 int nvm_save(void)
@@ -112,6 +110,29 @@ int nvm_save(void)
 	return 0;
 }
 
+/*clear nvm strorage to default state*/
+int nvm_clear(void)
+{
+	char *src, *dest, *bak;
+	int sz_ram, pages;
+
+	src = __section_begin(".nvm.ram");
+	sz_ram = (int)__section_end(".nvm.ram") - (int)__section_begin(".nvm.ram");
+	if(sz_ram == 0)
+		return 0;
+	sz_ram = align(sz_ram, 4);
+	pages = align(sz_ram + 8, FLASH_PAGE_SZ) / FLASH_PAGE_SZ;
+	dest = (char *)FLASH_ADDR(FLASH_PAGE_NR - pages); //rom 1
+	bak = (char *)FLASH_ADDR(FLASH_PAGE_NR - pages - pages); // rom 2
+
+	//erase rom 2
+	flash_Erase(bak, pages);
+
+	//erase rom 1
+	flash_Erase(dest, pages);
+	return 0;
+}
+
 //for power-down auto save function
 void nvm_isr(void)
 {
@@ -122,3 +143,30 @@ int nvm_is_null(void)
 {
 	return nvm_flag_null;
 }
+
+#include "shell/cmd.h"
+#include <string.h>
+
+int cmd_nvm_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"nvm save	.nvm.ram -> .nvm.rom\n"
+		"nvm clear	.nvm.rom = 0xff\n"
+	};
+
+	if((argc == 2) && (!strncmp("save", argv[1], 2))) {
+		nvm_save();
+		return 0;
+	}
+
+	if((argc == 2) && (!strncmp("clear", argv[1], 2))) {
+		nvm_clear();
+		return 0;
+	}
+
+	printf("%s", usage);
+	return 0;
+}
+
+const cmd_t cmd_nvm = {"nvm", cmd_nvm_func, "nvm operation cmds"};
+DECLARE_SHELL_CMD(cmd_nvm)

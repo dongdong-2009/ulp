@@ -10,3 +10,4 @@ obj-$(CONFIG_TASK_APT) += apt/
 obj-$(CONFIG_TASK_SSS) += sss/
 obj-$(CONFIG_TASK_PDI) += pdi/
 obj-$(CONFIG_TASK_SIMULATOR) += simulator/
+obj-$(CONFIG_TASK_YBS) += ybs/

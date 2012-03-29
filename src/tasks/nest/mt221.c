@@ -1413,7 +1413,7 @@ void main(void)
 	NestPowerOff();
 	nest_message("\nPower Conditioning - MT22.1\n");
 	nest_message("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
-	nest_message("nest ID : MT22.1SS-%03d\n",(*nest_info_get()).id_base);
+	//nest_message("nest ID : MT22.1SS-%03d\n",(*nest_info_get()).id_base);
 
 
 	while(1){

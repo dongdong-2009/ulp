@@ -1,0 +1,11 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2011
+#
+
+#video port
+bool "gpio emulated video port" CONFIG_VIDEO_GPIO
+
+#camera
+bool "CMOS VGA CAMERA - OV7660" CONFIG_CAMERA_OV7660

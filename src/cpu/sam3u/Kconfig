@@ -3,7 +3,9 @@
 #
 # Written by miaofng@2010
 #
-
+int "high speed external clk freq?" CONFIG_HSE_VALUE 12000000
+int "low speed external clk freq?" CONFIG_LSE_VALUE 32768
+int "cpu core clk(mck) freq?" CONFIG_MCK_VALUE 48000000
 choice 'sam3u cpu type select'	" \
 	SAM3U1		CONFIG_CPU_SAM3U1 \
 	SAM3U2		CONFIG_CPU_SAM3U2 \

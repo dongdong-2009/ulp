@@ -28,6 +28,7 @@ struct cmd_list_s {
 
 struct cmd_queue_s {
 	int flag;
+	cmd_t *trap;
 	struct list_head cmd_list;
 };
 
