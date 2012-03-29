@@ -37,6 +37,8 @@ void counter1_Init(void);
 void counter2_Init(void);
 int counter1_GetValue(void);
 int counter2_GetValue(void);
+void counter1_SetValue(int value);
+void counter2_SetValue(int value);
 void pwm1_Init(int frq, int dc);
 void pwm2_Init(int frq, int dc);
 

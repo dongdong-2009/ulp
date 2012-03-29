@@ -29,6 +29,14 @@
 #define DEBUG_TRACE(args)
 #endif
 
+//op and eng rpm wave cofficient define
+// (0 - 500)=0.3, (500 - 1000) = 0.5
+// (1000 - 1500) = 0.7, (1500 - 5000) = 1
+#define WAVE_FACTOR_3 3
+#define WAVE_FACTOR_5 5
+#define WAVE_FACTOR_7 7
+#define WAVE_FACTOR_10 10
+
 // define the time clock reference
 static int axle_clock_cnt = 0;  //for axle gear
 static int op_clock_cnt = 0;    //for oil pump gear
@@ -37,9 +45,13 @@ static int op_tri_flag = 0;
 //for engine axle gear singal
 static int axle_cnt, op_cnt;
 static int prev_axle_cnt, prev_op_cnt;
+static volatile int eng_factor, op_factor;
+static volatile int eng_rpm, op_rpm, phase_diff, vss, tim_dc, hfmsig, hfmref;
+static int eng_speed, wtout;
 
-static int phase_diff;
-static int eng_rpm;
+//timer define for eng_speed and wtout
+static time_t eng_speed_timer;
+static time_t wtout_timer;
 
 //for mcamos defines, com between lcm and core board
 static struct mcamos_s lcm = {
@@ -59,12 +71,25 @@ void weifu_Init(void)
 	clock_Init();
 	axle_Init(0);
 	op_Init(0);
+	vss_Init();
+	wss_Init();
+	counter1_Init();
+	counter2_Init();
+	eng_speed_timer = time_get(1000);
+	wtout_timer = time_get(1000);
 
 	mcamos_init_ex(&lcm);
 	cfg_data.eng_speed = 500;
 	cfg_data.wtout = 300;
-
 	phase_diff = 2;
+	eng_factor = 10;
+	op_factor = 10;
+	vss = 0;
+	tim_dc = 0;
+	hfmsig = 0;
+	hfmref = 0;
+
+	simulator_Start();
 }
 
 void weifu_Update(void)
@@ -74,6 +99,58 @@ void weifu_Update(void)
 	if (eng_rpm != cfg_data.eng_rpm) {
 		clock_SetFreq(cfg_data.eng_rpm << 4);
 		eng_rpm = cfg_data.eng_rpm;
+		op_rpm = eng_rpm >> 1;
+
+		if (IS_IN_RANGE(eng_rpm, 0, 500)) {
+			eng_factor = WAVE_FACTOR_3;
+		} else if (IS_IN_RANGE(eng_rpm, 500, 1000)) {
+			eng_factor = WAVE_FACTOR_5;
+		} else if (IS_IN_RANGE(eng_rpm, 1000, 1500)) {
+			eng_factor = WAVE_FACTOR_7;
+		} else {
+			eng_factor = WAVE_FACTOR_10;
+		}
+
+		if (IS_IN_RANGE(op_rpm, 0, 500)) {
+			op_factor = WAVE_FACTOR_3;
+		} else if (IS_IN_RANGE(op_rpm, 500, 1000)) {
+			op_factor = WAVE_FACTOR_5;
+		} else if (IS_IN_RANGE(op_rpm, 1000, 1500)) {
+			op_factor = WAVE_FACTOR_7;
+		} else {
+			op_factor = WAVE_FACTOR_10;
+		}
+	}
+	if (phase_diff != cfg_data.phase_diff) {
+		phase_diff = cfg_data.phase_diff;
+	}
+	if (vss != cfg_data.vss) {        //need vss
+		vss = cfg_data.vss;
+		vss_SetFreq(vss);
+	}
+	if (tim_dc != cfg_data.tim_dc) {  //need pwm1
+		tim_dc = cfg_data.tim_dc;
+		pwm1_Init(250, tim_dc);
+	}
+	if (hfmsig != cfg_data.hfmsig) {  //need wss
+		hfmsig = cfg_data.hfmsig;
+		wss_SetFreq(hfmsig);
+	}
+	if (hfmref != cfg_data.hfmref) {  //need pwm2
+		hfmref = cfg_data.hfmref;
+		pwm2_Init(hfmref, 50);
+	}
+
+	//for eng_speed and wtout output 
+	if (time_left(eng_speed_timer) < 0) {
+		cfg_data.eng_speed = counter1_GetValue();
+		counter1_SetValue(0);
+		eng_speed_timer = time_get(1000);
+	}
+	if (time_left(wtout_timer) < 0) {
+		cfg_data.eng_speed = counter2_GetValue();
+		counter2_SetValue(0);
+		wtout_timer = time_get(1000);
 	}
 }
 
@@ -110,12 +187,12 @@ void weifu_isr(void)
 	result |= IS_IN_RANGE(axle_cnt, 119, 119);
 	if (!result) {
 		if (prev_axle_cnt != temp) {
-			axle_SetAmp(gear16[temp]);
+			axle_SetAmp((gear16[temp] * eng_factor) / 10);
 			prev_axle_cnt = temp;
 		}
 	} else {
 		if (prev_axle_cnt != temp) {
-			axle_SetAmp(gear16[0]);
+			axle_SetAmp((gear16[0] * eng_factor) / 10);
 			prev_axle_cnt = temp;
 		}
 	}
@@ -127,13 +204,13 @@ void weifu_isr(void)
 	result = IS_IN_RANGE(op_cnt, 36, 36);
 	if (result) {  //if hypodontia, output zero
 		if (prev_op_cnt != temp) {
-			op_SetAmp(gear52[0]);
+			op_SetAmp((gear52[0] * op_factor) / 10);
 			prev_op_cnt = temp;
 			op_tri_flag = 0;
 		}
 	} else {
 		if (prev_op_cnt != temp) {
-			op_SetAmp(gear52[temp]);
+			op_SetAmp((gear52[temp] * op_factor) / 10);
 			prev_op_cnt = temp;
 		}
 	}
@@ -173,13 +250,14 @@ static int weifu_mdelay(int ms)
 	return 0;
 }
 
+//how to handle the data, please see lcm mcamos server module.
 static int weifu_ConfigData(void)
 {
 	int ret = 0;
 	char lcm_cmd = LCM_CMD_READ;
 	//communication with the lcm board
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, &lcm_cmd, 1);
-	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, sizeof(cfg_data) - 6);
+	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, 12);
 	if (ret) {
 		DEBUG_TRACE(("##MCAMOS ERROR!##\n"));
 		return -1;
@@ -188,7 +266,7 @@ static int weifu_ConfigData(void)
 	lcm_cmd = LCM_CMD_WRITE;
 	//communication with the lcm board
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, &lcm_cmd, 1);
-	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR + 1, &cfg_data, sizeof(cfg_data));
+	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR + 1, &(cfg_data.eng_speed), 4);
 	if (ret) {
 		DEBUG_TRACE(("##MCAMOS ERROR!##\n"));
 		return -1;

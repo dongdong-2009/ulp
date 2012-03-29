@@ -32,13 +32,13 @@ static ad9833_t clock_dds = {
 };
 
 static ad9833_t vss_dds = {
-	.bus = &spi1,
+	.bus = &spi2,
 	.idx = SPI_CS_PB0, //real one
 	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
 
 static ad9833_t wss_dds = {
-	.bus = &spi1,
+	.bus = &spi2,
 	.idx = SPI_CS_PB1,
 	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
@@ -164,6 +164,16 @@ int counter1_GetValue(void)
 int counter2_GetValue(void)
 {
 	return counter22.get();
+}
+
+void counter1_SetValue(int value)
+{
+	counter11.set(value);
+}
+
+void counter2_SetValue(int value)
+{
+	counter22.set(value);
 }
 
 //pwm1 : TIM3_CH2
