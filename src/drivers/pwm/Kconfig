@@ -9,3 +9,4 @@ bool "enable pwm1, pwm10, ..." CONFIG_DRIVER_PWM1
 bool "enable pwm2, pwm20, ..." CONFIG_DRIVER_PWM2
 bool "enable pwm3, pwm30, ..." CONFIG_DRIVER_PWM3
 bool "enable pwm4, pwm40, ..." CONFIG_DRIVER_PWM4
+bool "enable pwm cmd         " CONFIG_DRIVER_PWM_CMD

@@ -10,7 +10,7 @@
 
 static void counter_init(const counter_cfg_t *cfg)
 {
-	RCC_APB2PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
 
 	TIM_TimeBaseStructure.TIM_Period = 65535;	//defalut TIM_Period is 65535
@@ -31,12 +31,12 @@ static void ch1_init(const counter_cfg_t *cfg)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 
-	/* Configure PA.8 as input floating */
+	/* Configure PA.0 as input floating */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	/*external clock mode 1 ,prescaler is off,clock edge is rising clock,input source is TI1_ED*/
+	/*external clock mode 1 ,prescaler is off,clock edge is rising clock,input source is TI1*/
 	TIM_TIxExternalClockConfig(TIMn, TIM_TIxExternalCLK1Source_TI1,TIM_ICPolarity_Rising, 0);
 	TIM_SetCounter(TIMn,0);
 	TIM_Cmd(TIMn, ENABLE);
@@ -52,12 +52,12 @@ static void ch2_init(const counter_cfg_t *cfg)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 
-	/* Configure PA.9 as input floating */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+	/* Configure PA.1 as input floating */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	/*external clock mode 1 ,prescaler is off,clock edge is rising clock,input source is TI1_ED*/
+	/*external clock mode 1 ,prescaler is off,clock edge is rising clock,input source is TI2*/
 	TIM_TIxExternalClockConfig(TIMn, TIM_TIxExternalCLK1Source_TI2,TIM_ICPolarity_Rising, 0);
 	TIM_SetCounter(TIMn,0);
 	TIM_Cmd(TIMn, ENABLE);
