@@ -259,38 +259,20 @@ int nrf_update(struct nrf_priv_s *priv)
 	//assert(chip != NULL);
 	onfail = pipe->onfail;
 
-
-	/* STATUS REG:  - | RX_DR | TX_DS | MAX_RT | RX_P_NO 3.. 1 | TX_FULL
-	The RX_DR IRQ is asserted by a new packet arrival event. The procedure for handling this interrupt
-	should be: 1) read payload through SPI, 2) clear RX_DR IRQ, 3) read FIFO_STATUS to check if there
-	are more payloads available in RX FIFO, 4) if there are more data in RX FIFO, repeat from 1)
-	*/
 	status = nrf_read_reg(STATUS);
 	fifo_status = nrf_read_reg(FIFO_STATUS);
-	nrf_write_reg(STATUS, status & (RX_DR | TX_DS | MAX_RT));
 
-	/*handle recv
-	prx: there's no enough space in rbuf, do not recv,
-	then prx will ignore,  which lead to ptx send fail and resend,
-	so there is two reason which may lead to ptx send fail:
-	1, prx lost link
-	2, prx rfifo full(maybe cpu is dead?:))
-
-	ptx: handle recv, from the ptx flow chart, the payload attached with ack may lost in case of ptx rxfifo is full???
-	because it doesn' check rxfifo is full or not, pls refer to chart page 31. From shockburst communication protocol point of view,
-	ptx cann't notice prx 'i'm full', that may lead to deadloop. So we need to check the rfifo to ensure we can recv before ptx send
-	the frame
-
-	ptx: there's no enough space in ptx rbuf, do not recv,
-	then ptx should give up send a frame at next step. */
-
+	//note: clear irq flag asap!!!
 	if(status & RX_DR) {
 		for(i = 0; i < 3; i ++) { //3 rx fifo
 			//bytes to recv
 			nrf_read_buf(R_RX_PL_WID, &n, 1);
-			if(n > 0 && buf_left(&pipe->rbuf) < n - 1) {
+			if(n > 0 && buf_left(&pipe->rbuf) < n - 1) { //data ready, but rbuf is full
 				break;
 			}
+
+			if(i == 0)
+				nrf_write_reg(STATUS, status & RX_DR);
 
 			//read the payload
 			nrf_read_buf(R_RX_PAYLOAD, frame, n);
@@ -313,31 +295,32 @@ int nrf_update(struct nrf_priv_s *priv)
 		}
 	}
 
-	//send, note: for ptx recv purpose, dummy frame should be sent periodly
-	if(1) { //if(status & (TX_DS|MAX_RT)) {
+	if(fifo_status & TX_FIFO_FULL) {
+		//send timeout???
+		if(status & MAX_RT) {
+			//resend last packet until timeout
+			ce_set(0);
+			//delay at least 10uS here ...
+			nrf_write_reg(STATUS, MAX_RT);
+			nrf_retry_update(pipe, 15);
+			ce_set(1);
+		}
+
+		if(pipe->timer == 0)
+			pipe->timer = time_get(pipe->timeout);
+		if(time_left(pipe->timer) < 0) { //timeout, flush?
+			ecode = WL_ERR_TX_TIMEOUT;
+			debug(1, "tx timeout(addr = 0x%08x)\n", pipe->addr);
+			onfail(ecode, pipe->addr);
+			pipe->timer = 0;
+		}
+	}
+	else {
+		//send, note: for ptx recv purpose, dummy frame should be sent periodly
+		if(status & TX_DS)
+			nrf_write_reg(STATUS, TX_DS);
+
 		for(i = 0; i < 3; i ++) {
-			fifo_status = nrf_read_reg(FIFO_STATUS);
-			if(status & MAX_RT) {
-				//resend last packet until timeout
-				ce_set(0);
-				//delay at least 10uS here ...
-				//nrf_write_reg(STATUS, MAX_RT);
-				nrf_retry_update(pipe, 15);
-				ce_set(1);
-			}
-
-			if(fifo_status & TX_FIFO_FULL) { // fifo is still full with the data loaded last time, check timeout timer
-				if(pipe->timer == 0)
-					pipe->timer = time_get(pipe->timeout);
-				if(time_left(pipe->timer) < 0) { //timeout, flush?
-					ecode = WL_ERR_TX_TIMEOUT;
-					debug(1, "tx timeout(addr = 0x%08x)\n", pipe->addr);
-					onfail(ecode, pipe->addr);
-					pipe->timer = 0;
-				}
-				break;
-			}
-
 			//start to send data
 			pipe->timer = 0;
 			if(pipe->cf != NULL)
