@@ -7,6 +7,16 @@
 #include "shell/cmd.h"
 #include <stdarg.h>
 #include <string.h>
+#include "sys/malloc.h"
+
+#define debug(lvl, ...) do { \
+	if(lvl >= 0) { \
+		console_set(NULL); \
+		printf("%s: ", __func__); \
+		printf(__VA_ARGS__); \
+		console_restore(); \
+	} \
+} while (0)
 
 static time_t nest_wl_timer;
 static unsigned nest_wl_fd;
@@ -51,7 +61,7 @@ int nest_wl_update(void)
 	char frame[33], n;
 	if(nest_wl_fd == 0)
 		return -1;
-
+#if 1
 	if(time_left(nest_wl_timer) < 0) {
 		/*add a unique value to timeout to avoid all nest request monitor at the same time*/
 		nest_wl_timer = time_get(NEST_WL_MS +(nest_wl_addr & 0x0fff));
@@ -64,7 +74,7 @@ int nest_wl_update(void)
 		dev_ioctl(nest_wl_fd, WL_SET_ADDR, NEST_WL_ADDR);
 		dev_ioctl(nest_wl_fd, WL_SET_MODE, WL_MODE_PTX); //ptx
 		dev_ioctl(nest_wl_fd, WL_START);
-		dev_ioctl(nest_wl_fd, WL_SEND, frame, 0);
+		dev_ioctl(nest_wl_fd, WL_SEND, frame, 100);
 
 		//change to normal mode
 		dev_ioctl(nest_wl_fd, WL_STOP);
@@ -72,6 +82,7 @@ int nest_wl_update(void)
 		dev_ioctl(nest_wl_fd, WL_SET_MODE, WL_MODE_PRX);
 		dev_ioctl(nest_wl_fd, WL_START);
 	}
+#endif
 	return 0;
 }
 
@@ -93,6 +104,15 @@ static int nest_wl_onfail(int ecode, ...)
 		if(frame[0] == WL_FRAME_PING) { //upa still remember me, hoho ...
 			nest_wl_timer = time_get(NEST_WL_MS + (nest_wl_addr & 0x1fff));
 		}
+		else { //display messy codes
+			char *str = sys_malloc(128);
+			int n = sprintf(str, "rx strange frame(%02x", frame[0]);
+			for(i = 1; i < n; i ++)
+				n += sprintf(str + n, " %02x", frame[i]);
+			sprintf(str + n, ")\n");
+			debug(1, "%s", str);
+			sys_free(str);
+		}
 		break;
 	default:
 		console_set(NULL);
@@ -112,29 +132,48 @@ static unsigned newbie[NSZ];
 static int cmd_monitor_func(int argc, char *argv[])
 {
 	const char *usage = {
-		"monitor newbie 1234567A		newbie nest request\n"
+		"monitor newbie 1234567A	newbie nest request\n"
 		"monitor report			report newbie list to upa\n"
-		"monitor shutup			to shut nest's mouth\n"
-		"monitor ping			periodically triged by upa\n"
+		"monitor wakeup/shutup/ping	normal nest wireless handshake signals\n"
+		"monitor set/clr		monitor function enable or disable\n"
 	};
 
-	if((argc == 2) && (!strcmp(argv[1], "ping"))) {
-		nest_wl_timer = time_get(NEST_WL_MS + (nest_wl_addr & 0x1fff));
-		return 0;
-	}
+	//update timer
+	int ms = time_left(nest_wl_timer);
+	ms = NEST_WL_MS + (nest_wl_addr & 0x1fff) - ms;
+	debug(1, "ms = %d\n", ms);
+	nest_wl_timer = time_get(NEST_WL_MS + (nest_wl_addr & 0x1fff));
 
-	if((argc == 2) && (!strcmp(argv[1], "shutup"))) {
-		printf("upa shutup\n");
-		return 0;
-	}
-
-	if((argc == 2) && (!strcmp(argv[1], "report"))) {
-		for(int i = 0; i < NSZ; i ++) {
-			if(newbie[i]) {
-				printf("monitor newbie %x\n", newbie[i]);
-				newbie[i] = 0;
-			}
+	//handle commands
+	if(argc == 2) {
+		if(!strcmp(argv[1], "help")) {
+			printf("%s", usage);
+			return 0;
 		}
+
+		if(!strcmp(argv[1], "report")) {
+			for(int i = 0; i < NSZ; i ++) {
+				if(newbie[i]) {
+					printf("monitor newbie %x\n", newbie[i]);
+					newbie[i] = 0;
+				}
+			}
+			printf("upa over\n");
+			return 0;
+		}
+
+		if(!strcmp(argv[1], "set")) { // i am the monitor :)
+			printf("upa %s\n", argv[1]);
+			return 0;
+		}
+
+		if(!strcmp(argv[1], "clr")) { // i am not the monitor any more :(
+			printf("upa %s\n", argv[1]);
+			return 0;
+		}
+
+		//echo back commands like "monitor wakeup/shutup/ping"
+		printf("upa %s\n", argv[1]);
 		return 0;
 	}
 
@@ -153,7 +192,6 @@ static int cmd_monitor_func(int argc, char *argv[])
 		return 0;
 	}
 
-	printf("%s", usage);
 	return 0;
 }
 
