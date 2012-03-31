@@ -265,6 +265,9 @@ int nrf_update(struct nrf_priv_s *priv)
 	//note: clear irq flag asap!!!
 	if(status & RX_DR) {
 		for(i = 0; i < 3; i ++) { //3 rx fifo
+			if(fifo_status & RX_FIFO_EMPTY)
+				break;
+
 			//bytes to recv
 			nrf_read_buf(R_RX_PL_WID, &n, 1);
 			if(n > 0 && buf_left(&pipe->rbuf) < n - 1) { //data ready, but rbuf is full
@@ -290,8 +293,6 @@ int nrf_update(struct nrf_priv_s *priv)
 
 			//are there any more data in fifo
 			fifo_status = nrf_read_reg(FIFO_STATUS);
-			if(fifo_status & RX_FIFO_EMPTY)
-				break;
 		}
 	}
 
