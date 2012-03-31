@@ -296,17 +296,17 @@ int nrf_update(struct nrf_priv_s *priv)
 		}
 	}
 
-	if(fifo_status & TX_FIFO_FULL) {
-		//send timeout???
-		if(status & MAX_RT) {
-			//resend last packet until timeout
-			ce_set(0);
-			//delay at least 10uS here ...
-			nrf_write_reg(STATUS, MAX_RT);
-			nrf_retry_update(pipe, 15);
-			ce_set(1);
-		}
+	//send timeout???
+	if(status & MAX_RT) {
+		//resend last packet until timeout
+		ce_set(0);
+		//delay at least 10uS here ...
+		nrf_write_reg(STATUS, MAX_RT);
+		nrf_retry_update(pipe, 15);
+		ce_set(1);
+	}
 
+	if(fifo_status & TX_FIFO_FULL) {
 		if(pipe->timer == 0)
 			pipe->timer = time_get(pipe->timeout);
 		if(time_left(pipe->timer) < 0) { //timeout, flush?
@@ -443,9 +443,10 @@ static int nrf_ioctl(int fd, int request, va_list args)
 	assert(chip != NULL);
 
 	int (*onfail)(int ecode, ...);
-	char mode;
+	char mode, fifo_status;
 	unsigned addr, *p, retry, times;
 	int freq, ms;
+	time_t deadline;
 
 	int ret = 0;
 	switch(request) {
@@ -501,15 +502,24 @@ static int nrf_ioctl(int fd, int request, va_list args)
 	case WL_SEND: //to send a custom frame in blocked, unbuffered method
 		pipe->cf = va_arg(args, char *);
 		ms = va_arg(args, int);
-		while((pipe->cf != NULL) && (ms >= 0)) {
+		deadline = time_get(ms);
+		do {
 			nrf_update(priv);
-			ms --;
-		}
+			if(pipe->cf == NULL)
+				break;
+		} while(time_left(deadline) >= 0);
 		break;
 	case WL_START:
 		ce_set(1);
 		break;
 	case WL_STOP:
+		//try our best to send all the data before stop
+		deadline = time_get(10);
+		do {
+			fifo_status = nrf_read_reg(FIFO_STATUS);
+			if((fifo_status & TX_FIFO_EMPTY) && (fifo_status & RX_FIFO_EMPTY))
+				break;
+		} while(time_left(deadline) >= 0);
 		ce_set(0);
 		break;
 	default:
