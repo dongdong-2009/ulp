@@ -324,28 +324,39 @@ int nrf_update(struct nrf_priv_s *priv)
 		for(i = 0; i < 3; i ++) {
 			//start to send data
 			pipe->timer = 0;
-			if(pipe->cf != NULL)
-				break;
-
 			if(chip->mode & WL_MODE_PRX) { //prx mode send data
-				frame[0] = WL_FRAME_DATA;
-				n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
-				n = buf_pop(&pipe->tbuf, frame + 1, n);
+				if(pipe->cf != NULL) {
+					n = pipe->cf[0];
+					memcpy(frame, pipe->cf + 1, n);
+					pipe->cf = NULL;
+				}
+				else {
+					frame[0] = WL_FRAME_DATA;
+					n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
+					n = buf_pop(&pipe->tbuf, frame + 1, n);
+				}
+
+				//send
 				if(n > 0) {
 					nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
-					//nrf_write_reg(STATUS, TX_DS);
 				}
 			}
 			else { //ptx mode send data, be care of ack_with_payload issue
-				frame[0] = WL_FRAME_DATA;
-				n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
-				if(n > 0)
-					n = n + 1; // please add a break point here!!!  :)
-				else
-					n = 1;
+				if(pipe->cf != NULL) {
+					n = pipe->cf[0];
+					memcpy(frame, pipe->cf + 1, n);
+					pipe->cf = NULL;
+				}
+				else {
+					frame[0] = WL_FRAME_DATA;
+					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
+					if(n > 0)
+						n = n + 1; // please add a break point here!!!  :)
+					else
+						n = 1;
+				}
 				nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
 				nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
-				//nrf_write_reg(STATUS, TX_DS);
 			}
 
 			//no more data to send
@@ -357,80 +368,6 @@ int nrf_update(struct nrf_priv_s *priv)
 				break;
 		}
 	}
-
-	//prx send custom frame
-	if(pipe->cf != NULL && chip->mode == WL_MODE_PRX) {
-		if(fifo_status & TX_FIFO_EMPTY) {
-			n = pipe->cf[0];
-			memcpy(frame, pipe->cf, n);
-			nrf_write_buf(W_ACK_PAYLOAD(0), frame, n);
-			//nrf_write_reg(STATUS, TX_DS);
-
-			//wait until send out or max rt
-			pipe->timer = time_get(pipe->cf_timeout);
-			while(1) {
-				status = nrf_read_reg(STATUS);
-				if(status & TX_DS) { //success
-					nrf_write_reg(STATUS, TX_DS);
-					pipe->cf = NULL;
-					pipe->cf_ecode = 0;
-					break;
-				}
-
-				if(time_left(pipe->timer) < 0) { //send timeout
-					nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
-					pipe->timer = 0;
-					pipe->cf = NULL;
-					pipe->cf_ecode = WL_ERR_TX_TIMEOUT;
-					break;
-				}
-			}
-			pipe->timer = 0;
-		}
-		return 0;
-	}
-
-	//ptx send custom frame
-	if(pipe->cf != NULL && chip->mode == WL_MODE_PTX) {
-		if(fifo_status & TX_FIFO_EMPTY) {
-			n = pipe->cf[0];
-			memcpy(frame, pipe->cf + 1, n);
-			nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
-			nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
-			//nrf_write_reg(STATUS, TX_DS);
-			//wait until send out or max rt
-			pipe->timer = time_get(pipe->cf_timeout);
-			while(1) {
-				status = nrf_read_reg(STATUS);
-				if(status & TX_DS) { //success
-					nrf_write_reg(STATUS, TX_DS);
-					pipe->cf = NULL;
-					pipe->cf_ecode = 0;
-					break;
-				}
-				if(status & MAX_RT) { //fail, resend until timeout
-					if(time_left(pipe->timer) > 0) {
-						ce_set(0);
-						//delay at least 10uS here ...
-						nrf_write_reg(STATUS, MAX_RT);
-						nrf_retry_update(pipe, 15);
-						ce_set(1);
-					}
-				}
-				if(time_left(pipe->timer) <= 0) { //send timeout
-					nrf_write_reg(STATUS, MAX_RT);
-					nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
-					pipe->timer = 0;
-					pipe->cf = NULL;
-					pipe->cf_ecode = WL_ERR_TX_TIMEOUT;
-					break;
-				}
-			}
-			pipe->timer = 0;
-		}
-		return 0;
-	}
-
 	return 0;
 }
 
@@ -508,7 +445,7 @@ static int nrf_ioctl(int fd, int request, va_list args)
 	int (*onfail)(int ecode, ...);
 	char mode;
 	unsigned addr, *p, retry, times;
-	int freq;
+	int freq, ms;
 
 	int ret = 0;
 	switch(request) {
@@ -563,13 +500,11 @@ static int nrf_ioctl(int fd, int request, va_list args)
 
 	case WL_SEND: //to send a custom frame in blocked, unbuffered method
 		pipe->cf = va_arg(args, char *);
-		pipe->cf_timeout = (char) va_arg(args, int);
-		while(1) {
+		ms = va_arg(args, int);
+		while((pipe->cf != NULL) && (ms >= 0)) {
 			nrf_update(priv);
-			if(pipe->cf == NULL)
-				break;
+			ms --;
 		}
-		ret = pipe->cf_ecode;
 		break;
 	case WL_START:
 		ce_set(1);
