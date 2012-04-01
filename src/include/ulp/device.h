@@ -42,11 +42,14 @@ static inline int dev_priv_set(int fd, void *priv) {
 
 /*name is something like 'uart0'(class name + index) or 'uart_stm32.0'(device name)*/
 int dev_open(const char *name, const char *mode); //success return handle, fail 0
+int dev_close(int fd);
+
 int dev_ioctl(int fd, int request, ...); //return value is determined by specific implementation
 int dev_poll(int fd, int event); //return bytes on the queue
+
+//blocked read/write operation, you may call dev_poll to avoid deadlock
 int dev_read(int fd, void *buf, int count); //return bytes read
 int dev_write(int fd, const void *buf, int count); //return bytes write
-int dev_close(int fd);
 
 //match the driver automatically
 int dev_register(const char *name, const void *pcfg); //success return 0

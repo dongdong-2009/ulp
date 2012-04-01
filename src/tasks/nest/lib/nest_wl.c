@@ -67,14 +67,13 @@ int nest_wl_update(void)
 		nest_wl_timer = time_get(NEST_WL_MS +(nest_wl_addr & 0x0fff));
 
 		//ping frame has not been received in timeout period, re connect ...
-		n = sprintf(frame + 2, "monitor newbie %x\r", nest_wl_addr);
-		frame[0] = n + 2; //wl frame length
-		frame[1] = WL_FRAME_DATA;
 		dev_ioctl(nest_wl_fd, WL_STOP);
 		dev_ioctl(nest_wl_fd, WL_SET_ADDR, NEST_WL_ADDR);
 		dev_ioctl(nest_wl_fd, WL_SET_MODE, WL_MODE_PTX); //ptx
 		dev_ioctl(nest_wl_fd, WL_START);
-		dev_ioctl(nest_wl_fd, WL_SEND, frame, 100);
+		n = sprintf(frame, "monitor newbie %x\r", nest_wl_addr);
+		dev_write(nest_wl_fd, frame, n);
+		dev_ioctl(nest_wl_fd, WL_SYNC);
 
 		//change to normal mode
 		dev_ioctl(nest_wl_fd, WL_STOP);

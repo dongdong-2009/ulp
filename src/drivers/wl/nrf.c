@@ -43,15 +43,11 @@ struct nrf_pipe_s {
 	unsigned short retry; //for signal quanlity check, for ptx usage only
 	unsigned short retry_times;
 	unsigned short timeout; // unit: ms
-	unsigned char cf_timeout; //custom frame send timeout
-	unsigned char cf_ecode; //custom frame err code
 	time_t timer; //send timer for both ptx and prx mode, it counts the ms elapsed that hw tx fifo keeps full
 	unsigned addr; //note: only low 8 bit effective in case not pipe0
 	circbuf_t tbuf; //mv to hw fifo by poll()
 	circbuf_t rbuf; //mv from hw fifo by poll()
-	struct list_head list;
 	int (*onfail)(int ecode, ...); //exception process func
-	char *cf; //custom frame to be sent, will be modified to NULL when sent
 };
 
 struct nrf_chip_s {
@@ -245,7 +241,8 @@ int nrf_flush(struct nrf_priv_s *priv)
 	return 0;
 }
 
-int nrf_update(struct nrf_priv_s *priv)
+/*para sync_mode is for ioctl cmd WL_SYNC use*/
+int nrf_update(struct nrf_priv_s *priv, int sync_mode)
 {
 	struct nrf_pipe_s *pipe;
 	struct nrf_chip_s *chip;
@@ -325,16 +322,9 @@ int nrf_update(struct nrf_priv_s *priv)
 			//start to send data
 			pipe->timer = 0;
 			if(chip->mode & WL_MODE_PRX) { //prx mode send data
-				if(pipe->cf != NULL) {
-					n = pipe->cf[0];
-					memcpy(frame, pipe->cf + 1, n);
-					pipe->cf = NULL;
-				}
-				else {
-					frame[0] = WL_FRAME_DATA;
-					n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
-					n = buf_pop(&pipe->tbuf, frame + 1, n);
-				}
+				frame[0] = WL_FRAME_DATA;
+				n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
+				n = buf_pop(&pipe->tbuf, frame + 1, n);
 
 				//send
 				if(n > 0) {
@@ -342,21 +332,18 @@ int nrf_update(struct nrf_priv_s *priv)
 				}
 			}
 			else { //ptx mode send data, be care of ack_with_payload issue
-				if(pipe->cf != NULL) {
-					n = pipe->cf[0];
-					memcpy(frame, pipe->cf + 1, n);
-					pipe->cf = NULL;
+				frame[0] = WL_FRAME_DATA;
+				n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
+				if(n > 0)
+					n = n + 1; // please add a break point here!!!  :)
+				else if(sync_mode != 0)
+					n = 0;
+				else
+					n = 1;
+				if(n > 0) {
+					nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
+					nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
 				}
-				else {
-					frame[0] = WL_FRAME_DATA;
-					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
-					if(n > 0)
-						n = n + 1; // please add a break point here!!!  :)
-					else
-						n = 1;
-				}
-				nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
-				nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
 			}
 
 			//no more data to send
@@ -399,7 +386,6 @@ static int nrf_init(int fd, const void *pcfg)
 	nrf_retry_init(pipe);
 	buf_init(&pipe->tbuf, CONFIG_WL_TBUF_SZ);
 	buf_init(&pipe->rbuf, CONFIG_WL_RBUF_SZ);
-	INIT_LIST_HEAD(&pipe->list);
 
 	//init chip
 	chip->spi = cfg->spi;
@@ -408,10 +394,7 @@ static int nrf_init(int fd, const void *pcfg)
 	chip->gpio_irq = cfg->gpio_irq;
 	chip->mode = WL_MODE_PRX; //default to prx mode
 	chip->freq = CONFIG_WL_MHZ; //unit: MHz
-	INIT_LIST_HEAD(&chip->pipes);
-	list_add_tail(&pipe->list, &chip->pipes);
 	pipe->onfail = nrf_onfail; //default onfail func
-	pipe->cf = NULL;
 
 	//priv
 	priv->chip = chip;
@@ -447,6 +430,7 @@ static int nrf_ioctl(int fd, int request, va_list args)
 	unsigned addr, *p, retry, times;
 	int freq, ms;
 	time_t deadline;
+	unsigned char n;
 
 	int ret = 0;
 	switch(request) {
@@ -494,32 +478,20 @@ static int nrf_ioctl(int fd, int request, va_list args)
 		*p = retry;
 		nrf_retry_init(pipe);
 		break;
-
+	case WL_SYNC:
+		do {
+			nrf_update(priv, 1);
+			fifo_status = nrf_read_reg(FIFO_STATUS);
+			fifo_status &= TX_FIFO_EMPTY;
+		} while(buf_size(&pipe->tbuf) > 0 || fifo_status != TX_FIFO_EMPTY);
+		break;
 	case WL_FLUSH:
 		nrf_flush(priv);
-		break;
-
-	case WL_SEND: //to send a custom frame in blocked, unbuffered method
-		pipe->cf = va_arg(args, char *);
-		ms = va_arg(args, int);
-		deadline = time_get(ms);
-		do {
-			nrf_update(priv);
-			if(pipe->cf == NULL)
-				break;
-		} while(time_left(deadline) >= 0);
 		break;
 	case WL_START:
 		ce_set(1);
 		break;
 	case WL_STOP:
-		//try our best to send all the data before stop
-		deadline = time_get(10);
-		do {
-			fifo_status = nrf_read_reg(FIFO_STATUS);
-			if((fifo_status & TX_FIFO_EMPTY) && (fifo_status & RX_FIFO_EMPTY))
-				break;
-		} while(time_left(deadline) >= 0);
 		ce_set(0);
 		break;
 	default:
@@ -537,7 +509,7 @@ static int nrf_poll(int fd, int event)
 	pipe = priv->pipe;
 	assert(pipe != NULL);
 
-	nrf_update(priv);
+	nrf_update(priv, 0);
 
 	int bytes = 0;
 	bytes = (event == POLLIN) ? buf_size(&pipe->rbuf) : bytes;
@@ -554,10 +526,15 @@ static int nrf_read(int fd, void *buf, int count)
 	assert(priv != NULL);
 	pipe = priv->pipe;
 	assert(pipe != NULL);
-	nrf_update(priv);
-	int n = buf_size(&pipe->rbuf);
-	n = (n < count) ? n : count; //!!!warnning: data may lost here
-	buf_pop(&pipe->rbuf, buf, n);
+
+	int n = 0, bytes;
+	while(n < count) {
+		bytes = buf_size(&pipe->rbuf);
+		bytes = (bytes < count - n) ? bytes : count - n;
+		buf_pop(&pipe->rbuf, (char *)buf + n, bytes);
+		n += bytes;
+		nrf_update(priv, 0);
+	}
 	return n;
 }
 
@@ -569,10 +546,14 @@ static int nrf_write(int fd, const void *buf, int count)
 	pipe = priv->pipe;
 	assert(pipe != NULL);
 
-	nrf_update(priv);
-	int n = buf_left(&pipe->tbuf);
-	n = (n < count) ? n : count; //!!!warnning: data may lost here
-	buf_push(&pipe->tbuf, buf, n);
+	int n = 0, bytes;
+	while(n < count) {
+		bytes = buf_left(&pipe->tbuf);
+		bytes = (bytes < (count - n)) ? bytes : (count - n);
+		buf_push(&pipe->tbuf, (char *)buf + n, bytes);
+		n += bytes;
+		nrf_update(priv, 0);
+	}
 	return n;
 }
 
