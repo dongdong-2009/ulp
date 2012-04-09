@@ -21,21 +21,12 @@
 static time_t nest_wl_timer;
 static unsigned nest_wl_fd;
 static unsigned nest_wl_addr;
+static struct console_s *nest_wl_cnsl;
 
 static int nest_wl_onfail(int ecode, ...);
 
-int nest_wl_init(void)
+int nest_wl_start(void)
 {
-	struct console_s *cnsl;
-	static const struct nrf_cfg_s nrf_cfg = {
-		.spi = &spi1,
-		.gpio_cs = SPI_1_NSS,
-		.gpio_ce = SPI_CS_PA12,
-	};
-	nest_wl_timer = 0;
-	nest_wl_addr = *(unsigned *) 0x1ffff7e8; /*u_id 31:0*/
-
-	dev_register("nrf", &nrf_cfg);
 	nest_wl_fd = dev_open("wl0", 0);
 	if(nest_wl_fd == 0) {
 		printf("init: device wl0 open failed!!!\n");
@@ -47,12 +38,26 @@ int nest_wl_init(void)
 	dev_ioctl(nest_wl_fd, WL_ERR_TXMS, NEST_WL_TXMS);
 	dev_ioctl(nest_wl_fd, WL_ERR_FUNC, nest_wl_onfail);
 
-	cnsl = console_register(nest_wl_fd);
-	assert(cnsl != NULL);
-	shell_register(cnsl);
-	shell_mute(cnsl);
+	nest_wl_cnsl = console_register(nest_wl_fd);
+	assert(nest_wl_cnsl != NULL);
+	shell_register(nest_wl_cnsl);
+	shell_mute(nest_wl_cnsl);
 	dev_ioctl(nest_wl_fd, WL_FLUSH);
 	return 0;
+}
+
+int nest_wl_init(void)
+{
+	static const struct nrf_cfg_s nrf_cfg = {
+		.spi = &spi1,
+		.gpio_cs = SPI_1_NSS,
+		.gpio_ce = SPI_CS_PA12,
+	};
+	nest_wl_timer = 0;
+	nest_wl_addr = *(unsigned *) 0x1ffff7e8; /*u_id 31:0*/
+
+	dev_register("nrf", &nrf_cfg);
+	return nest_wl_start();
 }
 
 /*wireless console realize*/
@@ -61,7 +66,7 @@ int nest_wl_update(void)
 	char frame[33], n;
 	if(nest_wl_fd == 0)
 		return -1;
-#if 1
+
 	if(time_left(nest_wl_timer) < 0) {
 		/*add a unique value to timeout to avoid all nest request monitor at the same time*/
 		nest_wl_timer = time_get(NEST_WL_MS +(nest_wl_addr & 0x0fff));
@@ -81,7 +86,6 @@ int nest_wl_update(void)
 		dev_ioctl(nest_wl_fd, WL_SET_MODE, WL_MODE_PRX);
 		dev_ioctl(nest_wl_fd, WL_START);
 	}
-#endif
 	return 0;
 }
 
@@ -135,6 +139,7 @@ static int cmd_monitor_func(int argc, char *argv[])
 		"monitor report			report newbie list to upa\n"
 		"monitor wakeup/shutup/ping	normal nest wireless handshake signals\n"
 		"monitor set/clr		monitor function enable or disable\n"
+		"monitor stop/start		stop/start nest wireless\n"
 	};
 
 	//update timer
@@ -147,6 +152,26 @@ static int cmd_monitor_func(int argc, char *argv[])
 	if(argc == 2) {
 		if(!strcmp(argv[1], "help")) {
 			printf("%s", usage);
+			return 0;
+		}
+
+		if(!strcmp(argv[1], "start")) {
+			if(nest_wl_fd == 0) {
+				nest_wl_start();
+			}
+			return 0;
+		}
+
+		if(!strcmp(argv[1], "stop")) {
+			if(nest_wl_fd != 0) {
+				shell_unregister(nest_wl_cnsl);
+				console_unregister(nest_wl_cnsl);
+				dev_ioctl(nest_wl_fd, WL_STOP);
+				dev_ioctl(nest_wl_fd, WL_ERR_FUNC, NULL);
+				dev_close(nest_wl_fd);
+				nest_wl_fd = 0;
+				nest_wl_cnsl = NULL;
+			}
 			return 0;
 		}
 
