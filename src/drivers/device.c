@@ -111,14 +111,13 @@ int dev_open(const char *name, const char *mode)
 	if(dev == NULL)
 		dev = dev_get(name);
 
-	if(dev == NULL)
+	if(dev == NULL || dev->ref > 0) {
+		assert(1 == 0); //dev open fail, for debug purpose
 		return 0;
+	}
 
 	if(dev->pdrv == NULL) //no driver found
 		return 0;
-
-	if(dev->ref > 0)
-		return (int)dev; //shared open are not allowed yet
 
 	open = dev->pdrv->ops->open;
 	if(open != NULL) {
