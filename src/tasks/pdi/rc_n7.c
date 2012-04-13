@@ -326,6 +326,8 @@ static int rc_check_init(const struct pdi_cfg_s *sr)
 	mbi5025_WriteByte(&pdi_mbi5025, *(p+2));
 	mbi5025_WriteByte(&pdi_mbi5025, *(p+1));
 	mbi5025_WriteByte(&pdi_mbi5025, *(p+0));
+	spi_cs_set(pdi_mbi5025.load_pin, 1);
+	spi_cs_set(pdi_mbi5025.load_pin, 0);
 	return 0;
 }
 
