@@ -53,17 +53,17 @@ void mbi5025_DisableOE(const mbi5025_t *chip)
 	spi_cs_set(chip->oe_pin, 1);
 }
 
-#if 0
+#if 1
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 static mbi5025_t sr = {
-	.bus = &spi2,
+	.bus = &spi1,
 	.idx = SPI_CS_DUMMY,
-	.load_pin = SPI_CS_PD8,
-	.oe_pin = SPI_CS_PD9,
+	.load_pin = SPI_CS_PC3,
+	.oe_pin = SPI_CS_PC4,
 };
 
 static int cmd_mbi5025_func(int argc, char *argv[])

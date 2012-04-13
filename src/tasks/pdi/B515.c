@@ -381,6 +381,8 @@ static int b515_check_init(const struct pdi_cfg_s *sr)
 	mbi5025_WriteByte(&pdi_mbi5025, *(p+2));
 	mbi5025_WriteByte(&pdi_mbi5025, *(p+1));
 	mbi5025_WriteByte(&pdi_mbi5025, *(p+0));
+	spi_cs_set(pdi_mbi5025.load_pin, 1);
+	spi_cs_set(pdi_mbi5025.load_pin, 0);
 	return 0;
 }
 
@@ -466,10 +468,10 @@ void pdi_init(void)
 		.baud = 500000,
 	};
 
-	pdi_drv_Init();//led,beep
-	mbi5025_Init(&pdi_mbi5025);//SPI总线	移位寄存器
+	pdi_drv_Init();					//led,beep
+	mbi5025_Init(&pdi_mbi5025);		//SPI总线	移位寄存器
 	mbi5025_EnableOE(&pdi_mbi5025);
-	ls1203_Init(&pdi_ls1203);//scanner
+	ls1203_Init(&pdi_ls1203);		//scanner
 	pdi_can_bus->init(&cfg_pdi_can);
 	usdt_Init(pdi_can_bus);
 }
