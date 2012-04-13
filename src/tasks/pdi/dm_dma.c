@@ -18,12 +18,14 @@
 #define PDI_DEBUG	0					//DEBUG MODEL
 
 static const can_msg_t dm_clrdtc_msg =		{0x607, 8, {0x04, 0x2e, 0xfe, 0x90, 0xaa, 0, 0, 0}, 0};
+#if PDI_DEBUG
 static const can_msg_t dm_errcode_msg =		{0x607, 8, {0x03, 0x22, 0xfe, 0x80, 0, 0, 0, 0}, 0};
 static const can_msg_t dm_getsn_msg =		{0x607, 8, {0x03, 0x22, 0xfe, 0x8d, 0, 0, 0, 0}, 0};
+static const can_msg_t dm_part_msg =		{0x7D2, 8, {0x03, 0x22, 0xF1, 0x00, 0x55, 0x55, 0x55, 0x55}, 0};
+#endif
 static const can_msg_t dm_reqseed_msg =		{0x607, 8, {0x02, 0x27, 0x7d, 0, 0, 0, 0, 0}, 0};
 static const can_msg_t dm_start_msg1 =		{0x607, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
 static const can_msg_t dm_start_msg2 =		{0x7D2, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
-static const can_msg_t dm_part_msg =		{0x7D2, 8, {0x03, 0x22, 0xF1, 0x00, 0x55, 0x55, 0x55, 0x55}, 0};
 static const can_msg_t dm_7D2_msg =			{0x7D2, 8, {0x30, 0, 0, 0, 0, 0, 0, 0},0};
 
 static const mbi5025_t pdi_mbi5025 = {
@@ -368,11 +370,11 @@ static int pdi_pass_action()
 	dm_mdelay(20);
 	printf("##START##EC-Test Result : No Error...##END##\n");
 	counter_pass_add();
-	dm_mdelay(1000);
+	dm_mdelay(800);
 	beep_off();
-	dm_mdelay(200);
+	dm_mdelay(130);
 	beep_on();
-	dm_mdelay(1000);
+	dm_mdelay(800);
 	beep_off();
 	return 0;
 }
@@ -520,7 +522,10 @@ static int dm_esc_check()
 			b = 1;
 			break;
 		}
-		if((a == 1)&&(b == 1)) return 0;
+		if((a == 1)&&(b == 1)) {
+			printf("##START##EC-      Checking ESC done...##END##\n");
+			return 0;
+		}
 		else continue;
 	}
 	return 0;
@@ -636,7 +641,7 @@ static int dm_check(const struct pdi_cfg_s *sr)
 		}
 	}
 
-	printf("##START##EC-      Checking ESC done...##END##\n");
+	esc_flag = 1;
 
 	if(dm_StartSession_2()) {
 		printf("##START##EC-Start error...##END##\n");
@@ -703,11 +708,11 @@ static void dm_process(void)
 		bcode[5] = '\0';
 
 		//some verites need esc check
-		if (memcmp(bcode + 3, "DL", 2) == 0)
+		if (memcmp(bcode + 2, "C", 1) == 0)
 			esc_flag = 0;
-		if (memcmp(bcode + 3, "DK", 2) == 0)
+		if (memcmp(bcode + 2, "A", 1) == 0)
 			esc_flag = 0;
-		if (memcmp(bcode + 3, "PK", 2) == 0)
+		if (memcmp(bcode + 2, "E", 1) == 0)
 			esc_flag = 0;
 
 		printf("##START##STATUS-5##END##\n");
