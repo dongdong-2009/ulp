@@ -30,6 +30,15 @@
 #include "sys/malloc.h"
 #include <string.h>
 
+#define debug(lvl, ...) do { \
+	if(lvl >= 2) { \
+		console_set(NULL); \
+		printf("%s: ", __func__); \
+		printf(__VA_ARGS__); \
+		console_restore(); \
+	} \
+} while (0)
+
 struct nrf_pipe_s {
 	unsigned short retry; //for signal quanlity check, for ptx usage only
 	unsigned short retry_times;
@@ -242,7 +251,7 @@ int nrf_update(struct nrf_priv_s *priv)
 	struct nrf_chip_s *chip;
 	char status, fifo_status, n, frame[32];
 	int (*onfail)(int ecode, ...);
-	int rbuf_full = 0, ecode = WL_ERR_OK;
+	int i, ecode = WL_ERR_OK;
 	//assert(priv != NULL);
 	pipe = priv->pipe;
 	//assert(pipe != NULL);
@@ -250,106 +259,92 @@ int nrf_update(struct nrf_priv_s *priv)
 	//assert(chip != NULL);
 	onfail = pipe->onfail;
 
-
-	/* STATUS REG:  - | RX_DR | TX_DS | MAX_RT | RX_P_NO 3.. 1 | TX_FULL
-	The RX_DR IRQ is asserted by a new packet arrival event. The procedure for handling this interrupt
-	should be: 1) read payload through SPI, 2) clear RX_DR IRQ, 3) read FIFO_STATUS to check if there
-	are more payloads available in RX FIFO, 4) if there are more data in RX FIFO, repeat from 1)
-	*/
 	status = nrf_read_reg(STATUS);
 	fifo_status = nrf_read_reg(FIFO_STATUS);
 
-	/*handle recv
-	prx: there's no enough space in rbuf, do not recv,
-	then prx will ignore,  which lead to ptx send fail and resend,
-	so there is two reason which may lead to ptx send fail:
-	1, prx lost link
-	2, prx rfifo full(maybe cpu is dead?:))
-
-	ptx: handle recv, from the ptx flow chart, the payload attached with ack may lost in case of ptx rxfifo is full???
-	because it doesn' check rxfifo is full or not, pls refer to chart page 31. From shockburst communication protocol point of view,
-	ptx cann't notice prx 'i'm full', that may lead to deadloop. So we need to check the rfifo to ensure we can recv before ptx send
-	the frame
-
-	ptx: there's no enough space in ptx rbuf, do not recv,
-	then ptx should give up send a frame at next step. */
-
+	//note: clear irq flag asap!!!
 	if(status & RX_DR) {
-		do {
-			//handle recv
+		for(i = 0; i < 3; i ++) { //3 rx fifo
+			//bytes to recv
 			nrf_read_buf(R_RX_PL_WID, &n, 1);
+			if(n > 0 && buf_left(&pipe->rbuf) < n - 1) { //data ready, but rbuf is full
+				break;
+			}
+
+			if(i == 0)
+				nrf_write_reg(STATUS, status & RX_DR);
+
+			//read the payload
+			nrf_read_buf(R_RX_PAYLOAD, frame, n);
 			if(n > 0) {
-				if(buf_left(&pipe->rbuf) < n - 1) {
-					rbuf_full = 1;
-					break;
-				}
-				nrf_read_buf(R_RX_PAYLOAD, frame, n);
-				nrf_write_reg(STATUS, RX_DR);
 				if(frame[0] == WL_FRAME_DATA) {
 					if(n > 1)
 						buf_push(&pipe->rbuf, frame + 1, n - 1);
 				}
 				else {
 					ecode = WL_ERR_RX_FRAME;
+					debug(1, "rx strange frame\n");
 					onfail(ecode, frame, n);
 				}
 			}
-			else {
-				ecode = WL_ERR_RX_HW;
-				onfail(ecode);
-			}
-		fifo_status = nrf_read_reg(FIFO_STATUS);
-		} while(!(fifo_status & RX_FIFO_EMPTY));
+
+			//are there any more data in fifo
+			fifo_status = nrf_read_reg(FIFO_STATUS);
+			if(fifo_status & RX_FIFO_EMPTY)
+				break;
+		}
 	}
 
-	//send
-	fifo_status = nrf_read_reg(FIFO_STATUS);
-	if(1) { //if(status & (TX_DS|MAX_RT)) {
-		do {
-			if(status & MAX_RT) {
-				//resend until timeout
-				ce_set(0);
-				//delay at least 10uS here ...
-				nrf_write_reg(STATUS, MAX_RT);
-				nrf_retry_update(pipe, 15);
-				ce_set(1);
-			}
+	if(fifo_status & TX_FIFO_FULL) {
+		//send timeout???
+		if(status & MAX_RT) {
+			//resend last packet until timeout
+			ce_set(0);
+			//delay at least 10uS here ...
+			nrf_write_reg(STATUS, MAX_RT);
+			nrf_retry_update(pipe, 15);
+			ce_set(1);
+		}
 
-			if(fifo_status & TX_FIFO_FULL) {
-				if(pipe->timer == 0)
-					pipe->timer = time_get(pipe->timeout);
-				if(time_left(pipe->timer) < 0) { //timeout, flush?
-					ecode = WL_ERR_TX_TIMEOUT;
-					onfail(ecode, pipe->addr);
-					pipe->timer = 0;
-				}
-				break;
-			}
+		if(pipe->timer == 0)
+			pipe->timer = time_get(pipe->timeout);
+		if(time_left(pipe->timer) < 0) { //timeout, flush?
+			ecode = WL_ERR_TX_TIMEOUT;
+			debug(1, "tx timeout(addr = 0x%08x)\n", pipe->addr);
+			onfail(ecode, pipe->addr);
+			pipe->timer = 0;
+		}
+	}
+	else {
+		//send, note: for ptx recv purpose, dummy frame should be sent periodly
+		if(status & TX_DS)
+			nrf_write_reg(STATUS, TX_DS);
+
+		for(i = 0; i < 3; i ++) {
+			//start to send data
 			pipe->timer = 0;
 			if(pipe->cf != NULL)
 				break;
 
-			if(chip->mode & WL_MODE_PRX) {
+			if(chip->mode & WL_MODE_PRX) { //prx mode send data
 				frame[0] = WL_FRAME_DATA;
 				n = (chip->mode & WL_MODE_1MBPS) ? 31 : 14;
 				n = buf_pop(&pipe->tbuf, frame + 1, n);
 				if(n > 0) {
 					nrf_write_buf(W_ACK_PAYLOAD(0), frame, n + 1); //nrf count the bytes automatically
-					nrf_write_reg(STATUS, TX_DS);
+					//nrf_write_reg(STATUS, TX_DS);
 				}
 			}
-			else {
-				if(!rbuf_full) { //no space to recv now
-					frame[0] = WL_FRAME_DATA;
-					n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
-					if(n > 0)
-						n = n + 1; // please add a break point here!!!  :)
-					else
-						n = 1;
-					nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
-					nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
-					nrf_write_reg(STATUS, TX_DS);
-				}
+			else { //ptx mode send data, be care of ack_with_payload issue
+				frame[0] = WL_FRAME_DATA;
+				n = buf_pop(&pipe->tbuf, frame + 1, 31); //!!! alway send a frame event n == 0
+				if(n > 0)
+					n = n + 1; // please add a break point here!!!  :)
+				else
+					n = 1;
+				nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
+				nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
+				//nrf_write_reg(STATUS, TX_DS);
 			}
 
 			//no more data to send
@@ -357,7 +352,9 @@ int nrf_update(struct nrf_priv_s *priv)
 				break;
 
 			fifo_status = nrf_read_reg(FIFO_STATUS);
-		} while(!(fifo_status & TX_FIFO_FULL));
+			if(fifo_status & (TX_FIFO_FULL | RX_FIFO_FULL))
+				break;
+		}
 	}
 
 	//prx send custom frame
@@ -366,7 +363,7 @@ int nrf_update(struct nrf_priv_s *priv)
 			n = pipe->cf[0];
 			memcpy(frame, pipe->cf, n);
 			nrf_write_buf(W_ACK_PAYLOAD(0), frame, n);
-			nrf_write_reg(STATUS, TX_DS);
+			//nrf_write_reg(STATUS, TX_DS);
 
 			//wait until send out or max rt
 			pipe->timer = time_get(pipe->cf_timeout);
@@ -399,7 +396,7 @@ int nrf_update(struct nrf_priv_s *priv)
 			memcpy(frame, pipe->cf + 1, n);
 			nrf_retry_update(pipe, nrf_read_reg(OBSERVE_TX) & 0x0f);
 			nrf_write_buf(W_TX_PAYLOAD, frame, n); //nrf count the bytes automatically
-			nrf_write_reg(STATUS, TX_DS);
+			//nrf_write_reg(STATUS, TX_DS);
 			//wait until send out or max rt
 			pipe->timer = time_get(pipe->cf_timeout);
 			while(1) {
@@ -419,7 +416,7 @@ int nrf_update(struct nrf_priv_s *priv)
 						ce_set(1);
 					}
 				}
-				if(time_left(pipe->timer) < 0) { //send timeout
+				if(time_left(pipe->timer) <= 0) { //send timeout
 					nrf_write_reg(STATUS, MAX_RT);
 					nrf_write_buf(FLUSH_TX, 0, 0); //flush tx fifo(prx ack payload)
 					pipe->timer = 0;

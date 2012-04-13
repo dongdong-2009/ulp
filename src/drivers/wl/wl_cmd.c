@@ -18,7 +18,7 @@ static unsigned wl_addr __nvm;
 
 static int nrf_onfail(int ecode, ...)
 {
-	if(ecode != WL_ERR_TX_TIMEOUT)
+	if(ecode != WL_ERR_RX_FRAME) //to avoid err trig in nrf_speed
 		printf("ecode = %d\n", ecode);
 	//assert(0); //!!! impossible: got rx_dr but no payload?
 	return 0;
@@ -37,7 +37,7 @@ static int cmd_nrf_chat(void)
 	dev_ioctl(fd, WL_SET_FREQ, wl_freq);
 	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
 	dev_ioctl(fd, WL_SET_MODE, wl_mode);
-	dev_ioctl(fd, WL_ERR_TXMS, 5);
+	dev_ioctl(fd, WL_ERR_TXMS, 500);
 	dev_ioctl(fd, WL_ERR_FUNC, nrf_onfail);
 	dev_ioctl(fd, WL_START);
 
@@ -97,7 +97,7 @@ static int cmd_nrf_speed(void)
 	dev_ioctl(fd, WL_SET_FREQ, wl_freq);
 	dev_ioctl(fd, WL_SET_ADDR, wl_addr);
 	dev_ioctl(fd, WL_SET_MODE, wl_mode);
-	dev_ioctl(fd, WL_ERR_TXMS, 5);
+	dev_ioctl(fd, WL_ERR_TXMS, 500);
 	dev_ioctl(fd, WL_ERR_FUNC, nrf_onfail);
 	dev_ioctl(fd, WL_START);
 
