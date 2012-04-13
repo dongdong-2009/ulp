@@ -18,12 +18,14 @@
 #define PDI_DEBUG	0					//DEBUG MODEL
 
 static const can_msg_t dm_clrdtc_msg =		{0x607, 8, {0x04, 0x2e, 0xfe, 0x90, 0xaa, 0, 0, 0}, 0};
+#if PDI_DEBUG
 static const can_msg_t dm_errcode_msg =		{0x607, 8, {0x03, 0x22, 0xfe, 0x80, 0, 0, 0, 0}, 0};
 static const can_msg_t dm_getsn_msg =		{0x607, 8, {0x03, 0x22, 0xfe, 0x8d, 0, 0, 0, 0}, 0};
+static const can_msg_t dm_part_msg =		{0x7D2, 8, {0x03, 0x22, 0xF1, 0x00, 0x55, 0x55, 0x55, 0x55}, 0};
+#endif
 static const can_msg_t dm_reqseed_msg =		{0x607, 8, {0x02, 0x27, 0x7d, 0, 0, 0, 0, 0}, 0};
 static const can_msg_t dm_start_msg1 =		{0x607, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
 static const can_msg_t dm_start_msg2 =		{0x7D2, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
-static const can_msg_t dm_part_msg =		{0x7D2, 8, {0x03, 0x22, 0xF1, 0x00, 0x55, 0x55, 0x55, 0x55}, 0};
 static const can_msg_t dm_7D2_msg =			{0x7D2, 8, {0x30, 0, 0, 0, 0, 0, 0, 0},0};
 
 static const mbi5025_t pdi_mbi5025 = {
@@ -373,6 +375,11 @@ static int pdi_pass_action()
 	dm_mdelay(150);
 	beep_on();
 	dm_mdelay(750);
+	dm_mdelay(800);
+	beep_off();
+	dm_mdelay(130);
+	beep_on();
+	dm_mdelay(800);
 	beep_off();
 	return 0;
 }
@@ -527,6 +534,58 @@ static int dm_part_check(const struct pdi_cfg_s *sr)
 	// }
 	// return 0;
 // }
+static int dm_esc_check()
+{
+	int a = 0, b = 0;
+	char temp;
+	can_msg_t esc_msg;
+	time_t deadtime = time_get(100);
+	printf("##START##EC-Checking ESC...##END##\n");
+	while(time_left(deadtime) > 0) {
+		pdi_can_bus -> recv(&esc_msg);
+		switch(esc_msg.id) {
+		case 0x188:
+			if(a == 1) break;
+			esc_msg.data[0] &= 0xF0;
+			if(esc_msg.data[0] != 0x00) return 1;
+			short v1 = esc_msg.data[1];
+			v1 <<= 8;
+			v1 |= (esc_msg.data[2] & 0xf0) ;
+			v1 >>= 4;
+			if(v1 < -20 || v1 > 20)
+				return 1;
+			short v2 = esc_msg.data[2] & 0x0F;
+			v2 <<= 8;
+			v2 |= esc_msg.data[3];
+			if(v2 < -63 || v2 > 63)
+				return 1;
+			if(esc_msg.data[5] != 0x00) return 1;
+			esc_msg.data[6] &= 0xF0;
+			if(esc_msg.data[6] != 0x00) return 1;
+			a = 1;
+			break;
+		case 0x189:
+			if(b == 0) break;
+			esc_msg.data[0] &= 0xF0;
+			if(esc_msg.data[0] != 0x00) return 1;
+			temp = (esc_msg.data[1] & 0xb0);
+			if(temp != 0x00) return 1;
+			short v3 = esc_msg.data[1] & 0x0F;
+			v3 <<= 8;
+			v3 |= esc_msg.data[3];
+			if(v3 < -63 || v3 > 63)
+				return 1;
+			b = 1;
+			break;
+		}
+		if((a == 1)&&(b == 1)) {
+			printf("##START##EC-      Checking ESC done...##END##\n");
+			return 0;
+		}
+		else continue;
+	}
+	return 0;
+}
 
 static int dm_check_barcode()
 {
@@ -639,6 +698,7 @@ static int dm_check(const struct pdi_cfg_s *sr)
 	// }
 
 	//printf("##START##EC-      Checking ESC done...##END##\n");
+	//esc_flag = 1;
 
 	if(dm_StartSession_2()) {
 		printf("##START##EC-Start error...##END##\n");
@@ -711,6 +771,12 @@ static void dm_process(void)
 			// esc_flag = 0;
 		// if (memcmp(bcode + 3, "PK", 2) == 0)
 			// esc_flag = 0;
+		if (memcmp(bcode + 2, "C", 1) == 0)
+			esc_flag = 0;
+		if (memcmp(bcode + 2, "A", 1) == 0)
+			esc_flag = 0;
+		if (memcmp(bcode + 2, "E", 1) == 0)
+			esc_flag = 0;
 
 		printf("##START##STATUS-5##END##\n");
 		pdi_cfg_file = pdi_cfg_get(bcode);
