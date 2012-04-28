@@ -380,8 +380,17 @@ int apt_SelectSDMType(int keytype)
 		c131_ConfirmLoad(c131_index_load);
 		c131_GetSDMType(c131_index_load, typeinfo_ram);
 	} else if(keytype == KEY_RESET) {
-		if (c131_DelCurrentLoad() == 0)
-			apt_SelectSDMType(KEY_RIGHT);
+		if (c131_DelCurrentLoad() == 0) {
+			if (num_load == 0) {
+				strcpy(sdmtype_ram, "No Invalid Cfg ");
+				return 0;
+			}
+			do {
+				c131_index_load ++;
+				if (c131_index_load >= NUM_OF_LOAD) 
+					c131_index_load = 0;
+			} while(c131_GetSDMType(c131_index_load, sdmtype_ram));
+		}
 	}
 
 	return 0;
