@@ -316,6 +316,8 @@ int apt_AddLoad(apt_load_t * pload)
 			c131_load[i] = (*pload);
 			c131_load[i].load_bExist =1;
 			nvm_save();
+			c131_index_load = i;  //display updated sdm model
+			c131_GetSDMType(c131_index_load, sdmtype_ram);
 			return 0;
 		}
 	}
@@ -323,8 +325,10 @@ int apt_AddLoad(apt_load_t * pload)
 		if (c131_load[i].load_bExist == 0) {
 			c131_load[i] = (*pload);
 			c131_load[i].load_bExist =1;
-			nvm_save();
 			num_load ++;
+			nvm_save();
+			c131_index_load = i;  //display new sdm model
+			c131_GetSDMType(c131_index_load, sdmtype_ram);
 			return 0;
 		}
 	}
@@ -776,6 +780,7 @@ static int c131_DelCurrentLoad(void)
 		return 1;
 	else {
 		c131_load[c131_index_load].load_bExist = 0;
+		num_load --;
 		nvm_save();
 		return 0;
 	}
