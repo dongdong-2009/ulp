@@ -6,7 +6,7 @@
 #include "sys/task.h"
 #include "sys/system.h"
 #include "ulp_time.h"
-#include "driver.h"
+#include "ulp/driver.h"
 
 void task_init(void)
 {
@@ -92,9 +92,14 @@ void task_Update(void)
 	}
 }
 
+__weak void task_tick(void)
+{
+}
+
 void task_Isr(void)
 {
 	time_isr();
+	task_tick();
 	if(task_foreground) {
 		if(time_left(task_timer) < 0) {
 			task_timer = time_get(CONFIG_SYSTEM_UPDATE_MS);

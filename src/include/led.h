@@ -24,6 +24,7 @@ typedef enum {
 
 void led_Init(void);
 void led_Update(void);
+void led_Update_Immediate(void);
 void led_on(led_t led);
 void led_off(led_t led);
 void led_inv(led_t led);

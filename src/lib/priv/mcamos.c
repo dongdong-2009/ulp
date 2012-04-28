@@ -10,7 +10,7 @@
 #include "can.h"
 #include "ulp_time.h"
 #include <string.h>
-#include "debug.h"
+#include "ulp/debug.h"
 
 //#define MCAMOS_DEBUG
 

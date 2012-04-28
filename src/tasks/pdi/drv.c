@@ -7,10 +7,13 @@
 #include "drv.h"
 #include "stm32f10x.h"
 #include "sys/task.h"
+#include "led.h"
 
-#define Beep_on				(1<<2)
+#ifdef CONFIG_PDI_SDM10
 #define LED_red_on			(1<<0)
 #define LED_green_on		(1<<1)
+#define Beep_on				(1<<2)
+#define start_botton		(1<<3)
 #define counter_pass		(1<<4)
 #define counter_fail		(1<<5)
 #define target				(1<<7)
@@ -18,24 +21,22 @@
 #define swcan_mode1			(1<<11)
 #define IGN_on				(1<<13)
 #define battary_on			(1<<15)
+#endif
+
+#ifdef CONFIG_PDI_DM
+#define LED_red_on			(1<<0)
+#define LED_green_on		(1<<1)
+#define target				(1<<2)
 #define start_botton		(1<<3)
-
+#define counter_pass		(1<<4)
+#define counter_fail		(1<<5)
+#define Beep_on				(1<<8)
+#define swcan_mode0			(1<<10)
+#define swcan_mode1			(1<<11)
+#define battary_on			(1<<13)
+#define IGN_on				(1<<15)
+#endif
 //static time_t check_fail_beep;
-
-int pdi_mdelay(int ms)
-{
-	int left;
-	time_t deadline = time_get(ms);
-	do {
-		left = time_left(deadline);
-		if(left >= 10) { //system update period is expected less than 10ms
-			ulp_update();
-		}
-	} while(left > 0);
-
-	return 0;
-}
-
 int pdi_batt_on()
 {
 	GPIOE->ODR |= battary_on;
@@ -78,31 +79,6 @@ int pdi_drv_Init()
 	return 0;
 }
 
-int led_fail_on()
-{
-	GPIOE->ODR |= LED_red_on;
-	return 0;
-}
-
-int led_fail_off()
-{
-	GPIOE->ODR &= ~LED_red_on;
-	return 0;
-}
-
-int led_pass_on()
-{
-
-	GPIOE->ODR |= LED_green_on;
-	return 0;
-}
-
-int led_pass_off()
-{
-	GPIOE->ODR &= ~LED_green_on;
-	return 0;
-}
-
 int beep_on()
 {
 	GPIOE->ODR |= Beep_on;
@@ -115,18 +91,26 @@ int beep_off()
 	return 0;
 }
 
-int counter_pass_add()
+int counter_pass_rise()
 {
 	GPIOE->ODR |= counter_pass;
-	pdi_mdelay(30);
+	return 0;
+}
+
+int counter_pass_down()
+{
 	GPIOE->ODR &= ~counter_pass;
 	return 0;
 }
 
-int counter_fail_add()
+int counter_fail_rise()
 {
 	GPIOE->ODR |= counter_fail;
-	pdi_mdelay(30);
+	return 0;
+}
+
+int counter_fail_down()
+{
 	GPIOE->ODR &= ~counter_fail;
 	return 0;
 }
@@ -135,7 +119,8 @@ int target_on()
 {
 	if((GPIOE->IDR & target) == 0)
 		return 1;
-	else return 0;
+	else
+		return 0;
 }
 
 int pdi_swcan_mode()
@@ -157,23 +142,3 @@ int start_botton_off()
 	return 0;
 }
 
-int init_OK()
-{
-	GPIOE->ODR |= LED_red_on;
-	GPIOE->ODR |= LED_green_on;
-	GPIOE->ODR |= Beep_on;
-	pdi_mdelay(200);
-	GPIOE->ODR &= ~LED_red_on;
-	GPIOE->ODR &= ~LED_green_on;
-	GPIOE->ODR &= ~Beep_on;
-	pdi_mdelay(100);
-	for(int i = 0; i < 5; i++){
-		GPIOE->ODR |= LED_red_on;
-		GPIOE->ODR |= LED_green_on;
-		pdi_mdelay(200);
-		GPIOE->ODR &= ~LED_red_on;
-		GPIOE->ODR &= ~LED_green_on;
-		pdi_mdelay(100);
-	}
-	return 0;
-}

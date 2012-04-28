@@ -10,21 +10,31 @@
 #include "ulp_time.h"
 #include "sys/sys.h"
 #include "shell/cmd.h"
-#include "debug.h"
+#include "ulp/debug.h"
 
-#ifdef CONFIG_TASK_APTC131
+#if CONFIG_TASK_APTC131
 static const can_msg_t req_flow_msg = {
 	.id = 0x7a2,
 	.dlc = 8,
 	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
-#endif
-
-#ifdef CONFIG_PDI_SDM10
+#elif CONFIG_PDI_SDM10
 static const can_msg_t req_flow_msg = {
 	.id = 0x247,
 	.dlc = 8,
 	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+#elif CONFIG_PDI_DM
+static const can_msg_t req_flow_msg = {
+	.id = 0x607,
+	.dlc = 8,
+	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+#else
+static const can_msg_t req_flow_msg = {
+	.id = 0x38,
+	.dlc = 8,
+	.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
 #endif
 
@@ -64,6 +74,26 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq, int req_len, can_filter_t cons
 		},
 		{
 			.id = 0x647,
+			.mask = 0xffff,
+			.flag = 0,
+		},
+	};
+
+	if (pResFilter == NULL)
+		pResFilter = filter;
+
+	can_bus -> filt(pResFilter, 2);
+#endif
+
+#ifdef CONFIG_PDI_DM
+	can_filter_t filter[] = {
+		{
+			.id = 0x7DA,
+			.mask = 0xffff,
+			.flag = 0,
+		},
+		{
+			.id = 0x608,
 			.mask = 0xffff,
 			.flag = 0,
 		},

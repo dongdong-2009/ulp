@@ -8,7 +8,7 @@
  */
 #include "config.h"
 #include "err.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "console.h"
 #include "sys/sys.h"
 #include "shell/cmd.h"

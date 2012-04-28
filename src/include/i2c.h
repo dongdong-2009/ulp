@@ -5,7 +5,6 @@
 #define __I2C_H_
 
 #include <stddef.h>
-#include "device.h"
 #include "config.h"
 
 typedef struct {
@@ -15,14 +14,15 @@ typedef struct {
 
 typedef struct {
 	int (*init)(const i2c_cfg_t *cfg);
-	int (*wreg)(unsigned char chip, unsigned addr, int alen, unsigned char *buffer);
+	int (*wreg)(unsigned char chip, unsigned addr, int alen, const unsigned char *buffer);
 	int (*rreg)(unsigned char chip, unsigned addr, int alen, unsigned char *buffer);
-	int (*wbuf)(unsigned char chip, unsigned addr, int alen, unsigned char *buffer, int len);
+	int (*wbuf)(unsigned char chip, unsigned addr, int alen, const unsigned char *buffer, int len);
 	int (*rbuf)(unsigned char chip, unsigned addr, int alen, unsigned char *buffer, int len);
 	int (*WaitStandByState)(unsigned char chip);
 } i2c_bus_t;
 
 extern i2c_bus_t i2c1;
 extern i2c_bus_t i2c2;
+extern i2c_bus_t i2cs;
 
 #endif /*__I2C_H_*/

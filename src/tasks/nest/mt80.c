@@ -220,6 +220,25 @@ static int Write_Memory(int addr, const char *data, int n)
 	return fail;
 }
 
+
+int write_nest_psv(int argc, char *cond_flag[]){
+	if(argc == 3){
+		unsigned int temp;
+		sscanf(cond_flag[2],"%2X",&temp);
+		mfg_data.psv = (char)temp;
+		unsigned int addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> psv;
+		int fail = Write_Memory(addr, &mfg_data.psv, 1);
+		if(fail){
+			nest_error_set(CAN_FAIL, "Eeprom Write");
+			nest_message("nest cond_flag write error\n");
+			return -1;
+		}
+	}
+	nest_message("nest cond_flag 0x%02x \n",((int)mfg_data.psv) & 0xff);
+	return 0;
+}
+
+
 static void RAMTest(void)
 {
 	int fail = 0, saddr, eaddr, i, addr;
@@ -451,6 +470,7 @@ void TestStart(void)
 	if(!nest_ignore(PSV)) {
 		if((mfg_data.psv & 0x02) == 0) {
 			nest_error_set(PSV_FAIL, "PSV");
+			nest_message("PSV addr %04X : %02X \n",MFGDAT_ADDR+(int)&(((struct mfg_data_s *)0)->psv),mfg_data.psv);
 			return;
 		}
 	}
@@ -477,7 +497,10 @@ void TestStop(void)
 	fail += Write_Memory(addr, mfg_data.fb, size);
 
 	//store nest_psv & nest_nec
-	mfg_data.nest_psv |= 0x80;
+	if(nest_pass())
+		mfg_data.nest_psv |= 0x80;
+	else
+		mfg_data.nest_psv &= 0x7F;
 	mfg_data.nest_nec = nest_error_get() -> nec;
 	addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> nest_psv;
 	fail += Write_Memory(addr, &mfg_data.nest_psv, 2);
@@ -501,6 +524,7 @@ void main(void)
 	nest_power_off();
 	nest_message("\nPower Conditioning - MT80\n");
 	nest_message("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
+	nest_message("nest ID:MT80-%03d\n",(*nest_info_get()).id_base);
 
 	while(1){
 		TestStart();

@@ -1,0 +1,16 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by david@2012
+#
+
+choice 'simulator board select'	" \
+	WF_CORE		CONFIG_WEIFU_CORE \
+	WF_LCM		CONFIG_WEIFU_LCM \
+" WF_CORE
+
+if [ "$CONFIG_WEIFU_CORE" = "y" ]; then
+	int "rpm dds mclk frequency Hz?" CONFIG_DRIVER_RPM_DDS_MCLK 25000000
+	int "vss dds mclk frequency Hz?" CONFIG_DRIVER_VSS_DDS_MCLK 25000000
+fi
+

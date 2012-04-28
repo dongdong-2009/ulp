@@ -7,7 +7,7 @@
 #include "mbi5025.h"
 #include "spi.h"
 
-void mbi5025_Init(mbi5025_t *chip)
+void mbi5025_Init(const mbi5025_t *chip)
 {
 	spi_cfg_t cfg = {
 		.cpol = 0,
@@ -19,14 +19,14 @@ void mbi5025_Init(mbi5025_t *chip)
 	chip->bus->init(&cfg);
 }
 
-void mbi5025_WriteByte(mbi5025_t *chip, unsigned char data)
+void mbi5025_WriteByte(const mbi5025_t *chip, unsigned char data)
 {
 	spi_cs_set(chip->load_pin, 0);
 	chip->bus->wreg(chip->idx, data);
 	spi_cs_set(chip->load_pin, 1);
 }
 
-void mbi5025_WriteBytes(mbi5025_t *chip, unsigned char * pdata, int len)
+void mbi5025_WriteBytes(const mbi5025_t *chip, unsigned char * pdata, int len)
 {
 	int i;
 
@@ -36,22 +36,22 @@ void mbi5025_WriteBytes(mbi5025_t *chip, unsigned char * pdata, int len)
 	spi_cs_set(chip->load_pin, 1);
 }
 
-void mbi5025_EnableLoad(mbi5025_t *chip)
+void mbi5025_EnableLoad(const mbi5025_t *chip)
 {
 	spi_cs_set(chip->load_pin, 1);
 }
 
-void mbi5025_DisableLoad(mbi5025_t *chip)
+void mbi5025_DisableLoad(const mbi5025_t *chip)
 {
 	spi_cs_set(chip->load_pin, 0);
 }
 
-void mbi5025_EnableOE(mbi5025_t *chip)
+void mbi5025_EnableOE(const mbi5025_t *chip)
 {
 	spi_cs_set(chip->oe_pin, 0);
 }
 
-void mbi5025_DisableOE(mbi5025_t *chip)
+void mbi5025_DisableOE(const mbi5025_t *chip)
 {
 	spi_cs_set(chip->oe_pin, 1);
 }

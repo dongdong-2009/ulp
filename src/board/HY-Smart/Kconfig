@@ -1,0 +1,7 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+define_string BOARD_NAME "HY-Smart"

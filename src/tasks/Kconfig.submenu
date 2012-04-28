@@ -66,3 +66,10 @@ if [ "$CONFIG_TASK_PDI" = "y" ]; then
 		source src/tasks/pdi/Kconfig
 	endmenu
 fi
+
+if [ "$CONFIG_TASK_SIMULATOR" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'simulator'
+		source src/tasks/simulator/Kconfig
+	endmenu
+fi
