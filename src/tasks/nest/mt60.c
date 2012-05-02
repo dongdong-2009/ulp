@@ -29,6 +29,10 @@ struct mfg_data_s {
 	char psv; //0x8017, process flag < ..|nest|amb|ict>, won't touched by nest???
 	char rsv2[8]; //0x8018 - 0x801f
 	char fb[0x17]; //0x8020 - 0x8036 fault bytes write back
+	char rsv3; //0x8037
+	unsigned short vp[4]; //0x8038 - 0x803f
+	unsigned short ip[4]; //0x8040 - 0x8047
+	unsigned char wp[4]; //0x8048 - 0x804b, peak width, unit: uS, resolution: 1uS
 } mfg_data;
 
 //base model id
@@ -37,8 +41,12 @@ static char mailbox[32];
 
 //base model types declaration
 enum {
-	BM_DK262466_28122736,
+	/*2IGBT*/
+	/*4IGBT*/
 	BM_DK262473_28169026, /*now change to 28220231*/
+
+	/*UNKNOWN*/
+	BM_DK262466_28122736,
 	BM_DK262480_28209021,
 	BM_DK262490_28140820,
 	BM_DK262516_28140808,
@@ -348,11 +356,23 @@ static void CyclingTest(void)
 	if(nest_fail())
 		return;
 
+
+	//cyc ign, necessary???
+	if(!nest_ignore(RLY)) {
+		for(int cnt = 0; cnt < 75; cnt ++) {
+			RELAY_IGN_SET(0);
+			nest_mdelay(100);
+			RELAY_IGN_SET(1);
+			nest_mdelay(100);
+		}
+	}
+
 	hfps_init();
 	hfps_trap("STATUS_H", 0xff, 0x2f);
 	hfps_trap("STATUS_L", 0xff, 0x61);
 	phdh_init();
 	vsep_init();
+	burn_init();
 
 	switch(bmr) {
 	case BM_DK262466_28122736:
@@ -445,8 +465,14 @@ static void CyclingTest(void)
 		while(nest_time_left(deadline) > 0) {
 			nest_update();
 			nest_light(RUNNING_TOGGLE);
+			fail = burn_verify(mfg_data.vp, mfg_data.ip, mfg_data.wp);
+			if(fail) {
+				nest_error_set(PULSE_FAIL, "Cycling");
+				break;
+			}
 		}
 
+		if(!fail) {
 		nest_message("T = %02d min\n", min);
 		fail += Read_Memory(OUTBOX_ADDR, mailbox, 0x17);
 		fail += vsep_verify(mailbox + (0x1084 - 0x1080)); /*verify [1084 - 108b]*/
@@ -463,7 +489,9 @@ static void CyclingTest(void)
 			memcpy(mfg_data.fb, mailbox, sizeof(mfg_data.fb));
 			nest_error_set(FB_FAIL, "Cycling");
 			break;
+			}
 		}
+		else break;
 	}
 
 	//restart the dut
@@ -484,16 +512,6 @@ void TestStart(void)
 	cncb_signal(SIG2, SIG_HI); //J101-23 IACBLO = LOAD1B(12Ohm + 470uH)
 	cncb_signal(SIG6, SIG_HI); //J101-49 ETCM_OP|IACALO = LOAD27B(1.25Ohm + 8mH)
 
-#if 1
-	//cyc ign, necessary???
-	for(int cnt = 0; cnt < 75; cnt ++) {
-		RELAY_IGN_SET(0);
-		nest_mdelay(100);
-		RELAY_IGN_SET(1);
-		nest_mdelay(100);
-	}
-#endif
-
 	//get dut info through can bus
 	nest_can_sel(DW_CAN);
 	ccp_Init(&can1, 500000);
@@ -501,6 +519,12 @@ void TestStart(void)
 	if(fail) {
 		nest_error_set(CAN_FAIL, "CAN");
 		return;
+	}
+
+	if(0) {
+		memcpy(mfg_data.bmr, "28164665", sizeof(mfg_data.bmr));
+		mfg_data.psv = 0x03;
+		Write_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
 	}
 
 	//check base model nr
@@ -529,23 +553,30 @@ void TestStart(void)
 	memset(mfg_data.fb, 0x00, sizeof(mfg_data.fb));
 
 	//check psv of amb
-	if((mfg_data.psv & 0x02) == 0) {
-		nest_error_set(PSV_FAIL, "PSV");
-		return;
+	if(!nest_ignore(PSV)) {
+		if((mfg_data.psv & 0x02) == 0) {
+			nest_error_set(PSV_FAIL, "PSV");
+			nest_message("PSV addr %04X : %02X \n",MFGDAT_ADDR+(int)&(((struct mfg_data_s *)0)->psv),mfg_data.psv);
+			return;
+		}
 	}
 }
 
 void TestStop(void)
 {
-	int fail = 0, addr;
+	int fail = 0, addr, size;
 	nest_message("#Test Stop\n");
 
 	//store fault bytes back to dut
 	addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> fb[0];
-	fail += Write_Memory(addr, mfg_data.fb, sizeof(mfg_data.fb));
+	size = sizeof(mfg_data.fb) + 21; //+rsv3 + vp[4] + ip[4] + wp[4]
+	fail += Write_Memory(addr, mfg_data.fb, size);
 
 	//store nest_psv & nest_nec
-	mfg_data.nest_psv |= 0x80;
+	if(nest_pass())
+		mfg_data.nest_psv |= 0x80;
+	else
+		mfg_data.nest_psv &= 0x7F;
 	mfg_data.nest_nec = nest_error_get() -> nec;
 	addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> nest_psv;
 	fail += Write_Memory(addr, &mfg_data.nest_psv, 2);
@@ -569,6 +600,7 @@ void main(void)
 	nest_power_off();
 	nest_message("\nPower Conditioning - MT60\n");
 	nest_message("IAR C Version v%x.%x, Compile Date: %s,%s\n", (__VER__ >> 24),((__VER__ >> 12) & 0xfff),  __TIME__, __DATE__);
+	nest_message("nest ID:MT60-%03d\n",(*nest_info_get()).id_base);
 
 	while(1){
 		TestStart();
