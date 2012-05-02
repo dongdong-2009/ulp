@@ -19,12 +19,11 @@
 #define PDI_DEBUG	1
 
 //pdi_B515 can msg
- //pdi_B515 can msg
 static const can_msg_t b515_clrdtc_msg	=	{0x737, 8, {0x04, 0x14, 0xff, 0xff, 0xff, 0, 0, 0}, 0};
 static const can_msg_t b515_errcode_msg	=	{0x737, 8, {0x03, 0x22, 0xfd, 0x39, 0, 0, 0, 0}, 0};
-static const can_msg_t b515_getsn_msg	=	{0x737, 8, {0x03, 0x22, 0xfd, 0x47, 0, 0, 0, 0}, 0};
+static const can_msg_t b515_getsn_msg	=	{0x737, 8, {0x03, 0x22, 0xfd, 0x3c, 0, 0, 0, 0}, 0};
 static const can_msg_t b515_reqseed_msg	=	{0x737, 8, {0x02, 0x27, 0x61, 0, 0, 0, 0, 0}, 0};
-static const can_msg_t b515_start_msg	=	{0x737, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
+static const can_msg_t b515_start_msg1	=	{0x737, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
 
 static const mbi5025_t pdi_mbi5025 = {
 		.bus = &spi1,
@@ -35,7 +34,7 @@ static const mbi5025_t pdi_mbi5025 = {
 
 static const ls1203_t pdi_ls1203 = {
 		.bus = &uart2,
-		.data_len = 12,//长度没有定下来
+		.data_len = 12,
 		.dead_time = 20,
 };
 
@@ -167,7 +166,7 @@ static int b515_StartSession(void)
 		0
 	};
 	//for start the required session
-	if (usdt_GetDiagFirstFrame(&b515_start_msg, 1, NULL, &msg, &msg_len))		//start session
+	if (usdt_GetDiagFirstFrame(&b515_start_msg1, 1, NULL, &msg, &msg_len))		//start session
 		return 1;
 #if PDI_DEBUG
 	can_msg_print(&msg, "\n");
@@ -387,7 +386,7 @@ static int b515_check_init(const struct pdi_cfg_s *sr)
 
 static int b515_check_barcode()
 {
-	b515_GetCID(0xfd47, b515_data_buf);
+	b515_GetCID(0xfd3c, b515_data_buf);
 
 	if (memcmp(b515_data_buf, bcode_1, 12))
 		return 1;
@@ -402,7 +401,7 @@ static int b515_clear_dtc(void)
 
 	if (usdt_GetDiagFirstFrame(&b515_clrdtc_msg, 1, NULL, &msg, &msg_len))
 		return 1;
-	if (msg.data[1] != 0x44)	//positive response is 0x54
+	if (msg.data[1] != 0x54)	//positive response is 0x54
 		return 1;
 
 	return 0;
@@ -415,9 +414,9 @@ static int b515_GetFault(char *data, int * pnum_fault)
 	if(b515_GetCID(0xfd39, data))
 		return 1;
 
-	memset(data + 117, 0x00, 10);
+	memset(data + 66, 0x00, 10);
 
-	for (i = 0; i < 117; i += 3) {
+	for (i = 0; i < 66; i += 3) {
 		if (data[i] | data[i+1] | data[i+2])
 			result ++;
 	}
@@ -486,7 +485,7 @@ static void b515_process(void)
 
 		start_botton_off();
 		pdi_led_start();
-		bcode[14] = '\0';
+		bcode[12] = '\0';
 
 		memcpy(bcode_1, bcode, 12);
 		printf("##START##SB-");
@@ -500,10 +499,11 @@ static void b515_process(void)
 			if(pdi_cfg_file == NULL) {			//是否有此配置文件
 				pdi_fail_action();
 				printf("##START##EC-No This Config File##END##\n");
-			}
-			b515_check_init(pdi_cfg_file);		//relay config
-			if(b515_check() == 0) pdi_pass_action();
-			else pdi_fail_action();
+			} else {
+				b515_check_init(pdi_cfg_file);		//relay config
+				if(b515_check() == 0) pdi_pass_action();
+				else pdi_fail_action();
+				}
 		} else {
 			target_noton_action();
 			printf("##START##EC-target is not on the right position or the pin protector is not placed##END##\n");
