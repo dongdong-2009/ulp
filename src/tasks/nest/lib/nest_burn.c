@@ -72,16 +72,14 @@ int burn_init(void)
 		for(ch = BURN_CH_COILA; ch <= BURN_CH_COILD; ch ++) {
 			if(burn_read(ch, NULL)) {
 				fail = -1;
-				break;
+				nest_message("warnning: burn board %d not response\n", ch);
 			}
 		}
 
 		if(fail) {
 			nest_power_reboot();
-			nest_message("warnning: burn board %d not response, reboot...\n", ch);
 		}
-		else break;
-	} while(try > 0);
+	} while(try > 0 && fail);
 
 	//check limit ok?
 	burn_vl = (burn_vl == -1 || burn_vl == 0) ? BURN_VL_DEF : burn_vl;
