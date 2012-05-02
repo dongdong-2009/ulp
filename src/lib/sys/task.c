@@ -113,4 +113,12 @@ void task_SetForeground(void (*task)(void))
 {
 	task_foreground = task;
 }
+
+void task_mdelay(int ms)
+{
+	time_t deadline = time_get(ms);
+	while(time_left(deadline) > 0) {
+		task_Update();
+	}
+}
 #endif
