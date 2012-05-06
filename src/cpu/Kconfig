@@ -4,6 +4,7 @@
 # Written by miaofng@2010
 #
 
+bool "ulp cmsis support" CONFIG_CPU_CMSIS n
 choice 'cpu family select'	" \
 	stm32	CONFIG_CPU_STM32 \
 	lm3s	CONFIG_CPU_LM3S \
