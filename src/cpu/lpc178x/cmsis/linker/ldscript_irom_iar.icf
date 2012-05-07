@@ -1,6 +1,6 @@
 /*###ICF### Section handled by ICF editor, don't touch! ****/
 /*-Editor annotation file-*/
-/* IcfEditorFile="$TOOLKIT_DIR$\config\ide\IcfEditor\cortex_v1_0.xml" */
+/* IcfEditorFile="$PROJ_DIR$\cortex_v1_0.xml" */
 /*-Specials-*/
 define symbol __ICFEDIT_intvec_start__ = 0x00000000;
 /*-Memory Regions-*/
@@ -11,6 +11,7 @@ define symbol __ICFEDIT_region_RAM_end__   = 0x1000FFFF;
 /*-Sizes-*/
 define symbol __ICFEDIT_size_cstack__ = 0x400;
 define symbol __ICFEDIT_size_heap__   = 0x200;
+define symbol __ICFEDIT_size_nvm__    = 0x1000;
 /**** End of ICF editor section. ###ICF###*/
 
 define memory mem with size = 4G;
