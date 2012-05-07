@@ -6,6 +6,10 @@ IAR_TOOL = python $(TOP_DIR)/scripts/iar.py
 IAR_FILE = $(TOP_DIR)/projects/bldc/bldc.ewp
 ENV_FILE = $(TOP_DIR)/make.env
 M ?= src/
+PRJ_DIR = $(TOP_DIR)/projects/bldc/
+ULP_DIR = $(TOP_DIR)/projects/ulp/
+ULP_ICF = $(ULP_DIR)/ulp.icf
+PRJ_ICF = $(PRJ_DIR)/ulp.icf
 
 #create iar project file according to the result of 'make xconfig'
 -include $(AUTOCONFIG_MAKE_FILE)
@@ -34,7 +38,7 @@ iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/
 
 iar_add:
-	@echo target=$@ M=$(M): obj-y = $(obj-y) inc-y = $(inc-y)
+	@echo target=$@ M=$(M): obj-y = $(obj-y) inc-y = $(inc-y) icf-y = $(icf-y)
 	@for dir in $(inc-y); do\
 		if [ -d $(M)$$dir ];\
 		then \
@@ -47,6 +51,11 @@ iar_add:
 		then \
 			make -s -C $(TOP_DIR) M=$(M)$$dir $@; \
 		fi \
+	done
+	@for icf in $(icf-y); do \
+		echo "found new icf file" $(M)$$icf ...; \
+		cp -f $(M)$$icf $(PRJ_ICF); \
+		cat $(ULP_ICF) >> $(PRJ_ICF); \
 	done
 
 #xconfig

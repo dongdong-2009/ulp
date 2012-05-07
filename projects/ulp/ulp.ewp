@@ -686,7 +686,7 @@
         </option>
         <option>
           <name>IlinkIcfFile</name>
-          <state>$PROJ_DIR$/stm32f103rb.icf</state>
+          <state>$PROJ_DIR$/ulp.icf</state>
         </option>
         <option>
           <name>IlinkIcfFileSlave</name>
@@ -1592,7 +1592,7 @@
         </option>
         <option>
           <name>IlinkIcfFile</name>
-          <state>$PROJ_DIR$/stm32f103rb.icf</state>
+          <state>$PROJ_DIR$/ulp.icf</state>
         </option>
         <option>
           <name>IlinkIcfFileSlave</name>
