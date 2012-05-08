@@ -282,6 +282,7 @@ static void FaultTest(void)
 		vsep_mask("PCH14");
 		vsep_mask("PCH16");
 		vsep_mask("PCH17");
+		vsep_mask("PCH18");
 		vsep_mask("PCH22");
 		vsep_mask("PCH24");
 		vsep_mask("PCH25");
@@ -452,6 +453,15 @@ static void CyclingTest(void)
 		vsep_mask("PCH25");
 		vsep_mask("PCH26");
 		vsep_mask("PCH29");
+		break;
+	case BM_28216910:
+		vsep_mask("PCH05"); //VSEP Fail, PCH05 = 0x03(J101-84 Fuel Consumption Short to Battery?)
+		vsep_mask("PCH13"); //VSEP Fail, PCH13 = 0x02(J101-86 FPR Short to Ground?)
+		vsep_mask("PCH14"); //VSEP Fail, PCH14 = 0x02(J101-87 SMR Short to Ground?)
+		vsep_mask("PCH16"); //VSEP Fail, PCH16 = 0x03(J101-85 COOLANT_GAUGE Short to Battery?)
+		vsep_mask("PCH18"); //VSEP Fail, PCH18 = 0x03(J101-99 VVT1 Short to Battery?)
+		vsep_mask("PCH26"); //VSEP Fail, PCH26 = 0x01(J101-82 SVS Open load?)
+		vsep_mask("PCH27"); //VSEP Fail, PCH27 = 0x02(J101-94 MPR Short to Ground?)
 		break;
 	default:
 		break;
