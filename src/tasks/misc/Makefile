@@ -4,3 +4,4 @@ obj-$(CONFIG_MISC_SPC) += lte-1107-0021.o
 obj-$(CONFIG_MISC_BPTEST) += bptest.o
 obj-$(CONFIG_MISC_ICT) += lte-1202-0046.o
 obj-$(CONFIG_MISC_MA) += lte-1112-0039.o
+obj-$(CONFIG_MISC_LPC1788DK) += lpc1788dk.o
