@@ -29,16 +29,20 @@ fi
 #common config options
 bool "KWP2000 wakeup support" CONFIG_UART_KWP_SUPPORT
 
-#uart
-bool "enable debug uart" CONFIG_DRIVER_UARTg
-if [ "$CONFIG_DRIVER_UARTg" = "y" ]; then
-	bool "enable debug uart as console" CONFIG_SHELL_UARTg
+#uartg
+if [ "$CONFIG_CPU_SAM3U" = "y" ]; then
+	bool "enable debug uart" CONFIG_DRIVER_UARTg
+	if [ "$CONFIG_DRIVER_UARTg" = "y" ]; then
+		bool "enable debug uart as console" CONFIG_SHELL_UARTg
+	fi
 fi
 
 #uart0
-bool "enable uart0" CONFIG_DRIVER_UART0
-if [ "$CONFIG_DRIVER_UART0" = "y" ]; then
-	bool "enable uart0 as console" CONFIG_SHELL_UART0
+if [ "$CONFIG_CPU_STM32" != "y" ]; then
+	bool "enable uart0" CONFIG_DRIVER_UART0
+	if [ "$CONFIG_DRIVER_UART0" = "y" ]; then
+		bool "enable uart0 as console" CONFIG_SHELL_UART0
+	fi
 fi
 
 #uart1
