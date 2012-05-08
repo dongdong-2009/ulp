@@ -72,12 +72,17 @@ void sdelay(int ss)
 #include "lm3s.h"
 #elif CONFIG_CPU_SAM3U == 1
 #include "sam3u.h"
+#elif CONFIG_CPU_LPC178X == 1
+#include "LPC177x_8x.h"
+#include "system_LPC177x_8x.h"
 #endif
 
 void time_hwInit(void)
 {
 #if CONFIG_CPU_SAM3U == 1
 	SysTick_Config(CONFIG_MCK_VALUE / CONFIG_TICK_HZ);
+#elif CONFIG_CPU_LPC178X == 1
+	SysTick_Config(SystemCoreClock / CONFIG_TICK_HZ);
 #else
 	SysTick_Config(SystemFrequency / CONFIG_TICK_HZ);
 #endif
