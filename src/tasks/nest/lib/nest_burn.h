@@ -37,11 +37,19 @@ enum {
 	BURN_CH_NR,
 };
 
+#ifdef CONFIG_NEST_BURN
 /*note: you may need to re-init can bus after these function call*/
 int burn_init(void);
 int burn_mask(int ch);
 int burn_config(int ch, unsigned short vpm_ratio, unsigned short ipm_ratio, int save);
 int burn_read(int ch, struct burn_data_s *result);
 int burn_verify(unsigned short *vp, unsigned short *ip, unsigned char *wp);
+#else
+static inline int burn_init(void) {return 0;}
+static inline int burn_mask(int ch) {return 0;}
+static inline int burn_config(int ch, unsigned short vpm_ratio, unsigned short ipm_ratio, int save) {return 0;}
+static inline int burn_read(int ch, struct burn_data_s *result) {return 0;}
+static inline int burn_verify(unsigned short *vp, unsigned short *ip, unsigned char *wp) {return 0;}
+#endif
 
 #endif

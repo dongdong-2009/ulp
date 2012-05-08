@@ -54,6 +54,8 @@ enum {
 	BM_28122746,
 	BM_28211012,
 	BM_28169019,
+	BM_28219154,
+	BM_28216910,
 };
 
 //base model number to id maps
@@ -74,6 +76,8 @@ const struct nest_map_s bmr_map[] = {
 	{"28122746", BM_28122746},
 	{"28211012", BM_28211012},
 	{"28169019", BM_28169019},
+	{"28219154", BM_28219154},
+	{"28216910", BM_28216910},
 	END_OF_MAP,
 };
 
@@ -270,6 +274,8 @@ static void FaultTest(void)
 		vsep_mask("PCH25");
 		vsep_mask("PCH26");
 		break;
+	case BM_28219154:
+	case BM_28216910:
 	case BM_DK262473_28169026: //28220231
 	case BM_DK262480_28209021:
 		vsep_mask("PCH05");

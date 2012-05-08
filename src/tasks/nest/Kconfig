@@ -25,3 +25,4 @@ choice 'nest project select'	" \
 int 'log message buffer size' CONFIG_NEST_LOG_SIZE 2048
 bool 'test mode: auto restart' CONFIG_NEST_AUTORESTART
 bool 'nest id function' CONFIG_NEST_ID
+bool 'igbt burn function' CONFIG_NEST_BURN

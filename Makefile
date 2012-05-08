@@ -25,13 +25,16 @@ iar_clr:
 	$(IAR_TOOL) clr $(IAR_FILE)
 iar_cfg:
 ifeq ($(CONFIG_CPU_STM32),y)
-	$(IAR_TOOL) cfg $(IAR_FILE) 'STM32F10xxB	ST STM32F10xxB' 'stm32f103rb.icf'
+	$(IAR_TOOL) cfg $(IAR_FILE) 'STM32F10xxB	ST STM32F10xxB' 'ulp.icf'
 endif
 ifeq ($(CONFIG_CPU_LM3S),y)
-	$(IAR_TOOL) cfg $(IAR_FILE) 'LM3Sx9xx	Luminary LM3Sx9xx' 'lm3s.icf'
+	$(IAR_TOOL) cfg $(IAR_FILE) 'LM3Sx9xx	Luminary LM3Sx9xx' 'ulp.icf'
 endif
 ifeq ($(CONFIG_CPU_SAM3U),y)
-	$(IAR_TOOL) cfg $(IAR_FILE) 'AT91SAM3U4	Atmel AT91SAM3U4' 'sam3u.icf'
+	$(IAR_TOOL) cfg $(IAR_FILE) 'AT91SAM3U4	Atmel AT91SAM3U4' 'ulp.icf'
+endif
+ifeq ($(CONFIG_CPU_LPC178X),y)
+	$(IAR_TOOL) cfg $(IAR_FILE) 'LPC1788	NXP LPC1788' 'ulp.icf'
 endif
 iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) ./
