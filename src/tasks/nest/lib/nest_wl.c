@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include "sys/malloc.h"
+#include "console.h"
 
 #define debug(lvl, ...) do { \
 	if(lvl >= 0) { \
