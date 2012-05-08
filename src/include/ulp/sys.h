@@ -46,4 +46,7 @@
 #include "ulp/debug.h"
 #define sys_assert	assert
 
+/*optional*/
+void bsp_init(void);
+
 #endif /*__ULP_SYS_H_*/
