@@ -96,6 +96,13 @@ __weak void task_tick(void)
 {
 }
 
+#if CONFIG_CPU_LPC178X == 1
+void SysTick_Handler(void)
+{
+	task_Isr();
+}
+#endif
+
 void task_Isr(void)
 {
 	time_isr();
