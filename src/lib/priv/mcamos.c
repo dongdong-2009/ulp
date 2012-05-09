@@ -10,7 +10,7 @@
 #include "can.h"
 #include "ulp_time.h"
 #include <string.h>
-#include "ulp/debug.h"
+#include "ulp/sys.h"
 
 //#define MCAMOS_DEBUG
 
@@ -19,33 +19,38 @@ struct mcamos_s mcamos, mcamos_def;
 #define MCAMOS_MSG_1_STD_ID mcamos.id_cmd
 #define MCAMOS_MSG_2_STD_ID mcamos.id_dat
 
-int mcamos_init_ex(struct mcamos_s *mcamos_new)
+int mcamos_init_ex(const struct mcamos_s *m)
 {
 	int ret = 0;
 	can_cfg_t cfg = CAN_CFG_DEF;
-	struct mcamos_s mcamos_old;
+	struct mcamos_s mcamos_old, mcamos_new;
 
-	mcamos_new = (mcamos_new == NULL) ? &mcamos_def : mcamos_new;
-	
-	//default settings
-	mcamos_new ->baud = (mcamos_new ->baud == 0) ? MCAMOS_BAUD : mcamos_new ->baud;
-	mcamos_new ->id_cmd = (mcamos_new ->id_cmd == 0) ? MCAMOS_MSG_CMD_ID : mcamos_new ->id_cmd;
-	mcamos_new ->id_dat = (mcamos_new ->id_dat == 0) ? MCAMOS_MSG_DAT_ID : mcamos_new ->id_dat;
-	mcamos_new ->timeout = (mcamos_new ->timeout == 0) ? MCAMOS_TIMEOUT : mcamos_new ->timeout;
-	if(mcamos_new->can == NULL)
+	//fill mcamos_new
+	memcpy(&mcamos_new, &mcamos_def, sizeof(struct mcamos_s));
+	if(m != NULL) {
+		memcpy(&mcamos_new, m, sizeof(struct mcamos_s));
+	}
+
+	if(mcamos_new.can == NULL)
 		return -1;
+
+	//default settings
+	mcamos_new.baud = (mcamos_new.baud == 0) ? MCAMOS_BAUD : mcamos_new.baud;
+	mcamos_new.id_cmd = (mcamos_new.id_cmd == 0) ? MCAMOS_MSG_CMD_ID : mcamos_new.id_cmd;
+	mcamos_new.id_dat = (mcamos_new.id_dat == 0) ? MCAMOS_MSG_DAT_ID : mcamos_new.id_dat;
+	mcamos_new.timeout = (mcamos_new.timeout == 0) ? MCAMOS_TIMEOUT : mcamos_new.timeout;
 
 	//hw re-init necessary?
 	if(!memcmp(&mcamos_new, &mcamos, sizeof(struct mcamos_s)))
 		return 0;
 
 	memcpy(&mcamos_old, &mcamos, sizeof(struct mcamos_s));
-	memcpy(&mcamos, mcamos_new, sizeof(struct mcamos_s));
+	memcpy(&mcamos, &mcamos_new, sizeof(struct mcamos_s));
 
 	//can port init?
-	if((mcamos_new ->can != mcamos_old.can) || (mcamos_new ->baud != mcamos_old.baud)) {
-		cfg.baud = mcamos_new ->baud;
-		ret += mcamos_new -> can ->init(&cfg);
+	if((mcamos_new.can != mcamos_old.can) || (mcamos_new.baud != mcamos_old.baud)) {
+		cfg.baud = mcamos_new.baud;
+		ret += mcamos_new. can ->init(&cfg);
 	}
 
 #if 0
@@ -73,11 +78,10 @@ int mcamos_dnload(const can_bus_t *can, int addr, const char *buf, int n, int ti
 {
 	int ret;
 	can_msg_t msg;
-	time_t deadline;
 	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *)msg.data;
 	can = (can == NULL) ? mcamos.can : can;
 	timeout = (timeout < 0) ? mcamos.timeout : timeout;
-	deadline = time_get(timeout);
+	time_t deadline = time_get(timeout);
 
 	//step1, send command
 	cmd -> byAddress[0] = (char) (addr >> 24);
@@ -123,11 +127,10 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 {
 	int ret, bytes;
 	can_msg_t msg;
-	time_t deadline;
 	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *)msg.data;
 	can = (can == NULL) ? mcamos.can : can;
 	timeout = (timeout < 0) ? mcamos.timeout : timeout;
-	deadline = time_get(timeout);
+	time_t deadline = time_get(timeout);
 
 	//step1, send command
 	cmd -> byAddress[0] = (char) (addr >> 24);
@@ -178,10 +181,10 @@ int mcamos_execute(const can_bus_t *can, int addr, int timeout)
 {
 	int ret;
 	can_msg_t msg;
-	time_t deadline = time_get(timeout);
 	struct mcamos_cmd_s *cmd = (struct mcamos_cmd_s *) msg.data;
 	can = (can == NULL) ? mcamos.can : can;
 	timeout = (timeout < 0) ? mcamos.timeout : timeout;
+	time_t deadline = time_get(timeout);
 
 	cmd -> byAddress[0] = (char) (addr >> 24);
 	cmd -> byAddress[1] = (char) (addr >> 16);

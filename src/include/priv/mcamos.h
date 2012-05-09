@@ -41,7 +41,7 @@ struct mcamos_s {
 };
 
 /*target = NULL will restore the default mcamos bus configuration*/
-int mcamos_init_ex(struct mcamos_s *);
+int mcamos_init_ex(const struct mcamos_s *);
 #define mcamos_dnload_ex(addr, buf, n) mcamos_dnload(NULL, addr, (const char *)(buf), n, -1)
 #define mcamos_upload_ex(addr, buf, n) mcamos_upload(NULL, addr, (char *)(buf), n, -1)
 #define mcamos_execute_ex(addr) mcamos_execute(NULL, addr, -1)
