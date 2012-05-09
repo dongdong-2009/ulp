@@ -7,6 +7,7 @@
 #define __NEST_H_
 
 #include "config.h"
+#include "ulp/sys.h"
 
 //std-c lib
 #include <stdlib.h>

@@ -11,8 +11,10 @@
 #define VECTOR_FLASH_ERASE	0x80170008
 #define VECTOR_FLASH_READ	0x8017001C
 #define VECTOR_RAM_TEST		0x80170028
+#define VECTOR_CHANGE_MODE	0x80170040
 #define VECTOR_PC_OCTEST	0x80170044
 #define VECTOR_INPUT_POLL	0x80170048
+#define VECTOR_EEPROM_WRITE	0x8017005C
 
 #define INBOX_ADDR	(0xD0008700) //D4 D5 D6 D7 A4 A5 A6 ..(256B)
 #define OUTBOX_ADDR	(0xD0008800) //D2 D3 A2 ..(256B)
@@ -38,17 +40,29 @@ struct mfg_data_s {
 	unsigned char wp[4]; //0x8048 - 0x804b, peak width, unit: uS, resolution: 1uS
 } mfg_data;
 
+#define D4_ADDR 0xD0008700
+#define D5_ADDR 0xD0008704
+#define D6_ADDR 0xD0008708
+#define D7_ADDR 0xD000870c
+#define A4_ADDR 0xD0008710
+#define A5_ADDR 0xD0008714
+#define A6_ADDR 0xD0008718
+
+#define D2_ADDR 0xD0008800
+#define D3_ADDR 0xD0008804
+#define A2_ADDR 0xD0008808
+
 //base model id
 static int bmr;
 static union {
 	struct {
-		unsigned d4;
-		unsigned d5;
-		unsigned d6;
-		unsigned d7;
-		unsigned a4;
-		unsigned a5;
-		unsigned a6;
+		unsigned d4; //0xD0008700
+		unsigned d5; //0xD0008704
+		unsigned d6; //0xD0008708
+		unsigned d7; //0xD000870c
+		unsigned a4; //0xD0008710
+		unsigned a5; //0xD0008714
+		unsigned a6; //0xD0008718
 	} inbox;
 	struct {
 		unsigned d2;
@@ -143,6 +157,39 @@ static void chips_bind(void)
 	vsep_bind("PCH30", "C-88 IMMO_REQ");
 }
 
+enum {
+	MODE_MANUFACTURE_OC = 1,
+	MODE_VALIDATION_OC,
+	MODE_INPUT_POLLING,
+	MODE_CONDITIONING_OC,
+};
+
+static int Change_Mode(int mode)
+{
+	nest_mdelay(100);
+	memset(mailbox.bytes, 0, sizeof(mailbox));
+	mailbox.inbox.d4 = htonl(mode);
+	int fail = mcamos_dnload_ex(INBOX_ADDR, mailbox.bytes, sizeof(mailbox.inbox));
+	if(fail)
+		return -1;
+
+	nest_mdelay(100);
+	fail = mcamos_execute_ex(VECTOR_CHANGE_MODE);
+	if(fail)
+		return -2;
+
+	nest_mdelay(100);
+	memset(mailbox.bytes, 0, sizeof(mailbox));
+	fail = mcamos_upload_ex(OUTBOX_ADDR, mailbox.bytes, sizeof(mailbox.outbox));
+	if(fail)
+		return -3;
+
+	if(ntohl(mailbox.outbox.d2) != mode)
+		return -4;
+
+	return 0;
+}
+
 static int Read_Memory(int addr, char *data, int n)
 {
 	int fail, is_ram = (addr & 0xFFFF0000 == 0xD0000000);
@@ -152,15 +199,22 @@ static int Read_Memory(int addr, char *data, int n)
 	}
 
 	/*BUG: n must be divisible by 4, limited by dut!!!*/
-	assert((n & 0x03) == 0x00);
+	sys_assert((n & 0x03) == 0x00);
 
 	//read data from program flash or data flash
 	memset(mailbox.bytes, 0, sizeof(mailbox));
 	mailbox.inbox.d4 = htonl(n);
 	mailbox.inbox.a4 = htonl(addr);
+#if 1 /*mt92 is too much garbage!!!*/
+	fail = mcamos_dnload_ex(D4_ADDR, &mailbox.inbox.d4, 4);
+	fail += mcamos_dnload_ex(A4_ADDR, &mailbox.inbox.a4, 4);
+#else
 	fail = mcamos_dnload_ex(INBOX_ADDR, mailbox.bytes, sizeof(mailbox.inbox));
+#endif
 	if(fail)
 		return -1;
+
+	nest_mdelay(100);
 	fail = mcamos_execute_ex(VECTOR_FLASH_READ);
 	if(fail)
 		return -2;
@@ -186,43 +240,37 @@ static int Write_Memory(int addr, const char *data, int n)
 		return fail;
 	}
 
-	//erase the flash sector first
-	memset(mailbox.bytes, 0, sizeof(mailbox));
-	mailbox.inbox.a4 = htonl(addr);
-	fail = mcamos_dnload_ex(INBOX_ADDR, mailbox.bytes, sizeof(mailbox.inbox));
-	if(fail)
-		return -1;
-	fail = mcamos_execute_ex(VECTOR_FLASH_ERASE);
-	if(fail)
-		return -2;
-	nest_mdelay(100);
-	memset(mailbox.bytes, 0, sizeof(mailbox));
-	fail = mcamos_upload_ex(OUTBOX_ADDR, mailbox.bytes, sizeof(mailbox.outbox));
-	if(fail)
-		return -3;
-	if(ntohl(mailbox.outbox.d2) != 0x00003333)
-		return -4;
-
-	//flash write
 	memset(mailbox.bytes, 0, sizeof(mailbox));
 	mailbox.inbox.d4 = htonl(n);
 	mailbox.inbox.a4 = htonl(addr);
+#if 1 /*mt92 is too much garbage!!!*/
+	fail = mcamos_dnload_ex(D4_ADDR, &mailbox.inbox.d4, 4);
+	fail += mcamos_dnload_ex(A4_ADDR, &mailbox.inbox.a4, 4);
+#else
 	fail = mcamos_dnload_ex(INBOX_ADDR, mailbox.bytes, sizeof(mailbox.inbox));
+#endif
 	if(fail)
-		return -5;
+		return -1;
+
+	nest_mdelay(100);
 	fail = mcamos_dnload_ex(INBOX_ADDR + sizeof(mailbox.inbox), data, n);
 	if(fail)
-		return -6;
-	fail = mcamos_execute_ex(VECTOR_FLASH_WRITE);
-	if(fail)
-		return -7;
+		return -2;
+
 	nest_mdelay(100);
+	fail = mcamos_execute_ex(VECTOR_EEPROM_WRITE);
+	if(fail)
+		return -3;
+
+	nest_mdelay(500);
 	memset(mailbox.bytes, 0, sizeof(mailbox));
 	fail = mcamos_upload_ex(OUTBOX_ADDR, mailbox.bytes, sizeof(mailbox.outbox));
 	if(fail)
-		return -8;
+		return -4;
+
 	if(ntohl(mailbox.outbox.d2) != 0x00003333)
-		return -9;
+		return -5;
+
 	return 0;
 }
 
@@ -278,7 +326,7 @@ static void CyclingTest(void)
 	}
 
 	nest_message("#Output Cycling Test Start ... \n");
-	fail = mcamos_execute_ex(VECTOR_PC_OCTEST);
+	fail = Change_Mode(MODE_CONDITIONING_OC);
 	if(fail) {
 		nest_error_set(PULSE_FAIL, "Enter into Cycling mode");
 		return;
@@ -390,7 +438,7 @@ void TestStop(void)
 	else
 		mfg_data.nest_psv &= 0x7F;
 	mfg_data.nest_nec = nest_error_get() -> nec;
-	strcpy(mfg_data.sn, "MIAOFNG");
+	//for(int i = 0; i < sizeof(mfg_data); i ++) *((char *)&mfg_data + i) = i;
 	fail += Write_Memory(MFGDAT_ADDR, (void *)&mfg_data, sizeof(mfg_data));
 	if(fail)
 		nest_error_set(CAN_FAIL, "Eeprom Write");
