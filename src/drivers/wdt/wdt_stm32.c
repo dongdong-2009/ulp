@@ -1,4 +1,4 @@
-/* 
+/*
  * david@2012 initial version
  */
 
@@ -44,6 +44,22 @@ int wdt_init(int period)
 		wdt_enable();
 #endif
 
+#ifdef CONFIG_STM32_WDTHW_AUTO_OFF
+	unsigned int temp;
+	//FLASH User Option Bytes values:IWDG_SW(Bit0), RST_STOP(Bit1) and RST_STDBY(Bit2).
+	temp = FLASH_GetUserOptionByte();
+	temp &= OB_IWDG_SW;
+	if (temp != OB_IWDG_SW) {
+		//disable hw wdt on flash
+		wdt_disable();
+
+		//reboot, there is no other method to stop wdt ..
+		void (*reset)(void);
+		reset = 0;
+		reset();
+	}
+#endif
+
 #endif
 	return 0;
 }
@@ -51,7 +67,9 @@ int wdt_init(int period)
 void wdt_update(void)
 {
 #ifdef CONFIG_DRIVER_WDT
+#if CONFIG_STM32_WDTHW_AUTO_OFF != 1
 	IWDG_ReloadCounter();
+#endif
 #endif
 }
 
