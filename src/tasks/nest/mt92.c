@@ -82,15 +82,18 @@ const struct mcamos_s mcamos_mt92 = {
 
 //base model types declaration
 enum {
-	BM_XXXXXXXX,
+	BM_DK277130,
+	BM_28351894,
+	BM_28351885,
+	BM_28236632,
 };
 
 //base model number to id maps
 const struct nest_map_s bmr_map[] = {
-	/*2IGBT*/
-	{"????????", BM_XXXXXXXX},
-
-	/*4IGBT*/
+	{"DK277130", BM_DK277130},
+	{"28351894", BM_28351894},
+	{"28351885", BM_28351885},
+	{"28236632", BM_28236632},
 	END_OF_MAP,
 };
 
@@ -198,9 +201,6 @@ static int Read_Memory(int addr, char *data, int n)
 		return fail;
 	}
 
-	/*BUG: n must be divisible by 4, limited by dut!!!*/
-	sys_assert((n & 0x03) == 0x00);
-
 	//read data from program flash or data flash
 	memset(mailbox.bytes, 0, sizeof(mailbox));
 	mailbox.inbox.d4 = htonl(n);
@@ -253,9 +253,15 @@ static int Write_Memory(int addr, const char *data, int n)
 		return -1;
 
 	nest_mdelay(100);
-	fail = mcamos_dnload_ex(INBOX_ADDR + sizeof(mailbox.inbox), data, n);
-	if(fail)
-		return -2;
+
+	//dnload data to mt92, each time 8 bytes at most, mt92 garbage
+	for(int i, bytes = i = 0; i < n; i += bytes) {
+		bytes = n - i;
+		bytes = (bytes >= 8) ? 8 : bytes;
+		fail = mcamos_dnload_ex(INBOX_ADDR + sizeof(mailbox.inbox) + i, data + i, bytes);
+		if(fail)
+			return -2;
+	}
 
 	nest_mdelay(100);
 	fail = mcamos_execute_ex(VECTOR_EEPROM_WRITE);
@@ -321,6 +327,12 @@ static void CyclingTest(void)
 	vsep_init();
 	//pls to do mask here
 	switch(bmr) {
+	case BM_DK277130:
+		vsep_mask("PCH09"); //NC
+		vsep_mask("PCH10"); //NC
+		vsep_mask("PCH11"); //NC
+		vsep_mask("PCH12"); //NC
+		break;
 	default:
 		break;
 	}
@@ -373,18 +385,23 @@ void TestStart(void)
 	mcamos_upload_ex(OUTBOX_ADDR + sizeof(mailbox.outbox), mailbox.bytes, 32);
 	nest_message("DUT SW: %s\n", mailbox.bytes);
 
+	if(0) {
+		static const char mfg_data_dk277130[] = {
+			0x32, 0x31, 0x36, 0x31, 0x30, 0x30, 0x33, 0x39,
+			0x30, 0x44, 0x4b, 0x32, 0x37, 0x37, 0x31, 0x33,
+			0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		};
+		memcpy(&mfg_data, &mfg_data_dk277130, sizeof(mfg_data_dk277130));
+		mfg_data.psv = 0x03;
+		Write_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
+	}
+
 	//read mfg data
 	memset((void *) &mfg_data, 0, sizeof(mfg_data));
 	fail = Read_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
 	if(fail) {
 		nest_error_set(CAN_FAIL, "CAN");
 		return;
-	}
-
-	if(0) {
-		memcpy(mfg_data.bmr, "28164665", sizeof(mfg_data.bmr));
-		mfg_data.psv = 0x03;
-		Write_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
 	}
 
 	//check base model nr
@@ -399,14 +416,16 @@ void TestStart(void)
 	}
 
 	//relay settings
-	nest_message("relay setting??? i need to check with anxi.hong\n");
-	if(0) {
+	if(1) {
+		//default 4 cyl
 		cncb_signal(SIG1,SIG_LO); //C71 FPR LOAD6(30Ohm + 70mH) JMP1 = GND, HSD
 		cncb_signal(SIG2,SIG_LO); //C70 SMR LOAD7(30Ohm + 70mH) JMP2 = GND, HSD
 		cncb_signal(SIG3,SIG_LO); //E7 = NC
-		cncb_signal(SIG6,SIG_LO); //ETC
-		//if(bmr == BM_28077390 || bmr == BM_28119979)
-			//cncb_signal(SIG6,SIG_HI); //IAC
+		if(bmr == BM_28351894) { //3 cyl
+			cncb_signal(SIG1,SIG_HI); //C71 FPR LOAD6(30Ohm + 70mH) JMP1 = GND, HSD
+			cncb_signal(SIG2,SIG_HI); //C70 SMR LOAD7(30Ohm + 70mH) JMP2 = GND, HSD
+			cncb_signal(SIG3,SIG_HI); //E7 = NC
+		}
 	}
 
 	//chip pinmaps
