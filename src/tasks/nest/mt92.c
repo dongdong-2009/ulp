@@ -195,7 +195,7 @@ static int Change_Mode(int mode)
 
 static int Read_Memory(int addr, char *data, int n)
 {
-	int fail, is_ram = (addr & 0xFFFF0000 == 0xD0000000);
+	int fail, is_ram = ((addr & 0xFFFF0000) == 0xD0000000);
 	if(is_ram) {
 		fail = mcamos_upload_ex(addr, data, n);
 		return fail;
