@@ -20,7 +20,8 @@
 
 //pdi_B515 can msg
 static const can_msg_t b515_clrdtc_msg	=	{0x737, 8, {0x04, 0x14, 0xff, 0xff, 0xff, 0, 0, 0}, 0};
-static const can_msg_t b515_errcode_msg	=	{0x737, 8, {0x03, 0x22, 0xfd, 0x39, 0, 0, 0, 0}, 0};
+static const can_msg_t b515_errcode_msg	=	{0x737, 8, {0x03, 0x19, 0x02, 0x0a, 0, 0, 0, 0}, 0};
+static const can_msg_t b515_faultcode_msg=	{0x737, 8, {0x03, 0x22, 0xfd, 0x39, 0, 0, 0, 0}, 0};
 static const can_msg_t b515_getsn_msg	=	{0x737, 8, {0x03, 0x22, 0xfd, 0x3c, 0, 0, 0, 0}, 0};
 static const can_msg_t b515_reqseed_msg	=	{0x737, 8, {0x02, 0x27, 0x61, 0, 0, 0, 0, 0}, 0};
 static const can_msg_t b515_start_msg1	=	{0x737, 8, {0x02, 0x10, 0x03, 0, 0, 0, 0, 0}, 0};
@@ -219,8 +220,8 @@ static int b515_StartSession(void)
 	else {
 		printf("##OK##\n");
 		printf("num of fault is: %d\n", num_fault);
-		for (i = 0; i < num_fault*3; i += 3)
-			printf("0x%2x, 0x%2x, 0x%2x\n", b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff, b515_fault_buf[i+2]&0xff);
+		for (i = 0; i < num_fault*4; i += 4)
+			printf("0x%2x, 0x%2x, 0x%2x, 0x%2x\n", b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff, b515_fault_buf[i+2]&0xff, b515_fault_buf[i+3]&0xff);
 	}
 
 	//clear all include error code
@@ -409,16 +410,30 @@ static int b515_clear_dtc(void)
 
 static int b515_GetFault(char *data, int * pnum_fault)
 {
-	int i, result = 0;
+	int i, result = 0, msg_len;
+	can_msg_t msg_res;
 
-	if(b515_GetCID(0xfd39, data))
-		return 1;
+	memset(b515_fault_buf ,0x00 ,64);
+	usdt_GetDiagFirstFrame(&b515_errcode_msg, 1, NULL, &msg_res, &msg_len);
+	if (msg_len == 1) {
+		if (msg_res.data[1] == 0x59)
+			memcpy(b515_fault_buf, (msg_res.data + 4), msg_res.data[0] - 3);
+	}
+	if (msg_len > 1) {
+		pdi_msg_buf[0] = msg_res;
+		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+		memcpy(b515_fault_buf, (msg_res.data + 5), 3);
+		for (i = 1; i < msg_len; i++) {
+			memcpy(&b515_fault_buf[3+(i-1)*7], (pdi_msg_buf + i)->data + 1, 7);
+		}
+	}
+	memcpy(data, b515_fault_buf, 64);
+	memset(data + 64, 0x00, 10);
 
-	memset(data + 66, 0x00, 10);
-
-	for (i = 0; i < 66; i += 3) {
-		if (data[i] | data[i+1] | data[i+2])
+	for (i = 0; i < 64; i += 4) {
+		if (data[i] | data[i+1] | data[i+2] | data[i+3])
 			result ++;
+		else break;
 	}
 
 	* pnum_fault = result;
@@ -477,7 +492,7 @@ void pdi_init(void)
 static void b515_process(void)
 {
 	const struct pdi_cfg_s* pdi_cfg_file;
-	char bcode[20];	
+	char bcode[20];
 	if(target_on())
 		start_botton_on();
 	else start_botton_off();
@@ -546,8 +561,8 @@ static int cmd_b515_func(int argc, char *argv[])
 			else {
 				printf("##OK##\n");
 				printf("num of fault is: %d\n", num_fault);
-				for (i = 0; i < num_fault*3; i += 3)
-					printf("0x%2x, 0x%2x, 0x%2x\n", b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff, b515_fault_buf[i+2]&0xff);
+				for (i = 0; i < num_fault*4; i += 4)
+					printf("0x%2x, 0x%2x, 0x%2x, 0x%2x\n", b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff, b515_fault_buf[i+2]&0xff, b515_fault_buf[i+3]&0xff);
 			}
 		}
 
