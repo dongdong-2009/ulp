@@ -10,6 +10,10 @@
 #include "nvm.h"
 #include "wdt.h"
 
+__weak void bsp_init(void)
+{
+}
+
 void sys_Init(void)
 {
 	SystemInit();
@@ -20,6 +24,7 @@ void sys_Init(void)
 #if CONFIG_DRIVER_LED == 1
 	led_Init();
 #endif
+	bsp_init();
 #if (CONFIG_IAR_REDIRECT == 1) || (CONFIG_TASK_SHELL == 1)
 	console_Init();
 #endif

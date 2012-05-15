@@ -57,10 +57,14 @@ enum {
 	BM_28164665,
 	BM_28180087,
 	BM_28264387,
+	BM_DK285368,
+	BM_DK285361,
 
 	BM_28159907,
 	BM_28190870,
 	BM_28249355,
+	BM_28303208,
+	BM_DK285375,
 
 	BM_DK245105,
 };
@@ -73,11 +77,15 @@ const struct nest_map_s bmr_map[] = {
 	{"28164665", BM_28164665},
 	{"28180087", BM_28180087},
 	{"28264387", BM_28264387},
+	{"DK285368", BM_DK285368},
+	{"DK285361", BM_DK285361},
 
 	/*4IGBT*/
 	{"28159907", BM_28159907},
 	{"28190870", BM_28190870},
 	{"28249355", BM_28249355},
+	{"28303208", BM_28303208},
+	{"DK285375", BM_DK285375},
 
 	/*OBSOLETE?*/
 	{"DK245105", BM_DK245105},
@@ -372,6 +380,8 @@ static void CyclingTest(void)
 	case BM_28164665:
 	case BM_28180087:
 	case BM_28264387:
+	case BM_DK285368:
+	case BM_DK285361:
 		burn_mask(BURN_CH_COILC);
 		burn_mask(BURN_CH_COILD);
 		vsep_mask("PCH03"); //2 way IGBT
@@ -379,6 +389,8 @@ static void CyclingTest(void)
 	case BM_28159907:
 	case BM_28190870:
 	case BM_28249355:
+	case BM_28303208:
+	case BM_DK285375:
 		vsep_mask("PCH13"); //FPR Short to Ground?
 		vsep_mask("PCH14"); //SMR Short to Ground?
 		vsep_mask("PCH27"); //MPR Short to Ground?

@@ -22,6 +22,7 @@ void task_Init(void);
 void task_Update(void);
 void task_Isr(void);
 void task_SetForeground(void (*task)(void));
+void task_mdelay(int ms);
 
 //private
 void task_init(void);

@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include "sys/malloc.h"
+#include "console.h"
 
 #define debug(lvl, ...) do { \
 	if(lvl >= 0) { \
@@ -78,7 +79,7 @@ int nest_wl_update(void)
 		dev_ioctl(nest_wl_fd, WL_START);
 		n = sprintf(frame, "monitor newbie %x\r", nest_wl_addr);
 		dev_write(nest_wl_fd, frame, n);
-		dev_ioctl(nest_wl_fd, WL_SYNC);
+		//dev_ioctl(nest_wl_fd, WL_SYNC);
 
 		//change to normal mode
 		dev_ioctl(nest_wl_fd, WL_STOP);

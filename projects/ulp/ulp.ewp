@@ -1,3 +1,5 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
 <project>
   <fileVersion>2</fileVersion>
   <configuration>
@@ -10,7 +12,7 @@
       <name>General</name>
       <archiveVersion>3</archiveVersion>
       <data>
-        <version>17</version>
+        <version>21</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>1</debug>
         <option>
@@ -27,8 +29,8 @@
         </option>
         <option>
           <name>Variant</name>
-          <version>9</version>
-          <state>33</state>
+          <version>19</version>
+          <state>37</state>
         </option>
         <option>
           <name>GEndianMode</name>
@@ -36,8 +38,8 @@
         </option>
         <option>
           <name>Input variant</name>
-          <version>1</version>
-          <state>0</state>
+          <version>3</version>
+          <state>1</state>
         </option>
         <option>
           <name>Input description</name>
@@ -45,8 +47,8 @@
         </option>
         <option>
           <name>Output variant</name>
-          <version>0</version>
-          <state>0</state>
+          <version>2</version>
+          <state>1</state>
         </option>
         <option>
           <name>Output description</name>
@@ -58,7 +60,7 @@
         </option>
         <option>
           <name>FPU</name>
-          <version>0</version>
+          <version>2</version>
           <state>0</state>
         </option>
         <option>
@@ -80,16 +82,12 @@
           <state>Use the normal configuration of the C/C++ runtime library. No locale interface, C locale, no file descriptor support, no multibytes in printf and scanf, and no hex floats in strtod.</state>
         </option>
         <option>
-          <name>RTConfigPath</name>
-          <state>$TOOLKIT_DIR$\INC\DLib_Config_Normal.h</state>
-        </option>
-        <option>
           <name>OGProductVersion</name>
           <state>5.30.1.51309</state>
         </option>
         <option>
           <name>OGLastSavedByProductVersion</name>
-          <state>5.30.1.51309</state>
+          <state>6.30.1.53141</state>
         </option>
         <option>
           <name>GeneralEnableMisra</name>
@@ -133,18 +131,40 @@
           <version>0</version>
           <state>111101110010111111111000110111111111111111111111111110010111101111010101111111111111111111111111101111111011111001111011111011111111111111111</state>
         </option>
+        <option>
+          <name>RTConfigPath2</name>
+          <state>$TOOLKIT_DIR$\INC\c\DLib_Config_Normal.h</state>
+        </option>
+        <option>
+          <name>GFPUCoreSlave</name>
+          <version>19</version>
+          <state>37</state>
+        </option>
+        <option>
+          <name>GBECoreSlave</name>
+          <version>19</version>
+          <state>37</state>
+        </option>
+        <option>
+          <name>OGUseCmsis</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>OGUseCmsisDspLib</name>
+          <state>1</state>
+        </option>
       </data>
     </settings>
     <settings>
       <name>ICCARM</name>
       <archiveVersion>2</archiveVersion>
       <data>
-        <version>21</version>
+        <version>28</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>1</debug>
         <option>
           <name>CCDefines</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCPreprocFile</name>
@@ -184,19 +204,19 @@
         </option>
         <option>
           <name>CCDiagSuppress</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCDiagRemark</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCDiagWarning</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCDiagError</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCObjPrefix</name>
@@ -225,7 +245,7 @@
         </option>
         <option>
           <name>IExtraOptions</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCLangConformance</name>
@@ -260,16 +280,12 @@
           <state>$FILE_BNAME$.o</state>
         </option>
         <option>
-          <name>CCLangSelect</name>
-          <state>0</state>
-        </option>
-        <option>
           <name>CCLibConfigHeader</name>
           <state>1</state>
         </option>
         <option>
           <name>PreInclude</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CompilerMisraOverride</name>
@@ -277,14 +293,11 @@
         </option>
         <option>
           <name>CCIncludePath2</name>
-          </option>
+          <state></state>
+        </option>
         <option>
           <name>CCStdIncCheck</name>
           <state>0</state>
-        </option>
-        <option>
-          <name>CCStdIncludePath</name>
-          <state>$TOOLKIT_DIR$\INC\</state>
         </option>
         <option>
           <name>CCCodeSection</name>
@@ -321,13 +334,65 @@
           <version>0</version>
           <state>111101110010111111111000110111111111111111111111111110010111101111010101111111111111111111111111101111111011111001111011111011111111111111111</state>
         </option>
+        <option>
+          <name>CCPosIndRopi</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>CCPosIndRwpi</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>CCPosIndNoDynInit</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccLang</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccCDialect</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccAllowVLA</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccCppDialect</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccExceptions</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccRTTI</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccStaticDestr</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccCppInlineSemantics</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccCmsis</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccFloatSemantics</name>
+          <state>0</state>
+        </option>
       </data>
     </settings>
     <settings>
       <name>AARM</name>
       <archiveVersion>2</archiveVersion>
       <data>
-        <version>7</version>
+        <version>8</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>1</debug>
         <option>
@@ -357,15 +422,15 @@
         </option>
         <option>
           <name>AWarnOne</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>AWarnRange1</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>AWarnRange2</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>ADebug</name>
@@ -377,7 +442,7 @@
         </option>
         <option>
           <name>ADefines</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>AList</name>
@@ -472,19 +537,16 @@
           <state>0</state>
         </option>
         <option>
-          <name>AStdIncludes</name>
-          <state>$TOOLKIT_DIR$\INC\</state>
-        </option>
-        <option>
           <name>AUserIncludes</name>
-          </option>
+          <state></state>
+        </option>
         <option>
           <name>AExtraOptionsCheckV2</name>
           <state>0</state>
         </option>
         <option>
           <name>AExtraOptionsV2</name>
-          <state/>
+          <state></state>
         </option>
       </data>
     </settings>
@@ -522,8 +584,8 @@
       <name>CUSTOM</name>
       <archiveVersion>3</archiveVersion>
       <data>
-        <extensions/>
-        <cmdline/>
+        <extensions></extensions>
+        <cmdline></cmdline>
       </data>
     </settings>
     <settings>
@@ -535,15 +597,15 @@
       <name>BUILDACTION</name>
       <archiveVersion>1</archiveVersion>
       <data>
-        <prebuild/>
-        <postbuild/>
+        <prebuild></prebuild>
+        <postbuild></postbuild>
       </data>
     </settings>
     <settings>
       <name>ILINK</name>
       <archiveVersion>0</archiveVersion>
       <data>
-        <version>7</version>
+        <version>14</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>1</debug>
         <option>
@@ -568,31 +630,31 @@
         </option>
         <option>
           <name>IlinkKeepSymbols</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkRawBinaryFile</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkRawBinarySymbol</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkRawBinarySegment</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkRawBinaryAlign</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkDefines</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkConfigDefines</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkMapFile</name>
@@ -624,11 +686,11 @@
         </option>
         <option>
           <name>IlinkIcfFile</name>
-          <state>$PROJ_DIR$\stm32f103rb.icf</state>
+          <state>$PROJ_DIR$/ulp.icf</state>
         </option>
         <option>
           <name>IlinkIcfFileSlave</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkEnableRemarks</name>
@@ -636,19 +698,19 @@
         </option>
         <option>
           <name>IlinkSuppressDiags</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkTreatAsRem</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkTreatAsWarn</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkTreatAsErr</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkWarningsAreErrors</name>
@@ -660,7 +722,7 @@
         </option>
         <option>
           <name>IlinkExtraOptions</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkLowLevelInterfaceSlave</name>
@@ -672,7 +734,7 @@
         </option>
         <option>
           <name>IlinkAdditionalLibs</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkOverrideProgramEntryLabel</name>
@@ -685,10 +747,6 @@
         <option>
           <name>IlinkProgramEntryLabel</name>
           <state>__iar_program_start</state>
-        </option>
-        <option>
-          <name>IlinkNXPLPCChecksum</name>
-          <state>0</state>
         </option>
         <option>
           <name>DoFill</name>
@@ -757,6 +815,70 @@
           <name>CrcFullSize</name>
           <state>0</state>
         </option>
+        <option>
+          <name>IlinkIElfToolPostProcess</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkLogAutoLibSelect</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkLogRedirSymbols</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkLogUnusedFragments</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkCrcReverseByteOrder</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkCrcUseAsInput</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IlinkOptInline</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkOptExceptionsAllow</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IlinkOptExceptionsForce</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkCmsis</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IlinkOptMergeDuplSections</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkOptUseVfe</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IlinkOptForceVfe</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkStackAnalysisEnable</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkStackControlFile</name>
+          <state></state>
+        </option>
+        <option>
+          <name>IlinkStackCallGraphFile</name>
+          <state></state>
+        </option>
       </data>
     </settings>
     <settings>
@@ -768,7 +890,7 @@
         <debug>1</debug>
         <option>
           <name>IarchiveInputs</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IarchiveOverride</name>
@@ -796,7 +918,7 @@
       <name>General</name>
       <archiveVersion>3</archiveVersion>
       <data>
-        <version>17</version>
+        <version>21</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>0</debug>
         <option>
@@ -813,8 +935,8 @@
         </option>
         <option>
           <name>Variant</name>
-          <version>9</version>
-          <state>33</state>
+          <version>19</version>
+          <state>37</state>
         </option>
         <option>
           <name>GEndianMode</name>
@@ -822,8 +944,8 @@
         </option>
         <option>
           <name>Input variant</name>
-          <version>1</version>
-          <state>0</state>
+          <version>3</version>
+          <state>1</state>
         </option>
         <option>
           <name>Input description</name>
@@ -831,8 +953,8 @@
         </option>
         <option>
           <name>Output variant</name>
-          <version>0</version>
-          <state>0</state>
+          <version>2</version>
+          <state>1</state>
         </option>
         <option>
           <name>Output description</name>
@@ -844,7 +966,7 @@
         </option>
         <option>
           <name>FPU</name>
-          <version>0</version>
+          <version>2</version>
           <state>0</state>
         </option>
         <option>
@@ -866,16 +988,12 @@
           <state>Use the normal configuration of the C/C++ runtime library. No locale interface, C locale, no file descriptor support, no multibytes in printf and scanf, and no hex floats in strtod.</state>
         </option>
         <option>
-          <name>RTConfigPath</name>
-          <state>$TOOLKIT_DIR$\INC\DLib_Config_Normal.h</state>
-        </option>
-        <option>
           <name>OGProductVersion</name>
           <state>5.30.1.51309</state>
         </option>
         <option>
           <name>OGLastSavedByProductVersion</name>
-          <state>5.30.1.51309</state>
+          <state>6.30.1.53141</state>
         </option>
         <option>
           <name>GeneralEnableMisra</name>
@@ -919,13 +1037,35 @@
           <version>0</version>
           <state>111101110010111111111000110111111111111111111111111110010111101111010101111111111111111111111111101111111011111001111011111011111111111111111</state>
         </option>
+        <option>
+          <name>RTConfigPath2</name>
+          <state>$TOOLKIT_DIR$\INC\c\DLib_Config_Normal.h</state>
+        </option>
+        <option>
+          <name>GFPUCoreSlave</name>
+          <version>19</version>
+          <state>37</state>
+        </option>
+        <option>
+          <name>GBECoreSlave</name>
+          <version>19</version>
+          <state>37</state>
+        </option>
+        <option>
+          <name>OGUseCmsis</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>OGUseCmsisDspLib</name>
+          <state>0</state>
+        </option>
       </data>
     </settings>
     <settings>
       <name>ICCARM</name>
       <archiveVersion>2</archiveVersion>
       <data>
-        <version>21</version>
+        <version>28</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>0</debug>
         <option>
@@ -970,19 +1110,19 @@
         </option>
         <option>
           <name>CCDiagSuppress</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCDiagRemark</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCDiagWarning</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCDiagError</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCObjPrefix</name>
@@ -1011,7 +1151,7 @@
         </option>
         <option>
           <name>IExtraOptions</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CCLangConformance</name>
@@ -1046,16 +1186,12 @@
           <state>$FILE_BNAME$.o</state>
         </option>
         <option>
-          <name>CCLangSelect</name>
-          <state>0</state>
-        </option>
-        <option>
           <name>CCLibConfigHeader</name>
           <state>1</state>
         </option>
         <option>
           <name>PreInclude</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>CompilerMisraOverride</name>
@@ -1063,14 +1199,11 @@
         </option>
         <option>
           <name>CCIncludePath2</name>
-          </option>
+          <state></state>
+        </option>
         <option>
           <name>CCStdIncCheck</name>
           <state>0</state>
-        </option>
-        <option>
-          <name>CCStdIncludePath</name>
-          <state>$TOOLKIT_DIR$\INC\</state>
         </option>
         <option>
           <name>CCCodeSection</name>
@@ -1107,13 +1240,65 @@
           <version>0</version>
           <state>111101110010111111111000110111111111111111111111111110010111101111010101111111111111111111111111101111111011111001111011111011111111111111111</state>
         </option>
+        <option>
+          <name>CCPosIndRopi</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>CCPosIndRwpi</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>CCPosIndNoDynInit</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccLang</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccCDialect</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccAllowVLA</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccCppDialect</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccExceptions</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccRTTI</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccStaticDestr</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccCppInlineSemantics</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccCmsis</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IccFloatSemantics</name>
+          <state>0</state>
+        </option>
       </data>
     </settings>
     <settings>
       <name>AARM</name>
       <archiveVersion>2</archiveVersion>
       <data>
-        <version>7</version>
+        <version>8</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>0</debug>
         <option>
@@ -1143,15 +1328,15 @@
         </option>
         <option>
           <name>AWarnOne</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>AWarnRange1</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>AWarnRange2</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>ADebug</name>
@@ -1163,7 +1348,7 @@
         </option>
         <option>
           <name>ADefines</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>AList</name>
@@ -1258,19 +1443,16 @@
           <state>0</state>
         </option>
         <option>
-          <name>AStdIncludes</name>
-          <state>$TOOLKIT_DIR$\INC\</state>
-        </option>
-        <option>
           <name>AUserIncludes</name>
-          </option>
+          <state></state>
+        </option>
         <option>
           <name>AExtraOptionsCheckV2</name>
           <state>0</state>
         </option>
         <option>
           <name>AExtraOptionsV2</name>
-          <state/>
+          <state></state>
         </option>
       </data>
     </settings>
@@ -1308,8 +1490,8 @@
       <name>CUSTOM</name>
       <archiveVersion>3</archiveVersion>
       <data>
-        <extensions/>
-        <cmdline/>
+        <extensions></extensions>
+        <cmdline></cmdline>
       </data>
     </settings>
     <settings>
@@ -1321,15 +1503,15 @@
       <name>BUILDACTION</name>
       <archiveVersion>1</archiveVersion>
       <data>
-        <prebuild/>
-        <postbuild/>
+        <prebuild></prebuild>
+        <postbuild></postbuild>
       </data>
     </settings>
     <settings>
       <name>ILINK</name>
       <archiveVersion>0</archiveVersion>
       <data>
-        <version>7</version>
+        <version>14</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>0</debug>
         <option>
@@ -1354,31 +1536,31 @@
         </option>
         <option>
           <name>IlinkKeepSymbols</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkRawBinaryFile</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkRawBinarySymbol</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkRawBinarySegment</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkRawBinaryAlign</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkDefines</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkConfigDefines</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkMapFile</name>
@@ -1410,11 +1592,11 @@
         </option>
         <option>
           <name>IlinkIcfFile</name>
-          <state>$PROJ_DIR$\stm32f103rb.icf</state>
+          <state>$PROJ_DIR$/ulp.icf</state>
         </option>
         <option>
           <name>IlinkIcfFileSlave</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkEnableRemarks</name>
@@ -1422,19 +1604,19 @@
         </option>
         <option>
           <name>IlinkSuppressDiags</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkTreatAsRem</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkTreatAsWarn</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkTreatAsErr</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkWarningsAreErrors</name>
@@ -1446,7 +1628,7 @@
         </option>
         <option>
           <name>IlinkExtraOptions</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkLowLevelInterfaceSlave</name>
@@ -1458,7 +1640,7 @@
         </option>
         <option>
           <name>IlinkAdditionalLibs</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IlinkOverrideProgramEntryLabel</name>
@@ -1471,10 +1653,6 @@
         <option>
           <name>IlinkProgramEntryLabel</name>
           <state>__iar_program_start</state>
-        </option>
-        <option>
-          <name>IlinkNXPLPCChecksum</name>
-          <state>0</state>
         </option>
         <option>
           <name>DoFill</name>
@@ -1543,6 +1721,70 @@
           <name>CrcFullSize</name>
           <state>0</state>
         </option>
+        <option>
+          <name>IlinkIElfToolPostProcess</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkLogAutoLibSelect</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkLogRedirSymbols</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkLogUnusedFragments</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkCrcReverseByteOrder</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkCrcUseAsInput</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IlinkOptInline</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IlinkOptExceptionsAllow</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IlinkOptExceptionsForce</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkCmsis</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IlinkOptMergeDuplSections</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkOptUseVfe</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>IlinkOptForceVfe</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkStackAnalysisEnable</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IlinkStackControlFile</name>
+          <state></state>
+        </option>
+        <option>
+          <name>IlinkStackCallGraphFile</name>
+          <state></state>
+        </option>
       </data>
     </settings>
     <settings>
@@ -1554,7 +1796,7 @@
         <debug>0</debug>
         <option>
           <name>IarchiveInputs</name>
-          <state/>
+          <state></state>
         </option>
         <option>
           <name>IarchiveOverride</name>

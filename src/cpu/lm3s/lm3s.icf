@@ -30,19 +30,3 @@ place at address mem:__ICFEDIT_intvec_start__ { readonly section .intvec };
 place in ROM_region   { readonly };
 place in RAM_region   { readwrite,
                         block CSTACK, block HEAP };
-
-place in RAM_region   { section .shell.cmd };
-keep { section .shell.cmd };
-place in RAM_region   { section .sys.task };
-keep { section .sys.task };
-place in RAM_region   { section .sys.lib };
-keep { section .sys.lib };
-place in RAM_region   { section .driver };
-keep { section .driver };
-
-/*nvm support*/
-place in RAM_region   { section .nvm.ram };
-keep { section .nvm.ram };
-define block .nvm.rom      with alignment = 0x800, size = __ICFEDIT_size_nvm__ * 2     { };
-keep { block .nvm.rom };
-place in ROM_region   { block .nvm.rom };

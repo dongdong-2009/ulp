@@ -1,0 +1,15 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+#int "high speed external clk freq?" CONFIG_HSE_VALUE 12000000
+#int "low speed external clk freq?" CONFIG_LSE_VALUE 32768
+#bool "use lpc178x internal RC OSC?" CONFIG_USE_HSI n
+
+choice 'linkscript select'	" \
+	RAM	CONFIG_ICF_RAM \
+	ROM	CONFIG_ICF_ROM \
+" ROM
+
+bool "use lpc178x std periph driver?" CONFIG_USE_LPC_DRIVER y

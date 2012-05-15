@@ -6,6 +6,10 @@ IAR_TOOL = python $(TOP_DIR)/scripts/iar.py
 IAR_FILE = $(TOP_DIR)/projects/bldc/bldc.ewp
 ENV_FILE = $(TOP_DIR)/make.env
 M ?= src/
+PRJ_DIR = $(TOP_DIR)/projects/bldc/
+ULP_DIR = $(TOP_DIR)/projects/ulp/
+ULP_ICF = $(ULP_DIR)/ulp.icf
+PRJ_ICF = $(PRJ_DIR)/ulp.icf
 
 #create iar project file according to the result of 'make xconfig'
 -include $(AUTOCONFIG_MAKE_FILE)
@@ -21,20 +25,23 @@ iar_clr:
 	$(IAR_TOOL) clr $(IAR_FILE)
 iar_cfg:
 ifeq ($(CONFIG_CPU_STM32),y)
-	$(IAR_TOOL) cfg $(IAR_FILE) 'STM32F10xxB	ST STM32F10xxB' 'stm32f103rb.icf'
+	$(IAR_TOOL) cfg $(IAR_FILE) 'STM32F10xxB	ST STM32F10xxB' 'ulp.icf'
 endif
 ifeq ($(CONFIG_CPU_LM3S),y)
-	$(IAR_TOOL) cfg $(IAR_FILE) 'LM3Sx9xx	Luminary LM3Sx9xx' 'lm3s.icf'
+	$(IAR_TOOL) cfg $(IAR_FILE) 'LM3Sx9xx	Luminary LM3Sx9xx' 'ulp.icf'
 endif
 ifeq ($(CONFIG_CPU_SAM3U),y)
-	$(IAR_TOOL) cfg $(IAR_FILE) 'AT91SAM3U4	Atmel AT91SAM3U4' 'sam3u.icf'
+	$(IAR_TOOL) cfg $(IAR_FILE) 'AT91SAM3U4	Atmel AT91SAM3U4' 'ulp.icf'
+endif
+ifeq ($(CONFIG_CPU_LPC178X),y)
+	$(IAR_TOOL) cfg $(IAR_FILE) 'LPC1788	NXP LPC1788' 'ulp.icf'
 endif
 iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) ./
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/
 
 iar_add:
-	@echo target=$@ M=$(M): obj-y = $(obj-y) inc-y = $(inc-y)
+	@echo target=$@ M=$(M): obj-y = $(obj-y) inc-y = $(inc-y) icf-y = $(icf-y)
 	@for dir in $(inc-y); do\
 		if [ -d $(M)$$dir ];\
 		then \
@@ -47,6 +54,11 @@ iar_add:
 		then \
 			make -s -C $(TOP_DIR) M=$(M)$$dir $@; \
 		fi \
+	done
+	@for icf in $(icf-y); do \
+		echo "found new icf file" $(M)$$icf ...; \
+		cp -f $(M)$$icf $(PRJ_ICF); \
+		cat $(ULP_ICF) >> $(PRJ_ICF); \
 	done
 
 #xconfig
