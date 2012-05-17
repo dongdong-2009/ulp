@@ -3,6 +3,11 @@
 */
 #include "lib/nest.h"
 #include "chips/vsep.h"
+#include "chips/c2ps.h"
+#include "chips/phdp.h"
+#include "chips/emcd_mt92.h"
+#include "chips/dph.h"
+#include "chips/difo.h"
 
 #define CND_PERIOD	15 //unit: miniutes
 
@@ -37,6 +42,17 @@ struct mfg_data_s {
 	char rsv2[8]; //0x8018 - 0x801f
 	char fb[POLDAT_BYTES]; //0x8020 - 0x8045 fault bytes write back
 } mfg_data;
+
+struct fb_s {
+	char c2ps[6]; //0xd0008300 - 8305
+	char phdp[2]; //0xd0008306 - 8307
+	char vsep[8]; //0xd0008308 - 830f
+	char emcd[2]; //0xd0008310 - 8311
+	char c2wraf[8]; //0xd0008312 - 8319
+	char difo[8]; //0xd000831a - 8321
+	char l9958xp[2]; //0xd0008322 - 8323
+	char dph[2]; //0xd0008324 - 8325
+};
 
 #define D4_ADDR 0xD0008700
 #define D5_ADDR 0xD0008704
@@ -185,6 +201,21 @@ static void chips_bind(void)
 	vsep_bind("PCH28", "C-52 FUEL LEVEL GAUGE");
 	vsep_bind("PCH29", "C-91 THERMOSTAT OUTPUT");
 	vsep_bind("PCH30", "C-88 IMMO_REQ");
+
+	c2ps_bind("DRVFLT1", "C-76 MAIN RELAY");
+	c2ps_bind("DRVFLT0", "C-76 MAIN RELAY");
+
+	phdp_bind("SHBAT", "E-30 ETCHI");
+	phdp_bind("SHGND", "E-15 ETCLO");
+
+	emcd_bind("DRN1", "C-78 SVS");
+	emcd_bind("DRN2", "C-30 INTFAN");
+	emcd_bind("DRN3", "C-84 FANLO");
+	emcd_bind("DRN4", "C-56 FPRLY_LSD");
+	emcd_bind("DRN5", "C-83 ACRELAY");
+	emcd_bind("DRN6", "C-31 MIL");
+	emcd_bind("DRN7", "C-77 IMMOLAMP");
+	emcd_bind("DRN8", "C-59 CRUZONLAMP");
 }
 
 enum {
@@ -355,6 +386,13 @@ static void CyclingTest(void)
 	}
 
 	vsep_init();
+	c2ps_init();
+	phdp_init();
+	emcd_init();
+	difo_init();
+	dph_init();
+
+
 	//pls to do mask here
 	switch(bmr) {
 	case BM_DK277130:
@@ -388,11 +426,17 @@ static void CyclingTest(void)
 		nest_message("T = %02d min\n", min);
 		fail = Read_Memory(POLDAT_ADDR, mailbox.bytes, POLDAT_BYTES);
 		ntoh_array(mailbox.bytes, POLDAT_BYTES);
-		fail += vsep_verify(mailbox.bytes + 0x08); /*verify [D0008308 - D000831f]*/
+		struct fb_s *fb = (struct fb_s *) mailbox.bytes;
+		fail += vsep_verify(fb->vsep);
+		fail += c2ps_verify(fb->c2ps);
+		fail += phdp_verify(fb->phdp);
+		fail += emcd_verify(fb->emcd);
+		fail += difo_verify(fb->difo);
+		fail += dph_verify(fb->dph);
 		if (fail) {
 			memcpy(mfg_data.fb, mailbox.bytes + 0x08, sizeof(mfg_data.fb));
 			nest_error_set(FB_FAIL, "Cycling");
-			//break;
+			break;
 		}
 	}
 
