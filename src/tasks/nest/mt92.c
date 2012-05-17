@@ -9,6 +9,7 @@
 #define VECTOR_SW_VERSION	0x80170000
 #define VECTOR_FLASH_WRITE	0x80170004
 #define VECTOR_FLASH_ERASE	0x80170008
+#define VECTOR_FAULTS_CLEAR	0x80170014
 #define VECTOR_FLASH_READ	0x8017001C
 #define VECTOR_RAM_TEST		0x80170028
 #define VECTOR_CHANGE_MODE	0x80170040
@@ -20,6 +21,7 @@
 #define OUTBOX_ADDR	(0xD0008800) //D2 D3 A2 ..(256B)
 #define MFGDAT_ADDR	(0x80008000)
 #define POLDAT_ADDR	(0xD0008300)
+#define POLDAT_BYTES	(0x26)
 
 //mfg data structure
 struct mfg_data_s {
@@ -33,11 +35,7 @@ struct mfg_data_s {
 	char nest_nec; //0x8016, nest error <time | type>
 	char psv; //0x8017, process flag < ..|nest|amb|ict>, won't touched by nest???
 	char rsv2[8]; //0x8018 - 0x801f
-	char fb[0x17]; //0x8020 - 0x8036 fault bytes write back
-	char rsv3; //0x8037
-	unsigned short vp[4]; //0x8038 - 0x803f
-	unsigned short ip[4]; //0x8040 - 0x8047
-	unsigned char wp[4]; //0x8048 - 0x804b, peak width, unit: uS, resolution: 1uS
+	char fb[POLDAT_BYTES]; //0x8020 - 0x8045 fault bytes write back
 } mfg_data;
 
 #define D4_ADDR 0xD0008700
@@ -98,7 +96,7 @@ const struct nest_map_s bmr_map[] = {
 };
 
 //little endian -> big endian
-unsigned inline htonl(unsigned data)
+unsigned htonl(unsigned data)
 {
 	union {
 		unsigned data;
@@ -112,7 +110,7 @@ unsigned inline htonl(unsigned data)
 	return y.data;
 }
 
-unsigned inline ntohl(unsigned data)
+unsigned ntohl(unsigned data)
 {
 	union {
 		unsigned data;
@@ -124,6 +122,35 @@ unsigned inline ntohl(unsigned data)
 	y.bytes[2] = x.bytes[1];
 	y.bytes[3] = x.bytes[0];
 	return y.data;
+}
+
+void ntoh_array(void *p, int bytes)
+{
+	unsigned short *array = p;
+	unsigned short hb, lb;
+	int i, n;
+
+	n = bytes / 2;
+	for(i = 0; i < n; i ++) {
+		hb = (array[i] >> 8) & 0xff;
+		lb = (array[i] >> 0) & 0xff;
+		array[i] = (lb << 8) | hb;
+	}
+}
+
+void dump(unsigned addr, const void *p, int bytes)
+{
+	unsigned v, i;
+	const unsigned char *pbuf = p;
+	for(i = 0; i < bytes; i ++) {
+			v = (unsigned) (pbuf[i] & 0xff);
+			if(i % 16 == 0)
+				nest_message("0x%08x: %02x", addr + i, v);
+			else if((i % 16 == 15) || (i == bytes - 1))
+				nest_message(" %02x\n", v);
+			else
+				nest_message(" %02x", v);
+	}
 }
 
 static void chips_bind(void)
@@ -198,6 +225,7 @@ static int Read_Memory(int addr, char *data, int n)
 	int fail, is_ram = ((addr & 0xFFFF0000) == 0xD0000000);
 	if(is_ram) {
 		fail = mcamos_upload_ex(addr, data, n);
+		dump(addr, data, n);
 		return fail;
 	}
 
@@ -229,12 +257,14 @@ static int Read_Memory(int addr, char *data, int n)
 
 	nest_mdelay(100);
 	fail = mcamos_upload_ex(OUTBOX_ADDR + sizeof(mailbox.outbox), data, n);
+	dump(addr, data, n);
 	return (fail) ? -4 : 0;
 }
 
 static int Write_Memory(int addr, const char *data, int n)
 {
 	int fail, is_ram = (addr & 0xFFFF0000 == 0xD0000000);
+	dump(addr, data, n);
 	if(is_ram) {
 		fail = mcamos_dnload_ex(addr, data, n);
 		return fail;
@@ -345,20 +375,24 @@ static void CyclingTest(void)
 	}
 
 	for(min = 0; min < CND_PERIOD; min ++) {
+		//clear faults
+		mcamos_execute_ex(VECTOR_FAULTS_CLEAR);
+
 		//delay 1 min
-		deadline = nest_time_get(1000 * 60);
+		deadline = nest_time_get(1000 * 10);
 		while(nest_time_left(deadline) > 0) {
 			nest_update();
 			nest_light(RUNNING_TOGGLE);
 		}
 
 		nest_message("T = %02d min\n", min);
-		fail = Read_Memory(POLDAT_ADDR, mailbox.bytes, 0x25);
+		fail = Read_Memory(POLDAT_ADDR, mailbox.bytes, POLDAT_BYTES);
+		ntoh_array(mailbox.bytes, POLDAT_BYTES);
 		fail += vsep_verify(mailbox.bytes + 0x08); /*verify [D0008308 - D000831f]*/
 		if (fail) {
 			memcpy(mfg_data.fb, mailbox.bytes + 0x08, sizeof(mfg_data.fb));
 			nest_error_set(FB_FAIL, "Cycling");
-			break;
+			//break;
 		}
 	}
 
