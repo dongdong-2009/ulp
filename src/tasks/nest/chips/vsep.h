@@ -36,13 +36,13 @@ nest_reg_t vsep_regs[] = {
 	{.ofs = 0x28, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH21", .bind = NULL, .desc = vsep_desc},
 	{.ofs = 0x2a, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH22", .bind = NULL, .desc = vsep_desc},
 	{.ofs = 0x2c, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH23", .bind = NULL, .desc = vsep_desc},
-	{.ofs = 0x2d, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH24", .bind = NULL, .desc = vsep_desc},
-	{.ofs = 0x2e, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH25", .bind = NULL, .desc = vsep_desc},
-	{.ofs = 0x30, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH26", .bind = NULL, .desc = vsep_desc},
-	{.ofs = 0x32, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH27", .bind = NULL, .desc = vsep_desc},
-	{.ofs = 0x34, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH28", .bind = NULL, .desc = vsep_desc},
-	{.ofs = 0x36, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH29", .bind = NULL, .desc = vsep_desc},
-	{.ofs = 0x38, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH30", .bind = NULL, .desc = vsep_desc},
+	{.ofs = 0x2e, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH24", .bind = NULL, .desc = vsep_desc},
+	{.ofs = 0x30, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH25", .bind = NULL, .desc = vsep_desc},
+	{.ofs = 0x32, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH26", .bind = NULL, .desc = vsep_desc},
+	{.ofs = 0x34, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH27", .bind = NULL, .desc = vsep_desc},
+	{.ofs = 0x36, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH28", .bind = NULL, .desc = vsep_desc},
+	{.ofs = 0x38, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH29", .bind = NULL, .desc = vsep_desc},
+	{.ofs = 0x3a, .len = 0x02, .msk = 0x03, .val = 0x00, .name = "PCH30", .bind = NULL, .desc = vsep_desc},
 };
 
 nest_chip_t vsep = {
