@@ -10,7 +10,7 @@
 #include "ulp_time.h"
 #include "stm32f10x_it.h"
 
-#if CONFIG_CAN1_RF_SZ > 0
+#ifdef CONFIG_CAN1_SWFIFO
 #define ENABLE_CAN_INT 1
 #define RX_FIFO_SZ CONFIG_CAN1_RF_SZ
 static can_msg_t can_fifo_rx[RX_FIFO_SZ];
