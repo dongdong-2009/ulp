@@ -374,37 +374,22 @@ static void CyclingTest(void)
 	vsep_init();
 	burn_init();
 
-	if(1) { // confirmed by jingfeng 2012-5-19
-		vsep_mask("PCH13");
-		vsep_mask("PCH14");
-		vsep_mask("PCH26");
-		vsep_mask("PCH30");
-	}
-
 	switch(bmr) {
-	case BM_28077390:
-	case BM_28119979:
-	case BM_28164665:
-	case BM_28180087:
-	case BM_28264387:
-	case BM_DK285368:
-	case BM_DK285361:
+	case BM_28164665: //2 IGBT
 		burn_mask(BURN_CH_COILC);
 		burn_mask(BURN_CH_COILD);
 		vsep_mask("PCH03"); //2 way IGBT
 		vsep_mask("PCH04"); //2 way IGBT
-	case BM_28159907:
-	case BM_28190870:
-	case BM_28249355:
-	case BM_28303208:
-	case BM_DK285375:
-		vsep_mask("PCH13"); //FPR Short to Ground?
-		vsep_mask("PCH14"); //SMR Short to Ground?
-		vsep_mask("PCH27"); //MPR Short to Ground?
-		vsep_mask("PCH17"); //LEGR Short to Battery, not committed by delphi!
-		vsep_mask("PCH18"); //VVT1 Short to Battery, not committed by delphi!
-		vsep_mask("PCH24"); //O2HTRD Short to Ground, not committed by delphi!
-		vsep_mask("PCH25"); //EVAP Short to Battery, not committed by delphi!
+		vsep_mask("PCH13"); //FPR Short to Ground? masked by jingfeng 2012/05/19!
+		vsep_mask("PCH14"); //SMR Short to Ground? masked by jingfeng 2012/05/19!
+		vsep_mask("PCH26"); //SVS Short to Ground? masked by jingfeng 2012/05/19!
+		vsep_mask("PCH30"); //MIL Short to Ground? masked by jingfeng 2012/05/19!
+		break;
+	case BM_28190870: //4 IGBT
+		vsep_mask("PCH13"); //FPR Short to Ground? masked by jingfeng 2012/05/19!
+		vsep_mask("PCH14"); //SMR Short to Ground? masked by jingfeng 2012/05/19!
+		vsep_mask("PCH26"); //SVS Short to Ground? masked by jingfeng 2012/05/19!
+		vsep_mask("PCH30"); //MIL Short to Ground? masked by jingfeng 2012/05/19!
 		break;
 	default:
 		break;
