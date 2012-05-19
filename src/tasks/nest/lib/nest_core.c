@@ -135,7 +135,7 @@ static int cmd_nest_func(int argc, char *argv[])
 		"nest help\n"
 		"nest save                              save settings to nvm\n"
 		"nest log                               print log message\n"
-		"nest ignore psv bmr rly pkt all non    ignore some event for debug\n"
+		"nest ignore psv bmr rly pkt fail all non    ignore some event for debug\n"
 		"nest id                                set nest id eg.(001)\n"
 		"nest cond_flag                         write nest cond_flag by hex eg.(0xff)\n"
 	};
@@ -161,6 +161,9 @@ static int cmd_nest_func(int argc, char *argv[])
 				}
 				else if(!strcmp(argv[i], "pkt")) {
 					ignore |= PKT;
+				}
+				else if(!strcmp(argv[i], "fail")) {
+					ignore |= FAIL;
 				}
 				else if(!strcmp(argv[i], "all")) {
 					ignore |= (PSV | BMR | RLY | PKT);
@@ -195,6 +198,10 @@ static int cmd_nest_func(int argc, char *argv[])
 
 				if(nest_ignore(PSV))
 					nest_message("|PSV");
+				else
+					nest_message("|   ");
+				if(nest_ignore(FAIL))
+					nest_message("|FAIL");
 				else
 					nest_message("|   ");
 				nest_message("|\n");

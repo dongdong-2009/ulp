@@ -14,6 +14,7 @@ enum {
 	BMR = 1 << 1,
 	RLY = 1 << 2, /*CYC IGN RELAY ON/OFF*/
 	PKT = 1 << 3, /*IGBT BURN PEAK TEST*/
+	FAIL = 1 << 4, /*DO NOT EXIT WHEN TEST FAIL*/
 };
 int nest_ignore(int mask);
 

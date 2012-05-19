@@ -413,6 +413,8 @@ static void CyclingTest(void)
 			nest_update();
 			nest_light(RUNNING_TOGGLE);
 			fail = burn_verify(mfg_data.vp, mfg_data.ip, mfg_data.wp);
+			if(!nest_ignore(FAIL))
+				fail = 0;
 			if(fail) {
 				nest_error_set(PULSE_FAIL, "Cycling");
 				break;
@@ -425,6 +427,8 @@ static void CyclingTest(void)
 			fail += vsep_verify(mailbox + (0x1084 - 0x1080)); /*verify [1084 - 108b]*/
 			fail += hfps_verify(mailbox + (0x108c - 0x1080)); /*verify [108c - 1091]*/
 			fail += phdh_verify(mailbox + (0x1092 - 0x1080)); /*verify [1092 - 1092]*/
+			if(!nest_ignore(FAIL))
+				fail = 0;
 			if (fail) {
 				memcpy(mfg_data.fb, mailbox, sizeof(mfg_data.fb));
 				nest_error_set(FB_FAIL, "Cycling");
