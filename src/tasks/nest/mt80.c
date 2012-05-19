@@ -384,12 +384,14 @@ static void CyclingTest(void)
 		vsep_mask("PCH14"); //SMR Short to Ground? masked by jingfeng 2012/05/19!
 		vsep_mask("PCH26"); //SVS Short to Ground? masked by jingfeng 2012/05/19!
 		vsep_mask("PCH30"); //MIL Short to Ground? masked by jingfeng 2012/05/19!
+		vsep_mask("PCH23"); //E-52, empty pin
 		break;
 	case BM_28190870: //4 IGBT
 		vsep_mask("PCH13"); //FPR Short to Ground? masked by jingfeng 2012/05/19!
 		vsep_mask("PCH14"); //SMR Short to Ground? masked by jingfeng 2012/05/19!
 		vsep_mask("PCH26"); //SVS Short to Ground? masked by jingfeng 2012/05/19!
 		vsep_mask("PCH30"); //MIL Short to Ground? masked by jingfeng 2012/05/19!
+		vsep_mask("PCH23"); //E-52, empty pin
 		break;
 	default:
 		break;
