@@ -320,6 +320,9 @@ int burn_verify(unsigned short *vp, unsigned short *ip, unsigned char *wp)
 		}
 	}
 
+	if((ret == -2) || (ret == -3)) { //fail asap in case of 'sync lost too much' or 'pulse width fail'
+		return ret;
+	}
 	burn_fail_counter += (ret < 0) ? 1 : 0;
 	ret = (burn_fail_counter > 30) ? ret : 0;
 	return ret;
