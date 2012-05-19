@@ -374,6 +374,13 @@ static void CyclingTest(void)
 	vsep_init();
 	burn_init();
 
+	if(1) { // confirmed by jingfeng 2012-5-19
+		vsep_mask("PCH13");
+		vsep_mask("PCH14");
+		vsep_mask("PCH26");
+		vsep_mask("PCH30");
+	}
+
 	switch(bmr) {
 	case BM_28077390:
 	case BM_28119979:
