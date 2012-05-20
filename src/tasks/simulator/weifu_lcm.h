@@ -11,8 +11,10 @@ typedef struct {
 	short phase_diff_max;
 	short vss_min; //vehicle speed
 	short vss_max;
-	short tim_min; //tim sensor duty cycle
-	short tim_max;
+	short timdc_min; //tim sensor duty cycle
+	short timdc_max;
+	short timfrq_min; //tim sensor frequence
+	short timfrq_max;
 	short hfmsig_min; //air flow meter(1.5k - 15k)
 	short hfmsig_max;
 	short hfmref_min; //air flow meter diag(18k)
@@ -24,6 +26,7 @@ typedef struct {
 	short phase_diff;
 	short vss;       //vehicle speed
 	short tim_dc;    //tim duty cycle
+	short tim_frq;    //tim frequence
 	short hfmsig;    //flow meter signal
 	short hfmref;    //flow meter diag
 	short eng_speed; //feedback engine speed
