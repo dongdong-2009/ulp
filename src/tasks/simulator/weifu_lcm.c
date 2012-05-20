@@ -21,6 +21,7 @@ static lcm_cfg_t lcm_cfg = {
 	-10, 10,   /*phase diff*/
 	0, 5000, /*vss*/
 	0, 100, /*tim sensor duty cycle*/
+	11, 1000, /*tim sensor frequence*/
 	1500, 15000, /*flow meter*/
 	17000, 19000, /*flow meter diag*/
 };
@@ -34,6 +35,7 @@ static int get_eng_rpm(void) {return lcm_dat.eng_rpm;}
 static int get_phase_diff(void) {return lcm_dat.phase_diff;}
 static int get_vss(void) {return lcm_dat.vss;}
 static int get_tim_dc(void) {return lcm_dat.tim_dc;}
+static int get_tim_frq(void) {return lcm_dat.tim_frq;}
 static int get_hfmsig(void) {return lcm_dat.hfmsig;}
 static int get_hfmref(void) {return lcm_dat.hfmref;}
 static int get_eng_speed(void) {return lcm_dat.eng_speed;}
@@ -43,6 +45,7 @@ const char str_eng_rpm[] = "Eng RPM";
 const char str_phase_diff[] = "Phase Diff";
 const char str_vss[] = "VSS";
 const char str_tim_dc[] = "Tim DC";
+const char str_tim_frq[] = "Tim FRQ";
 const char str_hfmsig[] = "HFMSIG";
 const char str_hfmref[] = "HFMRef";
 const char str_eng_speed[] = "Eng Speed";
@@ -72,15 +75,21 @@ const osd_item_t items_tim_dc[] = {
 	NULL,
 };
 
+const osd_item_t items_tim_frq[] = {
+	{0, 4, 11, 1, (int)str_tim_frq, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{11, 4, 4, 1, (int)get_tim_frq, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	NULL,
+};
+
 const osd_item_t items_hfmsig[] = {
-	{0, 4, 10, 1, (int)str_hfmsig, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{10, 4, 5, 1, (int)get_hfmsig, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{0, 5, 10, 1, (int)str_hfmsig, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{10, 5, 5, 1, (int)get_hfmsig, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
 const osd_item_t items_hfmref[] = {
-	{0, 5, 10, 1, (int)str_hfmref, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{10, 5, 5, 1, (int)get_hfmref, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{0, 6, 10, 1, (int)str_hfmref, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{10, 6, 5, 1, (int)get_hfmref, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
@@ -109,8 +118,9 @@ const osd_group_t grps[] = {
 	{.items = items_phase_diff, .cmds = cmds_items, .order = 1, .option = 0},
 	{.items = items_vss, .cmds = cmds_items, .order = 2, .option = 0},
 	{.items = items_tim_dc, .cmds = cmds_items, .order = 3, .option = 0},
-	{.items = items_hfmsig, .cmds = cmds_items, .order = 4, .option = 0},
-	{.items = items_hfmref, .cmds = cmds_items, .order = 5, .option = 0},
+	{.items = items_tim_frq, .cmds = cmds_items, .order = 4, .option = 0},
+	{.items = items_hfmsig, .cmds = cmds_items, .order = 5, .option = 0},
+	{.items = items_hfmref, .cmds = cmds_items, .order = 6, .option = 0},
 	{.items = items_eng_speed, .cmds = cmds_items, .order = STATUS_GRAYED, .option = 0},
 	{.items = items_wtout, .cmds = cmds_items, .order = STATUS_GRAYED, .option = 0},
 	NULL,
@@ -235,6 +245,7 @@ void lcm_Init(void)
 		memset(&lcm_dat, 0, sizeof(lcm_dat));
 	lcm_dat.hfmsig = lcm_cfg.hfmsig_min;
 	lcm_dat.hfmref = lcm_cfg.hfmref_min;
+	lcm_dat.tim_frq = lcm_cfg.timfrq_min;
 
 	hdlg = osd_ConstructDialog(&dlg);
 	osd_SetActiveDialog(hdlg);

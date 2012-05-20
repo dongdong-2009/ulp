@@ -2,7 +2,7 @@
  * David@2011,8 initial version
  */
 
-#include "driver.h"
+#include "ulp/driver.h"
 #include "lcd.h"
 #include "jhd204a.h"
 #include "ulp_time.h"

@@ -5,6 +5,7 @@ END DESCRIPTION ***************************************************************/
 #include "lib/nest.h"
 #include "obsolete/obsolete.h"
 #include "mt92.h"
+#include "sys/sys.h"
 
 fis_data_t fis;
 unsigned char  Fault_Data[256];
@@ -115,22 +116,21 @@ static void NestPowerOff(void)
 ERROR_CODE Read_Memory(UINT32 addr, UINT8* pdata, int len)
 {
 	ERROR_CODE result;
-	UINT8 buffer[5];
+	UINT8 buffer[4];
 
-	memset(buffer + 1, 0x00, 3);
-	buffer[0] = (UINT8)len;
-
+	buffer[0] = (char)(len >> 24);
+	buffer[1] = (char)(len >> 16);
+	buffer[2] = (char)(len >> 8);
+	buffer[3] = (char)(len >> 0);
 	result = mcamOSDownload(DW_CAN1, D4_ADDR, buffer, 4, CAN_TIMEOUT);
 	if (result != E_OK) return result;
 
-	buffer[0] = (addr >> 0) & 0xff;
-	buffer[1] = (addr >> 8) & 0xff;
-	buffer[2] = (addr >> 16) & 0xff;
-	buffer[3] = (addr >> 24) & 0xff;
-
+	buffer[0] = (char)(addr >> 24);
+	buffer[1] = (char)(addr >> 16);
+	buffer[2] = (char)(addr >> 8);
+	buffer[3] = (char)(addr >> 0);
 	result = mcamOSDownload(DW_CAN1, A4_ADDR, buffer, 4, CAN_TIMEOUT);
 	if (result != E_OK) return result;
-
 	result = mcamOSExecute(DW_CAN1, MEMORYR_ADDR, CAN_TIMEOUT);
 	if(result != E_OK) return result;
 
@@ -147,19 +147,21 @@ ERROR_CODE Read_Memory(UINT32 addr, UINT8* pdata, int len)
 ERROR_CODE Write_Memory(UINT32 addr, UINT8* pdata, int len)
 {
 	ERROR_CODE result;
-	UINT8 buffer[5];
+	UINT8 buffer[8];
 
-	buffer[0] = (UINT8)len;
-	memset(buffer + 1, 0x00, 3);
+	buffer[0] = (char)(len >> 24);
+	buffer[1] = (char)(len >> 16);
+	buffer[2] = (char)(len >> 8);
+	buffer[3] = (char)(len >> 0);
+
 	result = mcamOSDownload(DW_CAN1, D4_ADDR, buffer, 4, CAN_TIMEOUT);
 	if (result != E_OK) return result;
 
-	buffer[0] = (addr>> 0)&0xff;
-	buffer[1] = (addr>> 8)&0xff;
-	buffer[2] = (addr>>16)&0xff;
-	buffer[3] = (addr>>24)&0xff;
-
-	result = mcamOSDownload(DW_CAN1, A4_ADDR, buffer, 4, CAN_TIMEOUT);
+	buffer[0] = (char)(addr >> 24);
+	buffer[1] = (char)(addr >> 16);
+	buffer[2] = (char)(addr >> 8);
+	buffer[3] = (char)(addr >> 0);
+	result = mcamOSDownload(DW_CAN1, A4_ADDR, buffer, 8, CAN_TIMEOUT);
 	if (result != E_OK) return result;
 
 	result = mcamOSDownload(DW_CAN1, WRITEDATA_ADDR, pdata, len, CAN_TIMEOUT);
@@ -178,6 +180,107 @@ ERROR_CODE Write_Memory(UINT32 addr, UINT8* pdata, int len)
 	return result;
 }
 
+//this routine for test
+#define MEMORYE_ADDR   ((UINT32)0X80170008)
+ERROR_CODE Erase_Sector()
+{
+	ERROR_CODE result;
+	UINT8 buffer[4];
+
+	buffer[0] = (UINT8)(0x80008000 >> 24);
+	buffer[1] = (UINT8)(0x80008000 >> 16);
+	buffer[2] = (UINT8)(0x80008000 >> 8);
+	buffer[3] = (UINT8)(0x80008000 >> 0);
+
+	result = mcamOSDownload(DW_CAN1, A4_ADDR, buffer, 4, CAN_TIMEOUT);
+	if (result != E_OK) return result;
+
+	result = mcamOSExecute(DW_CAN1, MEMORYE_ADDR, CAN_TIMEOUT);
+	if(result != E_OK) return result;
+
+	Delay10ms(40);
+
+	result = mcamOSUpload(DW_CAN1, buffer, D2_ADDR, 4, CAN_TIMEOUT);
+	if (result != E_OK) return result;
+
+	if(buffer[3] == 0x33)
+		result = E_OK;
+	else
+		result = DUT_OOPS;
+
+	return result;
+}
+
+//this routine for test
+#define TESTMODE_ADDR   ((UINT32)0X80170024)
+ERROR_CODE Read_TestMode()
+{
+	ERROR_CODE result;
+	UINT8 buffer[4];
+
+	result = mcamOSExecute(DW_CAN1, TESTMODE_ADDR, CAN_TIMEOUT);
+	if(result != E_OK) return result;
+	Delay10ms(10);
+	result = mcamOSUpload(DW_CAN1, buffer, D2_ADDR, 4, CAN_TIMEOUT);
+	if (result != E_OK) return result;
+	result = E_OK;
+	switch (buffer[3]) {
+	case 0x01:
+		printf("Manufacturing Output Cycling: %x\n", buffer+3);
+		break;
+	case 0x02:
+		printf("PT&V Output Cycling(slow): %x\n", buffer+3);
+		break;
+	case 0x03:
+		printf("Input Polling: %x\n", buffer+3);
+		break;
+	case 0x04:
+		printf("Power Conditioning: %x\n", buffer+3);
+		break;
+	default:
+		result = DUT_OOPS;
+		break;
+	}
+
+	return result;
+}
+
+#define CHANGEMODE_ADDR   ((UINT32)0X80170040)
+ERROR_CODE Change_TestMode(char mode)
+{
+	ERROR_CODE result;
+	UINT8 buffer[4];
+
+	buffer[0] = mode;
+
+	result = mcamOSDownload(DW_CAN1, D4_ADDR, buffer, 1, CAN_TIMEOUT);
+	if (result != E_OK) return result;
+	result = mcamOSExecute(DW_CAN1, CHANGEMODE_ADDR, CAN_TIMEOUT);
+	if (result != E_OK) return result;
+	Delay10ms(10);
+	result = mcamOSUpload(DW_CAN1, buffer, D2_ADDR, 4, CAN_TIMEOUT);
+	if (result != E_OK) return result;
+	result = E_OK;
+
+	return result;
+}
+
+#define RAMTEST_ADDR   ((UINT32)0X80170028)
+ERROR_CODE RAMTest(void)
+{
+	ERROR_CODE result;
+	UINT8 buffer[4];
+
+	result = mcamOSExecute(DW_CAN1, RAMTEST_ADDR, CAN_TIMEOUT);
+	if (result != E_OK) return result;
+	Delay10ms(10);
+	result = mcamOSUpload(DW_CAN1, buffer, D2_ADDR, 4, CAN_TIMEOUT);
+	if (result != E_OK) return result;
+	result = E_OK;
+
+	return result;
+}
+
 #define VERSION_ADDR ((UINT32)0X80170000)
 #define VERDATA_ADDR ((UINT32)0XD000880C)
 ERROR_CODE PrintSoftwareVersion(void)
@@ -189,11 +292,7 @@ ERROR_CODE PrintSoftwareVersion(void)
 
 	Delay10ms(10);  //it seems to need delay 100ms for mcamos server executing at least
 
-	result = mcamOSUpload(DW_CAN1, buffer, VERDATA_ADDR, 8, CAN_TIMEOUT);
-	if (result != E_OK) return result;
-	result = mcamOSUpload(DW_CAN1, buffer + 8, VERDATA_ADDR + 8, 8, CAN_TIMEOUT);
-	if (result != E_OK) return result;
-	result = mcamOSUpload(DW_CAN1, buffer + 16, VERDATA_ADDR + 16, 8, CAN_TIMEOUT);
+	result = mcamOSUpload(DW_CAN1, buffer, VERDATA_ADDR, 24, CAN_TIMEOUT);
 	if (result != E_OK) return result;
 	message("TESTABILITY  VERSION: %s\n", buffer);
 	return result;
@@ -421,7 +520,7 @@ void TestStart(void)
 	result = PrintSoftwareVersion();
 	if(result != E_OK) ERROR_RETURN(CAN_FAIL, "Print S/W Version");
 
-	message("Read Base Model to pre-set relay to low load status ... \n");  //do ops before power on
+	message("Read Base Model to pre-set relay to low load status ... \n");
 	//DK269089 is 3 cyc-clind  DK269088 is 4 cyc-clind
 	result = Read_Memory(BASE_MODEL_TYPE_ADDR, buffer, BASE_MODEL_TYPE_SIZE);
 	if (result != E_OK) ERROR_RETURN(MTYPE_FAIL, "Read Base Model");
@@ -523,10 +622,10 @@ void main(void)
 
 	while(1){
 		TestStart();
-	  	CyclingTest();
+		CyclingTest();
 		TestStop();
 	}
-} // main
+}
 
 
 #if 1
@@ -538,14 +637,19 @@ void main(void)
 static int cmd_mt92_func(int argc, char *argv[])
 {
 	int addr, len, i, result, temp;
-	unsigned char buf[8];
+	unsigned char *buf;
 
 	const char *usage = {
 		"mt92 , usage:\n"
 		"mt92 pwr on/off, turn on/off the nest power\n"
-		"mt92 rm addr len, read len(hex) data from memory of addr(hex)\n"
+		"mt92 rm addr len, read len(decimal) data from memory of addr(hex)\n"
 		"mt92 wm addr data, write a byte(hex) to addr(hex)\n"
 		"mt92 crun, start the mt92 cycling test\n"
+		"mt92 erase, erase PML data and Mfg NVM\n"
+		"mt92 print sv, print the software version of mt92\n"
+		"mt92 test mode, print the testability mode\n"
+		"mt92 change mode, change the testability mode\n"
+		"mt92 ram , run ram test of testability mode\n"
 	};
 
 	if (argc < 2) {
@@ -553,7 +657,8 @@ static int cmd_mt92_func(int argc, char *argv[])
 		return 0;
 	}
 
-	if(argv[1][0] == 'p') {
+	//power control command
+	if(strcmp(argv[1], "pwr") == 0) {
 		if(argv[2][1] == 'n') {
 			printf("##Power on##\n");
 			//power on the dut
@@ -564,9 +669,15 @@ static int cmd_mt92_func(int argc, char *argv[])
 		}
 	}
 
-	if(argv[1][0] == 'r') {
+	//read memory operation
+	if(strcmp(argv[1], "rm") == 0) {
 		sscanf(argv[2], "%x", &addr);
-		sscanf(argv[3], "%x", &len);
+		sscanf(argv[3], "%d", &len);
+		buf = (unsigned char *)sys_malloc(len);
+		if (buf == NULL) {
+			printf("Failed, Lack of memory\n");
+			return 0;
+		}
 		result = Read_Memory(addr, buf, len);
 		if (result) {
 			printf("##Error##\n");
@@ -575,27 +686,77 @@ static int cmd_mt92_func(int argc, char *argv[])
 			for (i = 0; i < len; i++)
 				printf("0x%x ", buf[i]);
 		}
+		sys_free(buf);
 	}
 
+	//write memory operation
 	if(argv[1][0] == 'w') {
+		len = argc - 3;
 		sscanf(argv[2], "%x", &addr);
-		sscanf(argv[3], "%x", &temp);
-		buf[0] = (unsigned char)temp;
-		result = Write_Memory(addr, buf, 1);
+		buf = (unsigned char *)sys_malloc(len);
+		if (buf == NULL) {
+			printf("Failed, Lack of memory\n");
+			return 0;
+		}
+		for (i = 0; i < len; i++) {
+			sscanf(argv[3 + i], "%x", &temp);
+			buf[i] = (unsigned char)temp;
+		}
+		result = Write_Memory(addr, buf, len);
 		if (result) {
 			printf("##Error Code is 0x%x##\n", result);
 		} else {
 			printf("##OK##\n");
 		}
+		sys_free(buf);
 	}
 
-	if(argv[1][0] == 'c') {
+	//execute power cycling test
+	if(strcmp(argv[1], "crun") == 0) {
 		result = Execute_Cycling();
 		if (result) {
 			printf("##Error Code is 0x%x##\n", result);
 		} else {
 			printf("##OK##\n");
 		}
+	}
+
+	// print software version
+	if(strcmp(argv[1], "print") == 0) {
+		PrintSoftwareVersion();
+	}
+
+	// erase PML data and Mfg NVM
+	if(strcmp(argv[1], "erase") == 0) {
+		if (Erase_Sector())
+			printf("Erase Op Wrong\n");
+		else
+			printf("Erase Op Right\n");
+	}
+
+	// change the testability mode
+	if(strcmp(argv[1], "change") == 0) {
+		sscanf(argv[2], "%d", &len);
+		if (Change_TestMode((char)len))
+			printf("Change Mode Op Wrong\n");
+		else
+			printf("Change Mode Op Right\n");
+	}
+
+	// read the testability mode
+	if(strcmp(argv[1], "test") == 0) {
+		if (Read_TestMode())
+			printf("Test Mode Op Wrong\n");
+		else
+			printf("Test Mode Op Right\n");
+	}
+
+	// run ram test
+	if(strcmp(argv[1], "ram") == 0) {
+		if (RAMTest())
+			printf("RAM Test Mode Op Wrong\n");
+		else
+			printf("RAM Test Mode Op Right\n");
 	}
 
 	return 0;
