@@ -31,7 +31,7 @@ void wss_SetFreq(short hz);
 //api for pwm output and counter input
 //counter1 : TIM1_CH4
 //counter2 : TIM2_CH2
-//pwm1 : TIM3_CH2
+//pwm1 : TIM3_CH3
 //pwm2 : TIM4_CH2
 void counter1_Init(void);
 void counter2_Init(void);

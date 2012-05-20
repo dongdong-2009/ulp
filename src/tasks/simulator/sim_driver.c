@@ -33,7 +33,7 @@ static ad9833_t clock_dds = {
 
 static ad9833_t vss_dds = {
 	.bus = &spi2,
-	.idx = SPI_CS_PB0, //real one
+	.idx = SPI_CS_PC7, //real one
 	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
 
@@ -176,11 +176,11 @@ void counter2_SetValue(int value)
 	counter22.set(value);
 }
 
-//pwm1 : TIM3_CH2
+//pwm1 : TIM3_CH3
 void pwm1_Init(int frq, int dc)
 {
 	pwm_cfg_t cfg;
-	const pwm_bus_t *pwm = &pwm32;
+	const pwm_bus_t *pwm = &pwm33;
 
 	cfg.hz = frq;
 	cfg.fs = 100;
