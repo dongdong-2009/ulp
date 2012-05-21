@@ -6,6 +6,7 @@ obj-y += uart/
 obj-y += spi/
 obj-y += lpt/
 obj-y += pwm/
+obj-y += counter/
 obj-y += can/
 obj-y += console.o
 obj-y += mac/

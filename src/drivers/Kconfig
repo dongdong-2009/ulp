@@ -68,6 +68,11 @@ mainmenu_option next_comment
 endmenu
 
 mainmenu_option next_comment
+	comment 'pulse counter config'
+	source src/drivers/counter/Kconfig
+endmenu
+
+mainmenu_option next_comment
 	comment 'disk config'
 	source src/drivers/disk/Kconfig
 endmenu

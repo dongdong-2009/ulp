@@ -246,7 +246,7 @@ static void c131_Init(void)
 	c131_InitMsg();
 	c131_Tim2Init();
 
-	c131_InitLedConfig();					//for led pwr and states init
+	//c131_InitLedConfig();					//for led pwr and states init
 	c131_dtc.pdtc = dtc_buffer;				//for dtc related varible init
 }
 
@@ -268,41 +268,54 @@ static void c131_Update(void)
 		sw_SetRelayStatus(C131_SW2_C2 | C131_SW5_C2, RELAY_OFF);
 		sw_SetRelayStatus(C131_SW3 | C131_SW4, RELAY_ON);
 		c131_relay_Update();
-		c131_mdelay(5000);
+		c131_mdelay(12000);
+#if 0   //added by david 2012,5,6
 		while (c131_GetAirbagMsg(&msg));			//check the msg of sdm
 		can_msg_print(&msg, "\n");
 		//for DSB and PSB and PAD and SBR
-		if (!(((msg.data[2]&0x0f) == 0x05) && (msg.data[5]&0x01) && ((msg.data[7]&0x04) == 0x0)))
+		if (!(((msg.data[2]&0x0f) == 0x05) && (msg.data[5]&0x01) && ((msg.data[7]&0x04) == 0x0))) {
 			c131_test_status = C131_TEST_FAIL;
+			printf("Failed : DSB and PSB and PAD and SBR!\n");
+		}
 
 		//stage two, config the relays(loads)
 		sw_SetRelayStatus(C131_SW2_C1 | C131_SW5_C1, RELAY_ON);
 		sw_SetRelayStatus(C131_SW2_C2 | C131_SW5_C2, RELAY_ON);
 		sw_SetRelayStatus(C131_SW3 | C131_SW4, RELAY_OFF);
 		c131_relay_Update();
-		c131_mdelay(5000);
+		c131_mdelay(2000);
 		while (c131_GetAirbagMsg(&msg) == 0);			//check the msg of sdm
 		can_msg_print(&msg, "\n");
 		//for DSB and PSB and PAD and SBR
-		if (!(((msg.data[2]&0x0f) == 0x0) && ((msg.data[5]&0x01) == 0x0) && (msg.data[7]&0x04)))
+		if (!(((msg.data[2]&0x0f) == 0x0) && ((msg.data[5]&0x01) == 0x0) && (msg.data[7]&0x04))) {
 			c131_test_status = C131_TEST_FAIL;
+			printf("Failed : DSB and PSB and PAD and SBR!\n");
+		}
 
 		//check whether there is dtc data
-		c131_mdelay(20000);
+		c131_mdelay(5000);
 		while(c131_GetAirbagMsg(&msg));
-		if (msg.data[5] & 0x02)							//warning lamp detect
+		can_msg_print(&msg, "\n");
+		if (msg.data[5] & 0x02) {							//airbag warning lamp detect
 			c131_test_status = C131_TEST_FAIL;
-		c131_GetDTC(&c131_dtc);						//DTC detect
-		if (c131_dtc.dtc_bExist)
+			printf("Failed : airbag warning lamp detect!\n");
+		}
+#endif
+		c131_GetDTC(&c131_dtc);								//DTC detect
+		if (c131_dtc.dtc_bExist) {
 			c131_test_status = C131_TEST_FAIL;
+			printf("Failed : DTC detect!\n");
+		}
 
 		if (c131_test_status == C131_TEST_FAIL) {		//test sequence fail
 			FailLed_On();
 			Disable_SDMPWR();
+			Disable_LEDPWR();
 		} else {
 			c131_test_status = C131_TEST_SUCCESSFUL;	//test sequence passed
 			FailLed_Off();
 			Disable_SDMPWR();
+			Disable_LEDPWR();
 		}
 	}
 }
@@ -316,6 +329,8 @@ int apt_AddLoad(apt_load_t * pload)
 			c131_load[i] = (*pload);
 			c131_load[i].load_bExist =1;
 			nvm_save();
+			c131_index_load = i;  //display updated sdm model
+			c131_GetSDMType(c131_index_load, sdmtype_ram);
 			return 0;
 		}
 	}
@@ -323,8 +338,10 @@ int apt_AddLoad(apt_load_t * pload)
 		if (c131_load[i].load_bExist == 0) {
 			c131_load[i] = (*pload);
 			c131_load[i].load_bExist =1;
-			nvm_save();
 			num_load ++;
+			nvm_save();
+			c131_index_load = i;  //display new sdm model
+			c131_GetSDMType(c131_index_load, sdmtype_ram);
 			return 0;
 		}
 	}
@@ -380,8 +397,17 @@ int apt_SelectSDMType(int keytype)
 		c131_ConfirmLoad(c131_index_load);
 		c131_GetSDMType(c131_index_load, typeinfo_ram);
 	} else if(keytype == KEY_RESET) {
-		if (c131_DelCurrentLoad() == 0)
-			apt_SelectSDMType(KEY_RIGHT);
+		if (c131_DelCurrentLoad() == 0) {
+			if (num_load == 0) {
+				strcpy(sdmtype_ram, "No Invalid Cfg ");
+				return 0;
+			}
+			do {
+				c131_index_load ++;
+				if (c131_index_load >= NUM_OF_LOAD) 
+					c131_index_load = 0;
+			} while(c131_GetSDMType(c131_index_load, sdmtype_ram));
+		}
 	}
 
 	return 0;
@@ -473,6 +499,10 @@ int apt_SelectAPTDiag(int keytype)
 {
 	int ret = 0;
 	if (keytype == KEY_ENTER) {
+//added by david, 2012,5,6
+		c131_DiagSW();
+		c131_DiagLOOP();
+//ended
 		ret = c131_DiagSW();
 		ret += c131_DiagLOOP();
 		if (ret)
@@ -504,7 +534,7 @@ int apt_GetTestInfo(void)
 
 int apt_SelectSDMTest(int keytype)
 {
-	if ((keytype == KEY_ENTER) && (status_link == SDM_EXIST)) {
+	if ((keytype == KEY_ENTER) && (status_link == SDM_EXIST) && (c131_current_load != -1)) {
 		if (c131_test_status == C131_TEST_NOTYET) {
 			c131_test_status = C131_TEST_ONGOING;
 			// for initializing the status
@@ -512,13 +542,14 @@ int apt_SelectSDMTest(int keytype)
 			c131_relay_Update();
 			c131_mdelay(20);
 			Enable_SDMPWR();
+			Enable_LEDPWR();
 		}
 	} else if (keytype == KEY_RESET) {
 		if ((c131_test_status == C131_TEST_FAIL) || (c131_test_status == C131_TEST_SUCCESSFUL)) {
 			c131_test_status = C131_TEST_NOTYET;
 			FailLed_Off();
 			//for led pwr and states init
-			c131_InitLedConfig();
+			//c131_InitLedConfig();
 		}
 	}
 
@@ -706,7 +737,7 @@ static void c131_Tim2Init(void)
 
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
 	/* Time base configuration */
-	TIM_TimeBaseStructure.TIM_Period = 500;		//5ms interrupt
+	TIM_TimeBaseStructure.TIM_Period = 800;		//5ms interrupt
 	TIM_TimeBaseStructure.TIM_Prescaler = 720 - 1;
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -767,6 +798,7 @@ static int c131_DelCurrentLoad(void)
 		return 1;
 	else {
 		c131_load[c131_index_load].load_bExist = 0;
+		num_load --;
 		nvm_save();
 		return 0;
 	}
