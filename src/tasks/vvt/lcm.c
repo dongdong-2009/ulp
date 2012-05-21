@@ -3,7 +3,7 @@
  */
 
 #include "config.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "ulp_time.h"
 #include "sys/task.h"
 #include "priv/mcamos.h"

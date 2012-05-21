@@ -3,7 +3,7 @@
  */
 
 #include "key.h"
-#include "driver.h"
+#include "ulp/driver.h"
 #include "encoder.h"
 #include "ulp_time.h"
 #include <stdio.h>

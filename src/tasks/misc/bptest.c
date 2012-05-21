@@ -5,7 +5,8 @@
 // #
 // # Input/output configration:
 // # Relay Control Pin:PC4
-// # AWL Input Detect Pin:PC5
+// # AWL Input 1 Detect Pin:PC5
+// # AWL Input 2 Detect Pin:PE10
 
 #include "config.h"
 #include <stdio.h>
@@ -16,26 +17,34 @@
 #include "stm32f10x_gpio.h"
 
 /* init time define*/
-#define BP_SELFCHECK_TIME		8000 // for product self checking time
+#define BP_SELFCHECK_TIME		8000             // for product self checking time
 #define BP_PowerOn_TIME			(1000 * 60 * 10) //for power on time 10 min
-#define BP_PowerOff_TIME		(1000 * 10) //for power off time 10 s
+#define BP_PowerOff_TIME		(1000 * 10)      //for power off time 10 s
 
-#define AWL_OFF			Bit_RESET
-#define AWL_ON			Bit_SET
+#define AWL_OFF			Bit_SET
+#define AWL_ON			Bit_RESET
 
 #define POWER_OFF		Bit_RESET
 #define POWER_ON		Bit_SET
 
 #define RYCTRL_PIN		GPIO_Pin_4
-#define AWLFB_PIN		GPIO_Pin_5
+#define AWLFB1_PIN		GPIO_Pin_5
+#define AWLFB2_PIN		GPIO_Pin_10
 
 #define RY_CTRL(ba)		GPIO_WriteBit(GPIOC,RYCTRL_PIN,ba)
-#define GET_AWL()		GPIO_ReadInputDataBit(GPIOC,AWLFB_PIN)
+#define GET_AWL1()		GPIO_ReadInputDataBit(GPIOC,AWLFB1_PIN)
+#define GET_AWL2()		GPIO_ReadInputDataBit(GPIOE,AWLFB2_PIN)
 
-static int awl_times = 0;
+//for airbag warning lamp flash times
+static int fault_flag1 = 0;
+static int fault_flag2 = 0;
+static int awl1_times = 0;
+static int awl2_times = 0;
 static int test_times = 0;
 static time_t poweron_timer;
 static int test_flag = 0;
+
+//for test time para
 static time_t bp_on_time;
 static time_t bp_off_time;
 static time_t bp_sfcheck_time;
@@ -47,16 +56,22 @@ void bptest_Init(void)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	//for gpio init
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
 
 	GPIO_InitStructure.GPIO_Pin = RYCTRL_PIN;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
   
-	GPIO_InitStructure.GPIO_Pin = AWLFB_PIN;
+	GPIO_InitStructure.GPIO_Pin = AWLFB1_PIN;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = AWLFB2_PIN;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
 	//for init state
 	bp_on_time = BP_PowerOn_TIME;
@@ -70,7 +85,7 @@ void bptest_Update(void)
 {
 	if (test_flag) {
 		test_times ++;
-		printf("\nPrepare the <%d round> burn panel power on/off test...\n", test_times);
+		printf("\nBegin the <%d round> burn panel power on/off test...\n", test_times);
 		printf("Power on ...\n");
 		poweron_timer = time_get(bp_on_time);
 		RY_CTRL(POWER_ON);
@@ -78,12 +93,25 @@ void bptest_Update(void)
 		printf("Self checking is over ...\n");
 		while(time_left(poweron_timer) > 0) {  //for airbag warning lamp detect
 			task_Update();
-			if (GET_AWL() == AWL_ON) {
-				awl_times ++;
-				printf("test time left %d s\n", time_left(poweron_timer)/1000);
-				printf("awl times is %d \n", awl_times);
-				bptest_mdelay(3000);
-				break;
+			if (fault_flag1 == 0) {
+				if (GET_AWL1() == AWL_ON) {
+					bptest_mdelay(2);
+					if (GET_AWL1() == AWL_ON) {
+						awl1_times ++;
+						fault_flag1 = 1;
+						printf("awl1 fault captured,test time left %d s\n", time_left(poweron_timer)/1000);
+					}
+				}
+			}
+			if (fault_flag2 == 0) {
+				if (GET_AWL2() == AWL_ON) {
+					bptest_mdelay(2);
+					if (GET_AWL2() == AWL_ON) {
+						awl2_times ++;
+						fault_flag2 = 1;
+						printf("awl2 fault captured,test time left %d s\n", time_left(poweron_timer)/1000);
+					}
+				}
 			}
 			if (test_flag == 0) {
 				break;
@@ -91,8 +119,14 @@ void bptest_Update(void)
 		}
 		printf("Power off ...\n");
 		RY_CTRL(POWER_OFF);
-		bptest_mdelay(bp_off_time);
+		printf("test times is %d, awl1 fault times is %d\n", test_times, awl1_times);
+		printf("test times is %d, awl2 fault times is %d\n", test_times, awl2_times);
 		printf("##########This round test over!!!##########################\n");
+
+		//related varibles back to initial value
+		fault_flag1 = 0;
+		fault_flag2 = 0;
+		bptest_mdelay(bp_off_time);
 	}
 }
 
@@ -151,7 +185,8 @@ int cmd_bp_func(int argc, char *argv[])
 	}
 
 	if (strcmp(argv[1], "status") == 0) {
-		printf("Test times is %d, Fail times is %d\n", test_times, awl_times);
+		printf("test times is %d, awl1 fault times is %d\n", test_times, awl1_times);
+		printf("test times is %d, awl2 fault times is %d\n", test_times, awl2_times);
 		printf("power on time is %d s\n", bp_on_time/1000);
 		printf("power off time is %d s\n", bp_off_time/1000);
 		printf("burn panel selfcheck time is %d s\n", bp_sfcheck_time/1000);

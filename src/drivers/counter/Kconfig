@@ -1,0 +1,12 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by david@2012
+#
+
+bool "enable counter0, counter00, ..." CONFIG_DRIVER_COUNTER0
+bool "enable counter1, counter10, ..." CONFIG_DRIVER_COUNTER1
+bool "enable counter2, counter20, ..." CONFIG_DRIVER_COUNTER2
+bool "enable counter3, counter30, ..." CONFIG_DRIVER_COUNTER3
+bool "enable counter4, counter40, ..." CONFIG_DRIVER_COUNTER4
+bool "enable counter cmd             " CONFIG_DRIVER_COUNTER_CMD
