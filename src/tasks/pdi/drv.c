@@ -53,12 +53,12 @@
 #endif
 
 #ifdef CONFIG_PDI_B515
-#define start_botton		(1<<0)
-#define counter_fail		(1<<1)
+#define start_botton		(1<<4)
+#define counter_fail		(1<<5)
 #define target				(1<<2)
 #define counter_pass		(1<<3)
-#define LED_red_on			(1<<4)
-#define LED_green_on		(1<<5)
+#define LED_red_on			(1<<0)
+#define LED_green_on		(1<<1)
 #define Beep_on				(1<<6)
 #define swcan_mode0			(1<<10)
 #define swcan_mode1			(1<<11)
