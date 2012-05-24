@@ -427,7 +427,7 @@ static void CyclingTest(void)
 		deadline = nest_time_get(1000 * 60);
 		while(nest_time_left(deadline) > 0) {
 			nest_update();
-			nest_light(RUNNING_TOGGLE);
+			nest_light(ALL_TOGGLE);
 		}
 
 		nest_message("T = %02d min\n", min);
