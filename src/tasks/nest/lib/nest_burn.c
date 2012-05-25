@@ -16,6 +16,9 @@
 #include "nest_core.h"
 #include "nest_power.h"
 #include <string.h>
+#include "crc.h"
+
+#define CONFIG_IGBT_CRC 1
 
 //Peak Pulse Limit default setting
 #define BURN_VL_DEF	400 //Vpmin unit: V
@@ -137,8 +140,20 @@ int burn_read(int ch, struct burn_data_s *result)
 	if(ret)
 		return -1;
 
-	if(result)
+	if(result) {
 		ret = mcamos_upload(m.can, BURN_OUTBOX_ADDR + 2, (char *) result, sizeof(struct burn_data_s), 10);
+		#ifdef CONFIG_IGBT_CRC
+		if((ret == 0) && (result->crc_flag != 0)) {
+			unsigned short crc = result->crc;
+			result->crc = 0;
+			result->crc = cyg_crc16((unsigned char *) result, sizeof(struct burn_data_s));
+			if(crc != result->crc) {
+				nest_message("%s: crc fail\n", __FUNCTION__);
+				return -2;
+			}
+		}
+		#endif
+	}
 	mcamos_init_ex(NULL); //restore!!! it's dangerious here
 	return ret;
 }

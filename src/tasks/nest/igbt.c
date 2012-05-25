@@ -22,7 +22,9 @@ miaofng@2012	spark period adaptive fit (0 - 65mS)
 #include "lib/nest_burn.h"
 #include "shell/cmd.h"
 #include <stdlib.h>
+#include "crc.h"
 
+#define CONFIG_IGBT_CRC 1
 #define HARDWARE_VERSION	0x0104 //v1.4
 
 
@@ -194,6 +196,7 @@ enum {
 	FLAG_DEBUG_VP, //disp trape waveform data
 	FLAG_DEBUG_IP, //disp triangle waveform data
 	FLAG_DEBUG_VI, //disp V(v)&I(mA)
+	FLAG_DEBUG_CAN,
 } burn_flag_debug;
 
 int cmd_igbt_func(int argc, char *argv[])
@@ -253,6 +256,8 @@ int cmd_igbt_func(int argc, char *argv[])
 				burn_flag_debug = FLAG_DEBUG_IP;
 			else if(!strcmp(argv[2], "vi"))
 				burn_flag_debug = FLAG_DEBUG_VI;
+			else if(!strcmp(argv[2], "can"))
+				burn_flag_debug = FLAG_DEBUG_CAN;
 			else
 				burn_flag_debug = FLAG_DEBUG_NONE;
 			return 0;
@@ -292,7 +297,7 @@ int cmd_igbt_func(int argc, char *argv[])
 		"igbt wp nclk		set vpeak pulse width = nclk * 27.8nS(1/36MHz)\n"
 		"igbt id xx		set mcamos server can id, such as 0x5e0/2/4/6\n"
 		"igbt ical		current calibration mode\n"
-		"igbt debug vp/ip/vi	disp trape waveform/triangle waveform/peak VI waveform\n"
+		"igbt debug vp/ip/vi/can	disp trape waveform/triangle waveform/peak VI waveform\n"
 		"igbt vp ratio		(vm * ratio) >> 12 = ve\n"
 		"igbt vp ve vm		vexpect vmeasure, unit: V\n"
 		"igbt ip ratio		(im * ratio) >> 12 = ie\n"
@@ -821,6 +826,14 @@ void com_Update(void)
 		break;
 
 	case BURN_CMD_READ:
+		if(burn_flag_debug == FLAG_DEBUG_CAN) {
+			printf("R: %dV %dmA %dnS\n", burn_data.vp_avg, burn_data.ip_avg, burn_data.wp);
+		}
+		#ifdef CONFIG_IGBT_CRC
+			burn_data.crc_flag = 1;
+			burn_data.crc = 0;
+			burn_data.crc = cyg_crc16((unsigned char *) &burn_data, sizeof(burn_data));
+		#endif
 		memcpy(outbox, &burn_data, sizeof(burn_data));
 		break;
 
