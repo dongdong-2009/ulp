@@ -106,7 +106,7 @@ int burn_config(int ch, unsigned short vpm_ratio, unsigned short ipm_ratio, int 
 	char mailbox[6];
 	struct mcamos_s m;
 	m.can = &can1;
-	m.baud = 500000;
+	m.baud = BURN_BAUD;
 	m.id_cmd = 0x5e0 + (ch << 1);
 	m.id_dat = m.id_cmd + 1;
 
@@ -130,7 +130,7 @@ int burn_read(int ch, struct burn_data_s *result)
 	char cmd = BURN_CMD_READ;
 	struct mcamos_s m;
 	m.can = &can1;
-	m.baud = 500000;
+	m.baud = BURN_BAUD;
 	m.id_cmd = 0x5e0 + (ch << 1);
 	m.id_dat = m.id_cmd + 1;
 
