@@ -769,7 +769,7 @@ int pmm_Update(int ops, int ignore)
 
 			//debug
 			if((burn_ms != 0) && ((det > burn_ms*1000 + 1000) || (det < burn_ms*1000 - 1000))) {
-				printf("%d	%03d.%03dmS\n", -time_left(burn_tick), det/1000, det%1000);
+				printf("T=%dmS	: tp=%03d.%03dmS\n", -time_left(burn_tick), det/1000, det%1000);
 			}
 		}
 		return 1;
@@ -830,10 +830,11 @@ void com_Update(void)
 			printf("R: %dV %dmA %dnS\n", burn_data.vp_avg, burn_data.ip_avg, burn_data.wp);
 		}
 		#ifdef CONFIG_IGBT_CRC
-			burn_data.crc_flag = 1;
+			burn_data.crc_flag = (unsigned short) burn_id;
 			burn_data.crc = 0;
 			burn_data.crc = cyg_crc16((unsigned char *) &burn_data, sizeof(burn_data));
 		#endif
+		if(burn_data.lost != 0) printf("lost = %d\n", burn_data.lost);
 		memcpy(outbox, &burn_data, sizeof(burn_data));
 		break;
 
