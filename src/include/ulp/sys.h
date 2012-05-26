@@ -35,6 +35,7 @@
 #define sys_init	task_Init
 #define sys_update	task_Update
 #define sys_mdelay	task_mdelay
+#define sys_tick	task_tick /*be called periodly per 1mS*/
 
 /* ulp api for dynamic memory management
  * sys_malloc

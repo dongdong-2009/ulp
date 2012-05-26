@@ -4,7 +4,7 @@
  */
 
 #include "key.h"
-#include "driver.h"
+#include "ulp/driver.h"
 #include "stm32f10x.h"
 #include "ulp_time.h"
 

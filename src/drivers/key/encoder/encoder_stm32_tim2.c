@@ -3,7 +3,7 @@
  */
 
 #include "config.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "encoder.h"
 #include "stm32f10x.h"
 

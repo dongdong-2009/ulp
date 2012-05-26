@@ -165,6 +165,7 @@ static int cmd_cncb_func(int argc, char *argv[])
 		"cncb sig1 0	sig1..6/7(BAT)/8(IGN)/9(LSD) = 0(low)/1(high)\n"
 		"cncb can dw/sw	slect dual wire/single wire can type\n"
 		"cncb power on/off/1/0	power on/off dut\n"
+		"cncb led v	v = bit or (led_R|F|P)\n"
 	};
 
 	if(argc > 1) {
@@ -189,6 +190,14 @@ static int cmd_cncb_func(int argc, char *argv[])
 
 				j = ( j > LED_P) ? LED_F : (j + 1);
 			}
+			return 0;
+		}
+
+		if(!strncmp(argv[1], "led", 3)) {
+			int v = atoi(argv[2]);
+			cncb_signal(LED_P, (v & 0x01) ? LSD_ON : LSD_OFF);
+			cncb_signal(LED_F, (v & 0x02) ? LSD_ON : LSD_OFF);
+			cncb_signal(LED_R, (v & 0x04) ? LSD_ON : LSD_OFF);
 			return 0;
 		}
 

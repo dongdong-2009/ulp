@@ -96,18 +96,25 @@ const struct mcamos_s mcamos_mt92 = {
 
 //base model types declaration
 enum {
+	/*4 CYL*/
+	BM_DK277300,
 	BM_DK277130,
-	BM_28351894,
 	BM_28351885,
 	BM_28236632,
+
+	/*3 CYL*/
+	BM_28351894,
+	BM_DK277375,
 };
 
 //base model number to id maps
 const struct nest_map_s bmr_map[] = {
+	{"DK277300", BM_DK277300},
 	{"DK277130", BM_DK277130},
 	{"28351894", BM_28351894},
 	{"28351885", BM_28351885},
 	{"28236632", BM_28236632},
+	{"DK277375", BM_DK277375},
 	END_OF_MAP,
 };
 
@@ -417,10 +424,10 @@ static void CyclingTest(void)
 		mcamos_execute_ex(VECTOR_FAULTS_CLEAR);
 
 		//delay 1 min
-		deadline = nest_time_get(1000 * 10);
+		deadline = nest_time_get(1000 * 60);
 		while(nest_time_left(deadline) > 0) {
 			nest_update();
-			nest_light(RUNNING_TOGGLE);
+			nest_light(ALL_TOGGLE);
 		}
 
 		nest_message("T = %02d min\n", min);
@@ -464,12 +471,24 @@ void TestStart(void)
 	nest_message("DUT SW: %s\n", mailbox.bytes);
 
 	if(0) {
-		static const char mfg_data_dk277130[] = {
+		static const char mfg_data_dk277130[] = { //4 cyl
 			0x32, 0x31, 0x36, 0x31, 0x30, 0x30, 0x33, 0x39,
 			0x30, 0x44, 0x4b, 0x32, 0x37, 0x37, 0x31, 0x33,
 			0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		};
-		memcpy(&mfg_data, &mfg_data_dk277130, sizeof(mfg_data_dk277130));
+		static const char mfg_data_dk277300[] = { //4 cyl
+			0x32, 0x36, 0x36, 0x31, 0x30, 0x30, 0x32, 0x37,
+			0x30, 0x44, 0x4b, 0x32, 0x37, 0x37, 0x33, 0x30,
+			0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00,
+		};
+		static const char mfg_data_dk277375[] = { //3 cyl
+			0x32, 0x31, 0x36, 0x31, 0x30, 0x31, 0x36, 0x36,
+			0x30, 0x44, 0x4b, 0x32, 0x37, 0x37, 0x33, 0x37,
+			0x35, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		};
+		//memcpy(&mfg_data, &mfg_data_dk277130, sizeof(mfg_data_dk277130));
+		//memcpy(&mfg_data, &mfg_data_dk277300, sizeof(mfg_data_dk277300));
+		memcpy(&mfg_data, &mfg_data_dk277375, sizeof(mfg_data_dk277375));
 		mfg_data.psv = 0x03;
 		Write_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
 	}
@@ -499,7 +518,7 @@ void TestStart(void)
 		cncb_signal(SIG1,SIG_LO); //C71 FPR LOAD6(30Ohm + 70mH) JMP1 = GND, HSD
 		cncb_signal(SIG2,SIG_LO); //C70 SMR LOAD7(30Ohm + 70mH) JMP2 = GND, HSD
 		cncb_signal(SIG3,SIG_LO); //E7 = NC
-		if(bmr == BM_28351894) { //3 cyl
+		if(bmr == BM_28351894 || bmr == BM_DK277375) { //3 cyl
 			cncb_signal(SIG1,SIG_HI); //C71 FPR LOAD6(30Ohm + 70mH) JMP1 = GND, HSD
 			cncb_signal(SIG2,SIG_HI); //C70 SMR LOAD7(30Ohm + 70mH) JMP2 = GND, HSD
 			cncb_signal(SIG3,SIG_HI); //E7 = NC

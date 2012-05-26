@@ -3,7 +3,7 @@
  */
 
 #include "config.h"
-#include "debug.h"
+#include "ulp/debug.h"
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <string.h>

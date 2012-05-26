@@ -84,7 +84,7 @@ static int cmd_apt_func(int argc, char *argv[])
 					printf("##OK##\n");
 				} else if (strcmp(argv[2], "off") == 0) {
 					Disable_SDMPWR();
-					// Disable_LEDPWR();
+					Disable_LEDPWR();
 					printf("##OK##\n");
 				}
 			}

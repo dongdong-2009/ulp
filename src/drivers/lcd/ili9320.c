@@ -12,7 +12,7 @@
 
 #include "ulp_time.h"
 #include "lcd.h"
-#include "driver.h"
+#include "ulp/driver.h"
 #include "lpt.h"
 
 //regs
