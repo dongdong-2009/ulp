@@ -5,6 +5,8 @@
 #ifndef __NEST_BURN_H_
 #define __NEST_BURN_H_
 
+#define BURN_BAUD 500000
+
 //arbitary value
 #define BURN_INBOX_ADDR 0x0F000000
 #define BURN_OUTBOX_ADDR 0x0F000100
