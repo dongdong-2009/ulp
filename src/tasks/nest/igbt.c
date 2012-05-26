@@ -787,7 +787,7 @@ void com_Init(void)
 	burn_server.can = &can1;
 	burn_server.id_cmd = burn_id;
 	burn_server.id_dat = burn_id + 1;
-	burn_server.baud = 500000;
+	burn_server.baud = BURN_BAUD;
 	burn_server.timeout = 8;
 	burn_server.inbox_addr = BURN_INBOX_ADDR;
 	burn_server.outbox_addr = BURN_OUTBOX_ADDR;
