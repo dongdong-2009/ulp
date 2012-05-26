@@ -120,7 +120,7 @@ int burn_config(int ch, unsigned short vpm_ratio, unsigned short ipm_ratio, int 
 	if(save)
 		mdelay(500);
 	ret = burn_wait(&m, 10);
-	mcamos_init_ex(NULL); //restore!!! it's dangerious here
+	mcamos_init_ex(NULL); //restore!!! it's dangerous here
 	return ret;
 }
 
@@ -137,10 +137,7 @@ int burn_read(int ch, struct burn_data_s *result)
 	mcamos_init_ex(&m);
 	mcamos_dnload(m.can, BURN_INBOX_ADDR, &cmd, 1, 10);
 	ret = burn_wait(&m, 10);
-	if(ret)
-		return -1;
-
-	if(result) {
+	if((ret == 0) && result) {
 		ret = mcamos_upload(m.can, BURN_OUTBOX_ADDR + 2, (char *) result, sizeof(struct burn_data_s), 10);
 		#ifdef CONFIG_IGBT_CRC
 		if((ret == 0) && (result->crc_flag != 0)) {
@@ -149,12 +146,14 @@ int burn_read(int ch, struct burn_data_s *result)
 			result->crc = cyg_crc16((unsigned char *) result, sizeof(struct burn_data_s));
 			if(crc != result->crc) {
 				nest_message("%s: crc fail\n", __FUNCTION__);
-				return -2;
 			}
 		}
 		#endif
 	}
-	mcamos_init_ex(NULL); //restore!!! it's dangerious here
+
+	if(result->lost != 0)
+			nest_message("ch = %d, crc_flag = %d, lost = %d\n", ch, result->crc_flag, result->lost);
+	mcamos_init_ex(NULL); //restore!!! it's dangerous here
 	return ret;
 }
 
