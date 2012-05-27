@@ -73,9 +73,9 @@ void weifu_Init(void)
 	op_Init(0);
 	vss_Init();
 	wss_Init();
-	counter1_Init();
+	pwmin1_Init();
 	counter2_Init();
-	eng_speed_timer = time_get(500);
+	eng_speed_timer = time_get(1000);
 	wtout_timer = time_get(1000);
 
 	mcamos_init_ex(&lcm);
@@ -132,12 +132,12 @@ void weifu_Update(void)
 	if (tim_dc != cfg_data.tim_dc) {  //need pwm1
 		tim_dc = cfg_data.tim_dc;
 		tim_frq = cfg_data.tim_frq;
-		pwm1_Init(tim_frq, tim_dc);
+		pwm1_Init(tim_frq + 3, 100 - tim_dc);
 	}
 	if (tim_frq != cfg_data.tim_frq) {  //need pwm1
 		tim_dc = cfg_data.tim_dc;
 		tim_frq = cfg_data.tim_frq;
-		pwm1_Init(tim_frq, tim_dc);
+		pwm1_Init(tim_frq + 3, 100 - tim_dc);
 	}
 	if (hfmsig != cfg_data.hfmsig) {  //need wss
 		hfmsig = cfg_data.hfmsig;
@@ -150,15 +150,14 @@ void weifu_Update(void)
 
 	//for eng_speed and wtout output 
 	if (time_left(wtout_timer) < 0) {
-		cfg_data.wtout = counter1_GetValue();
-		counter1_SetValue(0);
-		wtout_timer = time_get(1000);
+		cfg_data.wtout = 100 - pwmin1_GetDC();
+		wtout_timer = time_get(250);
 	}
 	if (time_left(eng_speed_timer) < 0) {
 		cfg_data.eng_speed = counter2_GetValue();
 		counter2_SetValue(0);
 		//2hz = 1 eng round
-		eng_speed_timer = time_get(500);
+		eng_speed_timer = time_get(1000);
 	}
 }
 

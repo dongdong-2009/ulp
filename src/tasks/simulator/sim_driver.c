@@ -15,6 +15,7 @@
 #include "dac.h"
 #include "sim_driver.h"
 #include "pwm.h"
+#include "pwmin.h"
 #include "counter.h"
 
 #define SIMULATOR_DEBUG 1
@@ -201,4 +202,22 @@ void pwm2_Init(int frq, int dc)
 	pwm->init(&cfg);
 	pwm->set(dc);
 }
+
+void pwmin1_Init(void)
+{
+	pwmin_cfg_t cfg;
+	cfg.sample_clock = 1000000;
+	pwmin11.init(&cfg);
+}
+
+int pwmin1_GetDC(void)
+{
+	return pwmin11.getdc();
+}
+
+int pwmin1_GetFrq(void)
+{
+	return pwmin11.getfrq();
+}
+
 

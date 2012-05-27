@@ -41,6 +41,9 @@ void counter1_SetValue(int value);
 void counter2_SetValue(int value);
 void pwm1_Init(int frq, int dc);
 void pwm2_Init(int frq, int dc);
+void pwmin1_Init(void);
+int pwmin1_GetDC(void);
+int pwmin1_GetFrq(void);
 
 void driver_Init(void);
 void clock_Enable(int on);
