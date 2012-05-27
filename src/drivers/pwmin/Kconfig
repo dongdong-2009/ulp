@@ -1,0 +1,11 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by david@2012
+#
+
+bool "enable TIM1 pwm in capture, pwmin11" CONFIG_DRIVER_PWMIN1
+bool "enable TIM2 pwm in capture, pwmin21" CONFIG_DRIVER_PWMIN2
+bool "enable TIM3 pwm in capture, pwmin31" CONFIG_DRIVER_PWMIN3
+bool "enable TIM4 pwm in capture, pwmin41" CONFIG_DRIVER_PWMIN4
+bool "enable pwmin cmd         " CONFIG_DRIVER_PWMIN_CMD
