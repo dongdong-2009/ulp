@@ -46,7 +46,8 @@ static int op_tri_flag = 0;
 static int axle_cnt, op_cnt;
 static int prev_axle_cnt, prev_op_cnt;
 static volatile int eng_factor, op_factor;
-static volatile int eng_rpm, op_rpm, phase_diff, vss, tim_dc, hfmsig, hfmref;
+static volatile int eng_rpm, op_rpm, phase_diff, vss, hfmsig, hfmref;
+static int tim_dc, tim_frq;
 
 //timer define for eng_speed and wtout
 static time_t eng_speed_timer;
@@ -74,17 +75,18 @@ void weifu_Init(void)
 	wss_Init();
 	counter1_Init();
 	counter2_Init();
-	eng_speed_timer = time_get(1000);
+	eng_speed_timer = time_get(500);
 	wtout_timer = time_get(1000);
 
 	mcamos_init_ex(&lcm);
-	cfg_data.eng_speed = 500;
-	cfg_data.wtout = 300;
+	cfg_data.eng_speed = 0;
+	cfg_data.wtout = 0;
 	phase_diff = 2;
 	eng_factor = 10;
 	op_factor = 10;
 	vss = 0;
 	tim_dc = 0;
+	tim_frq = 0;
 	hfmsig = 0;
 	hfmref = 0;
 
@@ -129,7 +131,13 @@ void weifu_Update(void)
 	}
 	if (tim_dc != cfg_data.tim_dc) {  //need pwm1
 		tim_dc = cfg_data.tim_dc;
-		pwm1_Init(250, tim_dc);
+		tim_frq = cfg_data.tim_frq;
+		pwm1_Init(tim_frq, tim_dc);
+	}
+	if (tim_frq != cfg_data.tim_frq) {  //need pwm1
+		tim_dc = cfg_data.tim_dc;
+		tim_frq = cfg_data.tim_frq;
+		pwm1_Init(tim_frq, tim_dc);
 	}
 	if (hfmsig != cfg_data.hfmsig) {  //need wss
 		hfmsig = cfg_data.hfmsig;
@@ -141,15 +149,16 @@ void weifu_Update(void)
 	}
 
 	//for eng_speed and wtout output 
-	if (time_left(eng_speed_timer) < 0) {
-		cfg_data.eng_speed = counter1_GetValue();
-		counter1_SetValue(0);
-		eng_speed_timer = time_get(1000);
-	}
 	if (time_left(wtout_timer) < 0) {
+		cfg_data.wtout = counter1_GetValue();
+		counter1_SetValue(0);
+		wtout_timer = time_get(1000);
+	}
+	if (time_left(eng_speed_timer) < 0) {
 		cfg_data.eng_speed = counter2_GetValue();
 		counter2_SetValue(0);
-		wtout_timer = time_get(1000);
+		//2hz = 1 eng round
+		eng_speed_timer = time_get(500);
 	}
 }
 
@@ -256,7 +265,7 @@ static int weifu_ConfigData(void)
 	char lcm_cmd = LCM_CMD_READ;
 	//communication with the lcm board
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, &lcm_cmd, 1);
-	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, 12);
+	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, 14);
 	if (ret) {
 		DEBUG_TRACE(("##MCAMOS ERROR!##\n"));
 		return -1;
