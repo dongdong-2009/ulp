@@ -21,7 +21,7 @@ static lcm_cfg_t lcm_cfg = {
 	-10, 10,   /*phase diff*/
 	0, 5000, /*vss*/
 	0, 100, /*tim sensor duty cycle*/
-	11, 1000, /*tim sensor frequence*/
+	250, 250, /*tim sensor frequence*/
 	1500, 15000, /*flow meter*/
 	17000, 19000, /*flow meter diag*/
 };
