@@ -389,6 +389,8 @@ static void CyclingTest(void)
 	case BM_28190870: //4 IGBT
 		vsep_mask("PCH13"); //FPR Short to Ground? masked by jingfeng 2012/05/19!
 		vsep_mask("PCH14"); //SMR Short to Ground? masked by jingfeng 2012/05/19!
+		vsep_mask("PCH17"); //not confirmed, check with xiaoming.xu for fail record
+		vsep_mask("PCH18"); //not confirmed, check with xiaoming.xu for fail record
 		vsep_mask("PCH26"); //SVS Short to Ground? masked by jingfeng 2012/05/19!
 		vsep_mask("PCH30"); //MIL Short to Ground? masked by jingfeng 2012/05/19!
 		vsep_mask("PCH23"); //E-52, empty pin
@@ -554,6 +556,43 @@ void main(void)
 		TestStop();
 	}
 } // main
+
+#include "shell/cmd.h"
+
+static int cmd_dut_func(int argc, char *argv[])
+{
+	int addr, fail = -1;
+	const char *result[] = {"pass", "fail"};
+	const char *usage = {
+		"dut bmr 28190870 psv	set dut base model nr, psv is optional such as 0x03\n"
+		"dut read 15 addr	addr is optional, default MFGDAT_ADDR(0x80008000)\n"
+	};
+
+	if((argc >= 3) && (!strcmp(argv[1], "bmr"))) {
+		memset(mfg_data.bmr, 0x00, sizeof(mfg_data.bmr));
+		strncpy(mfg_data.bmr, argv[2], sizeof(mfg_data.bmr));
+		printf("setting dut bmr = %s", mfg_data.bmr);
+		addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> bmr;
+		fail = Write_Memory(addr, mfg_data.bmr, sizeof(mfg_data.bmr));
+
+		if(argc > 3) {
+			int psv;
+			sscanf(argv[3], "0x%x", &psv);
+			mfg_data.psv = (char)(psv & 0xff);
+			printf(",psv = 0x%02x", psv & 0xff);
+			addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> psv;
+			fail += Write_Memory(addr, &(mfg_data.psv), sizeof(mfg_data.psv));
+		}
+
+		printf("..%s!!!\n", (fail) ? result[1] : result[0]);
+	}
+
+	printf("%s", usage);
+	return 0;
+}
+
+const static cmd_t cmd_dut = {"dut", cmd_dut_func, "dut operation cmd"};
+DECLARE_SHELL_CMD(cmd_dut)
 
 /*******************************************************************************
 		 Conditioning Nest Control Board Description
