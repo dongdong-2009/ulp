@@ -35,6 +35,7 @@ nest_chip_t dph = {
 
 #define dph_init() nest_chip_init(&dph)
 #define dph_bind(reg, pin) nest_chip_bind(&dph, reg, pin)
+#define dph_mask(reg) nest_chip_mask(&dph, reg, 0x00)
 #define dph_trap(reg, msk, val) nest_chip_trap(&dph, reg, msk, val)
 #define dph_verify(data) nest_chip_verify(&dph, data)
 

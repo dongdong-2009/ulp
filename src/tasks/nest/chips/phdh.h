@@ -18,6 +18,7 @@ nest_chip_t phdh = {
 
 #define phdh_init() nest_chip_init(&phdh)
 #define phdh_bind(reg, pin) nest_chip_bind(&phdh, reg, pin)
+#define phdh_mask(reg) nest_chip_mask(&phdh, reg, 0x00)
 #define phdh_trap(reg, msk, val) nest_chip_trap(&phdh, reg, msk, val)
 #define phdh_verify(data) nest_chip_verify(&phdh, data)
 

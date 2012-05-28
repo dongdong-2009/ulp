@@ -20,6 +20,7 @@ nest_chip_t tc1762 = {
 
 #define tc1762_init() nest_chip_init(&tc1762)
 #define tc1762_bind(reg, pin) nest_chip_bind(&tc1762, reg, pin)
+#define tc1762_mask(reg) nest_chip_mask(&tc1762, reg, 0x00)
 #define tc1762_trap(reg, msk, val) nest_chip_trap(&tc1762, reg, msk, val)
 #define tc1762_verify(data) nest_chip_verify(&tc1762, data)
 

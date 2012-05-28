@@ -30,6 +30,7 @@ int nest_chip_init(nest_chip_t *chip);
 int nest_chip_bind(nest_chip_t *chip, const char *reg_name, const char *pin_name);
 //in some special situation, we may cann't get the ideal value, but it's still acceptable, then this api is used to change the ideal value to a new one 
 int nest_chip_trap(nest_chip_t *chip, const char *reg_name, int msk, int val);
+int nest_chip_mask(nest_chip_t *chip, const char *reg_name, int msk);
 //to verify the reister values are correct or not
 int nest_chip_verify(nest_chip_t *chip, const char *data);
 

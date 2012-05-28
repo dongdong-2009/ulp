@@ -22,6 +22,7 @@ nest_chip_t hfps = {
 
 #define hfps_init() nest_chip_init(&hfps)
 #define hfps_bind(reg, pin) nest_chip_bind(&hfps, reg, pin)
+#define hfps_mask(reg) nest_chip_mask(&hfps, reg, 0x00)
 #define hfps_trap(reg, msk, val) nest_chip_trap(&hfps, reg, msk, val)
 #define hfps_verify(data) nest_chip_verify(&hfps, data)
 
