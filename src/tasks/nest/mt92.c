@@ -320,7 +320,7 @@ static int Write_Memory(int addr, const char *data, int n)
 	if(fail)
 		return -1;
 
-	nest_mdelay(100);
+	nest_mdelay(300);
 
 	//dnload data to mt92, each time 8 bytes at most, mt92 garbage
 	for(int i, bytes = i = 0; i < n; i += bytes) {
@@ -331,7 +331,7 @@ static int Write_Memory(int addr, const char *data, int n)
 			return -2;
 	}
 
-	nest_mdelay(100);
+	nest_mdelay(300);
 	fail = mcamos_execute_ex(VECTOR_EEPROM_WRITE);
 	if(fail)
 		return -3;
@@ -402,12 +402,63 @@ static void CyclingTest(void)
 
 	//pls to do mask here
 	switch(bmr) {
-	case BM_DK277130:
-		vsep_mask("PCH09"); //NC
-		vsep_mask("PCH10"); //NC
-		vsep_mask("PCH11"); //NC
-		vsep_mask("PCH12"); //NC
+	case BM_DK277300:
+	case BM_28351885:
+		vsep_mask("PCH19");
+		vsep_mask("PCH23");
+		vsep_mask("PCH24");
+		vsep_mask("PCH25");
+		c2ps_mask("VERSN0");
+		c2ps_mask("VERSN2");
+		phdp_mask("EN1/EN2 STATUS");
+		difo_mask("IMODE2");
+		difo_mask("FPUMP");
+		difo_mask("BSTLOW");
+		difo_mask("OPEN5");
+		difo_mask("HDLW5/6");
+		difo_mask("PKLW5/6");
+		dph_mask("DCB1");
 		break;
+
+	case BM_DK277130:
+	case BM_28236632:
+		//vsep_mask("PCH19");
+		vsep_mask("PCH23");
+		vsep_mask("PCH24");
+		vsep_mask("PCH25");
+		c2ps_mask("VERSN0");
+		c2ps_mask("VERSN2");
+		phdp_mask("EN1/EN2 STATUS");
+		difo_mask("IMODE2");
+		difo_mask("FPUMP");
+		difo_mask("BSTLOW");
+		difo_mask("OPEN5");
+		difo_mask("HDLW5/6");
+		difo_mask("PKLW5/6");
+		dph_mask("DCB1");
+		break;
+
+	case BM_DK277375:
+	case BM_28351894:
+		vsep_mask("PCH19");
+		vsep_mask("PCH23");
+		vsep_mask("PCH24");
+		vsep_mask("PCH25");
+		c2ps_mask("VERSN0");
+		c2ps_mask("VERSN2");
+		phdp_mask("EN1/EN2 STATUS");
+		difo_mask("IMODE2");
+		difo_mask("FPUMP");
+		difo_mask("BSTLOW");
+		difo_mask("OPEN5");
+		difo_mask("HDLW5/6");
+		difo_mask("PKLW5/6");
+		//dph_mask("DCB1");
+
+		difo_mask("OPEN3");
+		difo_mask("PKLW3/4");
+		break;
+
 	default:
 		break;
 	}
@@ -559,7 +610,7 @@ void TestStop(void)
 	//for(int i = 0; i < sizeof(mfg_data); i ++) *((char *)&mfg_data + i) = i;
 
 	if(err->nec != CAN_FAIL) {
-		fail += Write_Memory(MFGDAT_ADDR, (void *)&mfg_data, sizeof(mfg_data));
+		fail = Write_Memory(MFGDAT_ADDR, (void *)&mfg_data, sizeof(mfg_data));
 		if(fail)
 			nest_error_set(CAN_FAIL, "Eeprom Write");
 	}
