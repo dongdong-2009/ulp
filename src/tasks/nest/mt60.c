@@ -460,8 +460,10 @@ static void CyclingTest(void)
 		vsep_mask("PCH14"); //VSEP Fail, PCH14 = 0x02(J101-87 SMR Short to Ground?)
 		vsep_mask("PCH16"); //VSEP Fail, PCH16 = 0x03(J101-85 COOLANT_GAUGE Short to Battery?)
 		vsep_mask("PCH18"); //VSEP Fail, PCH18 = 0x03(J101-99 VVT1 Short to Battery?)
+		vsep_mask("PCH25");
 		vsep_mask("PCH26"); //VSEP Fail, PCH26 = 0x01(J101-82 SVS Open load?)
 		vsep_mask("PCH27"); //VSEP Fail, PCH27 = 0x02(J101-94 MPR Short to Ground?)
+		vsep_mask("PCH30");
 		break;
 	default:
 		break;
