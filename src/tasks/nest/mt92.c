@@ -161,7 +161,7 @@ void ntoh_array(void *p, int bytes)
 	}
 }
 
-void dump(unsigned addr, const void *p, int bytes)
+void nest_dump(unsigned addr, const void *p, int bytes)
 {
 	unsigned v, i;
 	const unsigned char *pbuf = p;
@@ -263,7 +263,7 @@ static int Read_Memory(int addr, char *data, int n)
 	int fail, is_ram = ((addr & 0xFFFF0000) == 0xD0000000);
 	if(is_ram) {
 		fail = mcamos_upload_ex(addr, data, n);
-		dump(addr, data, n);
+		nest_dump(addr, data, n);
 		return fail;
 	}
 
@@ -295,14 +295,14 @@ static int Read_Memory(int addr, char *data, int n)
 
 	nest_mdelay(300);
 	fail = mcamos_upload_ex(OUTBOX_ADDR + sizeof(mailbox.outbox), data, n);
-	dump(addr, data, n);
+	nest_dump(addr, data, n);
 	return (fail) ? -4 : 0;
 }
 
 static int Write_Memory(int addr, const char *data, int n)
 {
 	int fail, is_ram = (addr & 0xFFFF0000 == 0xD0000000);
-	dump(addr, data, n);
+	nest_dump(addr, data, n);
 	if(is_ram) {
 		fail = mcamos_dnload_ex(addr, data, n);
 		return fail;

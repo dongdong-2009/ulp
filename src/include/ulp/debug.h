@@ -18,4 +18,19 @@
 } while(0)
 #endif
 
+static inline void dump(unsigned addr, const void *p, int bytes)
+{
+	unsigned v, i;
+	const unsigned char *pbuf = p;
+	for(i = 0; i < bytes; i ++) {
+			v = (unsigned) (pbuf[i] & 0xff);
+			if(i % 16 == 0)
+				printf("0x%08x: %02x", addr + i, v);
+			else if((i % 16 == 15) || (i == bytes - 1))
+				printf(" %02x\n", v);
+			else
+				printf(" %02x", v);
+	}
+}
+
 #endif /*__CONFIG_H_*/

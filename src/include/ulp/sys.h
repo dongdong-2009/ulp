@@ -46,6 +46,7 @@
 /* ulp api for debug purpose*/
 #include "ulp/debug.h"
 #define sys_assert	assert
+#define sys_dump	dump /*dump(unsigned addr, const void *p, int bytes)*/
 
 /*optional*/
 void bsp_init(void);
