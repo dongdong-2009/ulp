@@ -82,6 +82,7 @@ nest_chip_t difo = {
 
 #define difo_init() nest_chip_init(&difo)
 #define difo_bind(reg, pin) nest_chip_bind(&difo, reg, pin)
+#define difo_mask(reg) nest_chip_mask(&difo, reg, 0x00)
 #define difo_trap(reg, msk, val) nest_chip_trap(&difo, reg, msk, val)
 #define difo_verify(data) nest_chip_verify(&difo, data)
 

@@ -56,7 +56,7 @@ nest_chip_t c2ps = {
 
 #define c2ps_init() nest_chip_init(&c2ps)
 #define c2ps_bind(reg, pin) nest_chip_bind(&c2ps, reg, pin)
-#define c2ps_mask(reg) nest_chip_trap(&c2ps, reg, 0x00, 0x00)
+#define c2ps_mask(reg) nest_chip_mask(&c2ps, reg, 0x00)
 #define c2ps_trap(reg, msk, val) nest_chip_trap(&c2ps, reg, msk, val)
 #define c2ps_verify(data) nest_chip_verify(&c2ps, data)
 #endif

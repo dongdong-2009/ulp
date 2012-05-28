@@ -46,7 +46,7 @@ nest_chip_t csd = {
 
 #define csd_init() nest_chip_init(&csd)
 #define csd_bind(reg, pin) nest_chip_bind(&csd, reg, pin)
-#define csd_mask(reg) nest_chip_trap(&csd, reg, 0x00, 0x00)
+#define csd_mask(reg) nest_chip_mask(&csd, reg, 0x00)
 #define csd_trap(reg, msk, val) nest_chip_trap(&csd, reg, msk, val)
 #define csd_verify(data) nest_chip_verify(&csd, data)
 

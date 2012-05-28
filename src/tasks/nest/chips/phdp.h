@@ -25,6 +25,7 @@ nest_chip_t phdp = {
 
 #define phdp_init() nest_chip_init(&phdp)
 #define phdp_bind(reg, pin) nest_chip_bind(&phdp, reg, pin)
+#define phdp_mask(reg) nest_chip_trap(&phdp, reg, 0x00, 0x00)
 #define phdp_trap(reg, msk, val) nest_chip_trap(&phdp, reg, msk, val)
 #define phdp_verify(data) nest_chip_verify(&phdp, data)
 

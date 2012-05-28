@@ -54,6 +54,21 @@ int nest_chip_trap(nest_chip_t *chip, const char *reg_name, int msk, int val)
 	return found;
 }
 
+int nest_chip_mask(nest_chip_t *chip, const char *reg_name, int msk)
+{
+	int found = -1;
+	for(int i = 0; i < chip -> nr_of_regs; i ++) {
+		if(!strcmp(chip -> regs[i].name, reg_name)) {
+			chip -> regs[i].msk = msk;
+			found = 0;
+			break;
+		}
+	}
+
+	assert(found != -1);
+	return found;
+}
+
 //to verify the reister values are correct or not
 int nest_chip_verify(nest_chip_t *chip, const char *data)
 {
@@ -73,11 +88,11 @@ int nest_chip_verify(nest_chip_t *chip, const char *data)
 			if(reg -> desc != NULL)
 				nest_message("%s", reg -> desc[val]);
 			if((val ^ reg -> val) & reg -> msk) {
-				nest_message("?)\n");
+				nest_message("  ?= 0x%02x)\n", reg->val);
 				ret --;
 			}
 			else {
-				nest_message("?) .. masked\n");
+				nest_message(" ?= 0x%02x) .. masked\n", reg->val);
 			}
 		}
 	}

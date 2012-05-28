@@ -280,12 +280,12 @@ static int Read_Memory(int addr, char *data, int n)
 	if(fail)
 		return -1;
 
-	nest_mdelay(100);
+	nest_mdelay(300);
 	fail = mcamos_execute_ex(VECTOR_FLASH_READ);
 	if(fail)
 		return -2;
 
-	nest_mdelay(100);
+	nest_mdelay(300);
 
 	//dummy read
 	memset(mailbox.bytes, 0, sizeof(mailbox));
@@ -293,7 +293,7 @@ static int Read_Memory(int addr, char *data, int n)
 	if(fail)
 		return -3;
 
-	nest_mdelay(100);
+	nest_mdelay(300);
 	fail = mcamos_upload_ex(OUTBOX_ADDR + sizeof(mailbox.outbox), data, n);
 	dump(addr, data, n);
 	return (fail) ? -4 : 0;
@@ -320,7 +320,7 @@ static int Write_Memory(int addr, const char *data, int n)
 	if(fail)
 		return -1;
 
-	nest_mdelay(100);
+	nest_mdelay(300);
 
 	//dnload data to mt92, each time 8 bytes at most, mt92 garbage
 	for(int i, bytes = i = 0; i < n; i += bytes) {
@@ -331,7 +331,7 @@ static int Write_Memory(int addr, const char *data, int n)
 			return -2;
 	}
 
-	nest_mdelay(100);
+	nest_mdelay(300);
 	fail = mcamos_execute_ex(VECTOR_EEPROM_WRITE);
 	if(fail)
 		return -3;
@@ -402,12 +402,63 @@ static void CyclingTest(void)
 
 	//pls to do mask here
 	switch(bmr) {
-	case BM_DK277130:
-		vsep_mask("PCH09"); //NC
-		vsep_mask("PCH10"); //NC
-		vsep_mask("PCH11"); //NC
-		vsep_mask("PCH12"); //NC
+	case BM_DK277300:
+	case BM_28351885:
+		vsep_mask("PCH19");
+		vsep_mask("PCH23");
+		vsep_mask("PCH24");
+		vsep_mask("PCH25");
+		c2ps_mask("VERSN0");
+		c2ps_mask("VERSN2");
+		phdp_mask("EN1/EN2 STATUS");
+		difo_mask("IMODE2");
+		difo_mask("FPUMP");
+		difo_mask("BSTLOW");
+		difo_mask("OPEN5");
+		difo_mask("HDLW5/6");
+		difo_mask("PKLW5/6");
+		dph_mask("DCB1");
 		break;
+
+	case BM_DK277130:
+	case BM_28236632:
+		//vsep_mask("PCH19");
+		vsep_mask("PCH23");
+		vsep_mask("PCH24");
+		vsep_mask("PCH25");
+		c2ps_mask("VERSN0");
+		c2ps_mask("VERSN2");
+		phdp_mask("EN1/EN2 STATUS");
+		difo_mask("IMODE2");
+		difo_mask("FPUMP");
+		difo_mask("BSTLOW");
+		difo_mask("OPEN5");
+		difo_mask("HDLW5/6");
+		difo_mask("PKLW5/6");
+		dph_mask("DCB1");
+		break;
+
+	case BM_DK277375:
+	case BM_28351894:
+		vsep_mask("PCH19");
+		vsep_mask("PCH23");
+		vsep_mask("PCH24");
+		vsep_mask("PCH25");
+		c2ps_mask("VERSN0");
+		c2ps_mask("VERSN2");
+		phdp_mask("EN1/EN2 STATUS");
+		difo_mask("IMODE2");
+		difo_mask("FPUMP");
+		difo_mask("BSTLOW");
+		difo_mask("OPEN5");
+		difo_mask("HDLW5/6");
+		difo_mask("PKLW5/6");
+		//dph_mask("DCB1");
+
+		difo_mask("OPEN3");
+		difo_mask("PKLW3/4");
+		break;
+
 	default:
 		break;
 	}
@@ -469,6 +520,7 @@ void TestStart(void)
 	nest_mdelay(100);
 	mcamos_upload_ex(OUTBOX_ADDR + sizeof(mailbox.outbox), mailbox.bytes, 32);
 	nest_message("DUT SW: %s\n", mailbox.bytes);
+	nest_mdelay(300);
 
 	if(0) {
 		static const char mfg_data_dk277130[] = { //4 cyl
@@ -507,7 +559,7 @@ void TestStart(void)
 	if(!nest_ignore(BMR)) {
 		bmr = nest_map(bmr_map, mfg_data.bmr);
 		if(bmr < 0) {
-			nest_error_set(MTYPE_FAIL, "Model Type");
+			nest_error_set(CAN_FAIL, "Model Type");
 			return;
 		}
 	}
@@ -545,7 +597,8 @@ void TestStart(void)
 
 void TestStop(void)
 {
-	int fail = 0;
+	int fail;
+	struct nest_error_s *err = nest_error_get();
 	nest_message("#Test Stop\n");
 
 	//store nest_psv & nest_nec
@@ -553,11 +606,14 @@ void TestStop(void)
 		mfg_data.nest_psv |= 0x80;
 	else
 		mfg_data.nest_psv &= 0x7F;
-	mfg_data.nest_nec = nest_error_get() -> nec;
+	mfg_data.nest_nec = err->nec;
 	//for(int i = 0; i < sizeof(mfg_data); i ++) *((char *)&mfg_data + i) = i;
-	fail += Write_Memory(MFGDAT_ADDR, (void *)&mfg_data, sizeof(mfg_data));
-	if(fail)
-		nest_error_set(CAN_FAIL, "Eeprom Write");
+
+	if(err->nec != CAN_FAIL) {
+		fail = Write_Memory(MFGDAT_ADDR, (void *)&mfg_data, sizeof(mfg_data));
+		if(fail)
+			nest_error_set(CAN_FAIL, "Eeprom Write");
+	}
 
 	//send FIS BCMP(build complete) message
 	//fisBCMP();

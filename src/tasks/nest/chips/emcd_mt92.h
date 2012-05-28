@@ -25,7 +25,7 @@ nest_chip_t emcd = {
 
 #define emcd_init() nest_chip_init(&emcd)
 #define emcd_bind(reg, pin) nest_chip_bind(&emcd, reg, pin)
-#define emcd_mask(reg) nest_chip_trap(&emcd, reg, 0x00, 0x00)
+#define emcd_mask(reg) nest_chip_mask(&emcd, reg, 0x00)
 #define emcd_trap(reg, msk, val) nest_chip_trap(&emcd, reg, msk, val)
 #define emcd_verify(data) nest_chip_verify(&emcd, data)
 #endif
