@@ -7,16 +7,19 @@
 
 enum {
 	NO_FAIL = 0,
-	CAN_FAIL = 5, //communication fail
-	PSV_FAIL = 6, //process not ready
-	MTYPE_FAIL = 7, //model type cannot identified
-	FIS_FAIL = 4, //fis access fail
+	CAN_FAIL = 1, //communication fail
+	MTYPE_FAIL = 2, //model type cannot identified
+	PSV_FAIL = 3, //process not ready
 
-	RAM_FAIL = 2, //ram test
-	FB_FAIL = 3,
-	PULSE_FAIL = 1,
+	RAM_FAIL = 4, //ram test
+	BURN_FAIL = 5,
+	FB_FAIL = 6,
+
+	EEWRITE_FAIL = 7,
 
 	//obsoleted, pls do not use them any more
+	FIS_FAIL = 5, //fis access fail
+	PULSE_FAIL = 7,
 	MISC_FAIL = 7,
 	NEC_FAIL = 7, //SET "NEST ERROR CODE" FAIL
 	SN_FAIL = 7,

@@ -559,7 +559,7 @@ void TestStart(void)
 	if(!nest_ignore(BMR)) {
 		bmr = nest_map(bmr_map, mfg_data.bmr);
 		if(bmr < 0) {
-			nest_error_set(CAN_FAIL, "Model Type");
+			nest_error_set(MTYPE_FAIL, "Model Type");
 			return;
 		}
 	}
@@ -609,10 +609,10 @@ void TestStop(void)
 	mfg_data.nest_nec = err->nec;
 	//for(int i = 0; i < sizeof(mfg_data); i ++) *((char *)&mfg_data + i) = i;
 
-	if(err->nec != CAN_FAIL) {
+	if(err->nec >= PSV_FAIL) {
 		fail = Write_Memory(MFGDAT_ADDR, (void *)&mfg_data, sizeof(mfg_data));
 		if(fail)
-			nest_error_set(CAN_FAIL, "Eeprom Write");
+			nest_error_set(EEWRITE_FAIL, "Eeprom Write");
 	}
 
 	//send FIS BCMP(build complete) message
