@@ -418,7 +418,7 @@ static void CyclingTest(void)
 			if(nest_ignore(FAIL))
 				fail = 0;
 			if(fail) {
-				nest_error_set(PULSE_FAIL, "Cycling");
+				nest_error_set(BURN_FAIL, "Cycling");
 				break;
 			}
 		}
