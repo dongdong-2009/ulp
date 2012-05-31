@@ -364,7 +364,7 @@ static int weifu_ConfigData(void)
 	char lcm_cmd = LCM_CMD_READ;
 	//communication with the lcm board
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, &lcm_cmd, 1);
-	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, 14);
+	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, 16);
 	if (ret) {
 		DEBUG_TRACE(("##MCAMOS ERROR!##\n"));
 		return -1;
