@@ -29,6 +29,23 @@
 #define DEBUG_TRACE(args)
 #endif
 
+//define sample points for axle and op
+#define SAMPLE_DENSITY_HIGH  1
+#if SAMPLE_DENSITY_HIGH
+#define AXLE_SAMPLE_POINTS  32
+#define OP_SAMPLE_POINTS    104
+#else
+#define AXLE_SAMPLE_POINTS  16
+#define OP_SAMPLE_POINTS    52
+#endif
+
+//define two wave output support
+#define WEIFU_SUPPORT_TWO_WAVE  0
+enum {
+	OP_WAVE_MODE_37X,
+	OP_WAVE_MODE_120X,
+};
+static int op_mode = OP_WAVE_MODE_37X;
 //op and eng rpm wave cofficient define
 // (0 - 500)=0.3, (500 - 1000) = 0.5
 // (1000 - 1500) = 0.7, (1500 - 5000) = 1
@@ -147,6 +164,14 @@ void weifu_Update(void)
 		hfmref = cfg_data.hfmref;
 		pwm2_Init(hfmref, 50);
 	}
+	#if WEIFU_SUPPORT_TWO_WAVE
+	if (op_mode != cfg_data.op_mode) {  //need pwm2
+		op_mode = cfg_data.op_mode;
+		axle_clock_cnt = 0;
+		op_clock_cnt  = 0;
+		op_tri_flag = 0;
+	}
+	#endif
 
 	//for eng_speed and wtout output 
 	if (time_left(wtout_timer) < 0) {
@@ -170,8 +195,12 @@ void weifu_isr(void)
 
 	/**********  for axle and oil pump signal output  *******/
 	//calculate the axle gear output
-	temp = axle_clock_cnt % 16;
+	temp = axle_clock_cnt % AXLE_SAMPLE_POINTS;
+#if SAMPLE_DENSITY_HIGH
+	axle_cnt = (axle_clock_cnt >> 5) % 120;
+#else
 	axle_cnt = (axle_clock_cnt >> 4) % 120;
+#endif
 
 	//used to tri op clock cnt to zero
 	if (!op_tri_flag) {
@@ -188,38 +217,109 @@ void weifu_isr(void)
 		}
 	}
 
-	result = IS_IN_RANGE(axle_cnt, 29, 29);
-	result |= IS_IN_RANGE(axle_cnt, 59, 59);
-	result |= IS_IN_RANGE(axle_cnt, 89, 89);
-	result |= IS_IN_RANGE(axle_cnt, 119, 119);
-	if (!result) {
-		if (prev_axle_cnt != temp) {
-			axle_SetAmp((gear16[temp] * eng_factor) / 10);
-			prev_axle_cnt = temp;
+	result |= IS_IN_RANGE(axle_cnt, 58, 59);
+	result |= IS_IN_RANGE(axle_cnt, 118, 119);
+	#if SAMPLE_DENSITY_HIGH
+		if (!result) {
+			if (prev_axle_cnt != temp) {
+				axle_SetAmp((gear32[temp] * eng_factor) / 10);
+				prev_axle_cnt = temp;
+			}
+		} else {
+			if (prev_axle_cnt != temp) {
+				axle_SetAmp((gear32[0] * eng_factor) / 10);
+				prev_axle_cnt = temp;
+			}
 		}
-	} else {
-		if (prev_axle_cnt != temp) {
-			axle_SetAmp((gear16[0] * eng_factor) / 10);
-			prev_axle_cnt = temp;
+	#else
+		if (!result) {
+			if (prev_axle_cnt != temp) {
+				axle_SetAmp((gear16[temp] * eng_factor) / 10);
+				prev_axle_cnt = temp;
+			}
+		} else {
+			if (prev_axle_cnt != temp) {
+				axle_SetAmp((gear16[0] * eng_factor) / 10);
+				prev_axle_cnt = temp;
+			}
+		}
+	#endif
+
+	if (op_mode == OP_WAVE_MODE_120X) {
+		//calculate the oil pump gear output
+		temp = op_clock_cnt % AXLE_SAMPLE_POINTS;
+		#if SAMPLE_DENSITY_HIGH
+			op_cnt = (op_clock_cnt >> 5) % 120;
+		#else
+			op_cnt = (op_clock_cnt >> 4) % 120;
+		#endif
+
+		result = IS_IN_RANGE(op_cnt, 28, 29);
+		result |= IS_IN_RANGE(op_cnt, 58, 59);
+		result |= IS_IN_RANGE(op_cnt, 88, 89);
+		result |= IS_IN_RANGE(op_cnt, 118, 119);
+		#if SAMPLE_DENSITY_HIGH
+			if (!result) {
+				if (prev_op_cnt != temp) {
+					op_SetAmp(gear32[temp]);
+					prev_op_cnt = temp;
+				}
+			} else {
+				if (prev_op_cnt != temp) {
+					op_SetAmp(gear32[0]);
+					prev_op_cnt = temp;
+				}
+			}
+		#else
+			if (!result) {
+				if (prev_op_cnt != temp) {
+					op_SetAmp(gear16[temp]);
+					prev_op_cnt = temp;
+				}
+			} else {
+				if (prev_op_cnt != temp) {
+					op_SetAmp(gear16[0]);
+					prev_op_cnt = temp;
+				}
+			}
+		#endif
+		if (IS_IN_RANGE(op_cnt, 118, 119)) {
+			op_tri_flag = 0;
 		}
 	}
 
-	//calculate the oil pump gear output
-	temp = op_clock_cnt % 52;
-	op_cnt = (op_clock_cnt/52) % 37;
-
-	result = IS_IN_RANGE(op_cnt, 36, 36);
-	if (result) {  //if hypodontia, output zero
-		if (prev_op_cnt != temp) {
-			op_SetAmp((gear52[0] * op_factor) / 10);
-			prev_op_cnt = temp;
-			op_tri_flag = 0;
-		}
-	} else {
-		if (prev_op_cnt != temp) {
-			op_SetAmp((gear52[temp] * op_factor) / 10);
-			prev_op_cnt = temp;
-		}
+	if (op_mode == OP_WAVE_MODE_37X) {
+		//calculate the oil pump gear output
+		temp = op_clock_cnt % OP_SAMPLE_POINTS;
+		op_cnt = (op_clock_cnt/OP_SAMPLE_POINTS) % 37;
+		result = IS_IN_RANGE(op_cnt, 36, 36);
+		#if SAMPLE_DENSITY_HIGH
+			if (result) {  //if hypodontia, output zero
+				if (prev_op_cnt != temp) {
+					op_SetAmp((gear104[temp] * op_factor) / 10);
+					prev_op_cnt = temp;
+					op_tri_flag = 0;
+				}
+			} else {
+				if (prev_op_cnt != temp) {
+					op_SetAmp((gear104[temp] * op_factor) / 10);
+					prev_op_cnt = temp;
+				}
+			}
+		#else
+			if (result) {  //if hypodontia, output zero
+				if (prev_op_cnt != temp) {
+					op_SetAmp((gear52[temp] * op_factor) / 10);
+					prev_op_cnt = temp;
+					op_tri_flag = 0;
+				}
+			} else {
+				if (prev_op_cnt != temp) {
+					op_SetAmp((gear52[temp] * op_factor) / 10);
+					prev_op_cnt = temp;
+				}
+			}
+		#endif
 	}
 }
 
