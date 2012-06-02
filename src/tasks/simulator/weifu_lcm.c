@@ -98,7 +98,7 @@ const osd_item_t items_hfmref[] = {
 
 const osd_item_t items_op_mode[] = {
 	{0, 7, 10, 1, (int)str_op_mode, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
-	{10, 7, 2, 1, (int)get_op_mode, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	{10, 7, 5, 1, (int)get_op_mode, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
 	NULL,
 };
 
