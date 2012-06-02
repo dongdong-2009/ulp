@@ -93,19 +93,9 @@ void axle_SetFreq(int hz)
 	clock_SetFreq(hz << 4);
 }
 
-void axle_SetAmp(short amp)
-{
-	dac_ch1.write(amp);
-}
-
 void op_Init(int option)  //such as 58x, 38x
 {
 	dac_ch2.init(NULL);
-}
-
-void op_SetAmp(short amp)
-{
-	dac_ch2.write(amp);
 }
 
 void clock_Enable(int on)

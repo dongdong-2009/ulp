@@ -40,7 +40,7 @@
 #endif
 
 //define two wave output support
-#define WEIFU_SUPPORT_TWO_WAVE  0
+#define WEIFU_SUPPORT_TWO_WAVE  1
 enum {
 	OP_WAVE_MODE_37X,
 	OP_WAVE_MODE_120X,
@@ -115,7 +115,11 @@ void weifu_Update(void)
 	//communication update
 	weifu_ConfigData();
 	if (eng_rpm != cfg_data.eng_rpm) {
+		#if SAMPLE_DENSITY_HIGH
+		clock_SetFreq(cfg_data.eng_rpm << 5);
+		#else
 		clock_SetFreq(cfg_data.eng_rpm << 4);
+		#endif
 		eng_rpm = cfg_data.eng_rpm;
 		op_rpm = eng_rpm >> 1;
 
@@ -261,24 +265,24 @@ void weifu_isr(void)
 		#if SAMPLE_DENSITY_HIGH
 			if (!result) {
 				if (prev_op_cnt != temp) {
-					op_SetAmp(gear32[temp]);
+					op_SetAmp(gear32[temp] >> 2);
 					prev_op_cnt = temp;
 				}
 			} else {
 				if (prev_op_cnt != temp) {
-					op_SetAmp(gear32[0]);
+					op_SetAmp(gear32[0] >> 2);
 					prev_op_cnt = temp;
 				}
 			}
 		#else
 			if (!result) {
 				if (prev_op_cnt != temp) {
-					op_SetAmp(gear16[temp]);
+					op_SetAmp(gear16[temp] >> 2);
 					prev_op_cnt = temp;
 				}
 			} else {
 				if (prev_op_cnt != temp) {
-					op_SetAmp(gear16[0]);
+					op_SetAmp(gear16[0] >> 2);
 					prev_op_cnt = temp;
 				}
 			}
