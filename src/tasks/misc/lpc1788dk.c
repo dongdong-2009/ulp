@@ -70,8 +70,10 @@ void lpc_init(void)
 	memset(p, 0x99, 32);
 }
 
+extern void lwip_lib_isr(void);
 void lpc_update(void)
 {
+	lwip_lib_isr();
 }
 
 void main(void)
