@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "stm32f10x.h"
 #include "shell/cmd.h"
 #include "config.h"
@@ -40,7 +41,7 @@
 #endif
 
 //define two wave output support
-#define WEIFU_SUPPORT_TWO_WAVE  1
+#define WEIFU_SUPPORT_TWO_WAVE  0
 enum {
 	OP_WAVE_MODE_37X,
 	OP_WAVE_MODE_120X,
@@ -227,11 +228,13 @@ void weifu_isr(void)
 		if (!result) {
 			if (prev_axle_cnt != temp) {
 				axle_SetAmp((gear32[temp] * eng_factor) / 10);
+				// axle_SetAmp(gear32[temp]);
 				prev_axle_cnt = temp;
 			}
 		} else {
 			if (prev_axle_cnt != temp) {
 				axle_SetAmp((gear32[0] * eng_factor) / 10);
+				// axle_SetAmp(gear32[temp]);
 				prev_axle_cnt = temp;
 			}
 		}
@@ -301,12 +304,14 @@ void weifu_isr(void)
 			if (result) {  //if hypodontia, output zero
 				if (prev_op_cnt != temp) {
 					op_SetAmp((gear104[temp] * op_factor) / 10);
+					// op_SetAmp(gear104[temp]);
 					prev_op_cnt = temp;
 					op_tri_flag = 0;
 				}
 			} else {
 				if (prev_op_cnt != temp) {
 					op_SetAmp((gear104[temp] * op_factor) / 10);
+					// op_SetAmp(gear104[temp]);
 					prev_op_cnt = temp;
 				}
 			}

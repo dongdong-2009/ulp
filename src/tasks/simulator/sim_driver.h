@@ -3,7 +3,7 @@
  */
 #ifndef __WEIFU_H_
 #define __WEIFU_H_
-
+#include "stm32f10x.h"
 #include "dac.h"
 
 #define simulator_Start() do{clock_Enable(1);} while(0)
@@ -53,12 +53,22 @@ void clock_Enable(int on);
 //inline function define.
 static inline void axle_SetAmp(short amp)
 {
-	dac_ch1.write(amp);
+	volatile unsigned tmp = 0;
+
+	tmp = DAC_BASE; 
+	tmp += (unsigned)0x00000008 + DAC_Align_12b_R;
+	/* Set the DAC channel1 selected data holding register */
+	*(volatile unsigned *) tmp = amp;
 }
 
 static inline void op_SetAmp(short amp)
 {
-	dac_ch2.write(amp);
+	volatile unsigned tmp = 0;
+
+	tmp = DAC_BASE;
+	tmp += (unsigned)0x00000014 + DAC_Align_12b_R;
+	/* Set the DAC channel2 selected data holding register */
+	*(volatile unsigned *)tmp = amp;
 }
 
 #endif /*__WEIFU_H_*/
