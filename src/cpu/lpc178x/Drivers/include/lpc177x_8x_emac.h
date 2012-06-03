@@ -35,7 +35,7 @@
 
 #include "LPC177x_8x.h"
 #include "lpc_types.h"
-#include "bsp.h"
+#include "ulp/phylan.h"
 
 
 #ifdef __cplusplus
