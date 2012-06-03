@@ -2,7 +2,6 @@
  * 	dusk@2010 initial version
  */
 
-#include "eth_demo/tcpserver.h"
 #include "lwip/tcp.h"
 #include <string.h>
 
@@ -15,12 +14,12 @@ static void tcpserver_conn_err(void *arg, err_t err);
 
 void tcpserver_Init(void)
 {
-	struct tcp_pcb *pcb;  
+	struct tcp_pcb *pcb;
 	pcb = tcp_new();
 
 	/* Assign to the new pcb a local IP address and a port number */
 	/* Using IP_ADDR_ANY allow the pcb to be used by any local interface */
-	tcp_bind(pcb, IP_ADDR_ANY, TCP_SERVER_PORT);       
+	tcp_bind(pcb, IP_ADDR_ANY, 3838);
 
 	/* Set the connection to the LISTEN state */
 	pcb = tcp_listen(pcb);
@@ -33,13 +32,13 @@ static err_t tcpserver_accept(void *arg, struct tcp_pcb *pcb, err_t err)
 {
 	/* Tell LwIP to associate this structure with this connection. */
 	tcp_arg(pcb, mem_malloc(100));
-  
+
 	/* Configure LwIP to use our call back functions. */
 	tcp_err(pcb, tcpserver_conn_err);
 	tcp_recv(pcb, tcpserver_recv);
-  
-	/* Send out the first message */  
-	tcp_write(pcb, GREETING, strlen(GREETING), 1); 
+
+	/* Send out the first message */
+	tcp_write(pcb, GREETING, strlen(GREETING), 1);
 
 	return ERR_OK;
 }
@@ -57,10 +56,10 @@ static err_t tcpserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_
 	struct pbuf *q;
 	char *c, *recv = (char *)arg;
 	int i, j = 0;
- 
+
 
 	/* We perform here any necessary processing on the pbuf */
-	if (p != NULL) {        
+	if (p != NULL) {
 		/* We call this function to tell the LwIp that we have processed the data */
 		/* This lets the stack advertise a larger window, so more data can be received*/
 		tcp_recved(pcb, p->tot_len);
@@ -77,7 +76,7 @@ static err_t tcpserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_
 				recv[j++] = c[i];
 			}
 		}
-		
+
 		//tcp_write(pcb, HELLO, strlen(HELLO), 1);
 
 		tcp_write(pcb, recv, p->tot_len, TCP_WRITE_FLAG_COPY);

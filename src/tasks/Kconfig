@@ -8,7 +8,6 @@ choice 'task select'	" \
 	NONE		CONFIG_TASK_NONE \
 	APT		CONFIG_TASK_APT \
 	BLDC		CONFIG_TASK_MOTOR \
-	ETHDEMO		CONFIG_TASK_ETHDEMO \
 	HVP		CONFIG_TASK_HVP \
 	LWIP		CONFIG_LWIP_APP \
 	MISC		CONFIG_TASK_MISC \
@@ -33,13 +32,6 @@ if [ "$CONFIG_TASK_MOTOR" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'bldc'
 		source src/tasks/bldc/Kconfig
-	endmenu
-fi
-
-if [ "$CONFIG_TASK_ETHDEMO" = "y" ]; then
-	mainmenu_option next_comment
-		comment 'eth_demo'
-		source src/tasks/eth_demo/Kconfig
 	endmenu
 fi
 

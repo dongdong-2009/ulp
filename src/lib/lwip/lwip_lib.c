@@ -11,20 +11,20 @@
 
 #include "ethernetif.h"
 #include <stdio.h>
+
+#include "config.h"
 #include "ulp_time.h"
 #include "sys/task.h"
+#include "ulp/lwip.h"
 
 #define SYSTEMTICK_PERIOD_MS  50
-
-//global varible define
-extern void lwip_app_Init(void);
 
 /* Private variables */
 struct netif netif;
 static unsigned TCPTimer = 0;
 static unsigned ARPTimer = 0;
 
-#if LWIP_DHCP == 1
+#if CONFIG_LWIP_IP_DHCP == 1
 static unsigned DHCPfineTimer = 0;
 static unsigned DHCPcoarseTimer = 0;
 static unsigned IPaddress = 0;
@@ -47,10 +47,18 @@ void lwip_lib_Init(void)
 	/* Initializes the memory pools defined by MEMP_NUM_x.*/
 	memp_init();
 
-#if LWIP_DHCP
+#if CONFIG_LWIP_IP_DHCP == 1
 	ipaddr.addr = 0;
 	netmask.addr = 0;
 	gw.addr = 0;
+#elif CONFIG_LWIP_IP_192_168_8_1 == 1
+	IP4_ADDR(&ipaddr, 192, 168, 8, 1);
+	IP4_ADDR(&netmask, 255, 255, 255, 0);
+	IP4_ADDR(&gw, 192, 168, 8, 1);
+#elif CONFIG_LWIP_IP_192_168_2_2 == 1
+	IP4_ADDR(&ipaddr, 192, 168, 2, 2);
+	IP4_ADDR(&netmask, 255, 255, 255, 0);
+	IP4_ADDR(&gw, 192, 168, 2, 1);
 #else
 	IP4_ADDR(&ipaddr, 192, 168, 2, 2);
 	IP4_ADDR(&netmask, 255, 255, 255, 0);
@@ -60,7 +68,7 @@ void lwip_lib_Init(void)
 	netif_add(&netif, &ipaddr, &netmask, &gw, NULL, &ethernetif_init, &ethernet_input);
 	netif_set_default(&netif);
 
-#if LWIP_DHCP
+#if CONFIG_LWIP_IP_DHCP
 	dhcp_start(&netif);
 #endif
 
@@ -68,9 +76,12 @@ void lwip_lib_Init(void)
 	netif_set_up(&netif);
 	lwip_timer = time_get(SYSTEMTICK_PERIOD_MS);
 
-	/* Initilaize the application , this function must implemented by application */
-#ifdef	CONFIG_LWIP_APP
-	lwip_app_Init();
+	/* Initilaize the applications */
+#ifdef	CONFIG_LWIP_APP_HELLO
+	HelloWorld_init();
+#endif
+#ifdef	CONFIG_LWIP_APP_TCPSERVER
+	tcpserver_Init();
 #endif
 }
 
@@ -108,7 +119,7 @@ static void LwIP_Periodic_Handle(unsigned localtime)
 		etharp_tmr();
 	}
 
-#if LWIP_DHCP
+#if CONFIG_LWIP_IP_DHCP == 1
 	/* Fine DHCP periodic process every 500ms */
 	if (localtime - DHCPfineTimer >= DHCP_FINE_TIMER_MSECS)	{
 		DHCPfineTimer =  localtime;

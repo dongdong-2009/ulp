@@ -3,9 +3,18 @@
 #
 # Written by miaofng@2010
 #
+# please refer to lwip/port/lwipopts.h for more
 
 bool "non-OS based support(NO_SYS)?" NO_SYS
 bool "use mac hardware cksum?" CHECKSUM_BY_HARDWARE
+bool "dhcp support?" LWIP_DHCP
 int "bytes reserved before ethernet header(ETH_PAD_SIZE)" ETH_PAD_SIZE 0
 int "bytes of a link level header(PBUF_LINK_HLEN)?" PBUF_LINK_HLEN 14
 
+choice 'default ip addr select'	" \
+	DHCP		CONFIG_LWIP_IP_DHCP \
+	192.168.8.1	CONFIG_LWIP_IP_192_168_8_1 \
+	192.168.2.2	CONFIG_LWIP_IP_192_168_2_2 \
+" 192.168.2.2
+bool "app - hello world" CONFIG_LWIP_APP_HELLO
+bool "app - tcp server" CONFIG_LWIP_APP_TCPSERVER
