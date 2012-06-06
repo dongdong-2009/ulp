@@ -4,6 +4,7 @@
 
 #include "lwip/tcp.h"
 #include <string.h>
+#include "ulp/sys.h"
 
 #define GREETING "welcome to board tcp server! \r\n"
 #define HELLO "hello,beautiful girl! \r\n"

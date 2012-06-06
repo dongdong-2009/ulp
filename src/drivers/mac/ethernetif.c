@@ -54,6 +54,7 @@
 #include "netif/ppp_oe.h"
 
 #include "ethernetif.h"
+#include "ulp/sys.h"
 
 /* Define those to better describe your network interface. */
 #define IFNAME0 'e'
