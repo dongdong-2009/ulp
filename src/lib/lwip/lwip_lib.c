@@ -83,6 +83,9 @@ void lwip_lib_Init(void)
 #ifdef	CONFIG_LWIP_APP_TCPSERVER
 	tcpserver_Init();
 #endif
+#ifdef	CONFIG_LWIP_APP_HTTPD
+	httpd_init();
+#endif
 }
 
 void lwip_lib_Update(void)

@@ -25,3 +25,6 @@ bool "app - tcp server" CONFIG_LWIP_APP_TCPSERVER
 if [ "$CONFIG_LWIP_GIT" = "y" ]; then
 	bool "app - http server" CONFIG_LWIP_APP_HTTPD
 fi
+if [ "$CONFIG_LWIP_APP_HTTPD" = "y" ]; then
+	bool "app - http server with custom webpage" HTTPD_USE_CUSTOM_FSDATA
+fi
