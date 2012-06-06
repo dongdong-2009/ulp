@@ -81,27 +81,30 @@ void low_level_init(struct netif *netif)
  *       strange results. You might consider waiting for space in the DMA queue
  *       to become availale since the stack doesn't retry to send a packet
  *       dropped because of memory failure (except for the TCP timers).
+ *
+ * note:
+ *       whole data in pbufs must be sent in one ethernet frame!!!
  */
 err_t low_level_output(struct netif *netif, struct pbuf *p)
 {
-	EMAC_PACKETBUF_Type TxPack;
 	struct pbuf *q;
+	int n = 0;
+
+	// check Tx Slot is available
+	while (EMAC_CheckTransmitIndex() == FALSE);
+	char *dst = (char *) EMAC_GetWritePacketBuffer();
 
 	//write payload to buffer
 	for (q = p; q != NULL; q = q->next) {
-		if(q->len <= 0)
-			continue;
-
-		// check Tx Slot is available
-		while (EMAC_CheckTransmitIndex() == FALSE);
-
-		//size = MIN(size,EMAC_MAX_PACKET_SIZE);
-		// Setup Tx Packet buffer
-		TxPack.ulDataLen = q->len;
-		TxPack.pbDataBuf = (uint32_t *)q->payload;
-		EMAC_WritePacketBuffer(&TxPack);
-		EMAC_UpdateTxProduceIndex();
+		if(q->len > 0) {
+			memcpy(dst, q->payload, q->len);
+			n += q->len;
+			dst += q->len;
+		}
 	}
+
+	EMAC_RequestSend(n);
+	EMAC_UpdateTxProduceIndex();
 	return ERR_OK;
 }
 
@@ -115,31 +118,28 @@ err_t low_level_output(struct netif *netif, struct pbuf *p)
  */
 struct pbuf * low_level_input(struct netif *netif)
 {
-	EMAC_PACKETBUF_Type RxPack;
 	struct pbuf *p, *q;
-	int length;
+	int n;
 
 	// Test if at least one packet has been received and is waiting
 	if (EMAC_CheckReceiveIndex() == FALSE){
 		return(NULL);
 	}
 
+	n = EMAC_GetReceiveDataSize();
+	p = pbuf_alloc(PBUF_RAW, n, PBUF_POOL);
+	char *src = (char *) EMAC_GetReadPacketBuffer();
+
 	// fill pbuf
-	length = EMAC_GetReceiveDataSize() + 1;
-	p = pbuf_alloc(PBUF_RAW, length, PBUF_POOL);
-	if (p != NULL) {
-		// Get size of receive data
-		length = EMAC_GetReceiveDataSize() + 1;
-
-		//Size = MIN(Size,in_size);
-
-		// Setup Rx packet
-		RxPack.pbDataBuf = (uint32_t *)p->payload;
-		RxPack.ulDataLen = length;
-		EMAC_ReadPacketBuffer(&RxPack);
-
-		// update receive status
-		EMAC_UpdateRxConsumeIndex();
+	for (q = p; q != NULL; q = q->next) {
+		if(n > 0) {
+			memcpy(q->payload, src, q->len);
+			n -= q->len;
+			src += q->len;
+		}
 	}
+
+	// update receive status
+	EMAC_UpdateRxConsumeIndex();
 	return p;
 }
