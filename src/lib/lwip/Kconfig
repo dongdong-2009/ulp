@@ -4,7 +4,10 @@
 # Written by miaofng@2010
 #
 # please refer to lwip/port/lwipopts.h for more
-
+choice 'lwip version select'	" \
+	LWIP-1.3.1	CONFIG_LWIP_V131 \
+	LWIP-git	CONFIG_LWIP_GIT \
+" LWIP-1.3.1
 bool "non-OS based support(NO_SYS)?" NO_SYS
 bool "use mac hardware cksum?" CHECKSUM_BY_HARDWARE
 bool "dhcp support?" LWIP_DHCP
@@ -19,3 +22,6 @@ choice 'default ip addr select'	" \
 " 192.168.2.2
 bool "app - hello world" CONFIG_LWIP_APP_HELLO
 bool "app - tcp server" CONFIG_LWIP_APP_TCPSERVER
+if [ "$CONFIG_LWIP_GIT" = "y" ]; then
+	bool "app - http server" CONFIG_LWIP_APP_HTTPD
+fi
