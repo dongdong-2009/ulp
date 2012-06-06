@@ -26,5 +26,7 @@ if [ "$CONFIG_LWIP_GIT" = "y" ]; then
 	bool "app - http server" CONFIG_LWIP_APP_HTTPD
 fi
 if [ "$CONFIG_LWIP_APP_HTTPD" = "y" ]; then
+	bool "app - http server CGI support" LWIP_HTTPD_CGI
+	bool "app - http server SSI support" LWIP_HTTPD_SSI
 	bool "app - http server with custom webpage" HTTPD_USE_CUSTOM_FSDATA
 fi
