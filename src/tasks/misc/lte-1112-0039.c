@@ -16,7 +16,8 @@
 
 static enum {
 	MA_INDICATOR_STM_NULL,
-	MA_INDICATOR_STM_INIT,
+	MA_INDICATOR_STM_INIT_INDICATOR1,
+	MA_INDICATOR_STM_INIT_INDICATOR2,
 	MA_INDICATOR_STM_RUN,
 	MA_INDICATOR_STM_OVER,
 } ma_indicator_stm = MA_INDICATOR_STM_NULL;
@@ -245,22 +246,28 @@ static void Ma_Button_Init()
 
 static void Ma_Indicator_Init()
 {
-	/*	RD	*/
+	/*	RD1	*/
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-	/*	REQ	*/
+	/*	REQ1	*/
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_SPI1 | RCC_APB2Periph_AFIO, ENABLE);
+	/*	REQ2	*/
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_SPI1 | RCC_APB2Periph_AFIO, ENABLE);
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 
 	GPIO_SetBits(GPIOB, GPIO_Pin_11);
+	GPIO_SetBits(GPIOC, GPIO_Pin_4);
 
 	/*	SCK	*/
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
@@ -318,22 +325,32 @@ static void Ma_Indicator_Update()
 	switch(ma_indicator_stm) {
 	case MA_INDICATOR_STM_NULL:
 		break;
-	case MA_INDICATOR_STM_INIT:
+	case MA_INDICATOR_STM_INIT_INDICATOR1:
 		ma_indicator_stm = MA_INDICATOR_STM_RUN;
 		SPI_Cmd(SPI1, ENABLE);
 		DMA_Cmd(DMA1_Channel2, ENABLE);
 		GPIO_ResetBits(GPIOB, GPIO_Pin_11);
 		ma_indicator_timer = time_get(500);
 		break;
+	case MA_INDICATOR_STM_INIT_INDICATOR2:
+		ma_indicator_stm = MA_INDICATOR_STM_RUN;
+		SPI_Cmd(SPI1, ENABLE);
+		DMA_Cmd(DMA1_Channel2, ENABLE);
+		GPIO_ResetBits(GPIOC, GPIO_Pin_4);
+		ma_indicator_timer = time_get(500);
+		break;
 	case MA_INDICATOR_STM_RUN:
 		n = DMA_GetCurrDataCounter(DMA1_Channel2);
 		if(!n) {
 			GPIO_SetBits(GPIOB, GPIO_Pin_11);
+			GPIO_SetBits(GPIOC, GPIO_Pin_4);
 			ma_indicator_stm = MA_INDICATOR_STM_OVER;
 		}
 		else {
 			if(time_left(ma_indicator_timer) < 0) {
 				printf("error:	timeout\n");
+				GPIO_SetBits(GPIOB, GPIO_Pin_11);
+				GPIO_SetBits(GPIOC, GPIO_Pin_4);
 				ma_indicator_stm = MA_INDICATOR_STM_NULL;
 			}
 		}
@@ -358,15 +375,29 @@ static int cmd_ma_func(int argc, char *argv[])
 		"  ma set divice1/divice2 on/off\n"
 		"  ma set id xxxxxxxxxx\n"
 		"  ma set counter xxxxxxxxxx/+\n"
-		"  ma get value\n"
+		"  ma get value1/value2\n"
 		"  ma get id\n"
 		"  ma get counter\n"
 		"  ma get button\n"
 	};
 
 	if(argc == 3 && !strcmp(argv[1], "get")) {
-		if(!strcmp(argv[2], "value")) {
-			ma_indicator_stm = MA_INDICATOR_STM_INIT;
+		if(!strcmp(argv[2], "value1")) {
+			if(ma_indicator_stm == MA_INDICATOR_STM_NULL)
+				ma_indicator_stm = MA_INDICATOR_STM_INIT_INDICATOR1;
+			else {
+				printf("operation fail\n");
+				return -1;
+			}
+			return 0;
+		}
+		else if(!strcmp(argv[2], "value2")) {
+			if(ma_indicator_stm == MA_INDICATOR_STM_NULL)
+				ma_indicator_stm = MA_INDICATOR_STM_INIT_INDICATOR2;
+			else {
+				printf("operation fail\n");
+				return -1;
+			}
 			return 0;
 		}
 		else if(!strcmp(argv[2], "id")) {
