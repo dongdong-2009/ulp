@@ -10,23 +10,23 @@ nest_reg_t difo_regs[] = {
 	//bigendian byte 0x1b, bit 0 ~ 15
 	{.ofs = 0x00, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "IMODE0", .bind = NULL, .desc = NULL},
 	{.ofs = 0x01, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "IMODE1", .bind = NULL, .desc = NULL},
-	{.ofs = 0x02, .len = 0x01, .msk = 0x01, .val = 0x01, .name = "IMODE2", .bind = NULL, .desc = NULL},
+	{.ofs = 0x02, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "IMODE2", .bind = NULL, .desc = NULL},
 	{.ofs = 0x03, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "FPUMP", .bind = NULL, .desc = NULL},
 	{.ofs = 0x04, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "FMODE0", .bind = NULL, .desc = NULL},
 	{.ofs = 0x05, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "FMODE1", .bind = NULL, .desc = NULL},
 	//bigendian byte 0x1a
-	{.ofs = 0x08, .len = 0x01, .msk = 0x01, .val = 0x01, .name = "VERSN0", .bind = NULL, .desc = NULL},
+	{.ofs = 0x08, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "VERSN0", .bind = NULL, .desc = NULL},
 	{.ofs = 0x09, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "VERSN1", .bind = NULL, .desc = NULL},
 	{.ofs = 0x0a, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "VERSN2", .bind = NULL, .desc = NULL},
 	//bigendian byte 0x1d, bit 0 ~ 15
 	{.ofs = 0x10, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "PRCTR2/1", .bind = NULL, .desc = NULL},
 	{.ofs = 0x11, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "PRCTR4/3", .bind = NULL, .desc = NULL},
 	{.ofs = 0x12, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "PRCTR5/6", .bind = NULL, .desc = NULL},
-	{.ofs = 0x13, .len = 0x01, .msk = 0x01, .val = 0x01, .name = "STATUS", .bind = NULL, .desc = NULL},
+	{.ofs = 0x13, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "STATUS", .bind = NULL, .desc = NULL},
 	{.ofs = 0x14, .len = 0x01, .msk = 0x01, .val = 0x01, .name = "1", .bind = NULL, .desc = NULL},
 	{.ofs = 0x15, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "OVDET", .bind = NULL, .desc = NULL},
-	{.ofs = 0x16, .len = 0x01, .msk = 0x01, .val = 0x01, .name = "SSTEND", .bind = NULL, .desc = NULL},
-	{.ofs = 0x17, .len = 0x01, .msk = 0x01, .val = 0x01, .name = "BSTLOW", .bind = NULL, .desc = NULL},
+	{.ofs = 0x16, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "SSTEND", .bind = NULL, .desc = NULL},
+	{.ofs = 0x17, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "BSTLOW", .bind = NULL, .desc = NULL},
 	//bigendian byte 0x1c
 	{.ofs = 0x18, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "SHORT1", .bind = NULL, .desc = NULL},
 	{.ofs = 0x19, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "SHORT2", .bind = NULL, .desc = NULL},

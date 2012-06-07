@@ -25,6 +25,9 @@ nest_reg_t dph_regs[] = {
 	{.ofs = 0x0d, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "SETREJ", .bind = NULL, .desc = NULL},
 	{.ofs = 0x0e, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "WD*", .bind = NULL, .desc = NULL},
 	{.ofs = 0x0f, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "FAULT FLAG", .bind = NULL, .desc = NULL},
+	//bigendian byte 0x27
+	//bigendian byte 0x26
+	{.ofs = 0x18, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "OPENFLT", .bind = NULL, .desc = NULL},
 };
 
 nest_chip_t dph = {
