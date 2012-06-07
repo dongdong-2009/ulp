@@ -41,7 +41,7 @@
 #endif
 
 //define two wave output support
-#define WEIFU_SUPPORT_TWO_WAVE  0
+#define WEIFU_SUPPORT_TWO_WAVE  1
 enum {
 	OP_WAVE_MODE_37X,
 	OP_WAVE_MODE_120X,
