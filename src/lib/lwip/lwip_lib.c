@@ -90,6 +90,7 @@ void lwip_lib_Init(void)
 
 void lwip_lib_Update(void)
 {
+	ethernetif_input(&netif);
 	if (time_left(lwip_timer) < 0) {
 		lwip_timer = time_get(SYSTEMTICK_PERIOD_MS);
 		LocalTime += SYSTEMTICK_PERIOD_MS;
@@ -99,7 +100,7 @@ void lwip_lib_Update(void)
 
 DECLARE_LIB(lwip_lib_Init, lwip_lib_Update)
 
-/* 
+/*  obsolete, in lwip arch design, it must be called in the main thread!!!
  * Global function
  * this isr should be called when got ethernet frame
  */

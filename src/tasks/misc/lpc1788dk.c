@@ -73,7 +73,6 @@ void lpc_init(void)
 extern void lwip_lib_isr(void);
 void lpc_update(void)
 {
-	lwip_lib_isr();
 }
 
 void main(void)
