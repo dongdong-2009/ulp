@@ -21,9 +21,10 @@ static lcm_cfg_t lcm_cfg = {
 	-10, 10,   /*phase diff*/
 	0, 5000, /*vss*/
 	0, 100, /*tim sensor duty cycle*/
-	11, 1000, /*tim sensor frequence*/
+	250, 250, /*tim sensor frequence*/
 	1500, 15000, /*flow meter*/
 	17000, 19000, /*flow meter diag*/
+	0, 1, /*op mode, 0->37x, 1->120x*/
 };
 
 static struct {
@@ -38,6 +39,7 @@ static int get_tim_dc(void) {return lcm_dat.tim_dc;}
 static int get_tim_frq(void) {return lcm_dat.tim_frq;}
 static int get_hfmsig(void) {return lcm_dat.hfmsig;}
 static int get_hfmref(void) {return lcm_dat.hfmref;}
+static int get_op_mode(void) {return lcm_dat.op_mode;}
 static int get_eng_speed(void) {return lcm_dat.eng_speed;}
 static int get_wtout(void) {return lcm_dat.wtout;}
 
@@ -48,6 +50,7 @@ const char str_tim_dc[] = "Tim DC";
 const char str_tim_frq[] = "Tim FRQ";
 const char str_hfmsig[] = "HFMSIG";
 const char str_hfmref[] = "HFMRef";
+const char str_op_mode[] = "OP Mode";
 const char str_eng_speed[] = "Eng Speed";
 const char str_wtout[] = "WTOUT";
 
@@ -93,6 +96,12 @@ const osd_item_t items_hfmref[] = {
 	NULL,
 };
 
+const osd_item_t items_op_mode[] = {
+	{0, 7, 10, 1, (int)str_op_mode, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{10, 7, 5, 1, (int)get_op_mode, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_AFTERCOMMAND, ITEM_RUNTIME_V},
+	NULL,
+};
+
 const osd_item_t items_eng_speed[] = {
 	{0, 8, 10, 1, (int)str_eng_speed, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
 	{10, 8, 5, 1, (int)get_eng_speed, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
@@ -121,6 +130,7 @@ const osd_group_t grps[] = {
 	{.items = items_tim_frq, .cmds = cmds_items, .order = 4, .option = 0},
 	{.items = items_hfmsig, .cmds = cmds_items, .order = 5, .option = 0},
 	{.items = items_hfmref, .cmds = cmds_items, .order = 6, .option = 0},
+	{.items = items_op_mode, .cmds = cmds_items, .order = 7, .option = 0},
 	{.items = items_eng_speed, .cmds = cmds_items, .order = STATUS_GRAYED, .option = 0},
 	{.items = items_wtout, .cmds = cmds_items, .order = STATUS_GRAYED, .option = 0},
 	NULL,
@@ -246,6 +256,7 @@ void lcm_Init(void)
 	lcm_dat.hfmsig = lcm_cfg.hfmsig_min;
 	lcm_dat.hfmref = lcm_cfg.hfmref_min;
 	lcm_dat.tim_frq = lcm_cfg.timfrq_min;
+	lcm_dat.op_mode = lcm_cfg.op_mode_min;
 
 	hdlg = osd_ConstructDialog(&dlg);
 	osd_SetActiveDialog(hdlg);
