@@ -649,6 +649,47 @@ void main(void)
 	}
 } // main
 
+#include "shell/cmd.h"
+
+static int cmd_dut_func(int argc, char *argv[])
+{
+	int addr, fail = -1;
+	const char *result[] = {"pass", "fail"};
+	const char *usage = {
+		"dut set DK277130 psv	set dut base model nr, psv is optional such as 0x03\n"
+	};
+
+	if((argc >= 3) && (!strcmp(argv[1], "set"))) {
+		TestStart();
+		memset(mfg_data.bmr, 0x00, sizeof(mfg_data.bmr));
+		strncpy(mfg_data.bmr, argv[2], sizeof(mfg_data.bmr));
+		addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> bmr;
+		fail = Write_Memory(addr, mfg_data.bmr, sizeof(mfg_data.bmr));
+		printf("setting bmr = %s ", mfg_data.bmr);
+		printf("..%s!!!\n", (fail) ? result[1] : result[0]);
+
+		if(argc > 3) {
+			int psv;
+			sscanf(argv[3], "0x%x", &psv);
+			mfg_data.psv = (char)(psv & 0xff);
+			addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> psv;
+			fail = Write_Memory(addr, &(mfg_data.psv), sizeof(mfg_data.psv));
+			printf("\nsetting psv = 0x%02x ", psv & 0xff);
+			printf("..%s!!!\n", (fail) ? result[1] : result[0]);
+		}
+
+		nest_mdelay(1000 * 5); //wait 5s for eeprom write finish
+		nest_power_off();
+		return 0;
+	}
+
+	printf("%s", usage);
+	return 0;
+}
+
+const static cmd_t cmd_dut = {"dut", cmd_dut_func, "dut operation cmd"};
+DECLARE_SHELL_CMD(cmd_dut)
+
 /*******************************************************************************
 		 Conditioning Nest Control Board Description
 
