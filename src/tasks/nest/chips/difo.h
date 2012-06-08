@@ -48,7 +48,7 @@ nest_reg_t difo_regs[] = {
 	//bigendian - byte 1e
 	{.ofs = 0x28, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "HDLW1/2", .bind = NULL, .desc = NULL},
 	{.ofs = 0x29, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "PKLW1/2", .bind = NULL, .desc = NULL},
-	{.ofs = 0x2a, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "HDLW1/2", .bind = NULL, .desc = NULL},
+	{.ofs = 0x2a, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "HDLW3/4", .bind = NULL, .desc = NULL},
 	{.ofs = 0x2b, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "PKLW3/4", .bind = NULL, .desc = NULL},
 	{.ofs = 0x2c, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "HDLW5/6", .bind = NULL, .desc = NULL},
 	{.ofs = 0x2d, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "PKLW5/6", .bind = NULL, .desc = NULL},
