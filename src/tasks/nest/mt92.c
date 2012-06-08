@@ -16,6 +16,7 @@
 #define VECTOR_FLASH_ERASE	0x80170008
 #define VECTOR_FAULTS_CLEAR	0x80170014
 #define VECTOR_FLASH_READ	0x8017001C
+#define VECTOR_PHDP_DIAG_EN	0x80170020
 #define VECTOR_RAM_TEST		0x80170028
 #define VECTOR_CHANGE_MODE	0x80170040
 #define VECTOR_PC_OCTEST	0x80170044
@@ -26,7 +27,18 @@
 #define OUTBOX_ADDR	(0xD0008800) //D2 D3 A2 ..(256B)
 #define MFGDAT_ADDR	(0x80008000)
 #define POLDAT_ADDR	(0xD0008300)
-#define POLDAT_BYTES	(0x26)
+#define POLDAT_BYTES	(sizeof(struct fb_s))
+
+struct fb_s {
+	char c2ps[6]; //0xd0008300 - 8305
+	char phdp[2]; //0xd0008306 - 8307
+	char vsep[8]; //0xd0008308 - 830f
+	char emcd[2]; //0xd0008310 - 8311
+	char c2wraf[8]; //0xd0008312 - 8319
+	char difo[8]; //0xd000831a - 8321
+	char l9958xp[2]; //0xd0008322 - 8323
+	char dph[4]; //0xd0008324 - 8327
+};
 
 //mfg data structure
 struct mfg_data_s {
@@ -42,17 +54,6 @@ struct mfg_data_s {
 	char rsv2[8]; //0x8018 - 0x801f
 	char fb[POLDAT_BYTES]; //0x8020 - 0x8045 fault bytes write back
 } mfg_data;
-
-struct fb_s {
-	char c2ps[6]; //0xd0008300 - 8305
-	char phdp[2]; //0xd0008306 - 8307
-	char vsep[8]; //0xd0008308 - 830f
-	char emcd[2]; //0xd0008310 - 8311
-	char c2wraf[8]; //0xd0008312 - 8319
-	char difo[8]; //0xd000831a - 8321
-	char l9958xp[2]; //0xd0008322 - 8323
-	char dph[2]; //0xd0008324 - 8325
-};
 
 #define D4_ADDR 0xD0008700
 #define D5_ADDR 0xD0008704
@@ -97,15 +98,17 @@ const struct mcamos_s mcamos_mt92 = {
 //base model types declaration
 enum {
 	/*4 CYL*/
-	BM_DK277300,
+	BM_DK277300 = 0x0040,
 	BM_DK277130,
 	BM_28351885,
 	BM_28236632,
 
 	/*3 CYL*/
-	BM_28351894,
+	BM_28351894 = 0x0030,
 	BM_DK277375,
 };
+
+#define nr_of_cyl(bmr) ((bmr >> 4) & 0x0f)
 
 //base model number to id maps
 const struct nest_map_s bmr_map[] = {
@@ -399,64 +402,59 @@ static void CyclingTest(void)
 	difo_init();
 	dph_init();
 
+	//RECOMMEND BY OLIVE MAIL 6/4/2012
+	if(nr_of_cyl(bmr) == 3) {
+		difo_trap("VERSN0", 0x01, 1);
+		difo_trap("SSTEND", 0x01, 1);
+		difo_trap("STATUS", 0x01, 1);
+		difo_mask("PKLW5/6");
+		difo_mask("HDLW5/6");
+		difo_mask("PKLW3/4");
+		difo_mask("HDLW3/4");
+		difo_mask("PKLW1/2");
+		difo_mask("HDLW1/2");
+	}
+	else {
+		difo_trap("VERSN0", 0x01, 1);
+		difo_trap("FMODE0", 0x01, 1);
+		difo_trap("FPUMP", 0x01, 1);
+		difo_trap("IMODE1", 0x01, 1);
+		difo_trap("IMODE0", 0x01, 1);
+		difo_trap("SSTEND", 0x01, 1);
+		difo_trap("STATUS", 0x01, 1);
+		difo_mask("PKLW5/6");
+		difo_mask("HDLW5/6");
+		difo_mask("PKLW3/4");
+		difo_mask("HDLW3/4");
+		difo_mask("PKLW1/2");
+		difo_mask("HDLW1/2");
+	}
+
+	//common to all bmr
+	vsep_mask("PCH23");
+	vsep_mask("PCH24");
+	vsep_mask("PCH25");
+	c2ps_mask("VERSN0");
+	c2ps_mask("VERSN2");
 
 	//pls to do mask here
 	switch(bmr) {
-	case BM_DK277300:
+	case BM_DK277300: //4cyl
 	case BM_28351885:
 		vsep_mask("PCH19");
-		vsep_mask("PCH23");
-		vsep_mask("PCH24");
-		vsep_mask("PCH25");
-		c2ps_mask("VERSN0");
-		c2ps_mask("VERSN2");
-		phdp_mask("EN1/EN2 STATUS");
-		difo_mask("IMODE2");
-		difo_mask("FPUMP");
-		difo_mask("BSTLOW");
-		difo_mask("OPEN5");
-		difo_mask("HDLW5/6");
-		difo_mask("PKLW5/6");
 		dph_mask("DCB1");
 		break;
 
-	case BM_DK277130:
+	case BM_DK277130: //4cyl
 	case BM_28236632:
 		//vsep_mask("PCH19");
-		vsep_mask("PCH23");
-		vsep_mask("PCH24");
-		vsep_mask("PCH25");
-		c2ps_mask("VERSN0");
-		c2ps_mask("VERSN2");
-		phdp_mask("EN1/EN2 STATUS");
-		difo_mask("IMODE2");
-		difo_mask("FPUMP");
-		difo_mask("BSTLOW");
-		difo_mask("OPEN5");
-		difo_mask("HDLW5/6");
-		difo_mask("PKLW5/6");
 		dph_mask("DCB1");
 		break;
 
-	case BM_DK277375:
+	case BM_DK277375: //3cyl
 	case BM_28351894:
 		vsep_mask("PCH19");
-		vsep_mask("PCH23");
-		vsep_mask("PCH24");
-		vsep_mask("PCH25");
-		c2ps_mask("VERSN0");
-		c2ps_mask("VERSN2");
-		phdp_mask("EN1/EN2 STATUS");
-		difo_mask("IMODE2");
-		difo_mask("FPUMP");
-		difo_mask("BSTLOW");
-		difo_mask("OPEN5");
-		difo_mask("HDLW5/6");
-		difo_mask("PKLW5/6");
 		//dph_mask("DCB1");
-
-		difo_mask("OPEN3");
-		difo_mask("PKLW3/4");
 		break;
 
 	default:
@@ -473,6 +471,14 @@ static void CyclingTest(void)
 	for(min = 0; min < CND_PERIOD; min ++) {
 		//clear faults
 		mcamos_execute_ex(VECTOR_FAULTS_CLEAR);
+		nest_mdelay(300);
+		//phdp diag en1/2 ctrl
+		memset(mailbox.bytes, 0, sizeof(mailbox));
+		mailbox.inbox.d4 = htonl(0x02);
+		mcamos_dnload_ex(D4_ADDR, &mailbox.inbox.d4, 4);
+		nest_mdelay(300);
+		mcamos_execute_ex(VECTOR_PHDP_DIAG_EN);
+		nest_mdelay(300);
 
 		//delay 1 min
 		deadline = nest_time_get(1000 * 60);
@@ -490,7 +496,8 @@ static void CyclingTest(void)
 		fail += phdp_verify(fb->phdp);
 		fail += emcd_verify(fb->emcd);
 		fail += difo_verify(fb->difo);
-		fail += dph_verify(fb->dph);
+		if(nr_of_cyl(bmr) == 3)
+			fail += dph_verify(fb->dph);
 		if (fail) {
 			memcpy(mfg_data.fb, mailbox.bytes + 0x08, sizeof(mfg_data.fb));
 			nest_error_set(FB_FAIL, "Cycling");
@@ -570,7 +577,7 @@ void TestStart(void)
 		cncb_signal(SIG1,SIG_LO); //C71 FPR LOAD6(30Ohm + 70mH) JMP1 = GND, HSD
 		cncb_signal(SIG2,SIG_LO); //C70 SMR LOAD7(30Ohm + 70mH) JMP2 = GND, HSD
 		cncb_signal(SIG3,SIG_LO); //E7 = NC
-		if(bmr == BM_28351894 || bmr == BM_DK277375) { //3 cyl
+		if(nr_of_cyl(bmr) == 3) { //3 cyl
 			cncb_signal(SIG1,SIG_HI); //C71 FPR LOAD6(30Ohm + 70mH) JMP1 = GND, HSD
 			cncb_signal(SIG2,SIG_HI); //C70 SMR LOAD7(30Ohm + 70mH) JMP2 = GND, HSD
 			cncb_signal(SIG3,SIG_HI); //E7 = NC

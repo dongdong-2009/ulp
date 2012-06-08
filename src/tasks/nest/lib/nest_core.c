@@ -25,7 +25,9 @@ int nest_init(void)
 	task_Init();
 	cncb_init();
 	nest_message_init();
+#if CONFIG_NEST_WIRELESS
 	nest_wl_init();
+#endif
 	if(nest_flag_ignore == -1)
 		nest_flag_ignore = 0;
 #ifdef CONFIG_NEST_ID
@@ -39,7 +41,9 @@ int nest_init(void)
 int nest_update(void)
 {
 	task_Update();
+#if CONFIG_NEST_WIRELESS
 	nest_wl_update();
+#endif
 	return 0;
 }
 
