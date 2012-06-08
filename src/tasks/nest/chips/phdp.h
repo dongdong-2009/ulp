@@ -7,14 +7,16 @@
 #define __PHDP_H_
 
 nest_reg_t phdp_regs[] = {
-	{.ofs = 0x00, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "DIE TEMP", .bind = NULL, .desc = NULL},
-	{.ofs = 0x01, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "DIE TEMP", .bind = NULL, .desc = NULL},
-	{.ofs = 0x02, .len = 0x01, .msk = 0x01, .val = 0x01, .name = "EN1/EN2 STATUS", .bind = NULL, .desc = NULL},
-	{.ofs = 0x03, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "LS COMP TRIP", .bind = NULL, .desc = NULL},
-	{.ofs = 0x04, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "HS CUR LIM IN TWCLM", .bind = NULL, .desc = NULL},
-	{.ofs = 0x05, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "OPENFLT", .bind = NULL, .desc = NULL},
-	{.ofs = 0x06, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "SHGND", .bind = NULL, .desc = NULL},
-	{.ofs = 0x07, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "SHBAT", .bind = NULL, .desc = NULL},
+	//bigendian byte 0x8300 0007
+	//bigendian byte 0x8300 0006
+	{.ofs = 0x08, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "DIE TEMP", .bind = NULL, .desc = NULL},
+	{.ofs = 0x09, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "DIE TEMP", .bind = NULL, .desc = NULL},
+	{.ofs = 0x0a, .len = 0x01, .msk = 0x01, .val = 0x01, .name = "EN1/EN2 STATUS", .bind = NULL, .desc = NULL},
+	{.ofs = 0x0b, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "LS COMP TRIP", .bind = NULL, .desc = NULL},
+	{.ofs = 0x0c, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "HS CUR LIM IN TWCLM", .bind = NULL, .desc = NULL},
+	{.ofs = 0x0d, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "OPENFLT", .bind = NULL, .desc = NULL},
+	{.ofs = 0x0e, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "SHGND", .bind = NULL, .desc = NULL},
+	{.ofs = 0x0f, .len = 0x01, .msk = 0x01, .val = 0x00, .name = "SHBAT", .bind = NULL, .desc = NULL},
 };
 
 nest_chip_t phdp = {
