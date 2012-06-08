@@ -18,6 +18,15 @@
 #include "lpc177x_8x_pinsel.h"
 #include <string.h>
 
+//#define __DEBUG
+
+#ifdef __DEBUG
+#include <stdio.h>
+#define debug(...) printf(__VA_ARGS__)
+#else
+#define debug(...)
+#endif
+
 void low_level_init(struct netif *netif)
 {
 	EMAC_CFG_Type Emac_Config;
@@ -60,7 +69,7 @@ void low_level_init(struct netif *netif)
 	/* set MAC hardware address length */
 	netif->hwaddr_len = ETHARP_HWADDR_LEN;
 	/* maximum transfer unit */
-	netif->mtu = 1500;
+	netif->mtu = 1400;
 	/* device capabilities */
 	/* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
 	netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
@@ -105,6 +114,7 @@ err_t low_level_output(struct netif *netif, struct pbuf *p)
 
 	EMAC_RequestSend(n);
 	EMAC_UpdateTxProduceIndex();
+	debug("%s: send %d bytes\n", __FUNCTION__, n);
 	return ERR_OK;
 }
 
@@ -119,7 +129,7 @@ err_t low_level_output(struct netif *netif, struct pbuf *p)
 struct pbuf * low_level_input(struct netif *netif)
 {
 	struct pbuf *p, *q;
-	int n;
+	int i, n;
 
 	// Test if at least one packet has been received and is waiting
 	if (EMAC_CheckReceiveIndex() == FALSE){
@@ -131,15 +141,17 @@ struct pbuf * low_level_input(struct netif *netif)
 	char *src = (char *) EMAC_GetReadPacketBuffer();
 
 	// fill pbuf
+	i = 0;
 	for (q = p; q != NULL; q = q->next) {
-		if(n > 0) {
+		if(i < n) {
 			memcpy(q->payload, src, q->len);
-			n -= q->len;
+			i += q->len;
 			src += q->len;
 		}
 	}
 
 	// update receive status
 	EMAC_UpdateRxConsumeIndex();
+	debug("%s: recv %d bytes\n", __FUNCTION__, n);
 	return p;
 }
