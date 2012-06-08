@@ -51,8 +51,8 @@ void lwip_lib_Init(void)
 	ipaddr.addr = 0;
 	netmask.addr = 0;
 	gw.addr = 0;
-#elif CONFIG_LWIP_IP_192_168_8_1 == 1
-	IP4_ADDR(&ipaddr, 192, 168, 8, 1);
+#elif CONFIG_LWIP_IP_192_168_8_4 == 1
+	IP4_ADDR(&ipaddr, 192, 168, 8, 4);
 	IP4_ADDR(&netmask, 255, 255, 255, 0);
 	IP4_ADDR(&gw, 192, 168, 8, 1);
 #elif CONFIG_LWIP_IP_192_168_2_2 == 1
