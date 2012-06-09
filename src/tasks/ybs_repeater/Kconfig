@@ -1,0 +1,5 @@
+#
+# Written by king@2012
+#
+
+bool "enable ybs_repeater?" CONFIG_TASK_YBSREPEATER
