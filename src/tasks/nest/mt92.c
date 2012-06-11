@@ -499,7 +499,8 @@ static void CyclingTest(void)
 		if(nr_of_cyl(bmr) == 3)
 			fail += dph_verify(fb->dph);
 		if (fail) {
-			memcpy(mfg_data.fb, mailbox.bytes + 0x08, sizeof(mfg_data.fb));
+			ntoh_array(mailbox.bytes, POLDAT_BYTES);
+			memcpy(mfg_data.fb, mailbox.bytes, sizeof(mfg_data.fb));
 			nest_error_set(FB_FAIL, "Cycling");
 			break;
 		}
@@ -548,7 +549,7 @@ void TestStart(void)
 		//memcpy(&mfg_data, &mfg_data_dk277130, sizeof(mfg_data_dk277130));
 		//memcpy(&mfg_data, &mfg_data_dk277300, sizeof(mfg_data_dk277300));
 		memcpy(&mfg_data, &mfg_data_dk277375, sizeof(mfg_data_dk277375));
-		mfg_data.psv = 0x03;
+		mfg_data.psv = 0x80;
 		Write_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
 	}
 
@@ -594,7 +595,7 @@ void TestStart(void)
 
 	//check psv of amb
 	if(!nest_ignore(PSV)) {
-		if((mfg_data.psv & 0x02) == 0) {
+		if((mfg_data.psv & 0x80) == 0) {
 			nest_error_set(PSV_FAIL, "PSV");
 			nest_message("PSV addr %04X : %02X \n",MFGDAT_ADDR+(int)&(((struct mfg_data_s *)0)->psv),mfg_data.psv);
 			return;
@@ -616,7 +617,7 @@ void TestStop(void)
 	mfg_data.nest_nec = err->nec;
 	//for(int i = 0; i < sizeof(mfg_data); i ++) *((char *)&mfg_data + i) = i;
 
-	if(err->nec >= PSV_FAIL) {
+	if((err->nec >= PSV_FAIL) || (err->nec == NO_FAIL)) {
 		fail = Write_Memory(MFGDAT_ADDR, (void *)&mfg_data, sizeof(mfg_data));
 		if(fail)
 			nest_error_set(EEWRITE_FAIL, "Eeprom Write");
@@ -656,7 +657,7 @@ static int cmd_dut_func(int argc, char *argv[])
 	int addr, fail = -1;
 	const char *result[] = {"pass", "fail"};
 	const char *usage = {
-		"dut set DK277130 psv	set dut base model nr, psv is optional such as 0x03\n"
+		"dut set DK277130 psv	set dut base model nr, psv is optional such as 0x80\n"
 	};
 
 	if((argc >= 3) && (!strcmp(argv[1], "set"))) {
