@@ -405,6 +405,10 @@ static void CyclingTest(void)
 	//RECOMMEND BY OLIVE MAIL 6/4/2012
 	if(nr_of_cyl(bmr) == 3) {
 		difo_trap("VERSN0", 0x01, 1);
+		difo_trap("FMODE0", 0x01, 0);
+		difo_trap("FPUMP", 0x01, 0);
+		difo_trap("IMODE1", 0x01, 0);
+		difo_trap("IMODE0", 0x01, 0);
 		difo_trap("SSTEND", 0x01, 1);
 		difo_trap("STATUS", 0x01, 1);
 		difo_mask("PKLW5/6");
