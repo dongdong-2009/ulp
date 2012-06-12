@@ -370,11 +370,11 @@ static int pdi_pass_action()
 	dm_mdelay(20);
 	printf("##START##EC-Test Result : No Error...##END##\n");
 	counter_pass_add();
-	dm_mdelay(750);
+	dm_mdelay(650);
 	beep_off();
 	dm_mdelay(150);
 	beep_on();
-	dm_mdelay(750);
+	dm_mdelay(650);
 	beep_off();
 	return 0;
 }
@@ -618,6 +618,7 @@ static int dm_check(const struct pdi_cfg_s *sr)
 
 	printf("##START##EC-Waiting for checking others...##END##\n");
 
+	//delay 6S
 	for (rate = 25; rate <= 85; rate ++) {
 		dm_mdelay(128);
 		printf("##START##STATUS-");
@@ -627,8 +628,12 @@ static int dm_check(const struct pdi_cfg_s *sr)
 	}
 
 	if(dm_StartSession_2()) {
-		printf("##START##EC-Start error...##END##\n");
-		return 1;
+		if(dm_StartSession_2()) {
+			if(dm_StartSession_2()) {
+				printf("##START##EC-Start error...##END##\n");
+				return 1;
+			}
+		}
 	}
 
 	if(dm_check_barcode()) {
@@ -647,8 +652,12 @@ static int dm_check(const struct pdi_cfg_s *sr)
 	//esc_flag = 1;
 
 	if(dm_StartSession_2()) {
-		printf("##START##EC-Start error...##END##\n");
-		return 1;
+		if(dm_StartSession_2()) {
+			if(dm_StartSession_2()) {
+				printf("##START##EC-Start error...##END##\n");
+				return 1;
+			}
+		}
 	}
 
 	while (dm_GetFault(dm_fault_buf, &num_fault)) {
@@ -665,7 +674,8 @@ static int dm_check(const struct pdi_cfg_s *sr)
 		printf("##START##EC-");
 		printf("num of fault is: %d\n", num_fault);
 		for (i = 0; i < num_fault*2; i += 2)
-			printf("0x%2x, 0x%2x\n", dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
+			printf("0x%2x, 0x%2x\n",
+			dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
 		printf("##END##\n");
 		if(dm_error_check(dm_fault_buf, &num_fault, sr)) return 1;
 		printf("##START##EC-These faults are acceptale...##END##\n");
@@ -779,7 +789,8 @@ static int cmd_dm_func(int argc, char *argv[])
 				printf("##OK##\n");
 				printf("num of fault is: %d\n", num_fault);
 				for (i = 0; i < num_fault*2; i += 2)
-					printf("0x%2x, 0x%2x\n", dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
+					printf("0x%2x, 0x%2x\n",
+					dm_fault_buf[i]&0xff, dm_fault_buf[i+1]&0xff);
 			}
 		}
 
