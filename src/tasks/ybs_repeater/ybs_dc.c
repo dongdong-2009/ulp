@@ -27,6 +27,7 @@ static struct list_head queue_temp;
 static struct list_head queue_keep;
 static struct list_head queue_ybs[DC_CH];
 
+#define sect_get(idx) (struct dc_sect_s *)(DC_BASE + DC_SECT_SZ * idx)
 static inline void sect_init(struct dc_sect_s *sect)
 {
 	sect->offset = sizeof(struct dc_sect_s);
@@ -34,7 +35,15 @@ static inline void sect_init(struct dc_sect_s *sect)
 	INIT_LIST_HEAD(&sect->list_keep);
 	INIT_LIST_HEAD(&sect->list_temp);
 	INIT_LIST_HEAD(&sect->list_ybs);
+	//INIT_LIST_HEAD(&sect->queue_hash); //!!! do not init me!!!!
 	INIT_LIST_HEAD(&sect->list_hash);
+}
+
+static int __hash(struct dc_sect_s *sect)
+{
+	int key = sect->time + sect->ybs;
+	key = key % DC_SECT_NR;
+	return key;
 }
 
 int dc_init(void)
@@ -46,8 +55,9 @@ int dc_init(void)
 	sect_empty_nr = DC_SECT_NR;
 	INIT_LIST_HEAD(&queue_empty);
 	for(i = 0; i < DC_SECT_NR; i ++) {
-		sect = (struct dc_sect_s *)(DC_BASE + DC_SECT_SZ * i);
+		sect = sect_get(i);
 		sect_init(sect);
+		INIT_LIST_HEAD(&sect->queue_hash); //note: only execute one time!!!
 		list_add_tail(&queue_empty, &sect->list_empty);
 	}
 
@@ -141,6 +151,11 @@ static int __keep(int ch)
 			list_del(&sect->list_temp);
 			list_add_tail(&queue_keep, &sect->list_keep);
 			nr ++;
+
+			//hash search support
+			int idx = __hash(sect);
+			dc_sect_s *hash = sect_get(idx);
+			list_add_tail(&hash->queue_hash, &sect->list_hash);
 		}
 		p -= words;
 		if(p < fifo.keep_end)
@@ -160,6 +175,7 @@ static int __clear(int left)
 		if(time_left(sect->time) > -DC_TEMP_MS)
 			break;
 
+		list_del(&sect->list_hash);
 		list_del(&sect->list_temp);
 		list_del(&sect->list_ybs);
 		list_add(&queue_empty, &sect->list_empty);
@@ -174,6 +190,7 @@ static int __clear(int left)
 		if(left > 0)
 			break;
 
+		list_del(&sect->list_hash);
 		list_del(&sect->list_keep);
 		list_del(&sect->list_ybs);
 		list_add(&queue_empty, &sect->list_empty);
@@ -237,6 +254,38 @@ int dc_keep(int start, int end)
 	return 0;
 }
 
-struct pbuf* dc_read_pbuf(time_t time, int n)
+struct dc_sect_s *__search(int ybs, time_t time)
 {
+}
+
+int dc_send_tcp(struct tcp_pcb *pcb, int ch, time_t start, time_t end);
+{
+	struct dc_sect_s *sect;
+	int ms, n = 0, bytes;
+	time_t time;
+
+	bytes = time_diff(end, start) / DC_SAVE_MS;
+	if((bytes <= 0) || (bytes >= DC_SEND_TCP_LIMIT)) {
+		assert(0);
+		return -1;
+	}
+
+	time = time_shift(time, -DC_SECT_MS);
+	while(time_diff(end, time) > 0) {
+		sect = __search(ch, time);
+		if(sect == NULL) { //not found
+			time = time_shift(time, DC_HASH_MS);
+			continue;
+		}
+
+		//found the sect :) walk through the ybs chain
+		struct list_head *pos = &sect->list_ybs;
+		for (; pos != &queue_ybs[ch]; pos = pos->next) {
+			sect = list_entry(pos, dc_sect_s, list_ybs);
+			ms = time_diff(start, sect->time);
+			if(ms < 0) { //start is earlier than sect->time, insert empty data
+			}
+
+		}
+	}
 }

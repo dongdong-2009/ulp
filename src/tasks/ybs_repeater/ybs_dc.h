@@ -28,11 +28,15 @@
 #define DC_SECT_EMPTY_TH ((int)(DC_SECT_NR * 30%))
 #define DC_SAVE_MS 10 /*sampling period*/
 #define DC_TEMP_MS 20000 /*reclaim it if timeout*/
+#define DC_SECT_MS (DC_SAVE_MS * )
+#define DC_DATA_NA (1 << 15)
+#define DC_SEND_TCP_LIMIT (TCP_SND_BUF)
 
 struct dc_sect_s {
+	time_t time;
 	int ybs; //which sensor? 0 ~ 15
 	int offset; //[0, DC_SECT]
-	time_t time;
+	int rserved;
 
 	/*for fast empty seach purpose, used when write operation*/
 	struct list_head list_empty;
@@ -43,7 +47,9 @@ struct dc_sect_s {
 	/*the whole keeped data sector of a specified ybs sensor, used when keep operation*/
 	struct list_head list_ybs;
 	/*a chained hash table, used when random time search operation*/
+	struct list_head queue_hash;
 	struct list_head list_hash;
+	//short data[(DC_SECT_SZ - 64)/2];
 };
 
 int dc_init(void);
@@ -72,8 +78,9 @@ int dc_read(int offset);
  */
 int dc_keep(int start, int end);
 
-/* to read the waveform data to pbuf directly
+/* to read the waveform data and send to lwip directly,
+ * range: [start, end], return the bytes has been sent
  */
-struct pbuf* dc_read_pbuf(time_t time, int n);
+int dc_send_tcp(struct tcp_pcb *pcb, int ch, time_t start, time_t end);
 
 #endif
