@@ -8,3 +8,4 @@ obj-$(CONFIG_PDI_J04N) += J04N.o
 obj-$(CONFIG_PDI_sdm30) += sdm30.o
 obj-$(CONFIG_PDI_M16) += M16.o
 obj-$(CONFIG_PDI_RP) += RP.o
+obj-$(CONFIG_PDI_RC) += pdi.o
