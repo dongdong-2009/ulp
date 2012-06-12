@@ -622,9 +622,15 @@ void TestStop(void)
 	//for(int i = 0; i < sizeof(mfg_data); i ++) *((char *)&mfg_data + i) = i;
 
 	if((err->nec >= PSV_FAIL) || (err->nec == NO_FAIL)) {
-		fail = Write_Memory(MFGDAT_ADDR, (void *)&mfg_data, sizeof(mfg_data));
+		//step 1, write psv
+		fail = Write_Memory(MFGDAT_ADDR + 17, (void *)&mfg_data.psv, 1);
 		if(fail)
-			nest_error_set(EEWRITE_FAIL, "Eeprom Write");
+			nest_error_set(EEWRITE_FAIL, "Eeprom Write PSV");
+
+		//step 2, write fault bytes
+		fail = Write_Memory(MFGDAT_ADDR + 20, (void *)&mfg_data, POLDAT_BYTES);
+		if(fail)
+			nest_error_set(EEWRITE_FAIL, "Eeprom Write FB");
 	}
 
 	//send FIS BCMP(build complete) message
