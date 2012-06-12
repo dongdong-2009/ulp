@@ -623,7 +623,7 @@ void TestStop(void)
 
 	if((err->nec >= PSV_FAIL) || (err->nec == NO_FAIL)) {
 		//step 1, write psv
-		fail = Write_Memory(MFGDAT_ADDR + 17, (void *)&mfg_data.psv, 1);
+		fail = Write_Memory(MFGDAT_ADDR + 15, (void *)&mfg_data.psv, 1);
 		if(fail)
 			nest_error_set(EEWRITE_FAIL, "Eeprom Write PSV");
 
