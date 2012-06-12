@@ -414,11 +414,12 @@ int main(void)
 			}
 			if(result != 0)
 				continue;
-			if (num_fault) {
+			if(num_fault) {
 				printf("##START##EC-");
 				printf("num of fault is: %d\n", num_fault);
 				for (i = 0; i < num_fault*3; i += 3)
-					printf("0x%2x, 0x%2x, 0x%2x\n", rc_fault_buf[i]&0xff, rc_fault_buf[i+1]&0xff, rc_fault_buf[i+2]&0xff);
+					printf("0x%2x, 0x%2x, 0x%2x\n", rc_fault_buf[i]&0xff,
+					rc_fault_buf[i+1]&0xff, rc_fault_buf[i+2]&0xff);
 				printf("##END##\n");
 				pdi_fail_action();
 				goto ERR_x;
@@ -458,7 +459,8 @@ static int cmd_rc_func(int argc, char *argv[])
 				printf("##OK##\n");
 				printf("num of fault is: %d\n", num_fault);
 				for (i = 0; i < num_fault*3; i += 3)
-					printf("0x%2x, 0x%2x, 0x%2x\n", rc_fault_buf[i]&0xff, rc_fault_buf[i+1]&0xff, rc_fault_buf[i+2]&0xff);
+					printf("0x%2x, 0x%2x, 0x%2x\n", rc_fault_buf[i]&0xff,
+					rc_fault_buf[i+1]&0xff, rc_fault_buf[i+2]&0xff);
 			}
 			pdi_IGN_off();
 		}
