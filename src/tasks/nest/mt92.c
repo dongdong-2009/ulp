@@ -503,9 +503,12 @@ static void CyclingTest(void)
 		fail += difo_verify(fb->difo);
 		if(nr_of_cyl(bmr) == 3)
 			fail += dph_verify(fb->dph);
+
+		//save test result to mfg_data.fb
+		ntoh_array(mailbox.bytes, POLDAT_BYTES);
+		memcpy(mfg_data.fb, mailbox.bytes, sizeof(mfg_data.fb));
+
 		if (fail) {
-			ntoh_array(mailbox.bytes, POLDAT_BYTES);
-			memcpy(mfg_data.fb, mailbox.bytes, sizeof(mfg_data.fb));
 			nest_error_set(FB_FAIL, "Cycling");
 			break;
 		}
@@ -624,7 +627,7 @@ void TestStop(void)
 
 	if((err->nec >= PSV_FAIL) || (err->nec == NO_FAIL)) {
 		//step 1, write psv
-		fail = Write_Memory(MFGDAT_ADDR + 0x15, (void *)&mfg_data.psv, 1);
+		fail = Write_Memory(MFGDAT_ADDR + 0x15, (void *)&mfg_data.nest_psv, 1);
 		if(fail)
 			nest_error_set(EEWRITE_FAIL, "Eeprom Write PSV");
 
