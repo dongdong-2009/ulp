@@ -172,10 +172,11 @@ void nest_dump(unsigned addr, const void *p, int bytes)
 			v = (unsigned) (pbuf[i] & 0xff);
 			if(i % 16 == 0)
 				nest_message("0x%08x: %02x", addr + i, v);
-			else if((i % 16 == 15) || (i == bytes - 1))
-				nest_message(" %02x\n", v);
 			else
 				nest_message(" %02x", v);
+
+			if((i % 16 == 15) || (i == bytes - 1))
+				nest_message("\n", v);
 	}
 }
 
@@ -623,12 +624,12 @@ void TestStop(void)
 
 	if((err->nec >= PSV_FAIL) || (err->nec == NO_FAIL)) {
 		//step 1, write psv
-		fail = Write_Memory(MFGDAT_ADDR + 15, (void *)&mfg_data.psv, 1);
+		fail = Write_Memory(MFGDAT_ADDR + 0x15, (void *)&mfg_data.psv, 1);
 		if(fail)
 			nest_error_set(EEWRITE_FAIL, "Eeprom Write PSV");
 
 		//step 2, write fault bytes
-		fail = Write_Memory(MFGDAT_ADDR + 20, (void *)&mfg_data, POLDAT_BYTES);
+		fail = Write_Memory(MFGDAT_ADDR + 0x20, (void *)mfg_data.fb, POLDAT_BYTES);
 		if(fail)
 			nest_error_set(EEWRITE_FAIL, "Eeprom Write FB");
 	}
