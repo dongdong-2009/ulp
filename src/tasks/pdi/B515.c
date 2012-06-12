@@ -16,7 +16,7 @@
 #include "shell/cmd.h"
 #include "led.h"
 
-#define PDI_DEBUG	1
+#define PDI_DEBUG	0
 
 //pdi_B515 can msg
 static const can_msg_t b515_clrdtc_msg	=	{0x737, 8, {0x04, 0x14, 0xff, 0xff, 0xff, 0, 0, 0}, 0};
@@ -221,7 +221,9 @@ static int b515_StartSession(void)
 		printf("##OK##\n");
 		printf("num of fault is: %d\n", num_fault);
 		for (i = 0; i < num_fault*4; i += 4)
-			printf("0x%2x, 0x%2x, 0x%2x, 0x%2x\n", b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff, b515_fault_buf[i+2]&0xff, b515_fault_buf[i+3]&0xff);
+			printf("0x%2x, 0x%2x, 0x%2x, 0x%2x\n",
+			b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff,
+			b515_fault_buf[i+2]&0xff, b515_fault_buf[i+3]&0xff);
 	}
 
 	//clear all include error code
@@ -305,6 +307,7 @@ static int counter_fail_add()
 
 static int pdi_fail_action()
 {
+	pdi_IGN_off();
 	led_off(LED_GREEN);
 	led_off(LED_RED);
 	led_on(LED_RED);
@@ -317,6 +320,7 @@ static int pdi_fail_action()
 
 static int pdi_pass_action()
 {
+	pdi_IGN_off();
 	led_off(LED_GREEN);
 	led_off(LED_RED);
 	led_on(LED_GREEN);
@@ -387,7 +391,14 @@ static int b515_check_init(const struct pdi_cfg_s *sr)
 
 static int b515_check_barcode()
 {
+	printf("##START##EC-Checking barcode...##END##\n");
+
 	b515_GetCID(0xfd3c, b515_data_buf);
+
+	b515_data_buf[12] = '\0';
+	printf("##START##RB-");
+	printf(b515_data_buf);
+	printf("##END##\n");
 
 	if (memcmp(b515_data_buf, bcode_1, 12))
 		return 1;
@@ -410,11 +421,12 @@ static int b515_clear_dtc(void)
 
 static int b515_GetFault(char *data, int * pnum_fault)
 {
-	int i, result = 0, msg_len;
+	int i,j, result = 0, msg_len;
 	can_msg_t msg_res;
 
 	memset(b515_fault_buf ,0x00 ,64);
-	usdt_GetDiagFirstFrame(&b515_errcode_msg, 1, NULL, &msg_res, &msg_len);
+	j = usdt_GetDiagFirstFrame(&b515_errcode_msg, 1, NULL, &msg_res, &msg_len);
+	if(j) return 1;
 	if (msg_len == 1) {
 		if (msg_res.data[1] == 0x59)
 			memcpy(b515_fault_buf, (msg_res.data + 4), msg_res.data[0] - 3);
@@ -443,17 +455,41 @@ static int b515_GetFault(char *data, int * pnum_fault)
 
 static int b515_check()
 {
-	int i, num_fault, try_times = 5;
+	int i, num_fault, try_times = 5, rate;
+	char temp[2];
 
 	pdi_IGN_on();
+	//delay 1s
+	for (rate = 10; rate <= 17; rate ++) {
+		b515_mdelay(143);
+		printf("##START##STATUS-");
+		sprintf(temp, "%d", rate);
+		printf("%s", temp);
+		printf("##END##\n");
+	}
 
-	b515_mdelay(10000);
+	b515_StartSession();
 
+	//check barcode
 	if(b515_check_barcode()) {
 		printf("##START##EC-Barcode Wrong##END##\n");
 		return 1;
 	}
+	printf("##START##EC-      Checking barcode Done...##END##\n");
 
+	printf("##START##EC-Waiting for ECU ready...##END##\n");
+	//delay 9s
+	for (rate = 17; rate <= 100; rate ++) {
+		b515_mdelay(109);
+		printf("##START##STATUS-");
+		sprintf(temp, "%d", rate);
+		printf("%s", temp);
+		printf("##END##\n");
+	}
+
+	//b515_StartSession();
+
+	//check error code
 	while (b515_GetFault(b515_fault_buf, &num_fault)) {
 		try_times --;
 		if (try_times < 0) {
@@ -465,12 +501,16 @@ static int b515_check()
 	if (num_fault) {
 		//b515_clear_dtc();
 		printf("##START##EC-");
-		printf("num of fault is: %d*", num_fault);
-		for (i = 0; i < num_fault*3; i += 3)
-			printf("0x%2x, 0x%2x, 0x%2x\n", b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff, b515_fault_buf[i+2]&0xff);
+		printf("num of fault is: %d\n", num_fault);
+		for (i = 0; i < num_fault*4; i += 4)
+			printf("0x%2x, 0x%2x, 0x%2x, 0x%2x\n",
+			b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff,
+			b515_fault_buf[i+2]&0xff, b515_fault_buf[i+3]&0xff);
 		printf("##END##\n");
 		return 1;
 	}
+
+	printf("##START##STATUS-100##END##\n");
 
 	return 0;
 }
@@ -496,7 +536,7 @@ static void b515_process(void)
 	if(target_on())
 		start_botton_on();
 	else start_botton_off();
-	if(ls1203_Read(&pdi_ls1203, bcode) == 0) {
+	if(!ls1203_Read(&pdi_ls1203, bcode)) {
 
 		start_botton_off();
 		pdi_led_start();
@@ -516,7 +556,7 @@ static void b515_process(void)
 				printf("##START##EC-No This Config File##END##\n");
 			} else {
 				b515_check_init(pdi_cfg_file);		//relay config
-				if(b515_check() == 0) pdi_pass_action();
+				if(!b515_check()) pdi_pass_action();
 				else pdi_fail_action();
 				}
 		} else {
@@ -562,7 +602,9 @@ static int cmd_b515_func(int argc, char *argv[])
 				printf("##OK##\n");
 				printf("num of fault is: %d\n", num_fault);
 				for (i = 0; i < num_fault*4; i += 4)
-					printf("0x%2x, 0x%2x, 0x%2x, 0x%2x\n", b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff, b515_fault_buf[i+2]&0xff, b515_fault_buf[i+3]&0xff);
+					printf("0x%2x, 0x%2x, 0x%2x, 0x%2x\n",
+					b515_fault_buf[i]&0xff, b515_fault_buf[i+1]&0xff,
+					b515_fault_buf[i+2]&0xff, b515_fault_buf[i+3]&0xff);
 			}
 		}
 
