@@ -17,10 +17,10 @@
 #include <string.h>
 #include <stm32f10x_adc.h>
 
-#define mA2d(mA) ((mA) * (20 * 4096) / 2500) //max4172, 2K => V = I * 20
+#define mA2d(mA) ((mA) * (20 * 4096) / 2500) //max4372, 2K => V = I * 20
 #define d2mA(d) ((d) * 2500 / (20 * 4096))
-#define d2mv(d) (((d) * (5 * 2500)) >> 12) //adc:  d = mv * 0.2(3KOhm / 3K + 12K) * 4096 / 2500
-#define mv2d(mv) (((mv) << 12) / (5 * 2500)) //dac:  mv = d / 4096 * 2500(Vref) * 5(OPA551 gain)
+#define d2mv(d) ((((d) * (9 * 2500)) >> 12) - 4500) //adc:  d = (mv + 4500) / 9(18KOhm / 2KOhm ) * 4096 / 2500
+#define mv2d(mv) (((mv + 4500) << 12) / (9 * 2500)) //dac:  mv = d / 4096 * 2500(Vref) * 9(L165 gain) - 4500
 
 static const mbi5025_t ict_mbi5025 = {
 		.bus = &spi2,
@@ -48,9 +48,15 @@ void ict_Init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC3, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD| RCC_APB2Periph_GPIOC| RCC_APB2Periph_GPIOA, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE| RCC_APB2Periph_GPIOD|
+		RCC_APB2Periph_GPIOC| RCC_APB2Periph_GPIOA, ENABLE);
 
 	// IO config
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7|GPIO_Pin_8;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12|GPIO_Pin_13;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
@@ -61,7 +67,8 @@ void ict_Init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_6|GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_4|
+		GPIO_Pin_5|GPIO_Pin_6|GPIO_Pin_7;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
@@ -188,8 +195,8 @@ void ict_Init(void)
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
-	GPIO_SetBits(GPIOD, GPIO_Pin_12);
-	GPIO_SetBits(GPIOD, GPIO_Pin_13);
+	GPIO_ResetBits(GPIOD, GPIO_Pin_12);
+	GPIO_ResetBits(GPIOD, GPIO_Pin_13);
 
 	mbi5025_Init(&ict_mbi5025);
 	mbi5025_EnableOE(&ict_mbi5025);
@@ -198,17 +205,19 @@ void ict_Init(void)
 void ADC1_2_IRQHandler(void)
 {
 	//over current, turn off relay
-	int temp = ADC_GetConversionValue(ADC2);
+	//int temp = ADC_GetConversionValue(ADC2);
 	//printf("i1 = %d\n", temp);
-	GPIO_ResetBits(GPIOD, GPIO_Pin_12);
+	GPIO_SetBits(GPIOD, GPIO_Pin_12);
 	ADC_ClearITPendingBit(ADC2, ADC_IT_AWD);
+	printf("power 1 software protection!");
 }
 
 void ADC3_IRQHandler(void)
 {
 	//over current, turn off relay
-	GPIO_ResetBits(GPIOD, GPIO_Pin_13);
+	GPIO_SetBits(GPIOD, GPIO_Pin_13);
 	ADC_ClearITPendingBit(ADC3, ADC_IT_AWD);
+	printf("power 2 software protection!");
 }
 
 void TIM2_IRQHandler(void)
@@ -251,6 +260,10 @@ void main(void)
 	task_Init();
 	ict_Init();
 	while(1) {
+		if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_7) == Bit_SET)
+			printf("Power 1 hardware protection!");
+		if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_8) == Bit_SET)
+			printf("Power 2 hardware protection!");
 		task_Update();
 	}
 }
