@@ -166,10 +166,6 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 			return -ERR_TIMEOUT;
 	} while(ret);
 
-#if CONFIG_MCAMOS_GAP_MS > 0
-	sys_mdelay(CONFIG_MCAMOS_GAP_MS);
-#endif
-
 	//step2, recv data
 	while (n > 0) {
 		do {
@@ -177,10 +173,6 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 			if(time_left(deadline) < 0)
 				return -ERR_TIMEOUT;
 		} while(ret);
-
-#if CONFIG_MCAMOS_GAP_MS > 0
-		sys_mdelay(CONFIG_MCAMOS_GAP_MS);
-#endif
 
 		if(msg.id == MCAMOS_MSG_2_STD_ID) {
 			bytes = (msg.dlc < n) ? msg.dlc : n;
