@@ -92,7 +92,7 @@ const struct mcamos_s mcamos_mt92 = {
 	.baud = 500000,
 	.id_cmd = 0x7EE,
 	.id_dat = 0x7EF,
-	.timeout = 50,
+	.timeout = 500,
 };
 
 //base model types declaration
