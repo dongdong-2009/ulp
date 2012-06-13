@@ -4,6 +4,7 @@
 
 #include "ulp/sys.h"
 #include "ybs_dc.h"
+#include <string.h>
 
 static int dc_ch;
 static struct dc_fifo_s
@@ -11,7 +12,7 @@ static struct dc_fifo_s
 	/*for dc_save/dc_read*/
 	int wn;
 	int rn;
-	short *data[DC_FIFO_NP];
+	short data[DC_FIFO_NP];
 	time_t time;
 
 	/*for dc_keep usage*/
@@ -19,14 +20,14 @@ static struct dc_fifo_s
 	time_t keep_ms_e; //the moment of keep cmd excuted
 	int keep_start;
 	int keep_end;
-} dc_fifos[DC_CH], *dc_fifo;
+} dc_fifos[DC_CH_NR], *dc_fifo;
 #define DC_FIFO_SZ (sizeof(struct dc_fifo_s))
 
 static int sect_empty_nr;
 static struct list_head queue_empty;
 static struct list_head queue_temp;
 static struct list_head queue_keep;
-static struct list_head queue_ybs[DC_CH];
+static struct list_head queue_ybs[DC_CH_NR];
 
 #define sect_get(idx) (struct dc_sect_s *)(DC_BASE + DC_SECT_SZ * idx)
 static inline void sect_init(struct dc_sect_s *sect)
@@ -63,15 +64,16 @@ int dc_init(void)
 
 	INIT_LIST_HEAD(&queue_keep);
 	INIT_LIST_HEAD(&queue_temp);
-	for(i = 0; i < DC_CH; i ++) {
+	for(i = 0; i < DC_CH_NR; i ++) {
 		INIT_LIST_HEAD(&queue_ybs[i]);
-		sect = list_first_entry(&queue_empty);
+		sect = list_first_entry(&queue_empty, dc_sect_s, list_empty);
 		list_del(&sect->list_empty);
 		sect_empty_nr --;
 		sect->ybs = i;
 		list_add(&queue_temp, &sect->list_temp);
 		list_add(&queue_ybs[i], &sect->list_ybs);
 	}
+	return 0;
 }
 
 static int __save(int ch)
@@ -92,7 +94,7 @@ static int __save(int ch)
 	words += (words < 0) ? DC_FIFO_NP : 0;
 	for(i = 0; i < words; i ++) {
 		//always mv tension data from fifo to sectors
-		sect = list_first_entry(&queue_ybs[dc_ch]);
+		sect = list_first_entry(&queue_ybs[dc_ch], dc_sect_s, list_ybs);
 		n = DC_SECT_NP - sect->offset;
 		n = (n < words) ? n : words;
 		dst = &sect->data[sect->offset];
@@ -107,10 +109,10 @@ static int __save(int ch)
 		i += n;
 
 		if(sect->offset >= DC_SECT_NP) {
-			sect = list_first_entry(&queue_empty);
+			sect = list_first_entry(&queue_empty, dc_sect_s, list_empty);
 			list_del(&sect->list_empty);
 			sect_empty_nr --;
-			sect->ch = ch;
+			sect->ybs = ch;
 			sect->time = time - DC_SAVE_MS * (words - i);
 			list_add_tail(&queue_temp, &sect->list_temp);
 			list_add_tail(&queue_ybs[dc_ch], &sect->list_ybs);
@@ -154,7 +156,7 @@ static int __keep(int ch)
 
 			//hash search support
 			int idx = __hash(sect->time / DC_HASH_MS);
-			dc_sect_s *hash = sect_get(idx);
+			struct dc_sect_s *hash = sect_get(idx);
 			list_add_tail(&hash->queue_hash, &sect->list_hash);
 		}
 		p -= words;
@@ -256,10 +258,12 @@ int dc_keep(int start, int end)
 
 struct dc_sect_s *__search(int ch, time_t time)
 {
-	dc_sect_s *hash, *sect;
-	int idx = __hash(sect->time / DC_HASH_MS);
+	struct dc_sect_s *hash, *sect;
+	struct list_head *pos;
+	int idx = __hash(time / DC_HASH_MS);
 	hash = sect_get(idx);
-	list_for_each_entry(sect, &hash->queue_hash, list_hash) {
+	list_for_each(pos, &hash->queue_hash) {
+		sect = list_entry(pos, dc_sect_s, list_hash);
 		if(sect->ybs == ch) {
 			return sect;
 		}
@@ -298,10 +302,10 @@ int dc_send_tcp_dummy(struct tcp_pcb *pcb, int nwords)
 	return 0;
 }
 
-int dc_send_tcp(struct tcp_pcb *pcb, int ch, time_t start, time_t end);
+int dc_send_tcp(struct tcp_pcb *pcb, int ch, time_t start, time_t end)
 {
 	struct dc_sect_s *sect, *sect_prev;
-	int ms, n = 0, words_sent, words;
+	int ms, n, words_sent, words;
 	time_t time;
 
 	words = time_diff(end, start) / DC_SAVE_MS;
@@ -339,7 +343,7 @@ int dc_send_tcp(struct tcp_pcb *pcb, int ch, time_t start, time_t end);
 		}
 
 		if(sect_prev != NULL) {
-			ms = time_diff(sect->time, sect->prev_time);
+			ms = time_diff(sect->time, sect_prev->time);
 			ms -= DC_SECT_MS;
 			if(ms > 0) { //these two sector is discontinuous on time
 				n = ms / DC_SAVE_MS;

@@ -25,11 +25,11 @@
 #define DC_SECT_NR (DC_SIZE/DC_SECT_SZ)
 #define DC_CH_NR 12 /*nr of ybs sensor channel*/
 #define DC_FIFO_NP 512 /*note: this is the fifo size for ybs_dsp usage not +/-10S , unit: points*/
-#define DC_SECT_EMPTY_TH ((int)(DC_SECT_NR * 30%))
+#define DC_SECT_EMPTY_TH ((int)(DC_SECT_NR * 0.3))
 #define DC_SAVE_MS 10 /*sampling period*/
 #define DC_SECT_MS (DC_SAVE_MS * DC_SECT_NP)
 #define DC_TEMP_MS 50000 /*reclaim it if timeout*/
-#define DC_DATA_NA (1 << 15)
+#define DC_DATA_NA ((short)(1 << 15))
 #define DC_SEND_TCP_LIMIT (TCP_SND_BUF)
 #define DC_HASH_MS 1000 /*must be smaller than DC_SECT_MS*/
 
