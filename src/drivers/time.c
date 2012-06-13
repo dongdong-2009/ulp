@@ -35,16 +35,34 @@ time_t time_get(int delay)
 
 int time_left(time_t deadline)
 {
-	unsigned dt, now;
+	return time_diff(deadline, jiffies);
+}
+
+static time_t time_shift(time_t time, int ms)
+{
+	unsigned int delta, result;
+	if(ms > 0) {
+		delta = ms;
+		result = time + delta;
+	}
+	else {
+		delta = 0 - ms;
+		result = time - delta;
+	}
+	return result;
+}
+
+int time_diff(time_t t0, time_t t1)
+{
+	unsigned dt;
 	int left;
 
-	now = jiffies;
-	dt = (deadline > now) ? deadline - now : now - deadline;
+	dt = (t0 > t1) ? t0 - t1 : t1 - t0;
 	if(dt >= (1U << 31)) {
 		dt = 0 - (int)(dt);
 	}
 
-	left = (deadline > now) ? dt : (0 - dt);
+	left = (t0 > t1) ? dt : (0 - dt);
 	return left;
 }
 
