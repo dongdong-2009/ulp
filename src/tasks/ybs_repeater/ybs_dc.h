@@ -24,26 +24,35 @@
 #define DC_SECT_SZ 1024 /*< 1536, better for ethernet, unit: bytes*/
 #define DC_SECT_NR (DC_SIZE/DC_SECT_SZ)
 #define DC_CH_NR 12 /*nr of ybs sensor channel*/
-#define DC_FIFO_SZ 512 /*note: this is the fifo size for ybs_dsp usage not +/-10S , unit: words*/
-#define DC_SECT_EMPTY_TH ((int)(DC_SECT_NR * 30%))
+#define DC_FIFO_NP 512 /*note: this is the fifo size for ybs_dsp usage not +/-10S , unit: points*/
+#define DC_SECT_EMPTY_TH ((int)(DC_SECT_NR * 0.3))
 #define DC_SAVE_MS 10 /*sampling period*/
-#define DC_TEMP_MS 20000 /*reclaim it if timeout*/
+#define DC_SECT_MS (DC_SAVE_MS * DC_SECT_NP)
+#define DC_TEMP_MS 50000 /*reclaim it if timeout*/
+#define DC_DATA_NA ((short)(1 << 15))
+#define DC_SEND_TCP_LIMIT (TCP_SND_BUF)
+#define DC_HASH_MS 1000 /*must be smaller than DC_SECT_MS*/
 
 struct dc_sect_s {
-	int ybs; //which sensor? 0 ~ 15
-	int offset; //[0, DC_SECT]
 	time_t time;
+	int ybs; //which sensor? 0 ~ 15
+	int offset; //[0, DC_SECT_NP]
+	int rserved;
 
-	/*for fast empty seach purpose, used when write operation*/
+	/*sector status machine: empty -> temp -> keep */
 	struct list_head list_empty;
-	/*the whole keeped data sector can be viewed as an circbuf, used when update operation to remove obsoleted data*/
 	struct list_head list_keep;
-	/*temp means it's used but not keeped,  free it if its old enough by update*/
 	struct list_head list_temp;
-	/*the whole keeped data sector of a specified ybs sensor, used when keep operation*/
-	struct list_head list_ybs;
-	/*a chained hash table, used when random time search operation*/
+	struct list_head list_ybs; /*temp or keep*/
+
+	/*for fast search only*/
+	struct list_head queue_hash;
 	struct list_head list_hash;
+
+	/*real payload*/
+	#define DC_SECT_HEAD_LEN 64 /*bytes*/
+	#define DC_SECT_NP ((DC_SECT_SZ - DC_SECT_HEAD_LEN) / sizeof(short))
+	short data[DC_SECT_NP];
 };
 
 int dc_init(void);
@@ -72,8 +81,9 @@ int dc_read(int offset);
  */
 int dc_keep(int start, int end);
 
-/* to read the waveform data to pbuf directly
+/* to read the waveform data and send to lwip directly,
+ * range: [start, end], return the bytes has been sent
  */
-struct pbuf* dc_read_pbuf(time_t time, int n);
+int dc_send_tcp(struct tcp_pcb *pcb, int ch, time_t start, time_t end);
 
 #endif

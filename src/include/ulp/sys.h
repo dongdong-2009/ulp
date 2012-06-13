@@ -9,6 +9,7 @@
 #define __ULP_SYS_H_
 
 #include "config.h"
+#include "ulp_time.h"
 
 /* ulp api for task related ops, such as:
  * void main(void) {

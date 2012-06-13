@@ -14,7 +14,6 @@ extern "C"
 {
 #endif
 
-#define MII_ADDR			0x0100	//Default PHY device address
 #define EMAC_PHY_DEFAULT_ADDR		MII_ADDR
 
 /* PHY Basic Registers */
@@ -91,14 +90,22 @@ extern "C"
 #define PHY_ID1				(0x2000)
 #define PHY_ID2_OUI			(0x0017) //Organizationally Unique Identifer Number
 #define PHY_ID2_MANF_MODEL		(0x0009) //Manufacturer Model Number
+#define MII_ADDR			(0x0100)
 #elif (CONFIG_PHY_LAN8720 == 1)
 #define PHY_ID1				(0x0007)
 #define PHY_ID2_OUI			(0x0030) //Organizationally Unique Identifer Number
 #define PHY_ID2_MANF_MODEL		(0x000F) //Manufacturer Model Number
+#define MII_ADDR			(0x0100)
 #elif (CONFIG_PHY_KS8721B == 1)
 #define PHY_ID1				(0x0022)
 #define PHY_ID2_OUI			(0x0005) //Organizationally Unique Identifer Number
 #define PHY_ID2_MANF_MODEL		(0x0021) //Manufacturer Model Number
+#define MII_ADDR			(0x0100)
+#elif (CONFIG_PHY_DM9161A == 1)
+#define PHY_ID1				(0x0181)
+#define PHY_ID2_OUI			(0x002E) //Organizationally Unique Identifer Number
+#define PHY_ID2_MANF_MODEL		(0x000A) //Manufacturer Model Number
+#define MII_ADDR			(0x0900)
 #else /*default to DP83848C*/
 #define PHY_ID1				(0x2000)
 #define PHY_ID2_OUI			(0x0017) //Organizationally Unique Identifer Number
