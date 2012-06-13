@@ -4,3 +4,5 @@
 # miaofng@2010
 #
 
+int "mcamos - delay ms inter can frame" CONFIG_MCAMOS_GAP_MS 0
+

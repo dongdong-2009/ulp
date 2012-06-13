@@ -7,7 +7,7 @@ if [ "$CONFIG_TOOLCHAIN_IAR" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'iar'
 		source src/lib/iar/Kconfig
-	endmenu	
+	endmenu
 fi
 
 mainmenu_option next_comment
@@ -19,42 +19,49 @@ if [ "$CONFIG_TASK_SHELL" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'shell'
 		source src/lib/shell/Kconfig
-	endmenu	
+	endmenu
 fi
 
 if [ "$CONFIG_TASK_OSD" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'osd'
 		source src/lib/osd/Kconfig
-	endmenu	
+	endmenu
 fi
 
 if [ "$CONFIG_LIB_LWIP" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'lwip'
 		source src/lib/lwip/Kconfig
-	endmenu	
+	endmenu
 fi
 
 if [ "$CONFIG_LIB_FATFS" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'fatfs'
 		source src/lib/fatfs/Kconfig
-	endmenu	
+	endmenu
 fi
 
 if [ "$CONFIG_LIB_COMMON" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'common'
 		source src/lib/common/Kconfig
-	endmenu	
+	endmenu
+fi
+
+if [ "$CONFIG_LIB_PRIV" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'priv'
+		source src/lib/priv/Kconfig
+	endmenu
 fi
 
 if [ "$CONFIG_LIB_UDISK" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'mass storage'
 		source src/lib/mass_storage/Kconfig
-	endmenu	
+	endmenu
 fi
 
 if [ "$CONFIG_LIB_LUA" = "y" ]; then

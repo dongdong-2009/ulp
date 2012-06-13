@@ -14,6 +14,11 @@
 
 //#define MCAMOS_DEBUG
 
+#ifdef CONFIG_NEST_MT92
+#undef CONFIG_MCAMOS_GAP_MS
+#define CONFIG_MCAMOS_GAP_MS 10
+#endif
+
 struct mcamos_s mcamos, mcamos_def;
 
 #define MCAMOS_MSG_1_STD_ID mcamos.id_cmd
@@ -104,6 +109,10 @@ int mcamos_dnload(const can_bus_t *can, int addr, const char *buf, int n, int ti
 			return -ERR_TIMEOUT;
 	} while(ret);
 
+#if CONFIG_MCAMOS_GAP_MS > 0
+	sys_mdelay(CONFIG_MCAMOS_GAP_MS);
+#endif
+
 	//step2, send data
 	msg.id = MCAMOS_MSG_2_STD_ID;
 	msg.flag = 0;
@@ -118,6 +127,10 @@ int mcamos_dnload(const can_bus_t *can, int addr, const char *buf, int n, int ti
 			if(time_left(deadline) < 0)
 				return -ERR_TIMEOUT;
 		} while(ret);
+
+#if CONFIG_MCAMOS_GAP_MS > 0
+		sys_mdelay(CONFIG_MCAMOS_GAP_MS);
+#endif
 	}
 
 	return ret;
@@ -153,6 +166,10 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 			return -ERR_TIMEOUT;
 	} while(ret);
 
+#if CONFIG_MCAMOS_GAP_MS > 0
+	sys_mdelay(CONFIG_MCAMOS_GAP_MS);
+#endif
+
 	//step2, recv data
 	while (n > 0) {
 		do {
@@ -160,6 +177,11 @@ int mcamos_upload(const can_bus_t *can, int addr, char *buf, int n, int timeout)
 			if(time_left(deadline) < 0)
 				return -ERR_TIMEOUT;
 		} while(ret);
+
+#if CONFIG_MCAMOS_GAP_MS > 0
+		sys_mdelay(CONFIG_MCAMOS_GAP_MS);
+#endif
+
 		if(msg.id == MCAMOS_MSG_2_STD_ID) {
 			bytes = (msg.dlc < n) ? msg.dlc : n;
 			memcpy(buf, msg.data, bytes);

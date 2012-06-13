@@ -92,7 +92,7 @@ const struct mcamos_s mcamos_mt92 = {
 	.baud = 500000,
 	.id_cmd = 0x7EE,
 	.id_dat = 0x7EF,
-	.timeout = 50,
+	.timeout = 500,
 };
 
 //base model types declaration
@@ -172,10 +172,11 @@ void nest_dump(unsigned addr, const void *p, int bytes)
 			v = (unsigned) (pbuf[i] & 0xff);
 			if(i % 16 == 0)
 				nest_message("0x%08x: %02x", addr + i, v);
-			else if((i % 16 == 15) || (i == bytes - 1))
-				nest_message(" %02x\n", v);
 			else
 				nest_message(" %02x", v);
+
+			if((i % 16 == 15) || (i == bytes - 1))
+				nest_message("\n", v);
 	}
 }
 
@@ -405,6 +406,10 @@ static void CyclingTest(void)
 	//RECOMMEND BY OLIVE MAIL 6/4/2012
 	if(nr_of_cyl(bmr) == 3) {
 		difo_trap("VERSN0", 0x01, 1);
+		difo_trap("FMODE0", 0x01, 0);
+		difo_trap("FPUMP", 0x01, 0);
+		difo_trap("IMODE1", 0x01, 0);
+		difo_trap("IMODE0", 0x01, 0);
 		difo_trap("SSTEND", 0x01, 1);
 		difo_trap("STATUS", 0x01, 1);
 		difo_mask("PKLW5/6");
@@ -498,8 +503,12 @@ static void CyclingTest(void)
 		fail += difo_verify(fb->difo);
 		if(nr_of_cyl(bmr) == 3)
 			fail += dph_verify(fb->dph);
+
+		//save test result to mfg_data.fb
+		ntoh_array(mailbox.bytes, POLDAT_BYTES);
+		memcpy(mfg_data.fb, mailbox.bytes, sizeof(mfg_data.fb));
+
 		if (fail) {
-			memcpy(mfg_data.fb, mailbox.bytes + 0x08, sizeof(mfg_data.fb));
 			nest_error_set(FB_FAIL, "Cycling");
 			break;
 		}
@@ -548,7 +557,7 @@ void TestStart(void)
 		//memcpy(&mfg_data, &mfg_data_dk277130, sizeof(mfg_data_dk277130));
 		//memcpy(&mfg_data, &mfg_data_dk277300, sizeof(mfg_data_dk277300));
 		memcpy(&mfg_data, &mfg_data_dk277375, sizeof(mfg_data_dk277375));
-		mfg_data.psv = 0x03;
+		mfg_data.psv = 0x80;
 		Write_Memory(MFGDAT_ADDR, (char *) &mfg_data, sizeof(mfg_data));
 	}
 
@@ -594,7 +603,7 @@ void TestStart(void)
 
 	//check psv of amb
 	if(!nest_ignore(PSV)) {
-		if((mfg_data.psv & 0x02) == 0) {
+		if((mfg_data.psv & 0x80) == 0) {
 			nest_error_set(PSV_FAIL, "PSV");
 			nest_message("PSV addr %04X : %02X \n",MFGDAT_ADDR+(int)&(((struct mfg_data_s *)0)->psv),mfg_data.psv);
 			return;
@@ -616,10 +625,20 @@ void TestStop(void)
 	mfg_data.nest_nec = err->nec;
 	//for(int i = 0; i < sizeof(mfg_data); i ++) *((char *)&mfg_data + i) = i;
 
-	if(err->nec >= PSV_FAIL) {
-		fail = Write_Memory(MFGDAT_ADDR, (void *)&mfg_data, sizeof(mfg_data));
-		if(fail)
-			nest_error_set(EEWRITE_FAIL, "Eeprom Write");
+	if((err->nec >= PSV_FAIL) || (err->nec == NO_FAIL)) {
+		//step 1, write psv
+		fail = Write_Memory(MFGDAT_ADDR + 0x15, (void *)&mfg_data.nest_psv, 1);
+		if(fail) {
+			nest_message("eewrite fail, ecode = %d\n", fail);
+			nest_error_set(EEWRITE_FAIL, "Eeprom Write PSV");
+		}
+
+		//step 2, write fault bytes
+		fail = Write_Memory(MFGDAT_ADDR + 0x20, (void *)mfg_data.fb, POLDAT_BYTES);
+		if(fail) {
+			nest_message("eewrite fail, ecode = %d\n", fail);
+			nest_error_set(EEWRITE_FAIL, "Eeprom Write FB");
+		}
 	}
 
 	//send FIS BCMP(build complete) message
@@ -656,7 +675,7 @@ static int cmd_dut_func(int argc, char *argv[])
 	int addr, fail = -1;
 	const char *result[] = {"pass", "fail"};
 	const char *usage = {
-		"dut set DK277130 psv	set dut base model nr, psv is optional such as 0x03\n"
+		"dut set DK277130 psv	set dut base model nr, psv is optional such as 0x80\n"
 	};
 
 	if((argc >= 3) && (!strcmp(argv[1], "set"))) {
