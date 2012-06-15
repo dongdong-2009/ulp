@@ -1,6 +1,6 @@
 /*
  *	David peng.guo@2011 initial version
- *	run.liu modify 2012
+ *	run.liu@2012 modify
  */
 
 #include <string.h>
@@ -17,7 +17,7 @@
 #include "shell/cmd.h"
 #include "led.h"
 
-#define PDI_DEBUG	1
+#define PDI_DEBUG	0
 
 //pdi_jn can msg
 static const can_msg_t jn_rst_msg =		{0x794, 8, {0x02, 0x11, 0x81, 0, 0, 0, 0, 0}, 0};
@@ -39,7 +39,7 @@ static const mbi5025_t pdi_mbi5025 = {
 
 static const ls1203_t pdi_ls1203 = {
 		.bus = &uart2,
-		.data_len = 12,//TBD
+		.data_len = 8,//TBD
 		.dead_time = 20,
 };
 
@@ -47,7 +47,7 @@ static const can_bus_t* pdi_can_bus = &can1;
 static can_msg_t pdi_msg_buf[32];		//for multi frame buffer
 static char jn_data_buf[256];			//data buffer
 static char jn_fault_buf[64];			//fault buffer
-static char bcode_1[16];
+static char bcode_1[8];
 
 static int jn_check(const struct pdi_cfg_s *);
 static int jn_init_OK();
@@ -423,9 +423,14 @@ static int jn_JAMA_check(const struct pdi_cfg_s *sr)
 
 static int jn_check_barcode()
 {
-	jn_GetCID(0xfd3f, jn_data_buf);
+	jn_GetCID(0xfd3c, jn_data_buf);
+	printf("##START##EC-Checking Barcode...##END##\n");
+	jn_data_buf[8] = '\0';
+	printf("##START##RB-");
+	printf(jn_data_buf);
+	printf("##END##\n");
 
-	if (memcmp(jn_data_buf, bcode_1, 16))
+	if (memcmp(jn_data_buf, bcode_1, 8))
 		return 1;
 
 	return 0;
@@ -448,16 +453,31 @@ static int jn_clear_dtc(void)
 
 static int jn_GetFault(char *data, int * pnum_fault)
 {
-	int i, result = 0;
+	int i,j, result = 0, msg_len;
+	can_msg_t msg_res;
 
-	if(jn_GetCID(0xfd39, data))
-		return 1;
+	memset(jn_fault_buf ,0x00 ,64);
+	j = usdt_GetDiagFirstFrame(&jn_errcode_msg, 1, NULL, &msg_res, &msg_len);
+	if(j) return 1;
+	if (msg_len == 1) {
+		if (msg_res.data[1] == 0x59)
+			memcpy(jn_fault_buf, (msg_res.data + 4), msg_res.data[0] - 3);
+	}
+	if (msg_len > 1) {
+		pdi_msg_buf[0] = msg_res;
+		usdt_GetDiagLeftFrame(pdi_msg_buf, msg_len);
+		memcpy(jn_fault_buf, (msg_res.data + 5), 3);
+		for (i = 1; i < msg_len; i++) {
+			memcpy(&jn_fault_buf[3+(i-1)*7], (pdi_msg_buf + i)->data + 1, 7);
+		}
+	}
+	memcpy(data, jn_fault_buf, 64);
+	memset(data + 64, 0x00, 10);
 
-	memset(data + 66, 0x00, 10);
-
-	for (i = 0; i < 66; i += 3) {
-		if (data[i] | data[i+1] | data[i+2])
+	for (i = 0; i < 64; i += 4) {
+		if (data[i] | data[i+1] | data[i+2] | data[i+3])
 			result ++;
+		else break;
 	}
 
 	* pnum_fault = result;
@@ -521,7 +541,7 @@ static int jn_check(const struct pdi_cfg_s *sr)
 	if (num_fault) {
 		//jn_clear_dtc();
 		printf("##START##EC-");
-		printf("num of fault is: %d*", num_fault);
+		printf("num of fault is: %d\n", num_fault);
 		for (i = 0; i < num_fault*4; i += 4)
 			printf("0x%2x, 0x%2x, 0x%2x, 0x%2x\n",
 			jn_fault_buf[i]&0xff, jn_fault_buf[i+1]&0xff, jn_fault_buf[i+2]&0xff, jn_fault_buf[i+3]&0xff);
@@ -551,21 +571,21 @@ void pdi_init(void)
 static void jn_process(void)
 {
 	const struct pdi_cfg_s* pdi_cfg_file;
-	char bcode[20];
+	char bcode[10];
 	//if(target_on())
-		start_botton_on();
+	start_botton_on();
 	//else start_botton_off();
 	if(ls1203_Read(&pdi_ls1203, bcode) == 0) {
 
 		start_botton_off();
 		pdi_led_start();
-		bcode[16] = '\0';
+		bcode[8] = '\0';
 
-		memcpy(bcode_1, bcode, 16);
+		memcpy(bcode_1, bcode, 8);
 		printf("##START##SB-");
 		printf(bcode,"\0");
 		printf("##END##\n");
-		bcode[4] = '\0';
+		bcode[1] = '\0';
 
 		pdi_cfg_file = pdi_cfg_get(bcode);
 		
