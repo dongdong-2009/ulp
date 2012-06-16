@@ -19,7 +19,7 @@
 
 #define mA2d(mA) ((mA) * (20 * 4096) / 2500) //max4372, 2K => V = I * 20
 #define d2mA(d) ((d) * 2500 / (20 * 4096))
-#define d2mv(d) ((((d) * (9 * 2500)) >> 12) - 4500) //adc:  d = (mv + 4500) / 9(18KOhm / 2KOhm ) * 4096 / 2500
+#define d2mv(d) (((d) * (5 * 2500)) >> 12) //adc:  d = (mv + 4500) / 9(18KOhm / 2KOhm ) * 4096 / 2500
 #define mv2d(mv) (((mv + 4500) << 12) / (9 * 2500)) //dac:  mv = d / 4096 * 2500(Vref) * 9(L165 gain) - 4500
 
 static const mbi5025_t ict_mbi5025 = {
@@ -227,6 +227,7 @@ void TIM2_IRQHandler(void)
 	//handle power 1
 	d = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
 	ict_vget_1 = d2mv(d);
+	//printf("%d\n",ict_vget_1);
 	mv = ict_vget_1 - ict_vexp_1;
 	ict_vout_1 -= mv;
 	d = mv2d(ict_vout_1);
@@ -260,10 +261,10 @@ void main(void)
 	task_Init();
 	ict_Init();
 	while(1) {
-		if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_7) == Bit_SET)
-			printf("Power 1 hardware protection!");
-		if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_8) == Bit_SET)
-			printf("Power 2 hardware protection!");
+		// if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_7) == Bit_SET)
+			// printf("Power 1 hardware protection!");
+		// if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_8) == Bit_SET)
+			// printf("Power 2 hardware protection!\n");
 		task_Update();
 	}
 }
