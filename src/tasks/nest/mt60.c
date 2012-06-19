@@ -384,6 +384,8 @@ static void CyclingTest(void)
 	vsep_init();
 	burn_init();
 
+	vsep_mask("PCH30"); //VSEP Fail, PCH30 = 0x02(J101-92 MIL Short to Ground  ?= 0x00)
+
 	switch(bmr) {
 	case BM_DK262466_28122736:
 		vsep_mask("PCH01");
@@ -425,6 +427,7 @@ static void CyclingTest(void)
 		vsep_mask("PCH25");
 		vsep_mask("PCH26");
 		vsep_mask("PCH29");
+		break;
 
 	case BM_DK262516_28140808:
 		vsep_mask("PCH03");
@@ -467,7 +470,6 @@ static void CyclingTest(void)
 		vsep_mask("PCH25");
 		vsep_mask("PCH26"); //VSEP Fail, PCH26 = 0x01(J101-82 SVS Open load?)
 		vsep_mask("PCH27"); //VSEP Fail, PCH27 = 0x02(J101-94 MPR Short to Ground?)
-		vsep_mask("PCH30");
 		break;
 	case BM_28219154:
 		vsep_mask("PCH05"); //VSEP Fail, PCH05 = 0x03(J101-84 Fuel Consumption Short to Battery?)
