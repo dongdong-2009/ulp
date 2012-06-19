@@ -16,7 +16,7 @@
 
 #ifdef CONFIG_NEST_MT92
 #undef CONFIG_MCAMOS_GAP_MS
-#define CONFIG_MCAMOS_GAP_MS 10
+#define CONFIG_MCAMOS_GAP_MS 50
 #endif
 
 struct mcamos_s mcamos, mcamos_def;
