@@ -375,14 +375,14 @@ static int cmd_ma_func(int argc, char *argv[])
 		"  ma set divice1/divice2 on/off\n"
 		"  ma set id xxxxxxxxxx\n"
 		"  ma set counter xxxxxxxxxx/+\n"
-		"  ma get value1/value2\n"
+		"  ma get value/value1/value2\n"
 		"  ma get id\n"
 		"  ma get counter\n"
 		"  ma get button\n"
 	};
 
 	if(argc == 3 && !strcmp(argv[1], "get")) {
-		if(!strcmp(argv[2], "value1")) {
+		if(!strcmp(argv[2], "value1") | !strcmp(argv[2], "value")) {
 			if(ma_indicator_stm == MA_INDICATOR_STM_NULL)
 				ma_indicator_stm = MA_INDICATOR_STM_INIT_INDICATOR1;
 			else {
