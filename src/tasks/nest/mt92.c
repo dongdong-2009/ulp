@@ -385,6 +385,8 @@ static void CyclingTest(void)
 	int fail, min, deadline;
 	if(nest_fail())
 		return;
+	if((mfg_data.sn[3]) & 0x01) //do half of dut
+		return;
 
 	//cyc ign, necessary???
 	if(0) { //!nest_ignore(RLY)) {
