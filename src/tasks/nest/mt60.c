@@ -44,6 +44,7 @@ enum {
 	/*2IGBT*/
 	/*4IGBT*/
 	BM_DK262473_28169026, /*now change to 28220231*/
+	BM_28317719,
 
 	/*UNKNOWN*/
 	BM_DK262466_28122736,
@@ -78,6 +79,7 @@ const struct nest_map_s bmr_map[] = {
 	{"28169019", BM_28169019},
 	{"28219154", BM_28219154},
 	{"28216910", BM_28216910},
+	{"28317719", BM_28317719},
 	END_OF_MAP,
 };
 
@@ -274,6 +276,7 @@ static void FaultTest(void)
 		vsep_mask("PCH25");
 		vsep_mask("PCH26");
 		break;
+	case BM_28317719:
 	case BM_28219154:
 	case BM_28216910:
 	case BM_DK262473_28169026: //28220231
@@ -381,6 +384,8 @@ static void CyclingTest(void)
 	vsep_init();
 	burn_init();
 
+	vsep_mask("PCH30"); //VSEP Fail, PCH30 = 0x02(J101-92 MIL Short to Ground  ?= 0x00)
+
 	switch(bmr) {
 	case BM_DK262466_28122736:
 		vsep_mask("PCH01");
@@ -396,6 +401,7 @@ static void CyclingTest(void)
 		vsep_mask("PCH26");
 		vsep_mask("PCH27");
 		break;
+	case BM_28317719:
 	case BM_DK262473_28169026: //28220231
 	case BM_DK262480_28209021:
 		vsep_mask("PCH05");
@@ -421,6 +427,7 @@ static void CyclingTest(void)
 		vsep_mask("PCH25");
 		vsep_mask("PCH26");
 		vsep_mask("PCH29");
+		break;
 
 	case BM_DK262516_28140808:
 		vsep_mask("PCH03");
@@ -463,7 +470,18 @@ static void CyclingTest(void)
 		vsep_mask("PCH25");
 		vsep_mask("PCH26"); //VSEP Fail, PCH26 = 0x01(J101-82 SVS Open load?)
 		vsep_mask("PCH27"); //VSEP Fail, PCH27 = 0x02(J101-94 MPR Short to Ground?)
-		vsep_mask("PCH30");
+		break;
+	case BM_28219154:
+		vsep_mask("PCH05"); //VSEP Fail, PCH05 = 0x03(J101-84 Fuel Consumption Short to Battery?)
+		vsep_mask("PCH13"); //VSEP Fail, PCH13 = 0x02(J101-86 FPR Short to Ground?)
+		vsep_mask("PCH14"); //VSEP Fail, PCH14 = 0x02(J101-87 SMR Short to Ground?)
+		vsep_mask("PCH16"); //VSEP Fail, PCH16 = 0x03(J101-85 COOLANT_GAUGE Short to Battery?)
+		vsep_mask("PCH17"); //VSEP Fail, PCH17 = 0x03(J101-98 LEGR Short to Battery?)
+		vsep_mask("PCH22"); //VSEP Fail, PCH22 = 0x01(J101-89 THERMAL_MGMT Open load?)
+		vsep_mask("PCH24"); //VSEP Fail, PCH24 = 0x02(J101-93 EVAP Diag Solenoid Short to Ground?)
+		vsep_mask("PCH25"); //VSEP Fail, PCH25 = 0x01(J101-23 Oil Pressure Low Lamp Open load?)
+		vsep_mask("PCH26"); //VSEP Fail, PCH26 = 0x01(J101-82 SVS Open load?)
+		vsep_mask("PCH27"); //VSEP Fail, PCH27 = 0x02(J101-94 MPR Short to Ground?)
 		break;
 	default:
 		break;
