@@ -76,12 +76,18 @@ static int Ma_LED_Operation(int led, unsigned short operation)
 		return -1;
 	switch(led) {
 	case LED_R:
+		TIM_SetCompare3(TIM2, 0);
+		TIM_SetCompare4(TIM2, 0);
 		TIM_SetCompare2(TIM2, operation);
 		return 0;
 	case LED_Y:
+		TIM_SetCompare2(TIM2, 0);
+		TIM_SetCompare4(TIM2, 0);
 		TIM_SetCompare3(TIM2, operation);
 		return 0;
 	case LED_G:
+		TIM_SetCompare2(TIM2, 0);
+		TIM_SetCompare3(TIM2, 0);
 		TIM_SetCompare4(TIM2, operation);
 		return 0;
 	default:
