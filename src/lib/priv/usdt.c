@@ -42,6 +42,12 @@ static const can_msg_t req_flow_msg = {
 	.dlc = 8,
 	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
+#elif CONFIG_PDI_J04N
+static const can_msg_t req_flow_msg = {
+	.id = 0x794,
+	.dlc = 8,
+	.data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
 #else
 static const can_msg_t req_flow_msg = {
 	.id = 0x38,
@@ -147,6 +153,20 @@ int usdt_GetDiagFirstFrame(can_msg_t const *pReq, int req_len, can_filter_t cons
 	can_bus -> filt(pResFilter, 1);
 #endif
 
+#ifdef CONFIG_PDI_J04N
+	can_filter_t filter[] = {
+		{
+			.id = 0x79C,
+			.mask = 0xffff,
+			.flag = 0,
+		},
+	};
+
+	if (pResFilter == NULL)
+		pResFilter = filter;
+
+	can_bus -> filt(pResFilter, 1);
+#endif
 	assert(pReq);
 	assert(pRes);
 
