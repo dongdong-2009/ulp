@@ -43,6 +43,7 @@ iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/
 	#copy ulp header files to export folder
 ifeq ($(CONFIG_TARGET_LIB),y)
+	@rm -rf $(EXPORT_INC_DIR)
 	@mkdir -p $(EXPORT_INC_DIR)
 	@cp $(TOP_DIR)/*.h $(EXPORT_INC_DIR)/
 	@mkdir -p $(EXPORT_INC_DIR)/src/include
