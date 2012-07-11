@@ -1,0 +1,10 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+choice 'target file type'	" \
+	bin	CONFIG_TARGET_BIN \
+	lib	CONFIG_TARGET_LIB \
+" bin

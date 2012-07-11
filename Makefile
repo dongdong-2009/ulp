@@ -6,10 +6,12 @@ IAR_TOOL = python $(TOP_DIR)/scripts/iar.py
 IAR_FILE = $(TOP_DIR)/projects/bldc/bldc.ewp
 ENV_FILE = $(TOP_DIR)/make.env
 M ?= src/
-PRJ_DIR = $(TOP_DIR)/projects/bldc/
-ULP_DIR = $(TOP_DIR)/projects/ulp/
+PRJ_DIR = $(TOP_DIR)/projects/bldc
+ULP_DIR = $(TOP_DIR)/projects/ulp
 ULP_ICF = $(ULP_DIR)/ulp.icf
 PRJ_ICF = $(PRJ_DIR)/ulp.icf
+EXE_DIR = $(PRJ_DIR)/Debug/Exe
+EXPORT_INC_DIR = $(EXE_DIR)/inc
 
 #create iar project file according to the result of 'make xconfig'
 -include $(AUTOCONFIG_MAKE_FILE)
@@ -39,6 +41,17 @@ endif
 iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) ./
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/
+	#copy ulp header files to export folder
+ifeq ($(CONFIG_TARGET_LIB),y)
+	@mkdir -p $(EXPORT_INC_DIR)
+	@cp $(TOP_DIR)/*.h $(EXPORT_INC_DIR)/
+	@mkdir -p $(EXPORT_INC_DIR)/src/include
+	@-cp $(TOP_DIR)/src/include/*.h $(EXPORT_INC_DIR)/src/include
+	@-for dir in asm linux ulp; do\
+		mkdir -p $(EXPORT_INC_DIR)/src/include/$$dir; \
+		cp $(TOP_DIR)/src/include/$$dir/*.h $(EXPORT_INC_DIR)/src/include/$$dir/ 2>&-; \
+	done
+endif
 
 iar_add:
 	@echo target=$@ M=$(M): obj-y = $(obj-y) inc-y = $(inc-y) icf-y = $(icf-y)
@@ -60,6 +73,26 @@ iar_add:
 		cp -f $(M)$$icf $(PRJ_ICF); \
 		cat $(ULP_ICF) >> $(PRJ_ICF); \
 	done
+ifeq ($(CONFIG_TARGET_LIB),y)
+	@-for dir in $(inc-y); do\
+		if [ -d $(M)$$dir ];\
+		then \
+			mkdir -p $(EXPORT_INC_DIR)/$(M)$$dir; \
+			cp $(TOP_DIR)/$(M)$$dir*.h $(EXPORT_INC_DIR)/$(M)$$dir 2>&-; \
+		fi \
+	done
+	#copy lib header files according to the different lib used
+	#M=src/lib/, obj-y=sys/ iar/ shell/ common/ priv/
+	@if test $(M) = src/lib/; \
+	then \
+		for dir in $(obj-y); do\
+			if [ -d $(TOP_DIR)/src/include/$$dir ];\
+			then \
+				cp -rf $(TOP_DIR)/src/include/$$dir $(EXPORT_INC_DIR)/src/include/ 2>&-; \
+			fi \
+		done \
+	fi
+endif
 
 #xconfig
 TKSCRIPTS_DIR = $(TOP_DIR)/scripts/tkconfig
@@ -85,9 +118,12 @@ xconfig: $(PARSER)
 	fi
 
 iar_script:
-	@cp projects/ulp/ulp.ewd projects/bldc/bldc.ewd
-	@cp projects/ulp/ulp.ewp projects/bldc/bldc.ewp
-	@cp projects/ulp/ulp.eww projects/bldc/bldc.eww
+	@cp $(ULP_DIR)/ulp.ewd $(PRJ_DIR)/bldc.ewd
+	@cp $(ULP_DIR)/ulp.ewp $(PRJ_DIR)/bldc.ewp
+	@cp $(ULP_DIR)/ulp.eww $(PRJ_DIR)/bldc.eww
+ifeq ($(CONFIG_TARGET_LIB),y)
+	@cp $(ULP_DIR)/lib.ewp $(PRJ_DIR)/bldc.ewp
+endif
 
 $(PARSER):
 	@make -s -C $(TKSCRIPTS_DIR) $@
