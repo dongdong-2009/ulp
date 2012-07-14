@@ -18,7 +18,6 @@ obj-y += usb/
 obj-$(CONFIG_DRIVER_VVT) += mcao.o
 obj-y += lcd/
 obj-y += pd/
-obj-$(CONFIG_DRIVER_CAPTURE) += capture.o
 obj-y += key/
 obj-y += disk/
 obj-$(CONFIG_DRIVER_MD204L) += md204l/
