@@ -1,39 +1,36 @@
 /*
- * 	miaofng@2009 initial version
+ * miaofng@2009 initial version
+ * modified by david@2012 
  */
 
 #include "config.h"
 #include "stepmotor.h"
 #include "osd/osd.h"
 #include "stm32f10x.h"
-#include "capture.h"
 #include "flash.h"
-#include "smctrl.h"
 #include "key.h"
+#include "nvm.h"
 #include "ulp_time.h"
 #include "stdio.h"
 #include "led.h"
 #include "sys/task.h"
+#include "pwm.h"
+#include "counter.h"
+#include "l6208.h"
+#include "ad9833.h"
 
-//private data read from or store to flash
-typedef struct{
-	short rpm;//unit: rpm
-	short autosteps;
-	int dir : 1;
-	int runmode : 1;
-}sm_config_t;
-
-enum{
-	Clockwise = 0,
-	CounterClockwise
+static ad9833_t sm_dds = {
+	.bus = &spi1,
+	.idx = SPI_CS_PB10,
+	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
 };
 
 //private varibles
 static int sm_status;
-static sm_config_t sm_config;
+static sm_config_t sm_config __nvm;
 static time_t sm_stoptimer;
 static int sm_stepcounter;
-
+static const counter_bus_t * capture;
 static const int keymap[] = {
 	KEY_UP,
 	KEY_DOWN,
@@ -44,31 +41,47 @@ static const int keymap[] = {
 	KEY_NONE
 };
 
+//private functon
+static void smctrl_SetRPM (int rpm)
+{
+	unsigned hz, mclk, fw;
+
+	hz = ((unsigned)rpm * CONFIG_STEPPERMOTOR_SPM) / 60;
+	mclk = (CONFIG_DRIVER_RPM_DDS_MCLK >> 16);
+	fw = hz;	
+	fw <<= 16;
+	fw /= mclk;
+	ad9833_SetFreq(&sm_dds,fw);
+}
+
 void sm_Init(void)
 {
-	//read config from flash and config device
-	sm_GetConfigFromFlash();
-	
+	//pwm module and counter init
+	pwm_cfg_t cfg;
+	cfg.hz = 1000;
+	cfg.fs = 100;
+	pwm33.init(&cfg);
+	pwm33.set(50);
+	capture = &counter11;
+	capture -> init(NULL); //init for counter, tim1-ch1
+	ad9833_Init(&sm_dds);
+	ad9833_Disable(&sm_dds);
+
+	//for l6208 module init
+	l6208_Init();
+	l6208_StartCmd(ENABLE);          //enable l6208
+	l6208_SetHomeState();            //enable home state
+	l6208_SelectMode(FullMode);      //enable half stepmode
+	l6208_SetControlMode(DecayFast); //enable decay slow mode
+
 #ifdef CONFIG_TASK_OSD
 	//handle osd display
 	int hdlg = osd_ConstructDialog(&sm_dlg);
 	osd_SetActiveDialog(hdlg);
-
-	//set key map
-	key_SetLocalKeymap(keymap);
+	key_SetLocalKeymap(keymap);  //set key map
 #endif
 
-	//init for stepper clock
-	smctrl_Init();
-
-	//init for capture clock
-	capture_Init();
-	capture_Start();
-	capture_SetCounter(0);
-
-	//green led flash
-	led_flash(LED_GREEN);
-	
+	led_flash(LED_GREEN); //green led flash
 	//init for variables
 	sm_status = SM_IDLE;
 	sm_stepcounter = 0;
@@ -86,10 +99,13 @@ void sm_Update(void)
 	switch (sm_status) {
 	case SM_IDLE:
 		if(left > 0) {
-			capture_SetAutoReload(reload);
-			smctrl_SetRotationDirection(dir);
+			capture -> set(reload);
+			if(dir)
+				l6208_SetRotationDirection(CounterClockwise);
+			else
+				l6208_SetRotationDirection(Clockwise);
 			smctrl_SetRPM(sm_config.rpm);
-			smctrl_Start();
+			ad9833_Enable(&sm_dds);
 			sm_status = SM_RUNNING;
 		}
 		led_off(LED_RED);
@@ -107,7 +123,15 @@ void sm_Update(void)
 	}
 }
 
-DECLARE_TASK(sm_Init, sm_Update)
+void main(void)
+{
+	task_Init();
+	sm_Init();
+	while(1) {
+		task_Update();
+		sm_Update();
+	}
+}
 
 int sm_StartMotor(int clockwise)
 {
@@ -120,12 +144,12 @@ int sm_StartMotor(int clockwise)
 void sm_StopMotor(void)
 {
 	int step_cap;
-	
-	smctrl_Stop();
+
+	ad9833_Disable(&sm_dds);
 	sm_status = SM_IDLE;
 	sm_stoptimer = 0;
-	step_cap = capture_GetCounter();
-	capture_SetCounter(0);
+	step_cap = capture -> get();
+	capture -> set(0);
 	if(sm_config.runmode != SM_RUNMODE_MANUAL)
 		step_cap += sm_config.autosteps;
 	step_cap = (sm_config.dir == Clockwise) ? step_cap : -step_cap;
@@ -140,10 +164,20 @@ int sm_SetRPM(int rpm)
 
 	sm_config.rpm = rpm;
 	if (sm_status == SM_RUNNING) { /*dynamic change the speed of the motor*/
+		/*calculate the new freqword according to the motor para,
+		then setup the dds chip*/
 		smctrl_SetRPM(rpm);
 	}
 
 	return 0;
+}
+
+void smctrl_SetRotationDirection(int dir)
+{
+	if(dir)
+		l6208_SetRotationDirection(CounterClockwise);
+	else
+		l6208_SetRotationDirection(Clockwise);
 }
 
 int sm_GetRPM(void)
@@ -173,8 +207,8 @@ int sm_GetAutoSteps(void)
 int sm_GetSteps(void)
 {
 	int step_cap;
-	
-	step_cap = capture_GetCounter();
+
+	step_cap = counter11.get();
 	step_cap = (sm_config.dir == Clockwise) ? step_cap : -step_cap;
 	return sm_stepcounter + step_cap;
 }
@@ -198,18 +232,6 @@ int sm_SetRunMode(int newmode)
 		sm_config.runmode = newmode;
 	}
 	
-	return 0;
-}
-
-int sm_GetConfigFromFlash(void)
-{
-	flash_Read((void *)(&sm_config), (void const *)SM_USER_FLASH_ADDR, sizeof(sm_config_t));
-	return 0;
-}
-int sm_SaveConfigToFlash(void)
-{
-	flash_Erase((void *)SM_USER_FLASH_ADDR, 1);
-	flash_Write((void *)SM_USER_FLASH_ADDR, (void const *)(&sm_config), sizeof(sm_config_t));
 	return 0;
 }
 

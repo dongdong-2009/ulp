@@ -7,11 +7,13 @@
 #include "osd/osd.h"
 #include "stm32f10x.h"
 
-//126k,127k
-#define SM_USER_FLASH_ADDR 0x0801f800
-
-/*define max RPM value*/
-#define SM_MAX_RPM 1000
+//data read from or store to flash
+typedef struct{
+	short rpm;//unit: rpm
+	short autosteps;
+	int dir : 1;
+	int runmode : 1;
+}sm_config_t;
 
 /*sm motor status*/
 enum {
@@ -25,11 +27,11 @@ enum {
 	SM_RUNMODE_AUTO,
 	SM_RUNMODE_INVALID,
 };
+/*define max RPM value*/
+#define SM_MAX_RPM 1000
 
 extern osd_dialog_t sm_dlg;
 
-void sm_Init(void);
-void sm_Update(void);
 int sm_StartMotor(int clockwise);
 void sm_StopMotor(void);
 int sm_SetRPM(int rpm);
@@ -40,7 +42,5 @@ int sm_GetAutoSteps(void);
 int sm_SetAutoSteps(int steps);
 int sm_GetRunMode(void);
 int sm_SetRunMode(int newmode);
-int sm_GetConfigFromFlash(void);
-int sm_SaveConfigToFlash(void);
 void sm_isr(void);
 #endif /*__STEPMOTOR_H_*/

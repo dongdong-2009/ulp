@@ -7,6 +7,7 @@
 #include "stepmotor.h"
 #include "key.h"
 #include "stm32f10x.h"
+#include "nvm.h"
 
 #define DELAY_MS 1000
 #define REPEAT_MS 10
@@ -221,14 +222,14 @@ static int dlg_ChangeRPM(const osd_command_t *cmd)
 	case KEY_RESET:
 	case KEY_MENU:
 		/*get config from flash*/
-		sm_GetConfigFromFlash();
+		nvm_init();
 		rpm = sm_GetRPM();
 		result = sm_SetRPM(rpm);
 		break;
 	case KEY_ENTER:
 	case KEY_OSD:
 		/*store config to flash*/
-		sm_SaveConfigToFlash();
+		nvm_save();
 		break;
 	default:
 		rpm = key_SetEntryAndGetDigit();
@@ -258,14 +259,14 @@ static int dlg_ChangeAutoSteps(const osd_command_t *cmd)
 	case KEY_RESET:
 	case KEY_MENU:
 		/*get config from flash*/
-		sm_GetConfigFromFlash();
+		nvm_init();
 		steps = sm_GetAutoSteps();
 		result = sm_SetAutoSteps(steps);
 		break;
 	case KEY_ENTER:
 	case KEY_OSD:
 		/*store config to flash*/
-		sm_SaveConfigToFlash();
+		nvm_save();
 		break;
 	default:
 		steps = key_SetEntryAndGetDigit();
