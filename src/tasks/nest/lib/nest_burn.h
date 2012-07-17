@@ -26,6 +26,15 @@ struct burn_data_s {
 	unsigned short fire, lost; //fire&lost count, immediate value
 };
 
+struct burn_cfg_s {
+	char cmd;
+	char option; //'S'
+	unsigned short vcal; //G = [1 - 65535] / 4096
+	unsigned short ical; //G = [1 - 65535] / 4096
+	unsigned short wp; //unit: nS, rational range: 0~65535
+	unsigned short tp; //unit: mS
+};
+
 enum {
 	BURN_CMD_CONFIG = 1, //CMD + 's' + (ushort)vpm_ratio_cal + (ushort)ipm_ratio_cal
 	BURN_CMD_READ,

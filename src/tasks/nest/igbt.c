@@ -27,7 +27,6 @@ miaofng@2012	spark period adaptive fit (0 - 65mS)
 #define CONFIG_IGBT_CRC 1
 #define HARDWARE_VERSION	0x0104 //v1.4
 
-
 #if HARDWARE_VERSION == 0x0104
 //R = 0.01Ohm, G = 20V/V, Vref = 3V3, 16bit unsigned ADC => ratio = 1/3971.88= 256/1016801
 #define ipm_ratio_def 1016
@@ -197,7 +196,7 @@ enum {
 	FLAG_DEBUG_IP, //disp triangle waveform data
 	FLAG_DEBUG_VI, //disp V(v)&I(mA)
 	FLAG_DEBUG_CAN,
-} burn_flag_debug;
+} burn_flag_debug = FLAG_DEBUG_NONE;
 
 int cmd_igbt_func(int argc, char *argv[])
 {
@@ -778,30 +777,28 @@ void com_Update(void)
 	char ret = 0;
 	char *inbox = burn_server.inbox;
 	char *outbox = burn_server.outbox + 2;
-	unsigned short value;
+	struct burn_cfg_s *pcfg;
 
 	mcamos_srv_update(&burn_server);
 	switch(inbox[0]) {
 	case BURN_CMD_CONFIG:
-		memcpy(&value, inbox + 2, sizeof(short));
-		vpm_ratio_cal = value;
-		memcpy(&value, inbox + 4, sizeof(short));
-		ipm_ratio_cal = value;
+		pcfg = (struct burn_cfg_s *) inbox;
+		if(pcfg->vcal != 0) vpm_ratio_cal = pcfg->vcal;
+		if(pcfg->ical != 0) ipm_ratio_cal = pcfg->ical;
+		if(pcfg->tp != 0) burn_ms = pcfg->tp;
+		if(pcfg->wp != 0) {
+			int nclk = pcfg->wp * 36 / 1000;
+			int delay_clks = nclk + 25; /*25 * 1000 / 36 = 0.694 uS, trig delay*/
+			int total = delay_clks + mos_close_clks;
+			int close_clks = (total > 0xfff0) ? (0xfff0 - delay_clks) : mos_close_clks;
 
-		//init glvar
-		filter_init(&burn_filter_vp);
-		filter_init(&burn_filter_ip);
-		burn_state = BURN_INIT;
-		memset(&burn_data, 0, sizeof(burn_data));
-		burn_data.ip_min = 0xffff;
-		burn_data.vp_min = 0xffff;
-		vpm_ratio = (vpm_ratio_def * vpm_ratio_cal) >> 12;
-		ipm_ratio = (ipm_ratio_def * ipm_ratio_cal) >> 12;
-
-		//save?
-		if(inbox[1] == 's') {
-			nvm_save();
+			mos_delay_clks = (short) delay_clks;
+			mos_close_clks = (short) close_clks;
 		}
+
+		void burn_Init();
+		burn_Init();
+		if(inbox[1] == 's') nvm_save();
 		break;
 
 	case BURN_CMD_READ:
@@ -834,9 +831,10 @@ void burn_Init()
 	memset(&burn_data, 0, sizeof(burn_data));
 	burn_data.ip_min = 0xffff;
 	burn_data.vp_min = 0xffff;
-	burn_flag_debug = FLAG_DEBUG_NONE;
 
-	if(nvm_is_null()) { //set default value
+	static int prst = 1; //flag of power-on-reset
+	if(nvm_is_null() && prst) { //set default value
+		prst = 0;
 		mos_delay_clks  = (unsigned short) (mos_delay_us_def * 36); //unit: 1/36 us
 		mos_close_clks  = (unsigned short) (mos_close_us_def * 36); //unit: 1/36 us
 		burn_ms = T;
