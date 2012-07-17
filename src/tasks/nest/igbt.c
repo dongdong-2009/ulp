@@ -709,13 +709,12 @@ void pmm_Init(void)
 	TIM_ClearFlag(TIM4, TIM_FLAG_CC1 | TIM_FLAG_CC2 | TIM_FLAG_Update);
 }
 
-static int pmm_t1;
-static int pmm_t2;
-
 //para ignore is used to avoid error trig signal in some duration
 int pmm_Update(int ops, int ignore)
 {
+#if 0
 	int f, v, det, t1, t2;
+	static int pmm_t1, pmm_t2;
 
 	f = TIM4->SR;
 	TIM4->SR = ~f;
@@ -776,6 +775,46 @@ int pmm_Update(int ops, int ignore)
 	}
 
 	pmm_t2 += t2;
+#else
+	int f, t1, t2, wp, tp, ms;
+	static int pmm_t1;
+
+	f = TIM4->SR;
+	if(ignore) { //to clr err trig isr flag
+		TIM4->SR = ~f;
+		return 0;
+	}
+
+	if((f & TIM_FLAG_CC1) && (f & TIM_FLAG_CC2)) {
+		t1 = TIM4->CCR2; /*upgoing edge of firepulse*/
+		t2 = TIM4->CCR1; /*dngoing edge of firepulse*/
+		TIM4->SR = ~f;
+
+		//fire pulse width, rational range: 1-200uS
+		wp = t2 - t1;
+		wp += (wp < 0) ? pmm_T : 0;
+
+		//fire pulse period, rational range: 10-500mS
+		ms = - time_left(burn_tick); /*tp measured by sys tick*/
+		burn_tick = time_get(0); /*!!!update burn_tick*/
+		tp = t1 - pmm_t1;
+		tp += (tp < 0) ? pmm_T : 0;
+		pmm_t1 = t1; /*!!!update pmm_t1*/
+
+		if(ops == UPDATE) {
+			//tp measured by hw timer, timer overflow??? insert n*pmm_T
+			ms += 10; /*sys tick jitter err = +/-10mS*/
+			#define __ms(us) ((us)/1000)
+			while(__ms(tp + pmm_T) < ms) {
+				tp += pmm_T;
+			}
+
+			//update burn_data
+			burn_data.wp = wp * 1000;
+			burn_data.tp = __ms(tp);
+		}
+	}
+#endif
 	return 0;
 }
 
