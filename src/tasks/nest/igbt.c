@@ -712,72 +712,9 @@ void pmm_Init(void)
 //para ignore is used to avoid error trig signal in some duration
 int pmm_Update(int ops, int ignore)
 {
-#if 0
-	int f, v, det, t1, t2;
-	static int pmm_t1, pmm_t2;
-
-	f = TIM4->SR;
-	TIM4->SR = ~f;
-
-	t1 = 0; //count to current period, these two paras are added to solve issue:  "bldc# 142543    -45.-522mS"
-	t2 = 0; //count to next period
-	if(f & TIM_FLAG_CC2)
-		v = TIM4->CCR2;
-
-	if(f & TIM_FLAG_CC1) {
-		//measure vpeak pulse width
-		int us = TIM4 -> CCR1;
-		us -= TIM4 -> CCR2;
-		us += (us > 0) ? 0 : 0x10000;
-		burn_data.wp = us * 1000;
-	}
-
-	if(f & TIM_FLAG_Update) { //time over 65.535 mS
-		t2 = pmm_T; //update after capture
-		if(f & TIM_FLAG_CC2) {
-			if(v < 10000) { //update before capture
-				t1 = pmm_T;
-				t2 = 0;
-			}
-		}
-	}
-
-	if(f & TIM_FLAG_CC2) {
-		if((ops == UPDATE) && ignore) {
-			//printf("_");
-			pmm_t2 += t1 + t2;
-			return 0;
-		}
-
-		if(ops == START) {
-			pmm_t1 = v;
-			pmm_t2 = t2;
-			burn_tick = time_get(0);
-		}
-		else {
-			pmm_t2 += v + t1;
-			det = pmm_t2 - pmm_t1;
-			pmm_t1 = v;
-			pmm_t2 = t2;
-
-			burn_data.tp = det;
-			//det process
-			//burn_data.tp_max = (burn_data.tp_max > det) ? burn_data.tp_max : det;
-			//burn_data.tp_min = (burn_data.tp_max < det) ? burn_data.tp_min : det;
-			//burn_data.tp_avg = (burn_data.tp_avg + det) >> 1;
-
-			//debug
-			if((burn_ms != 0) && ((det > burn_ms*1000 + 1000) || (det < burn_ms*1000 - 1000))) {
-				printf("T=%dmS	: tp=%03d.%03dmS\n", -time_left(burn_tick), det/1000, det%1000);
-			}
-		}
-		return 1;
-	}
-
-	pmm_t2 += t2;
-#else
 	int f, t1, t2, wp, tp, ms;
 	static int pmm_t1;
+	static time_t pmm_t1_ms;
 
 	f = TIM4->SR;
 	if(ignore) { //to clr err trig isr flag
@@ -795,26 +732,29 @@ int pmm_Update(int ops, int ignore)
 		wp += (wp < 0) ? pmm_T : 0;
 
 		//fire pulse period, rational range: 10-500mS
-		ms = - time_left(burn_tick); /*tp measured by sys tick*/
-		burn_tick = time_get(0); /*!!!update burn_tick*/
+		ms = - time_left(pmm_t1_ms); /*tp measured by sys tick*/
+		pmm_t1_ms = time_get(0); /*!!!update burn_tick*/
 		tp = t1 - pmm_t1;
 		tp += (tp < 0) ? pmm_T : 0;
 		pmm_t1 = t1; /*!!!update pmm_t1*/
 
-		if(ops == UPDATE) {
-			//tp measured by hw timer, timer overflow??? insert n*pmm_T
-			ms += 10; /*sys tick jitter err = +/-10mS*/
-			#define __ms(us) ((us)/1000)
-			while(__ms(tp + pmm_T) < ms) {
-				tp += pmm_T;
-			}
-
-			//update burn_data
-			burn_data.wp = wp * 1000;
-			burn_data.tp = __ms(tp);
+		if(ops == START) {
+			burn_tick = pmm_t1_ms;
+			return 1;
 		}
+
+		//tp measured by hw timer, timer overflow??? insert n*pmm_T
+		ms += 10; /*sys tick jitter err = +/-10mS*/
+		#define __ms(us) ((us)/1000)
+		while(__ms(tp + pmm_T) < ms) {
+			tp += pmm_T;
+		}
+
+		//update burn_data
+		burn_data.wp = wp * 1000;
+		burn_data.tp = __ms(tp);
+		return 1;
 	}
-#endif
 	return 0;
 }
 
@@ -942,8 +882,8 @@ void Analysis(void)
 	}
 }
 
-static unsigned short burn_us_temp;
-static unsigned short burn_us_times;
+static unsigned short burn_ms_temp;
+static unsigned short burn_ms_times;
 
 void burn_Update()
 {
@@ -955,23 +895,20 @@ void burn_Update()
 		case BURN_MEAT: //spark period measurement
 			flag = pmm_Update(UPDATE, 0);
 			if(flag) {
-				if(burn_us_times == 0) {
-					burn_us_temp = burn_data.tp;
-					burn_us_times ++;
+				if(burn_ms_times == 0) {
+					burn_ms_temp = burn_data.tp;
+					burn_ms_times ++;
 				}
 				else {
 					delta = burn_data.tp;
-					delta -= burn_us_temp;
-					if((delta < 3000) && (delta > -3000)) { // <3mS, the same one
+					delta -= burn_ms_temp;
+					if((delta < 3) && (delta > -3)) { // <3mS, the same one
 						delta /= 2; //to got average value
-						delta += burn_us_temp;
-						burn_us_temp = delta;
-						burn_us_times ++;
-						if(burn_us_times > 5) { //enough ...
-							delta = burn_us_temp % 1000;
-							delta = (delta > 500) ? 1 : 0;
-							burn_ms = burn_us_temp / 1000;
-							burn_ms += delta;
+						delta += burn_ms_temp;
+						burn_ms_temp = delta;
+						burn_ms_times ++;
+						if(burn_ms_times > 5) { //enough ...
+							burn_ms = burn_ms_temp;
 							burn_state = BURN_INIT;
 						}
 					}
@@ -984,7 +921,7 @@ void burn_Update()
 			break;
 
 		case BURN_INIT:
-			flag = pmm_Update(START, 1);
+			flag = pmm_Update(START, 0);
 			if(flag) {
 				if(burn_ms != 0) {
 					burn_state = BURN_IDLE;
@@ -992,8 +929,8 @@ void burn_Update()
 				}
 				else {
 					burn_state = BURN_MEAT;
-					burn_us_temp = 0;
-					burn_us_times = 0;
+					burn_ms_temp = 0;
+					burn_ms_times = 0;
 				}
 			}
 			break;
