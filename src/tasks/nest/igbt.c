@@ -470,8 +470,8 @@ void vpm_Update(int ops)
 			vp_max = (vp > vp_max) ? vp : vp_max;
 		}
 
-		burn_data.vp = vp_max;
 		vp = filt(&burn_filter_vp, vp_max);
+		burn_data.vp = (vp_max << 8) / vpm_ratio;
 		burn_data.vp_avg = (vp << 8) / vpm_ratio;
 
 		if(- time_left(burn_tick ) > BURN_FILTER_DELAY) {
@@ -627,8 +627,8 @@ void ipm_Update(int ops)
 			ip_max = (ip > ip_max) ? ip : ip_max;
 		}
 
-		burn_data.ip = ip_max;
 		ip = filt(&burn_filter_ip, ip_max);
+		burn_data.ip = (ip_max << 8) / ipm_ratio;
 		burn_data.ip_avg = (ip << 8) / ipm_ratio;
 		if(- time_left(burn_tick ) > BURN_FILTER_DELAY) {
 			burn_data.ip_max = (burn_data.ip_avg > burn_data.ip_max) ? burn_data.ip_avg : burn_data.ip_max;
