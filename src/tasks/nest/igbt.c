@@ -834,7 +834,6 @@ void burn_Init()
 
 	static int prst = 1; //flag of power-on-reset
 	if(nvm_is_null() && prst) { //set default value
-		prst = 0;
 		mos_delay_clks  = (unsigned short) (mos_delay_us_def * 36); //unit: 1/36 us
 		mos_close_clks  = (unsigned short) (mos_close_us_def * 36); //unit: 1/36 us
 		burn_ms = T;
@@ -852,9 +851,10 @@ void burn_Init()
 
 	pmm_Init();
 	mos_Init();
-	com_Init();
+	if(prst) com_Init();
 	ipm_Init();
 	vpm_Init();
+	prst = 0;
 }
 
 void Analysis(void)
