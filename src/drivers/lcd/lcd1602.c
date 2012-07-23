@@ -50,6 +50,12 @@ static void lcd1602_WriteData(char data)
 
 int lcd1602_Init(const struct lcd_cfg_s *cfg)
 {
+	//lpt port init
+	struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
+	lpt_cfg.mode = LPT_MODE_M68;
+	lcd_bus = (lpt_bus_t *)cfg -> bus;
+	lcd_bus->init(&lpt_cfg);
+
 	mdelay(15);
 	lcd1602_WriteCommand(LCD1602_COMMAND_SETMODE);
 	mdelay(5);
@@ -91,6 +97,12 @@ int lcd1602_WriteChar(int row,int column,char ch)
 int lcd1602_WriteString(int column, int row, const char *s)
 {
 	char i=0,size;
+
+	if ((row > 1) || (column > 15))
+		return 1;
+	if ((row < 0) || (column < 0))
+		return 1;
+
 	size = (char)strlen(s);
 #if 0
 	for( i = 0 ; i < size ; i++){

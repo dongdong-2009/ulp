@@ -2,7 +2,7 @@
  * miaofng@2009 initial version
  * modified by david@2012 
  */
-
+#include <math.h>
 #include "config.h"
 #include "stepmotor.h"
 #include "osd/osd.h"
@@ -15,22 +15,21 @@
 #include "led.h"
 #include "sys/task.h"
 #include "pwm.h"
-#include "counter.h"
 #include "l6208.h"
 #include "ad9833.h"
 
-static ad9833_t sm_dds = {
-	.bus = &spi1,
-	.idx = SPI_CS_PB10,
-	.option = AD9833_OPT_OUT_SQU | AD9833_OPT_DIV,
+/*sm motor status*/
+enum {
+	SM_IDLE,
+	SM_RUNNING,
 };
 
 //private varibles
-static int sm_status;
-static sm_config_t sm_config __nvm;
-static time_t sm_stoptimer;
-static int sm_stepcounter;
-static const counter_bus_t * capture;
+volatile static int sm_status;
+volatile static int sm_stepcnt;
+volatile static int sm_intcnt;
+static sm_config_t sm_cfg __nvm;
+
 static const int keymap[] = {
 	KEY_UP,
 	KEY_DOWN,
@@ -41,86 +40,47 @@ static const int keymap[] = {
 	KEY_NONE
 };
 
-//private functon
-static void smctrl_SetRPM (int rpm)
-{
-	unsigned hz, mclk, fw;
-
-	hz = ((unsigned)rpm * CONFIG_STEPPERMOTOR_SPM) / 60;
-	mclk = (CONFIG_DRIVER_RPM_DDS_MCLK >> 16);
-	fw = hz;	
-	fw <<= 16;
-	fw /= mclk;
-	ad9833_SetFreq(&sm_dds,fw);
-}
+static void sm_ExtInt(void);
 
 void sm_Init(void)
 {
-	//pwm module and counter init
-	pwm_cfg_t cfg;
-	cfg.hz = 1000;
-	cfg.fs = 100;
-	pwm33.init(&cfg);
-	pwm33.set(50);
-	capture = &counter11;
-	capture -> init(NULL); //init for counter, tim1-ch1
-	ad9833_Init(&sm_dds);
-	ad9833_Disable(&sm_dds);
-
-	//for l6208 module init
-	l6208_Init();
-	l6208_StartCmd(ENABLE);          //enable l6208
-	l6208_SetHomeState();            //enable home state
-	l6208_SelectMode(FullMode);      //enable half stepmode
-	l6208_SetControlMode(DecayFast); //enable decay slow mode
-
+	l6208_Init(&sm_cfg.l6208_cfg);    //for l6208 module init
 #ifdef CONFIG_TASK_OSD
 	//handle osd display
 	int hdlg = osd_ConstructDialog(&sm_dlg);
 	osd_SetActiveDialog(hdlg);
 	key_SetLocalKeymap(keymap);  //set key map
 #endif
-
 	led_flash(LED_GREEN); //green led flash
-	//init for variables
-	sm_status = SM_IDLE;
-	sm_stepcounter = 0;
+	sm_ExtInt();
+	sm_status = SM_IDLE;  //init for variables
+	sm_stepcnt = 0;
+	sm_intcnt = 0;
 }
 
 void sm_Update(void)
 {
-	int left, reload, mode, dir;
 
-	left = time_left(sm_stoptimer);
-	mode = sm_config.runmode;
-	reload = (mode == SM_RUNMODE_MANUAL) ? 65535 : sm_config.autosteps;
-	dir = sm_config.dir;
-	
-	switch (sm_status) {
-	case SM_IDLE:
-		if(left > 0) {
-			capture -> set(reload);
-			if(dir)
-				l6208_SetRotationDirection(CounterClockwise);
-			else
-				l6208_SetRotationDirection(Clockwise);
-			smctrl_SetRPM(sm_config.rpm);
-			ad9833_Enable(&sm_dds);
-			sm_status = SM_RUNNING;
-		}
-		led_off(LED_RED);
-		break;
+}
 
-	case SM_RUNNING:
-		if((mode == SM_RUNMODE_MANUAL) && (left <= 0)) {
-			sm_StopMotor();
-		}
-		led_on(LED_RED);
-		break;
-
-	default:
+void EXTI9_5_IRQHandler(void)
+{
+	if (sm_cfg.l6208_cfg.dir)
+		sm_stepcnt ++;
+	else
+		sm_stepcnt --;
+	if (sm_cfg.runmode == SM_RUNMODE_MANUAL) {
+		l6208_Stop();
 		sm_status = SM_IDLE;
+	} else {
+		sm_intcnt ++;
+		if (sm_intcnt >= sm_cfg.autosteps) {
+			sm_intcnt = 0;
+			l6208_Stop();
+			sm_status = SM_IDLE;
+		}
 	}
+	EXTI->PR = EXTI_Line8;
 }
 
 void main(void)
@@ -135,160 +95,258 @@ void main(void)
 
 int sm_StartMotor(int clockwise)
 {
-	if(sm_status == SM_IDLE)
-		sm_config.dir = clockwise;
-	sm_stoptimer = time_get(13);
+	if(sm_status == SM_IDLE) {
+		sm_status = SM_RUNNING;
+		sm_cfg.l6208_cfg.dir = clockwise;
+		if (sm_cfg.l6208_cfg.dir)
+			L6208_SET_RD_CW();
+		else
+			L6208_SET_RD_CCW();
+		l6208_Start();
+	}
 	return 0;
-}
-
-void sm_StopMotor(void)
-{
-	int step_cap;
-
-	ad9833_Disable(&sm_dds);
-	sm_status = SM_IDLE;
-	sm_stoptimer = 0;
-	step_cap = capture -> get();
-	capture -> set(0);
-	if(sm_config.runmode != SM_RUNMODE_MANUAL)
-		step_cap += sm_config.autosteps;
-	step_cap = (sm_config.dir == Clockwise) ? step_cap : -step_cap;
-	sm_stepcounter += step_cap;
 }
 
 int sm_SetRPM(int rpm)
 {
+	unsigned hz;
 	/*rpm min/max limit*/
 	rpm = (rpm < 1) ? 1 : rpm;
 	rpm = (rpm > SM_MAX_RPM) ? SM_MAX_RPM : rpm;
-
-	sm_config.rpm = rpm;
-	if (sm_status == SM_RUNNING) { /*dynamic change the speed of the motor*/
-		/*calculate the new freqword according to the motor para,
-		then setup the dds chip*/
-		smctrl_SetRPM(rpm);
-	}
+	hz = ((unsigned)rpm * CONFIG_STEPPERMOTOR_SPM) / 60;
+	sm_cfg.rpm = rpm;
+	l6208_SetClockHZ(hz);
 
 	return 0;
 }
 
-void smctrl_SetRotationDirection(int dir)
-{
-	if(dir)
-		l6208_SetRotationDirection(CounterClockwise);
-	else
-		l6208_SetRotationDirection(Clockwise);
-}
-
 int sm_GetRPM(void)
 {
-	return sm_config.rpm;
+	return sm_cfg.rpm;
 }
 
 int sm_SetAutoSteps(int steps)
 {
 	int result = -1;
-	
 	steps = (steps < 1) ? 1 : steps;
-	
 	if(sm_status == SM_IDLE) {
-		sm_config.autosteps = steps;
+		sm_cfg.autosteps = steps;
 		result = 0;
 	}
-	
+
 	return result;
 }
 
 int sm_GetAutoSteps(void)
 {
-	return sm_config.autosteps;
+	return sm_cfg.autosteps;
 }
 
 int sm_GetSteps(void)
 {
-	int step_cap;
-
-	step_cap = counter11.get();
-	step_cap = (sm_config.dir == Clockwise) ? step_cap : -step_cap;
-	return sm_stepcounter + step_cap;
+	return sm_stepcnt;
 }
 
 void sm_ResetStep(void)
 {
 	if (sm_status == SM_IDLE) {
-		sm_stepcounter = 0;
+		sm_stepcnt = 0;
 	}
 }
 
 int sm_GetRunMode(void)
 {
-	int mode = (sm_config.runmode) ? SM_RUNMODE_AUTO : SM_RUNMODE_MANUAL;
+	int mode = (sm_cfg.runmode) ? SM_RUNMODE_AUTO : SM_RUNMODE_MANUAL;
 	return mode;
 }
 
 int sm_SetRunMode(int newmode)
 {
 	if(sm_status == SM_IDLE) {
-		sm_config.runmode = newmode;
+		sm_cfg.runmode = newmode;
 	}
-	
 	return 0;
 }
 
-/*******************************************************************************
-* Function Name  : TIM1_UP_IRQHandler
-* Description    : This function handles TIM1 overflow and update interrupt 
-*                  request.
-* Input          : None
-* Output         : None
-* Return         : None
-*******************************************************************************/
-void TIM1_UP_IRQHandler(void)
+int sm_GetDecayMode(void)
 {
-#if CONFIG_TASK_STEPMOTOR == 1
-	/* Clear TIM1 Update interrupt pending bit */
-	//TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
-	TIM1->SR = (uint16_t)~TIM_IT_Update;
-	sm_isr();
-#endif
+	int mode = (sm_cfg.l6208_cfg.decaymode) ? SM_DECAYMODE_SLOW : SM_DECAYMODE_FAST;
+	return mode;
 }
 
-void sm_isr(void)
+int sm_SetDecayMode(int newmode)
 {
-	/*warnning: manual mode may also reach this point, in case of steps >= 65535*/
-	sm_StopMotor();
+	if(sm_status == SM_IDLE) {
+		sm_cfg.l6208_cfg.decaymode = newmode;
+		if (sm_cfg.l6208_cfg.decaymode == SM_DECAYMODE_SLOW)
+			L6208_SET_DM_SLOW();
+		if (sm_cfg.l6208_cfg.decaymode == SM_DECAYMODE_FAST)
+			L6208_SET_DM_FAST();
+	}
+	return 0;
 }
 
+int sm_GetStepMode(void)
+{
+	int mode = (sm_cfg.l6208_cfg.stepmode) ? SM_STEPMODE_HALF : SM_STEPMODE_FULL;
+	return mode;
+}
 
-#if 0
+int sm_SetStepMode(int newmode)
+{
+	if(sm_status == SM_IDLE) {
+		sm_cfg.l6208_cfg.stepmode = newmode;
+		if (sm_cfg.l6208_cfg.stepmode == SM_STEPMODE_FULL)
+			L6208_SET_MODE_FULL();
+		if (sm_cfg.l6208_cfg.stepmode == SM_STEPMODE_HALF)
+			L6208_SET_MODE_HALF();
+	}
+	return 0;
+}
+
+static void sm_ExtInt(void)
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+	EXTI_InitTypeDef EXTI_InitStruct;
+
+	/*ad9833 pulse capture irq init*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource8);
+	EXTI_InitStruct.EXTI_Line = EXTI_Line8;
+	EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
+	EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
+	EXTI_InitStruct.EXTI_LineCmd = ENABLE;
+	EXTI_Init(&EXTI_InitStruct);
+
+	NVIC_InitTypeDef NVIC_InitStructure;
+
+	NVIC_InitStructure.NVIC_IRQChannel = EXTI9_5_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+}
+
+#if 1
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+static void print_sm_info(void)
+{
+	printf("rpm        : %d\n", sm_cfg.rpm);
+	printf("autosteps  : %d\n", sm_cfg.autosteps);
+
+	if (sm_cfg.l6208_cfg.dir == SM_DIR_Clockwise)
+	printf("dir        : ClockWise\n");
+	else
+	printf("dir        : CounterClockWise\n");
+
+	if (sm_cfg.l6208_cfg.stepmode == SM_STEPMODE_FULL)
+	printf("step mode  : Full Step\n");
+	else
+	printf("step mode  : Half Step\n");
+
+	if (sm_cfg.l6208_cfg.decaymode == SM_DECAYMODE_FAST)
+	printf("decay mode : Fast Mode\n");
+	else
+	printf("decay mode : Slow Mode\n");
+}
+
 static int cmd_sm_func(int argc, char *argv[])
 {
-#if 0
+	int temp;
+
 	const char usage[] = { \
 		" usage:\n" \
-		" sm start,stop\n" \
+		" sm info,            print sm infomation, such as rpm, stepmode\n"
+		" sm start cw/ccw,    set sm in auto mode and start sm run cw or ccw\n" \
+		" sm as value(int),   set auto steps value\n" \
+		" sm rpm value(int),  set ad9833 rpm value\n" \
+		" sm mode half/full,  set half step(400/r) or full step(200/r)\n" \
+		" sm decay slow/fast, set magnetic decay mode fast or slow\n" \
+		" sm dir cw/ccw,      set sm directon clockwise or counterclockwise\n" \
+		" sm save,            save config data\n"
 	};
 
-	if (argc > 0 && argc != 2) {
+	if (argc == 1) {
 		printf(usage);
 		return 0;
 	}
 
 	if (strcmp(argv[1],"start") == 0) {
-		sm_StartMotor(1);
+		sm_cfg.runmode = SM_RUNMODE_AUTO;
+		if(strcmp(argv[2],"cw") == 0)
+			sm_StartMotor(SM_DIR_Clockwise);
+		if(strcmp(argv[2],"ccw") == 0)
+			sm_StartMotor(SM_DIR_CounterClockwise);
+	}
+
+	if (strcmp(argv[1],"as") == 0) {
+		sscanf(argv[2], "%d", &temp);
+		sm_cfg.autosteps = temp;
+		printf("Set OK!\n");
+	}
+
+	if (strcmp(argv[1],"rpm") == 0) {
+		sscanf(argv[2], "%d", &temp);
+		sm_SetRPM(temp);
+		printf("Set OK!\n");
+	}
+
+	if (strcmp(argv[1],"mode") == 0) {
+		if(strcmp(argv[2],"full") == 0) {
+			sm_cfg.l6208_cfg.stepmode = SM_STEPMODE_FULL;
+			L6208_SET_MODE_FULL();
+		}
+		if(strcmp(argv[2],"half") == 0) {
+			sm_cfg.l6208_cfg.stepmode = SM_STEPMODE_HALF;
+			L6208_SET_MODE_HALF();
+		}
+		printf("Set OK!\n");
+	}
+
+	if (strcmp(argv[1],"decay") == 0) {
+		if(strcmp(argv[2],"slow") == 0) {
+			sm_cfg.l6208_cfg.decaymode = SM_DECAYMODE_SLOW;
+			L6208_SET_DM_SLOW();
+		}
+		if(strcmp(argv[2],"fast") == 0) {
+			sm_cfg.l6208_cfg.decaymode = SM_DECAYMODE_FAST;
+			L6208_SET_DM_FAST();
+		}
+		printf("Set OK!\n");
+	}
+
+	if (strcmp(argv[1],"dir") == 0) {
+		if(strcmp(argv[2],"cw") == 0) {
+			sm_cfg.l6208_cfg.dir = SM_DIR_Clockwise;
+			L6208_SET_RD_CW();
+		}
+		if(strcmp(argv[2],"ccw") == 0) {
+			sm_cfg.l6208_cfg.dir = SM_DIR_CounterClockwise;
+			L6208_SET_RD_CCW();
+		}
+		printf("Set OK!\n");
 	}
 
 	if (strcmp(argv[1],"save") == 0) {
-		sm_SaveConfigToFlash();
+		nvm_save();
+		printf("Save OK!\n");
 	}
-#endif
-	sm_StartMotor(1);
-	return 1;
+	
+	if (strcmp(argv[1],"info") == 0) {
+		print_sm_info();
+	}
+
+	return 0;
 }
 const cmd_t cmd_sm = {"sm", cmd_sm_func, "stepper motor debug"};
 DECLARE_SHELL_CMD(cmd_sm)

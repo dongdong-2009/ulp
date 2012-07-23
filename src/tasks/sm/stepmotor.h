@@ -6,20 +6,15 @@
 
 #include "osd/osd.h"
 #include "stm32f10x.h"
+#include "l6208.h"
 
 //data read from or store to flash
 typedef struct{
-	short rpm;//unit: rpm
-	short autosteps;
-	int dir : 1;
-	int runmode : 1;
+	int rpm;//unit: rpm
+	int autosteps;
+	int runmode;
+	l6208_config_t l6208_cfg;
 }sm_config_t;
-
-/*sm motor status*/
-enum {
-	SM_IDLE,
-	SM_RUNNING,
-};
 
 /*sm run modes*/
 enum {
@@ -28,7 +23,7 @@ enum {
 	SM_RUNMODE_INVALID,
 };
 /*define max RPM value*/
-#define SM_MAX_RPM 1000
+#define SM_MAX_RPM 250
 
 extern osd_dialog_t sm_dlg;
 
@@ -42,5 +37,8 @@ int sm_GetAutoSteps(void);
 int sm_SetAutoSteps(int steps);
 int sm_GetRunMode(void);
 int sm_SetRunMode(int newmode);
-void sm_isr(void);
+int sm_SetStepMode(int newmode);
+int sm_GetStepMode(void);
+int sm_SetDecayMode(int newmode);
+int sm_GetDecayMode(void);
 #endif /*__STEPMOTOR_H_*/
