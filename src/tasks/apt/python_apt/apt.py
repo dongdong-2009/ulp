@@ -1737,9 +1737,9 @@ class Glade_main(gtk.Window):
 	def sw2combobox_change(self,widget):
 		print widget.get_active_text()
 		if widget.get_active()==0:
-			tmp_data[6] = tmp_data[6] & (~(0x01 << 3))
+			tmp_data[6] = tmp_data[6] | (0x01 << 3)#changes state1 and state2
 		elif widget.get_active()==1:
-			tmp_data[6] = tmp_data[6] | (0x01 << 3)
+			tmp_data[6] = tmp_data[6] & (~(0x01 << 3))
 		else:
 			pass
 		#self.send(tmp_data,"set")
