@@ -9,5 +9,4 @@ if [ "$CONFIG_DRIVER_LED" = "y" ]; then
 fi
 
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
-bool "capture driver?" CONFIG_DRIVER_CAPTURE
 bool "add md204l driver?" CONFIG_DRIVER_MD204L

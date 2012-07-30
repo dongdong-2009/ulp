@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "stm32f10x.h"
 #include "shell/cmd.h"
 #include "config.h"
@@ -29,6 +30,23 @@
 #define DEBUG_TRACE(args)
 #endif
 
+//define sample points for axle and op
+#define SAMPLE_DENSITY_HIGH  1
+#if SAMPLE_DENSITY_HIGH
+#define AXLE_SAMPLE_POINTS  32
+#define OP_SAMPLE_POINTS    104
+#else
+#define AXLE_SAMPLE_POINTS  16
+#define OP_SAMPLE_POINTS    52
+#endif
+
+//define two wave output support
+#define WEIFU_SUPPORT_TWO_WAVE  1
+enum {
+	OP_WAVE_MODE_37X,
+	OP_WAVE_MODE_120X,
+};
+static int op_mode = OP_WAVE_MODE_37X;
 //op and eng rpm wave cofficient define
 // (0 - 500)=0.3, (500 - 1000) = 0.5
 // (1000 - 1500) = 0.7, (1500 - 5000) = 1
@@ -73,9 +91,9 @@ void weifu_Init(void)
 	op_Init(0);
 	vss_Init();
 	wss_Init();
-	counter1_Init();
+	pwmin1_Init();
 	counter2_Init();
-	eng_speed_timer = time_get(500);
+	eng_speed_timer = time_get(1000);
 	wtout_timer = time_get(1000);
 
 	mcamos_init_ex(&lcm);
@@ -98,7 +116,11 @@ void weifu_Update(void)
 	//communication update
 	weifu_ConfigData();
 	if (eng_rpm != cfg_data.eng_rpm) {
+		#if SAMPLE_DENSITY_HIGH
+		clock_SetFreq(cfg_data.eng_rpm << 5);
+		#else
 		clock_SetFreq(cfg_data.eng_rpm << 4);
+		#endif
 		eng_rpm = cfg_data.eng_rpm;
 		op_rpm = eng_rpm >> 1;
 
@@ -132,12 +154,12 @@ void weifu_Update(void)
 	if (tim_dc != cfg_data.tim_dc) {  //need pwm1
 		tim_dc = cfg_data.tim_dc;
 		tim_frq = cfg_data.tim_frq;
-		pwm1_Init(tim_frq, tim_dc);
+		pwm1_Init(tim_frq + 3, 100 - tim_dc);
 	}
 	if (tim_frq != cfg_data.tim_frq) {  //need pwm1
 		tim_dc = cfg_data.tim_dc;
 		tim_frq = cfg_data.tim_frq;
-		pwm1_Init(tim_frq, tim_dc);
+		pwm1_Init(tim_frq + 3, 100 - tim_dc);
 	}
 	if (hfmsig != cfg_data.hfmsig) {  //need wss
 		hfmsig = cfg_data.hfmsig;
@@ -147,18 +169,25 @@ void weifu_Update(void)
 		hfmref = cfg_data.hfmref;
 		pwm2_Init(hfmref, 50);
 	}
+	#if WEIFU_SUPPORT_TWO_WAVE
+	if (op_mode != cfg_data.op_mode) {  //need pwm2
+		op_mode = cfg_data.op_mode;
+		axle_clock_cnt = 0;
+		op_clock_cnt  = 0;
+		op_tri_flag = 0;
+	}
+	#endif
 
 	//for eng_speed and wtout output 
 	if (time_left(wtout_timer) < 0) {
-		cfg_data.wtout = counter1_GetValue();
-		counter1_SetValue(0);
-		wtout_timer = time_get(1000);
+		cfg_data.wtout = 100 - pwmin1_GetDC();
+		wtout_timer = time_get(250);
 	}
 	if (time_left(eng_speed_timer) < 0) {
 		cfg_data.eng_speed = counter2_GetValue();
 		counter2_SetValue(0);
 		//2hz = 1 eng round
-		eng_speed_timer = time_get(500);
+		eng_speed_timer = time_get(1000);
 	}
 }
 
@@ -171,8 +200,12 @@ void weifu_isr(void)
 
 	/**********  for axle and oil pump signal output  *******/
 	//calculate the axle gear output
-	temp = axle_clock_cnt % 16;
+	temp = axle_clock_cnt % AXLE_SAMPLE_POINTS;
+#if SAMPLE_DENSITY_HIGH
+	axle_cnt = (axle_clock_cnt >> 5) % 120;
+#else
 	axle_cnt = (axle_clock_cnt >> 4) % 120;
+#endif
 
 	//used to tri op clock cnt to zero
 	if (!op_tri_flag) {
@@ -189,38 +222,113 @@ void weifu_isr(void)
 		}
 	}
 
-	result = IS_IN_RANGE(axle_cnt, 29, 29);
-	result |= IS_IN_RANGE(axle_cnt, 59, 59);
-	result |= IS_IN_RANGE(axle_cnt, 89, 89);
-	result |= IS_IN_RANGE(axle_cnt, 119, 119);
-	if (!result) {
-		if (prev_axle_cnt != temp) {
-			axle_SetAmp((gear16[temp] * eng_factor) / 10);
-			prev_axle_cnt = temp;
+	result |= IS_IN_RANGE(axle_cnt, 58, 59);
+	result |= IS_IN_RANGE(axle_cnt, 118, 119);
+	#if SAMPLE_DENSITY_HIGH
+		if (!result) {
+			if (prev_axle_cnt != temp) {
+				axle_SetAmp((gear32[temp] * eng_factor) / 10);
+				// axle_SetAmp(gear32[temp]);
+				prev_axle_cnt = temp;
+			}
+		} else {
+			if (prev_axle_cnt != temp) {
+				axle_SetAmp((gear32[0] * eng_factor) / 10);
+				// axle_SetAmp(gear32[temp]);
+				prev_axle_cnt = temp;
+			}
 		}
-	} else {
-		if (prev_axle_cnt != temp) {
-			axle_SetAmp((gear16[0] * eng_factor) / 10);
-			prev_axle_cnt = temp;
+	#else
+		if (!result) {
+			if (prev_axle_cnt != temp) {
+				axle_SetAmp((gear16[temp] * eng_factor) / 10);
+				prev_axle_cnt = temp;
+			}
+		} else {
+			if (prev_axle_cnt != temp) {
+				axle_SetAmp((gear16[0] * eng_factor) / 10);
+				prev_axle_cnt = temp;
+			}
+		}
+	#endif
+
+	if (op_mode == OP_WAVE_MODE_120X) {
+		//calculate the oil pump gear output
+		temp = op_clock_cnt % AXLE_SAMPLE_POINTS;
+		#if SAMPLE_DENSITY_HIGH
+			op_cnt = (op_clock_cnt >> 5) % 120;
+		#else
+			op_cnt = (op_clock_cnt >> 4) % 120;
+		#endif
+
+		result = IS_IN_RANGE(op_cnt, 28, 29);
+		result |= IS_IN_RANGE(op_cnt, 58, 59);
+		result |= IS_IN_RANGE(op_cnt, 88, 89);
+		result |= IS_IN_RANGE(op_cnt, 118, 119);
+		#if SAMPLE_DENSITY_HIGH
+			if (!result) {
+				if (prev_op_cnt != temp) {
+					op_SetAmp(gear32[temp] >> 2);
+					prev_op_cnt = temp;
+				}
+			} else {
+				if (prev_op_cnt != temp) {
+					op_SetAmp(gear32[0] >> 2);
+					prev_op_cnt = temp;
+				}
+			}
+		#else
+			if (!result) {
+				if (prev_op_cnt != temp) {
+					op_SetAmp(gear16[temp] >> 2);
+					prev_op_cnt = temp;
+				}
+			} else {
+				if (prev_op_cnt != temp) {
+					op_SetAmp(gear16[0] >> 2);
+					prev_op_cnt = temp;
+				}
+			}
+		#endif
+		if (IS_IN_RANGE(op_cnt, 118, 119)) {
+			op_tri_flag = 0;
 		}
 	}
 
-	//calculate the oil pump gear output
-	temp = op_clock_cnt % 52;
-	op_cnt = (op_clock_cnt/52) % 37;
-
-	result = IS_IN_RANGE(op_cnt, 36, 36);
-	if (result) {  //if hypodontia, output zero
-		if (prev_op_cnt != temp) {
-			op_SetAmp((gear52[0] * op_factor) / 10);
-			prev_op_cnt = temp;
-			op_tri_flag = 0;
-		}
-	} else {
-		if (prev_op_cnt != temp) {
-			op_SetAmp((gear52[temp] * op_factor) / 10);
-			prev_op_cnt = temp;
-		}
+	if (op_mode == OP_WAVE_MODE_37X) {
+		//calculate the oil pump gear output
+		temp = op_clock_cnt % OP_SAMPLE_POINTS;
+		op_cnt = (op_clock_cnt/OP_SAMPLE_POINTS) % 37;
+		result = IS_IN_RANGE(op_cnt, 36, 36);
+		#if SAMPLE_DENSITY_HIGH
+			if (result) {  //if hypodontia, output zero
+				if (prev_op_cnt != temp) {
+					op_SetAmp((gear104[temp] * op_factor) / 10);
+					// op_SetAmp(gear104[temp]);
+					prev_op_cnt = temp;
+					op_tri_flag = 0;
+				}
+			} else {
+				if (prev_op_cnt != temp) {
+					op_SetAmp((gear104[temp] * op_factor) / 10);
+					// op_SetAmp(gear104[temp]);
+					prev_op_cnt = temp;
+				}
+			}
+		#else
+			if (result) {  //if hypodontia, output zero
+				if (prev_op_cnt != temp) {
+					op_SetAmp((gear52[temp] * op_factor) / 10);
+					prev_op_cnt = temp;
+					op_tri_flag = 0;
+				}
+			} else {
+				if (prev_op_cnt != temp) {
+					op_SetAmp((gear52[temp] * op_factor) / 10);
+					prev_op_cnt = temp;
+				}
+			}
+		#endif
 	}
 }
 
@@ -265,7 +373,7 @@ static int weifu_ConfigData(void)
 	char lcm_cmd = LCM_CMD_READ;
 	//communication with the lcm board
 	ret += mcamos_dnload_ex(MCAMOS_INBOX_ADDR, &lcm_cmd, 1);
-	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, 14);
+	ret += mcamos_upload_ex(MCAMOS_OUTBOX_ADDR + 2, &cfg_data, 16);
 	if (ret) {
 		DEBUG_TRACE(("##MCAMOS ERROR!##\n"));
 		return -1;

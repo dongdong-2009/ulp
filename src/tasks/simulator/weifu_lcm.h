@@ -19,6 +19,8 @@ typedef struct {
 	short hfmsig_max;
 	short hfmref_min; //air flow meter diag(18k)
 	short hfmref_max;
+	short op_mode_min;
+	short op_mode_max;
 } lcm_cfg_t;
 
 typedef struct {
@@ -29,6 +31,7 @@ typedef struct {
 	short tim_frq;    //tim frequence
 	short hfmsig;    //flow meter signal
 	short hfmref;    //flow meter diag
+	short op_mode;   //op wave mode, 37x or 120x
 	short eng_speed; //feedback engine speed
 	short wtout;     //cooling temper
 	short crc;       //cksum
