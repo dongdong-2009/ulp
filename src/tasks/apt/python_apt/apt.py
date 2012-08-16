@@ -6,7 +6,7 @@ import apt_serial
 import gobject
 import scan
 import time
-
+#import Apt_Waiting
 try:
 	import pygtk
 	pygtk.require("2.0")
@@ -24,7 +24,7 @@ conf = {"loop1":"on","loop2":"on","loop3":"on","loop4":"on","loop5":"on","loop6"
 		"ess1":"on","ess2":"on","ess3":"on","ess4":"on","ess5":"on","ess6":"on",\
 		"led1":"on","led2":"on","led3":"on","led4":"on","led5":"on",\
 		"led1_a":"active low","led4_a":"active low",\
-		"sw1":"on","sw2":"on","sw3":"on","sw4":"on","sw5":"on"}
+		"sw1":"on","sw2":"on","sw3":"on","sw4":"on","sw5":"on","sw1_s":"state1","sw2_s":"state1","sw5_s":"state1"}
 
 datalog0 = [["OEM Part Number","********","F1 87"],["VINaa","********","F1 90"],\
 			["Hardware Number","********","F1 92"],["Hardware Version Number","********","F1 93"],\
@@ -89,6 +89,7 @@ class Glade_main(gtk.Window):
 		glade_file = os.path.join(main_dir, "apt_main.glade")
 		self.config_file = os.path.join(main_dir, "apt_config.ini")
 		self.config = ConfigParser.ConfigParser()#RawConfigParser
+		#self.waiting = Apt_Waiting.PyApp()
 		self.builder = gtk.Builder()
 		self.builder.add_from_file(glade_file)
 		self.windows = self.builder.get_object("MainWindow")        
@@ -162,14 +163,14 @@ class Glade_main(gtk.Window):
 		liststore_sw1.append(["State2"])
 		self.combobox_sw1.set_model(liststore_sw1)
 		self.combobox_sw1.set_active(0)
-		self.combobox_sw1.connect("changed",self.sw1combobox_change)
+		self.combobox_sw1.connect("changed",self.sw1combobox_change,None)
 
 		self.combobox_sw2 = self.builder.get_object("combo_sw2")
 		self.combobox_sw2.pack_start(cell_sw1)
 		self.combobox_sw2.add_attribute(cell_sw1, 'text', 0)
 		self.combobox_sw2.set_model(liststore_sw1)
 		self.combobox_sw2.set_active(0)
-		self.combobox_sw2.connect("changed",self.sw2combobox_change)
+		self.combobox_sw2.connect("changed",self.sw2combobox_change,None)
 
 		self.combobox_sw3 = self.builder.get_object("combo_sw3")
 		liststore_sw3 = gtk.ListStore(str)
@@ -198,7 +199,7 @@ class Glade_main(gtk.Window):
 		self.combobox_sw5.add_attribute(cell_sw1, 'text', 0)
 		self.combobox_sw5.set_model(liststore_sw1)
 		self.combobox_sw5.set_active(0)
-		self.combobox_sw5.connect("changed",self.sw5combobox_change)
+		self.combobox_sw5.connect("changed",self.sw5combobox_change,None)
 
 		self.label=self.builder.get_object("label")
 		self.label.set_label("COM is "+'''\n Baud is''')
@@ -288,6 +289,7 @@ class Glade_main(gtk.Window):
 		self.button_sw5 = self.builder.get_object("button_sw5")
 		self.button_send = self.builder.get_object("button_send")
 		self.button_clr_dtc = self.builder.get_object("button_clr_dtc")
+		self.button_stop_can = self.builder.get_object("button_stop_can")
 		self.button_get_apt_diag = self.builder.get_object("button_get_apt_diag")
 		self.button_get_sdm_diag = self.builder.get_object("button_get_sdm_diag")
 		self.button_get_eeprom = self.builder.get_object("button_get_eeprom")
@@ -353,6 +355,7 @@ class Glade_main(gtk.Window):
 		self.button_get_sdm_diag.connect("clicked",self.buttonget_sdm_diag_clicked)
 		self.button_get_eeprom.connect("clicked",self.button_get_eeprom_clicked)
 		self.button_clr_dtc.connect("clicked",self.buttonclr_dtc_clicked,"Are you sure clear DTC? ","Clear DTC")
+		self.button_stop_can.connect("clicked",self.buttonstop_can_clicked)
 		self.button_save_diag.connect("clicked",self.buttonsave_clicked,"diag")
 		self.set_widget(False)
 		self.set_configure(conf)
@@ -417,58 +420,72 @@ class Glade_main(gtk.Window):
 		else:
 			if len(row) == 1 or row[0] == 5:
 				return
-			test_number = 5	#times to try get the sdm diag data
-			string ="datalog"+str(row[0])+"[row[1]][2]"
+			test_number = 3	#times to try get the sdm diag data
+			commd ="datalog"+str(row[0])+"[row[1]][2]"
 			if row[0] == 4:
-				self.COM.send("apt read dtc")
-				self.COM.read()
-				self.COM.send("\r")
-				time.sleep(0.3)
-				str_temp = self.COM.read()
-				string = ''
-				while str_temp != '':
-					string += str_temp
-					str_temp = self.COM.read()
-				spit_list = string.splitlines()
-				string = ''
-				for act in spit_list:
-					spit__list = act.split()
-					length = len(spit__list)
-					if(length > 2):
-						string += act
-						string += "\n"
-					else:
-						continue
-				dtc_infor[0] = string
-				self.store.set(self.dtc ,1,string)
-				return
+                                while True:
+                                        self.COM.send("apt read dtc")
+                                        self.COM.read()
+                                        self.COM.send("\r")
+                                        string = ''
+                                        time.sleep(0.3)
+                                        str_temp = self.COM.read()
+                                        while str_temp != '':
+                                                string += str_temp
+                                                str_temp = self.COM.read()
+                                        spit_list = string.splitlines()
+					if spit_list[2] != "##OK##":
+                                                test_number -= 1
+                                        else:
+                                                dtc_infor[0] = ''
+                                                for act in spit_list:
+                                                        #print act
+                                                        spit__list = act.split()
+                                                        length = len(spit__list)
+                                                        if(length > 2):
+                                                                dtc_infor[0] += act
+                                                                dtc_infor[0] += "\n"
+                                                        else:
+                                                                continue
+                                                self.store.set(self.dtc ,1,dtc_infor[0])
+                                                return
 
-			self.COM.send("apt req 7A2 03 22 " + eval(string) + " 00 00 00 00")
-			self.COM.read()
-			self.COM.send("\r")
-			time.sleep(0.3)
-			str_temp = self.COM.read()  
-			string = ''
-			while str_temp != '':
-				string += str_temp
-				str_temp = self.COM.read()
-			spit_list = string.splitlines()
-			str_temp = ''
-			for act in spit_list:
-				spit__list = act.split()
-				length = len(spit__list)
-				if(length > 2 and spit__list[2] == "7C2"):
-					str_temp += act
-					str_temp += "\n"
-				else:
-					continue
-			temp_str = "datalog"+str(row[0])+"[row[1]][1]" + " = " + '''"""'''+str_temp + '''"""'''
-			exec(temp_str)
-			temp_str = "temp = datalog"+str(row[0])+'''[row[1]][0].replace(" ","")'''
-			exec(temp_str)
-			temp = "self."+ temp
-			temp_str ="self.store.set("+ temp +",1," + "datalog" + str(row[0])+"[row[1]][1])" 
-			exec(temp_str)
+                                        if test_number > 0:
+                                                continue
+                                        else:
+                                                return 
+                        while True:
+                                self.COM.send("apt req 7A2 03 22 " + eval(commd) + " 00 00 00 00")
+                                self.COM.read()
+                                self.COM.send("\r")
+                                time.sleep(0.3)
+                                str_temp = self.COM.read()  
+                                string = ''
+                                while str_temp != '':
+                                        string += str_temp
+                                        str_temp = self.COM.read()
+                                spit_list = string.splitlines()
+                                str_temp = ''
+                                for act in spit_list:
+                                        print act
+                                        spit__list = act.split()
+                                        length = len(spit__list)
+                                        if(length > 3 and spit__list[2] == "7C2"):
+                                                str_temp += act
+                                                str_temp += "\n"
+                                        else:
+                                                continue
+                                if str_temp == '' and test_number > 0:
+                                        test_number -= 1
+                                        continue
+                                temp_str = "datalog"+str(row[0])+"[row[1]][1]" + " = " + '''"""'''+str_temp + '''"""'''
+                                exec(temp_str)
+                                temp_str = "temp = datalog"+str(row[0])+'''[row[1]][0].replace(" ","")'''
+                                exec(temp_str)
+                                temp = "self."+ temp
+                                temp_str ="self.store.set("+ temp +",1," + "datalog" + str(row[0])+"[row[1]][1])" 
+                                exec(temp_str)
+                                return
 
 	def buttonget_sdm_diag_clicked(self,widget):
 		if self.COM.get_option()==False:
@@ -531,7 +548,7 @@ class Glade_main(gtk.Window):
 				f.write("ID = 7A2 21 00 00 00 "+ n[0][0:3] +"00 00 00\n")
 				f.write("ID = 7A2 30 00 00 00 00 00 00 00\n")
 
-				test_number = 5	#times to try get the eeprom data
+				test_number = 3	#times to try get the eeprom data
 				file_string = 'Response:\n'
 				while True:
 					self.COM.send("apt eeprom " + n[0])
@@ -539,28 +556,34 @@ class Glade_main(gtk.Window):
 					self.COM.read()
 					self.COM.send("\r")
 					string = ''
-					time.sleep(2)
+					time.sleep(0.3)
 					str_temp = self.COM.read()
 					while str_temp != '':
 						string += str_temp
 						str_temp = self.COM.read()
+					spit_list = string.splitlines()
+					if len(spit_list) < 5:
+                                                break
+					if spit_list[2] == "##ERROR##" :
+                                                test_number -= 1
+                                        elif spit_list[2] == "##OK##":
+                                                for act in spit_list:
+                                                        #print act
+                                                        spit__list = act.split()
+                                                        if len(spit__list) > 0 and spit__list[0]== "ID":
+                                                        #length = len(spit__list)
+                                                                file_string += act
+                                                                file_string += "\n"
+                                                        #f.write("\n")
+                                                break
+                                        else:
+                                                break
 
-					length = len(spit_list)
-					if length < 8:
-						print "#ERROR#"
-						test_number -= 1
-						time.sleep(1)
-						if test_number > 0:
-							continue
-						else:
-							break
-					for act in spit_list:
-						spit__list = act.split()
-						length = len(spit__list)
-						if length > 1:
-							file_string += act
-							file_string += "\n"
-					break;
+                                        if test_number > 0:
+                                                continue
+                                        else:
+                                                break 
+           
 				f.write(file_string)
 				f.write("\n\n")
 			print "Reading EEPROM OK!"
@@ -590,6 +613,32 @@ class Glade_main(gtk.Window):
 					self.display_error(self.error_dialog,"Clear DTC failed !","Clear Failed")
 			elif response == gtk.RESPONSE_NO:
 				pass
+
+	def buttonstop_can_clicked(self,widget):
+		if self.COM.get_option()==False:
+			self.display_error(self.error_dialog,"Please Open Serial Port!")
+		else:
+			if widget.get_label() == "Stop Vehicle CAN":
+				self.COM.send("apt can off")
+                                self.COM.read()
+                                self.COM.send("\r")
+                                string = self.COM.read()
+                                result = string.find("##OK##")
+				widget.set_label("Sart Vehicle CAN")
+                                print string
+			else:
+				self.COM.send("apt can on")
+                                self.COM.read()
+                                self.COM.send("\r")
+                                string = self.COM.read()
+                                result = string.find("##OK##")
+				widget.set_label("Stop Vehicle CAN")
+                                print string
+			
+			if result != -1 :
+				self.display_ok(self.ok_dialog,"STOP Vehicle CAN Message Successful!")
+			else :
+				self.display_error(self.error_dialog,"STOP Vehicle CAN Message  Failed!","STOP Vehicle CAN Message")
 
 	def on_about_dialog (self, widget):
 		self.about_dialog.run()
@@ -718,6 +767,9 @@ class Glade_main(gtk.Window):
 			conf['sw3'] = self.config.get("sw", "sw3")
 			conf['sw4'] = self.config.get("sw", "sw4")
 			conf['sw5'] = self.config.get("sw", "sw5")
+			conf['sw1_s'] = self.config.get("sw","sw1_s")
+			conf['sw2_s'] = self.config.get("sw","sw2_s")
+			conf['sw5_s'] = self.config.get("sw","sw5_s")
 		except:
 			self.display_error(self.error_dialog,"Load 'SW' config fail!","Load Failed")
 			return -1
@@ -732,9 +784,25 @@ class Glade_main(gtk.Window):
 				self.display_error(self.error_dialog,"Load 'SW"+str(i)+"' config fail!","Load Failed")
 				return -1
 		print "%x" %(tmp_data[6])
+		i = (1,2)
+		n = (1,3)
+		for rag in range(2):                                    #attention 
+                        if conf['sw'+str(i[rag])+'_s'] == "state1":
+				tmp_data[6] = tmp_data[6] | (0x01 << n[rag])
+			elif conf['sw'+str(i[rag])+'_s'] == "state2":
+				tmp_data[6] = tmp_data[6] & (~(0x01 << n[rag]))
+			else :
+				self.display_error(self.error_dialog,"Load 'SW"+str(i)+"' config fail!","Load Failed")
+				return -1
+		if conf['sw5_s'] == "state1":
+			tmp_data[6] = tmp_data[6] & (~(0x01 << 7))
+                elif conf['sw5_s'] == "state2":
+                        tmp_data[6] = tmp_data[6] | (0x01 << 7)
+		else :
+			self.display_error(self.error_dialog,"Load 'SW"+str(i)+"' config fail!","Load Failed")
+			return -1
 		print conf
 		return 0
-		
 
 	'''def display_filechooser_dialog(self,widget):
 		res = widget.run()
@@ -842,9 +910,6 @@ class Glade_main(gtk.Window):
 				pass
 		print "in save button  clicked "
 
-	def update_cfg(self):
-		pass
-
 	def buttongetcfg_clicked(self,widget):
 		if self.COM.get_option()==False:
 			self.display_error(self.error_dialog,"Please Open Serial Port!")
@@ -915,6 +980,14 @@ class Glade_main(gtk.Window):
 					conf['sw'+str(i)] = "on"
 				else :
 					conf['sw'+str(i)] = "off"
+			i = (1,2,5)
+                        n = (1,3,7)
+                        for rag in range(3):                                    #attention
+                                if tmp &(0x01 << n[rag]):
+                                        conf['sw'+str(i[rag])+'_s'] = "state1"
+                                else:
+                                        conf['sw'+str(i[rag])+'_s'] = "state2"    
+
 			self.display_ok(self.ok_dialog,"Get cfg success!")
 			self.set_configure(conf)
 
@@ -1372,6 +1445,7 @@ class Glade_main(gtk.Window):
 
 	def buttonlamp1_clicked(self,widget,value):
 		if(value == None):
+                        #self.waiting.show()
 			if widget.get_label() == "    ON    ":
 				self.image_lamp1.set_from_pixbuf(self.led_on)
 				widget.set_label("    OFF   ")
@@ -1382,6 +1456,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("    ON    ")
 				conf['led1'] = 'off'
 				tmp_data[4] = tmp_data[4] & (~(0x01 << 1))
+				#self.waiting.close()
 			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_lamp1.set_from_pixbuf(self.led_on)
@@ -1626,6 +1701,10 @@ class Glade_main(gtk.Window):
 		##self.radio_ledpwr(conf['led_pwr'])
 		self.led1combobox_change(self.combobox_led1 ,conf['led1_a'])
 		self.led4combobox_change(self.combobox_led4 ,conf['led4_a'])
+		self.sw1combobox_change(self.combobox_sw1 ,conf['sw1_s'])
+		self.sw2combobox_change(self.combobox_sw2 ,conf['sw2_s'])
+		self.sw5combobox_change(self.combobox_sw5 ,conf['sw5_s'])
+		
 
 		"""
 			if conf['loop'+str(n+1)] == "off":
@@ -1702,6 +1781,9 @@ class Glade_main(gtk.Window):
 			self.config.set("sw","sw3",conf['sw3'])
 			self.config.set("sw","sw4",conf['sw4'])
 			self.config.set("sw","sw5",conf['sw5'])
+			self.config.set("sw","sw1_s",conf['sw1_s'])
+			self.config.set("sw","sw2_s",conf['sw2_s'])
+			self.config.set("sw","sw5_s",conf['sw5_s'])
 			f=open(filename,'a')
 			self.config.write(f)
 			self.display_ok(self.ok_dialog,"Write config file success!")
@@ -1724,32 +1806,59 @@ class Glade_main(gtk.Window):
 		self.display_ok(self.ok_dialog,"Save SDM Diag Over!")
 		f.close()
 
-	def sw1combobox_change(self,widget):
+	def sw1combobox_change(self,widget,value):
 		print widget.get_active_text()
-		if widget.get_active()==0:
-			tmp_data[6] = tmp_data[6] & (~(0x01 << 1))
-		elif widget.get_active()==1:
-			tmp_data[6] = tmp_data[6] | (0x01 << 1)
+		if (value == None):
+                        if widget.get_active()==0:
+                                conf['sw1_s'] = 'state1'
+                                tmp_data[6] = tmp_data[6] & (~(0x01 << 1))
+                        elif widget.get_active()==1:
+                                conf['sw1_s'] = 'state2'
+                                tmp_data[6] = tmp_data[6] | (0x01 << 1)
+                        else:
+                                pass
+		elif (value == "state1"):
+			widget.set_active(0)
+		elif (value == "state2"):
+			widget.set_active(1)
 		else:
 			pass
 		#self.send(tmp_data,"set")
 
-	def sw2combobox_change(self,widget):
-		print widget.get_active_text()
-		if widget.get_active()==0:
-			tmp_data[6] = tmp_data[6] | (0x01 << 3)#changes state1 and state2
-		elif widget.get_active()==1:
-			tmp_data[6] = tmp_data[6] & (~(0x01 << 3))
+	def sw2combobox_change(self,widget,value):
+                print widget.get_active_text()
+		if (value == None):
+                        if widget.get_active()==0:
+                                conf['sw2_s'] = 'state1'
+                                tmp_data[6] = tmp_data[6] | (0x01 << 3)#changes state1 and state2
+                        elif widget.get_active()==1:
+                                conf['sw2_s'] = 'state2'
+                                tmp_data[6] = tmp_data[6] & (~(0x01 << 3))
+                        else:
+                                pass
+		elif (value == "state1"):
+			widget.set_active(0)
+		elif (value == "state2"):
+			widget.set_active(1)
 		else:
 			pass
 		#self.send(tmp_data,"set")
 
-	def sw5combobox_change(self,widget):
+	def sw5combobox_change(self,widget,value):
 		print widget.get_active_text()
-		if widget.get_active()==0:
-			tmp_data[6] = tmp_data[6] & (~(0x01 << 7))
-		elif widget.get_active()==1:
-			tmp_data[6] = tmp_data[6] | (0x01 << 7)
+		if (value == None):
+                        if widget.get_active()==0:
+                                conf['sw5_s'] = 'state1'
+                                tmp_data[6] = tmp_data[6] & (~(0x01 << 7))
+                        elif widget.get_active()==1:
+                                conf['sw5_s'] = 'state2'
+                                tmp_data[6] = tmp_data[6] | (0x01 << 7)
+                        else:
+                                pass
+		elif (value == "state1"):
+			widget.set_active(0)
+		elif (value == "state2"):
+			widget.set_active(1)
 		else:
 			pass
 		#self.send(tmp_data,"set")
@@ -1832,5 +1941,5 @@ class Glade_main(gtk.Window):
 			self.COM.send("\r")
 
 if __name__== "__main__":
-	frm=Glade_main()
+	Glade_main()
 	gtk.main()
