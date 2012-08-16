@@ -94,7 +94,7 @@ static int num_load;
 //for const can frame which will not change
 static struct can_queue_s c131_ems_3 = {
 	.ms = 10,
-	.msg = {0x11c, 4, {0x00, 0x00, 0x00, 0x00}, 0},
+	.msg = {0x11c, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
 static struct can_queue_s c131_ems_4 = {
@@ -109,7 +109,7 @@ static struct can_queue_s c131_abs_2 = {
 
 static struct can_queue_s c131_abs_3 = {
 	.ms = 20,
-	.msg = {0x12c, 4, {0x00, 0x00, 0x00, 0x00}, 0},
+	.msg = {0x12c, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
 static struct can_queue_s c131_tcu_3 = {

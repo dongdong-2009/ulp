@@ -262,6 +262,18 @@ static int cmd_apt_func(int argc, char *argv[])
 					can_msg_print(apt_msg_buf + i, "\n");
 			}
 		}
+
+		//for power off/on
+		if (strcmp(argv[1], "can") == 0) {
+			if (strcmp(argv[2], "on") == 0) {
+                                TIM_Cmd(TIM2, ENABLE);
+                                printf("##OK##\n");
+			} else if (strcmp(argv[2], "off") == 0) {
+				TIM_Cmd(TIM2, DISABLE);
+                                printf("##OK##\n");
+			}
+		return 0;
+		}
 	}
 
 	if(argc < 2) {
