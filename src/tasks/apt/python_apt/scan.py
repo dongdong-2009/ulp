@@ -11,7 +11,7 @@ successful.
 """
 
 import serial
-import apt
+#import apt
 
 def scan():
     """scan for available ports. return a list of tuples (num, name)"""
