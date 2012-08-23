@@ -340,7 +340,7 @@ static int Write_Memory(int addr, const char *data, int n)
 	if(fail)
 		return -3;
 
-	nest_mdelay(500);
+	nest_mdelay(800);
 	memset(mailbox.bytes, 0, sizeof(mailbox));
 	fail = mcamos_upload_ex(OUTBOX_ADDR, mailbox.bytes, sizeof(mailbox.outbox));
 	if(fail)
@@ -384,6 +384,8 @@ static void CyclingTest(void)
 {
 	int fail, min, deadline;
 	if(nest_fail())
+		return;
+	if((mfg_data.sn[3]) & 0x01) //do half of dut
 		return;
 
 	//cyc ign, necessary???
@@ -613,7 +615,7 @@ void TestStart(void)
 
 void TestStop(void)
 {
-	int fail;
+	int fail, i;
 	struct nest_error_s *err = nest_error_get();
 	nest_message("#Test Stop\n");
 
@@ -626,6 +628,7 @@ void TestStop(void)
 	//for(int i = 0; i < sizeof(mfg_data); i ++) *((char *)&mfg_data + i) = i;
 
 	if((err->nec >= PSV_FAIL) || (err->nec == NO_FAIL)) {
+#if 0
 		//step 1, write psv
 		fail = Write_Memory(MFGDAT_ADDR + 0x15, (void *)&mfg_data.nest_psv, 1);
 		if(fail) {
@@ -639,6 +642,22 @@ void TestStop(void)
 			nest_message("eewrite fail, ecode = %d\n", fail);
 			nest_error_set(EEWRITE_FAIL, "Eeprom Write FB");
 		}
+#else
+		//to solve mt92 write bug
+		for(i = 0; i < 10; i ++ ) {
+			fail = Write_Memory(MFGDAT_ADDR, (void *)&mfg_data, sizeof(mfg_data));
+			if(fail) {
+				nest_message("eewrite fail, ecode = %d, retry ...\n", fail);
+				//restart the dut
+				nest_power_reboot();
+			}
+			else {
+				break;
+			}
+		}
+		if(fail)
+			nest_error_set(EEWRITE_FAIL, "Eeprom Write PSV");
+#endif
 	}
 
 	//send FIS BCMP(build complete) message
