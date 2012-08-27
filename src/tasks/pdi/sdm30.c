@@ -41,6 +41,13 @@ static const can_msg_t sdm11_power_off_msg =	{0x10002040, 4, {0x00,0x00,0x00,0x0
 static const can_msg_t sdm11_pwrbp_crank_msg =	{0x10004060, 1, {0x03}, 1};
 static const can_msg_t sdm11_pwrbp_off_msg =	{0x10004060, 1, {0x00}, 1};
 
+//local power mode can msg varibles for sdm30
+//static const can_msg_t sdm30_power_acc_msg =	{0x10242040, 4, {0x01,0x00,0x00,0x00}, 1};
+//static const can_msg_t sdm30_power_crank_msg =	{0x10002040, 4, {0x03,0x00,0x00,0x00}, 1};
+//static const can_msg_t sdm30_power_off_msg =	{0x10002040, 4, {0x00,0x00,0x00,0x00}, 1};
+static const can_msg_t sdm30_pwrbp_crank_msg1 =	{0x102C0040, 1, {0x31,0x32,0x00,0x00,0x02}, 1};
+static const can_msg_t sdm30_pwrbp_crank_msg2 =	{0x102C0040, 1, {0x31,0x32,0x58,0x1C,0x01}, 1};
+//static const can_msg_t sdm30_pwrbp_off_msg =	{0x10004060, 1, {0x00}, 1};
 struct can_queue_s {
 	int ms;
 	time_t timer;
@@ -659,6 +666,11 @@ static int sdm_wakeup(void)
 		sdm_mdelay(100);
 		pdi_can_bus->send(&sdm11_pwrbp_crank_msg);  //sdm11 power mode backup
 		pdi_can_bus->send(&sdm11_pwrbp_crank_msg);
+		sdm_mdelay(100);
+		pdi_can_bus->send(&sdm30_pwrbp_crank_msg1);  //sdm30 power mode backup1
+		pdi_can_bus->send(&sdm30_pwrbp_crank_msg1);
+		pdi_can_bus->send(&sdm30_pwrbp_crank_msg2);  //sdm30 power mode backup2
+		pdi_can_bus->send(&sdm30_pwrbp_crank_msg2);
 		sdm_mdelay(100);
 		pdi_can_bus->send(&sdm_621_crank_msg);
 		pdi_can_bus->send(&sdm_621_crank_msg);
