@@ -578,7 +578,7 @@ void SPI2_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void USART1_IRQHandler(void)
+__weak void USART1_IRQHandler(void)
 {
 }
 
