@@ -7,7 +7,7 @@
 #include "config.h"
 #include "stm32f10x.h"
 #include "key.h"
-#include "driver.h"
+#include "ulp/driver.h"
 #include "ulp_time.h"
 #include <stddef.h>
 #include <stdio.h>

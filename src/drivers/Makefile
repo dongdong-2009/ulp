@@ -9,6 +9,7 @@ obj-y += pwm/
 obj-y += pwmin/
 obj-y += counter/
 obj-y += can/
+obj-y += lin/
 obj-y += console.o
 obj-y += mac/
 obj-$(CONFIG_DRIVER_MOTOR) += dbg.o

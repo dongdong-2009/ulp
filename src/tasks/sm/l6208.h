@@ -6,43 +6,62 @@
 
 #include "stm32f10x.h"
 
-#define L6208_VREF	GPIO_Pin_0
-#define L6208_RST	GPIO_Pin_11
-#define L6208_ENA	GPIO_Pin_12
-#define L6208_CTRL	GPIO_Pin_13
-#define L6208_HALF	GPIO_Pin_14
-#define L6208_DIR	GPIO_Pin_15
-
-//this clock from dds
-#define L6208_CLK	GPIO_Pin_8
+#define L6208_RST   	GPIO_Pin_11
+#define L6208_ENA   	GPIO_Pin_12
+#define L6208_DECAY 	GPIO_Pin_13
+#define L6208_HoF   	GPIO_Pin_14
+#define L6208_DIR   	GPIO_Pin_15
 
 /*define take pwm as l6208's reference voltage*/
 #define L6208_VREF_USE_PWM
-#ifdef L6208_VREF_USE_PWM
-/*this unit is mv,and do not exceed 3300mv*/
-#define L6208_VREF_VOLTAGE	1000
-#endif
+
+//l6208 config or store to flash
+typedef struct{
+	char dir : 1;
+	char stepmode : 1;
+	char decaymode : 1;
+}l6208_config_t;
 
 
-typedef enum{
-	Clockwise = 0,
-	CounterClockwise
-}l6208_direction;
+/* sm direction */
+enum {
+	SM_DIR_Clockwise,
+	SM_DIR_CounterClockwise
+};
 
-typedef enum{
-	HalfMode = 0,
-	FullMode
-}l6208_stepmode;
+/*sm step mode*/
+enum {
+	SM_STEPMODE_FULL,
+	SM_STEPMODE_HALF
+};
 
-typedef enum{
-	DecaySlow = 0,
-	DecayFast
-}l6208_controlmode;
+/*sm magnetic decay mode*/
+enum {
+	SM_DECAYMODE_FAST,
+	SM_DECAYMODE_SLOW
+};
 
-void l6208_Init(void);
-void l6208_SetRotationDirection(int dir);
-void l6208_SelectMode(l6208_stepmode stepmode);
+
+/* set the stepper Rotation Direction motor direction */
+#define L6208_SET_RD_CW()   	GPIO_SetBits(GPIOB, L6208_DIR)
+#define L6208_SET_RD_CCW()  	GPIO_ResetBits(GPIOB, L6208_DIR)
+
+/* set the stepper motor step mode,half or full */
+#define L6208_SET_MODE_HALF()   GPIO_SetBits(GPIOB, L6208_HoF)
+#define L6208_SET_MODE_FULL()   GPIO_ResetBits(GPIOB, L6208_HoF)
+
+/* set the stepper motor Decay Mode of coil,fast or slow */
+#define L6208_SET_DM_FAST() 	GPIO_ResetBits(GPIOB, L6208_DECAY)
+#define L6208_SET_DM_SLOW() 	GPIO_SetBits(GPIOB, L6208_DECAY)
+
+/* enable or disable the stepper motor */
+#define L6208_ENABLE()  		GPIO_SetBits(GPIOB,L6208_ENA)
+#define L6208_DISABLE() 		GPIO_ResetBits(GPIOB,L6208_ENA)
+
+void l6208_Init(const l6208_config_t * config);
 void l6208_SetHomeState(void);
-void l6208_SetControlMode(l6208_controlmode controlmode);
-void l6208_StartCmd(FunctionalState state);
+void l6208_SetClockHZ (int hz);
+void l6208_Start(void);
+void l6208_Stop(void);
+
 #endif /*__L6208_H_*/

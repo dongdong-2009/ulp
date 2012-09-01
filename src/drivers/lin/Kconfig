@@ -1,0 +1,17 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by david@2012
+#
+
+#common config options
+bool "enable lin bus debug command" CONFIG_CMD_LIN
+#lin 0
+bool "enable LIN 0" CONFIG_DRIVER_LIN0
+#lin 1
+bool "enable LIN 1" CONFIG_DRIVER_LIN1
+if [ "$CONFIG_DRIVER_LIN1" = "y" ]; then
+	if [ "$CONFIG_CPU_STM32" = "y" ]; then
+		int "lin1 rx fifo size" CONFIG_LIN1_RF_SZ 8
+	fi
+fi
