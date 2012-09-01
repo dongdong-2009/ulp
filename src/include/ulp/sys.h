@@ -43,6 +43,11 @@
  * sys_free
 */
 #include "sys/malloc.h"
+static inline int sys_align(int x, int base) {
+	int left = x % base;
+	x += (left == 0) ? 0 : (base - left);
+	return x;
+}
 
 /* ulp api for debug purpose*/
 #include "ulp/debug.h"
