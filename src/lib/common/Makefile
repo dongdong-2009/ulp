@@ -10,3 +10,4 @@ obj-y += circbuf.o
 obj-y += crc16.o
 obj-y += crc32.o
 obj-y += posix_crc.o
+obj-y += mempool.o
