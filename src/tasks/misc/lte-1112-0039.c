@@ -76,12 +76,18 @@ static int Ma_LED_Operation(int led, unsigned short operation)
 		return -1;
 	switch(led) {
 	case LED_R:
+		TIM_SetCompare3(TIM2, 0);
+		TIM_SetCompare4(TIM2, 0);
 		TIM_SetCompare2(TIM2, operation);
 		return 0;
 	case LED_Y:
+		TIM_SetCompare2(TIM2, 0);
+		TIM_SetCompare4(TIM2, 0);
 		TIM_SetCompare3(TIM2, operation);
 		return 0;
 	case LED_G:
+		TIM_SetCompare2(TIM2, 0);
+		TIM_SetCompare3(TIM2, 0);
 		TIM_SetCompare4(TIM2, operation);
 		return 0;
 	default:
@@ -238,7 +244,7 @@ static void Ma_Button_Init()
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
@@ -375,14 +381,14 @@ static int cmd_ma_func(int argc, char *argv[])
 		"  ma set divice1/divice2 on/off\n"
 		"  ma set id xxxxxxxxxx\n"
 		"  ma set counter xxxxxxxxxx/+\n"
-		"  ma get value1/value2\n"
+		"  ma get value/value1/value2\n"
 		"  ma get id\n"
 		"  ma get counter\n"
 		"  ma get button\n"
 	};
 
 	if(argc == 3 && !strcmp(argv[1], "get")) {
-		if(!strcmp(argv[2], "value1")) {
+		if(!strcmp(argv[2], "value1") | !strcmp(argv[2], "value")) {
 			if(ma_indicator_stm == MA_INDICATOR_STM_NULL)
 				ma_indicator_stm = MA_INDICATOR_STM_INIT_INDICATOR1;
 			else {
