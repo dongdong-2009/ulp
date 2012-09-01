@@ -94,7 +94,7 @@ static int num_load;
 //for const can frame which will not change
 static struct can_queue_s c131_ems_3 = {
 	.ms = 10,
-	.msg = {0x11c, 4, {0x00, 0x00, 0x00, 0x00}, 0},
+	.msg = {0x11c, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
 static struct can_queue_s c131_ems_4 = {
@@ -109,7 +109,7 @@ static struct can_queue_s c131_abs_2 = {
 
 static struct can_queue_s c131_abs_3 = {
 	.ms = 20,
-	.msg = {0x12c, 4, {0x00, 0x00, 0x00, 0x00}, 0},
+	.msg = {0x12c, 8, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0},
 };
 
 static struct can_queue_s c131_tcu_3 = {
@@ -181,10 +181,8 @@ static const can_bus_t *can_bus;
 
 //for local functions
 static int c131_GetSDMType(int index_load, char *pname);
-static int c131_GetLoad(apt_load_t ** pload, int index_load);
 static int c131_ConfirmLoad(int index_load);
 static int c131_DelCurrentLoad(void);
-static int c131_GetCurrentLoadIndex(void);
 static void c131_InitMsg(void);
 static int c131_SendOtherECUMsg(void);
 static int c131_StartDiagnosis(void);
@@ -192,7 +190,6 @@ static int c131_GetAirbagMsg(can_msg_t *pmsg);
 static void c131_Tim2Init(void);
 static int c131_mdelay(int ms);
 static void c131_InitLedConfig(void);
-
 static void c131_Init(void)
 {
 	int i;
@@ -328,6 +325,7 @@ int apt_AddLoad(apt_load_t * pload)
 		if (strcmp(c131_load[i].load_name, pload->load_name) == 0) {
 			c131_load[i] = (*pload);
 			c131_load[i].load_bExist =1;
+                        num_load ++;
 			nvm_save();
 			c131_index_load = i;  //display updated sdm model
 			c131_GetSDMType(c131_index_load, sdmtype_ram);
@@ -750,9 +748,10 @@ static void c131_Tim2Init(void)
 
 	/* Enable the TIM2 gloabal Interrupt */
 	NVIC_InitStructure.NVIC_IRQChannel = TIM2_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+        NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 
 	NVIC_Init(&NVIC_InitStructure);
 }
@@ -771,7 +770,7 @@ int c131_mdelay(int ms)
 	return 0;
 }
 //local functions
-static int c131_GetLoad(apt_load_t ** pload, int index_load)
+int c131_GetLoad(apt_load_t ** pload, int index_load)
 {
 	if ((index_load >= 0) & (index_load < NUM_OF_LOAD)) {
 		*pload = &c131_load[index_load];
@@ -787,7 +786,7 @@ static int c131_ConfirmLoad(int index_load)
 	return 0;
 }
 
-static int c131_GetCurrentLoadIndex(void)
+int c131_GetCurrentLoadIndex(void)
 {
 	return c131_current_load;
 }

@@ -6,7 +6,7 @@ import apt_serial
 import gobject
 import scan
 import time
-
+#import Apt_Waiting
 try:
 	import pygtk
 	pygtk.require("2.0")
@@ -24,7 +24,7 @@ conf = {"loop1":"on","loop2":"on","loop3":"on","loop4":"on","loop5":"on","loop6"
 		"ess1":"on","ess2":"on","ess3":"on","ess4":"on","ess5":"on","ess6":"on",\
 		"led1":"on","led2":"on","led3":"on","led4":"on","led5":"on",\
 		"led1_a":"active low","led4_a":"active low",\
-		"sw1":"on","sw2":"on","sw3":"on","sw4":"on","sw5":"on"}
+		"sw1":"on","sw2":"on","sw3":"on","sw4":"on","sw5":"on","sw1_s":"state1","sw2_s":"state1","sw5_s":"state1"}
 
 datalog0 = [["OEM Part Number","********","F1 87"],["VINaa","********","F1 90"],\
 			["Hardware Number","********","F1 92"],["Hardware Version Number","********","F1 93"],\
@@ -88,7 +88,8 @@ class Glade_main(gtk.Window):
 		main_dir = "./"
 		glade_file = os.path.join(main_dir, "apt_main.glade")
 		self.config_file = os.path.join(main_dir, "apt_config.ini")
-		self.config = ConfigParser.ConfigParser()
+		self.config = ConfigParser.ConfigParser()#RawConfigParser
+		#self.waiting = Apt_Waiting.PyApp()
 		self.builder = gtk.Builder()
 		self.builder.add_from_file(glade_file)
 		self.windows = self.builder.get_object("MainWindow")        
@@ -162,14 +163,14 @@ class Glade_main(gtk.Window):
 		liststore_sw1.append(["State2"])
 		self.combobox_sw1.set_model(liststore_sw1)
 		self.combobox_sw1.set_active(0)
-		self.combobox_sw1.connect("changed",self.sw1combobox_change)
+		self.combobox_sw1.connect("changed",self.sw1combobox_change,None)
 
 		self.combobox_sw2 = self.builder.get_object("combo_sw2")
 		self.combobox_sw2.pack_start(cell_sw1)
 		self.combobox_sw2.add_attribute(cell_sw1, 'text', 0)
 		self.combobox_sw2.set_model(liststore_sw1)
 		self.combobox_sw2.set_active(0)
-		self.combobox_sw2.connect("changed",self.sw2combobox_change)
+		self.combobox_sw2.connect("changed",self.sw2combobox_change,None)
 
 		self.combobox_sw3 = self.builder.get_object("combo_sw3")
 		liststore_sw3 = gtk.ListStore(str)
@@ -198,8 +199,8 @@ class Glade_main(gtk.Window):
 		self.combobox_sw5.add_attribute(cell_sw1, 'text', 0)
 		self.combobox_sw5.set_model(liststore_sw1)
 		self.combobox_sw5.set_active(0)
-		self.combobox_sw5.connect("changed",self.sw5combobox_change)
-		
+		self.combobox_sw5.connect("changed",self.sw5combobox_change,None)
+
 		self.label=self.builder.get_object("label")
 		self.label.set_label("COM is "+'''\n Baud is''')
 		self.connect_but = self.builder.get_object("connect_but")
@@ -207,6 +208,7 @@ class Glade_main(gtk.Window):
 		self.button_quit = self.builder.get_object("button_quit")
 		self.button_sdmpwr = self.builder.get_object("button_sdmpwr")
 		self.button_save = self.builder.get_object("button_save")
+		self.button_get_cfg = self.builder.get_object("button_get_cfg")
 		self.button_filechooser = self.builder.get_object("button_filechooser")
 		filt = gtk.FileFilter()
 		filt.set_name("Configure file(*.ini)")
@@ -218,7 +220,7 @@ class Glade_main(gtk.Window):
 		filt2.set_name("All file(*.*)")
 		filt2.add_pattern("*.*")
 		self.widget_save.add_filter(filt2)
-		
+
 		self.button_filechooser.connect("file-set",self.filechooser_clicked)
 
 		self.COM = apt_serial.ComThread(0,9600)
@@ -287,6 +289,7 @@ class Glade_main(gtk.Window):
 		self.button_sw5 = self.builder.get_object("button_sw5")
 		self.button_send = self.builder.get_object("button_send")
 		self.button_clr_dtc = self.builder.get_object("button_clr_dtc")
+		self.button_stop_can = self.builder.get_object("button_stop_can")
 		self.button_get_apt_diag = self.builder.get_object("button_get_apt_diag")
 		self.button_get_sdm_diag = self.builder.get_object("button_get_sdm_diag")
 		self.button_get_eeprom = self.builder.get_object("button_get_eeprom")
@@ -297,7 +300,7 @@ class Glade_main(gtk.Window):
 		self.treeview.set_model(self.store)
 		self.create_columns(self.treeview)
 		self.treeview.connect("row_activated",self.on_activated)
-		
+
 		self.led_off = gtk.gdk.pixbuf_new_from_file("led_off.png")
 		self.led_on = gtk.gdk.pixbuf_new_from_file("led_on.png")
 		self.connect_on = gtk.gdk.pixbuf_new_from_file("connect_on.png")
@@ -347,16 +350,25 @@ class Glade_main(gtk.Window):
 		self.button_sw5.connect("clicked",self.buttonsw5_clicked,None)
 		self.button_send.connect("clicked",self.buttonsend_clicked)
 		self.button_save.connect("clicked",self.buttonsave_clicked,"configure")
+		self.button_get_cfg.connect("clicked",self.buttongetcfg_clicked)
 		self.button_get_apt_diag.connect("clicked",self.buttonget_apt_diag_clicked)
 		self.button_get_sdm_diag.connect("clicked",self.buttonget_sdm_diag_clicked)
 		self.button_get_eeprom.connect("clicked",self.button_get_eeprom_clicked)
 		self.button_clr_dtc.connect("clicked",self.buttonclr_dtc_clicked,"Are you sure clear DTC? ","Clear DTC")
+		self.button_stop_can.connect("clicked",self.buttonstop_can_clicked)
 		self.button_save_diag.connect("clicked",self.buttonsave_clicked,"diag")
 		self.set_widget(False)
 		self.set_configure(conf)
 		gtk.Window.maximize(self.windows)
 		self.combobox_led1.set_active(1)
 		self.windows.show()
+
+	def remove_all_section(self):
+		print self.config.sections()
+		for act in self.config.sections():
+			self.config.remove_section(act)
+		self.config.sections()
+		return
 
 	def create_model(self): 
 		store = gtk.TreeStore(str, str) 
@@ -408,58 +420,72 @@ class Glade_main(gtk.Window):
 		else:
 			if len(row) == 1 or row[0] == 5:
 				return
-			test_number = 5	#times to try get the sdm diag data
-			string ="datalog"+str(row[0])+"[row[1]][2]"
+			test_number = 3	#times to try get the sdm diag data
+			commd ="datalog"+str(row[0])+"[row[1]][2]"
 			if row[0] == 4:
-				self.COM.send("apt read dtc")
-				self.COM.read()
-				self.COM.send("\r")
-				time.sleep(0.3)
-				str_temp = self.COM.read()
-				string = ''
-				while str_temp != '':
-					string += str_temp
-					str_temp = self.COM.read()
-				spit_list = string.splitlines()
-				string = ''
-				for act in spit_list:
-					spit__list = act.split()
-					length = len(spit__list)
-					if(length > 2):
-						string += act
-						string += "\n"
-					else:
-						continue
-				dtc_infor[0] = string
-				self.store.set(self.dtc ,1,string)
-				return
+                                while True:
+                                        self.COM.send("apt read dtc")
+                                        self.COM.read()
+                                        self.COM.send("\r")
+                                        string = ''
+                                        time.sleep(0.3)
+                                        str_temp = self.COM.read()
+                                        while str_temp != '':
+                                                string += str_temp
+                                                str_temp = self.COM.read()
+                                        spit_list = string.splitlines()
+					if spit_list[2] != "##OK##":
+                                                test_number -= 1
+                                        else:
+                                                dtc_infor[0] = ''
+                                                for act in spit_list:
+                                                        #print act
+                                                        spit__list = act.split()
+                                                        length = len(spit__list)
+                                                        if(length > 2):
+                                                                dtc_infor[0] += act
+                                                                dtc_infor[0] += "\n"
+                                                        else:
+                                                                continue
+                                                self.store.set(self.dtc ,1,dtc_infor[0])
+                                                return
 
-			self.COM.send("apt req 7A2 03 22 " + eval(string) + " 00 00 00 00")
-			self.COM.read()
-			self.COM.send("\r")
-			time.sleep(0.3)
-			str_temp = self.COM.read()  
-			string = ''
-			while str_temp != '':
-				string += str_temp
-				str_temp = self.COM.read()
-			spit_list = string.splitlines()
-			str_temp = ''
-			for act in spit_list:
-				spit__list = act.split()
-				length = len(spit__list)
-				if(length > 2 and spit__list[2] == "7C2"):
-					str_temp += act
-					str_temp += "\n"
-				else:
-					continue
-			temp_str = "datalog"+str(row[0])+"[row[1]][1]" + " = " + '''"""'''+str_temp + '''"""'''
-			exec(temp_str)
-			temp_str = "temp = datalog"+str(row[0])+'''[row[1]][0].replace(" ","")'''
-			exec(temp_str)
-			temp = "self."+ temp
-			temp_str ="self.store.set("+ temp +",1," + "datalog" + str(row[0])+"[row[1]][1])" 
-			exec(temp_str)
+                                        if test_number > 0:
+                                                continue
+                                        else:
+                                                return 
+                        while True:
+                                self.COM.send("apt req 7A2 03 22 " + eval(commd) + " 00 00 00 00")
+                                self.COM.read()
+                                self.COM.send("\r")
+                                time.sleep(0.3)
+                                str_temp = self.COM.read()  
+                                string = ''
+                                while str_temp != '':
+                                        string += str_temp
+                                        str_temp = self.COM.read()
+                                spit_list = string.splitlines()
+                                str_temp = ''
+                                for act in spit_list:
+                                        print act
+                                        spit__list = act.split()
+                                        length = len(spit__list)
+                                        if(length > 3 and spit__list[2] == "7C2"):
+                                                str_temp += act
+                                                str_temp += "\n"
+                                        else:
+                                                continue
+                                if str_temp == '' and test_number > 0:
+                                        test_number -= 1
+                                        continue
+                                temp_str = "datalog"+str(row[0])+"[row[1]][1]" + " = " + '''"""'''+str_temp + '''"""'''
+                                exec(temp_str)
+                                temp_str = "temp = datalog"+str(row[0])+'''[row[1]][0].replace(" ","")'''
+                                exec(temp_str)
+                                temp = "self."+ temp
+                                temp_str ="self.store.set("+ temp +",1," + "datalog" + str(row[0])+"[row[1]][1])" 
+                                exec(temp_str)
+                                return
 
 	def buttonget_sdm_diag_clicked(self,widget):
 		if self.COM.get_option()==False:
@@ -511,6 +537,8 @@ class Glade_main(gtk.Window):
 			self.dialog_save.hide()
 			if response == gtk.RESPONSE_ACCEPT:
 				config_file = self.widget_save.get_filename()
+			else:
+				return
 			f=open(config_file,'w')
 			f.write("###  EEPROM DATA LOG  ###\n")
 			f.write(time.strftime('%Y-%m-%d  %H:%M:%S',time.localtime(time.time()))+"\n\n")
@@ -520,7 +548,7 @@ class Glade_main(gtk.Window):
 				f.write("ID = 7A2 21 00 00 00 "+ n[0][0:3] +"00 00 00\n")
 				f.write("ID = 7A2 30 00 00 00 00 00 00 00\n")
 
-				test_number = 5	#times to try get the eeprom data
+				test_number = 3	#times to try get the eeprom data
 				file_string = 'Response:\n'
 				while True:
 					self.COM.send("apt eeprom " + n[0])
@@ -528,28 +556,34 @@ class Glade_main(gtk.Window):
 					self.COM.read()
 					self.COM.send("\r")
 					string = ''
-					time.sleep(2)
+					time.sleep(0.3)
 					str_temp = self.COM.read()
 					while str_temp != '':
 						string += str_temp
 						str_temp = self.COM.read()
 					spit_list = string.splitlines()
-					length = len(spit_list)
-					if length < 8:
-						print "#ERROR#"
-						test_number -= 1
-						time.sleep(1)
-						if test_number > 0:
-							continue
-						else:
-							break
-					for act in spit_list:
-						spit__list = act.split()
-						length = len(spit__list)
-						if length > 1:
-							file_string += act
-							file_string += "\n"
-					break;
+					if len(spit_list) < 5:
+                                                break
+					if spit_list[2] == "##ERROR##" :
+                                                test_number -= 1
+                                        elif spit_list[2] == "##OK##":
+                                                for act in spit_list:
+                                                        #print act
+                                                        spit__list = act.split()
+                                                        if len(spit__list) > 0 and spit__list[0]== "ID":
+                                                        #length = len(spit__list)
+                                                                file_string += act
+                                                                file_string += "\n"
+                                                        #f.write("\n")
+                                                break
+                                        else:
+                                                break
+
+                                        if test_number > 0:
+                                                continue
+                                        else:
+                                                break 
+           
 				f.write(file_string)
 				f.write("\n\n")
 			print "Reading EEPROM OK!"
@@ -580,6 +614,32 @@ class Glade_main(gtk.Window):
 			elif response == gtk.RESPONSE_NO:
 				pass
 
+	def buttonstop_can_clicked(self,widget):
+		if self.COM.get_option()==False:
+			self.display_error(self.error_dialog,"Please Open Serial Port!")
+		else:
+			if widget.get_label() == "Stop Vehicle CAN":
+				self.COM.send("apt can off")
+                                self.COM.read()
+                                self.COM.send("\r")
+                                string = self.COM.read()
+                                result = string.find("##OK##")
+				widget.set_label("Sart Vehicle CAN")
+                                print string
+			else:
+				self.COM.send("apt can on")
+                                self.COM.read()
+                                self.COM.send("\r")
+                                string = self.COM.read()
+                                result = string.find("##OK##")
+				widget.set_label("Stop Vehicle CAN")
+                                print string
+			
+			if result != -1 :
+				self.display_ok(self.ok_dialog,"STOP Vehicle CAN Message Successful!")
+			else :
+				self.display_error(self.error_dialog,"STOP Vehicle CAN Message  Failed!","STOP Vehicle CAN Message")
+
 	def on_about_dialog (self, widget):
 		self.about_dialog.run()
 		self.about_dialog.hide()
@@ -600,55 +660,85 @@ class Glade_main(gtk.Window):
 		self.ok_dialog.hide()
 
 	def load_conf(self,file_name,conf):
+		self.remove_all_section()
 		self.config.read(file_name)     #read configure file
-		conf['loop1'] = self.config.get("loop", "loop1")
-		conf['loop2'] = self.config.get("loop", "loop2")
-		conf['loop3'] = self.config.get("loop", "loop3")
-		conf['loop4'] = self.config.get("loop", "loop4")
-		conf['loop5'] = self.config.get("loop", "loop5")
-		conf['loop6'] = self.config.get("loop", "loop6")
-		conf['loop7'] = self.config.get("loop", "loop7")
-		conf['loop8'] = self.config.get("loop", "loop8")
-		conf['loop9'] = self.config.get("loop", "loop9")
-		conf['loop10'] = self.config.get("loop", "loop10")
-		conf['loop11'] = self.config.get("loop", "loop11")
-		conf['loop12'] = self.config.get("loop", "loop12")
-		conf['loop11b'] = self.config.get("loop", "loop11b")
-		conf['loop12b'] = self.config.get("loop", "loop12b")
-		
+		try:
+			conf['loop1'] = self.config.get("loop", "loop1")
+			conf['loop2'] = self.config.get("loop", "loop2")
+			conf['loop3'] = self.config.get("loop", "loop3")
+			conf['loop4'] = self.config.get("loop", "loop4")
+			conf['loop5'] = self.config.get("loop", "loop5")
+			conf['loop6'] = self.config.get("loop", "loop6")
+			conf['loop7'] = self.config.get("loop", "loop7")
+			conf['loop8'] = self.config.get("loop", "loop8")
+			conf['loop9'] = self.config.get("loop", "loop9")
+			conf['loop10'] = self.config.get("loop", "loop10")
+			conf['loop11'] = self.config.get("loop", "loop11")
+			conf['loop12'] = self.config.get("loop", "loop12")
+			conf['loop11b'] = self.config.get("loop", "loop11b")
+			conf['loop12b'] = self.config.get("loop", "loop12b")
+		except:
+			self.display_error(self.error_dialog,"Load 'LOOP' config fail!","Load Failed")
+			return -1
 		for n in range(8):
 			if conf['loop'+str(n+1)] == "on":
 				tmp_data[0] = tmp_data[0] | (0x01 << n)
 			elif conf['loop'+str(n+1)] == "off":
 				tmp_data[0] = tmp_data[0] & (~(0x01 << n))
+			else :
+				self.display_error(self.error_dialog,"Load 'LOOP"+str(n+1)+"' config fail!","Load Failed")
+				return -1
 		print "%x" %(tmp_data[0])
 		for n in range(4):
 			if conf['loop'+str(n+9)] == "on":
 				tmp_data[1] = tmp_data[1] | (0x01 << n)
 			elif conf['loop'+str(n+9)] == "off":
 				tmp_data[1] = tmp_data[1] & (~(0x01 << n))
+			else :
+				self.display_error(self.error_dialog,"Load 'LOOP"+str(n+1)+"' config fail!","Load Failed")
+				return -1
+		i = 11
+		for n in (5,6):
+			if conf['loop'+str(i)+'b'] == "on":
+				tmp_data[1] = tmp_data[1] | (0x01 << n)
+			elif conf['loop'+str(i)+'b'] == "off":
+				tmp_data[1] = tmp_data[1] & (~(0x01 << n))
+			else :
+				self.display_error(self.error_dialog,"Load 'LOOP"+str(i)+"b' config fail!","Load Failed")
+				return -1
+			i = i+1
 		print "%x" %(tmp_data[1])
-
-		conf['ess1'] = self.config.get("ess", "ess1")
-		conf['ess2'] = self.config.get("ess", "ess2")
-		conf['ess3'] = self.config.get("ess", "ess3")
-		conf['ess4'] = self.config.get("ess", "ess4")
-		conf['ess5'] = self.config.get("ess", "ess5")
-		conf['ess6'] = self.config.get("ess", "ess6")
+		try:
+			conf['ess1'] = self.config.get("ess", "ess1")
+			conf['ess2'] = self.config.get("ess", "ess2")
+			conf['ess3'] = self.config.get("ess", "ess3")
+			conf['ess4'] = self.config.get("ess", "ess4")
+			conf['ess5'] = self.config.get("ess", "ess5")
+			conf['ess6'] = self.config.get("ess", "ess6")
+		except:
+			self.display_error(self.error_dialog,"Load 'ESS' config fail!","Load Failed")
+			return -1
 		for n in range(6):
 			if conf['ess'+str(n+1)] == "on":
 				tmp_data[2] = tmp_data[2] | (0x01 << n)
 			elif conf['ess'+str(n+1)] == "off":
 				tmp_data[2] = tmp_data[2] & (~(0x01 << n))
-		print "%x" %(tmp_data[2])            
+			else :
+				self.display_error(self.error_dialog,"Load 'ESS"+str(n+1)+"' config fail!","Load Failed")
+				return -1
+		print "%x" %(tmp_data[2])
 
-		conf['led1'] = self.config.get("led", "led1")
-		conf['led2'] = self.config.get("led", "led1")
-		conf['led3'] = self.config.get("led", "led1")
-		conf['led4'] = self.config.get("led", "led1")
-		conf['led5'] = self.config.get("led", "led1")
-		conf['led1_a'] = self.config.get("led", "led1_a")
-		conf['led4_a'] = self.config.get("led", "led4_a")
+		try:
+			conf['led1'] = self.config.get("led", "led1")
+			conf['led2'] = self.config.get("led", "led2")
+			conf['led3'] = self.config.get("led", "led3")
+			conf['led4'] = self.config.get("led", "led4")
+			conf['led5'] = self.config.get("led", "led5")
+			conf['led1_a'] = self.config.get("led", "led1_a")
+			conf['led4_a'] = self.config.get("led", "led4_a")
+		except:
+			self.display_error(self.error_dialog,"Load 'LED' config fail!","Load Failed")
+			return -1
 		i=0
 		for n in (1,2,3,5,6):
 			i = i+1
@@ -656,20 +746,33 @@ class Glade_main(gtk.Window):
 				tmp_data[4] = tmp_data[4] | (0x01 << n)
 			elif conf['led'+str(i)] == "off":
 				tmp_data[4] = tmp_data[4] & (~(0x01 << n))
-		print "%x" %(tmp_data[4]) 
+			else :
+				self.display_error(self.error_dialog,"Load 'LED"+str(i)+"' config fail!","Load Failed")
+				return -1
+		print "%x" %(tmp_data[4])
 		i=1
 		for n in (0,4):
 			if conf['led'+str(i)+'_a'] == "active low":
 				tmp_data[4] = tmp_data[4] & (~(0x01 << n))
 			elif conf['led'+str(i)+'_a'] == "active high":
 				tmp_data[4] = tmp_data[4] | (0x01 << n)
+			else :
+				self.display_error(self.error_dialog,"Load 'LED"+str(i)+"'_a config fail!","Load Failed")
+				return -1
 			i=i+3
-		print "%x" %(tmp_data[4]) 
-		conf['sw1'] = self.config.get("sw", "sw1")
-		conf['sw2'] = self.config.get("sw", "sw2")
-		conf['sw3'] = self.config.get("sw", "sw3")
-		conf['sw4'] = self.config.get("sw", "sw4")
-		conf['sw5'] = self.config.get("sw", "sw5")
+		print "%x" %(tmp_data[4])
+		try:
+			conf['sw1'] = self.config.get("sw", "sw1")
+			conf['sw2'] = self.config.get("sw", "sw2")
+			conf['sw3'] = self.config.get("sw", "sw3")
+			conf['sw4'] = self.config.get("sw", "sw4")
+			conf['sw5'] = self.config.get("sw", "sw5")
+			conf['sw1_s'] = self.config.get("sw","sw1_s")
+			conf['sw2_s'] = self.config.get("sw","sw2_s")
+			conf['sw5_s'] = self.config.get("sw","sw5_s")
+		except:
+			self.display_error(self.error_dialog,"Load 'SW' config fail!","Load Failed")
+			return -1
 		i=0
 		for n in (0,2,4,5,6):
 			i = i+1
@@ -677,21 +780,41 @@ class Glade_main(gtk.Window):
 				tmp_data[6] = tmp_data[6] | (0x01 << n)
 			elif conf['sw'+str(i)] == "off":
 				tmp_data[6] = tmp_data[6] & (~(0x01 << n))
-		print "%x" %(tmp_data[6]) 
-
+			else :
+				self.display_error(self.error_dialog,"Load 'SW"+str(i)+"' config fail!","Load Failed")
+				return -1
+		print "%x" %(tmp_data[6])
+		i = (1,2)
+		n = (1,3)
+		for rag in range(2):                                    #attention 
+                        if conf['sw'+str(i[rag])+'_s'] == "state1":
+				tmp_data[6] = tmp_data[6] | (0x01 << n[rag])
+			elif conf['sw'+str(i[rag])+'_s'] == "state2":
+				tmp_data[6] = tmp_data[6] & (~(0x01 << n[rag]))
+			else :
+				self.display_error(self.error_dialog,"Load 'SW"+str(i)+"' config fail!","Load Failed")
+				return -1
+		if conf['sw5_s'] == "state1":
+			tmp_data[6] = tmp_data[6] & (~(0x01 << 7))
+                elif conf['sw5_s'] == "state2":
+                        tmp_data[6] = tmp_data[6] | (0x01 << 7)
+		else :
+			self.display_error(self.error_dialog,"Load 'SW"+str(i)+"' config fail!","Load Failed")
+			return -1
 		print conf
-		
+		return 0
 
-	def display_filechooser_dialog(self,widget):
+	'''def display_filechooser_dialog(self,widget):
 		res = widget.run()
 		if res == gtk.RESPONSE_OK:
 			self.config_file = widget.get_filename()  #include the pathname
 			self.load_conf(self.config_file,conf)
-		widget.hide()
+		widget.hide()'''
 
 	def filechooser_clicked(self, widget):
 		file_name = widget.get_filename()
-		self.load_conf(file_name,conf)
+		if self.load_conf(file_name,conf) != 0:
+			return -1
 		self.set_configure(conf)
 		print str(file_name)
 		
@@ -713,9 +836,9 @@ class Glade_main(gtk.Window):
 					self.image_status.set_from_pixbuf(self.connect_on)
 					self.label.set_label("COM is "+ self.combobox_com.get_active_text()+'''\nBaud is '''+self.combobox_baud.get_active_text())
 					self.statusbar.push(0,"")
-					self.send(tmp_data,"set")
+					self.send([0xff,0xef,0xff,0xff,0xff,0xff,0x75,0xff],"set")
 				else:
-					pass
+					return
 			except Exception,se:
 				self.COM.stop()
 				self.display_error(self.error_dialog,"Can not open the "+ self.combobox_com.get_active_text()+" :Access denied!")
@@ -739,9 +862,17 @@ class Glade_main(gtk.Window):
 			#print "cancel the send "
 			return
 		elif response == -12:#load file
-			self.display_filechooser_dialog(self.filechooser_dialog)
+			#self.display_filechooser_dialog(self.filechooser_dialog)
+			res = self.filechooser_dialog.run()
+			self.filechooser_dialog.hide()
+			if res == gtk.RESPONSE_OK:
+				self.config_file = self.filechooser_dialog.get_filename()  #include the pathname
+				if self.load_conf(self.config_file,conf) != 0:
+					return -1
+			else:
+				return
 		else :
-			pass
+			return
 		self.messagedialog_input.set_title("Input the cofigue name...")
 		self.messagedialog_input.set_markup("\n\nInput the cofigue name (default C131)")
 		response = self.messagedialog_input.run()
@@ -749,18 +880,27 @@ class Glade_main(gtk.Window):
 		if response == gtk.RESPONSE_CANCEL:#cancel
 			print "cancel the send "
 			return
+		elif response == gtk.RESPONSE_YES:
+			send_stream[2] = self.entry_messagedialog.get_text()
+			if send_stream[2]== "":
+				send_stream[2] = "C131"
 		else:
-			self.messagedialog_input.hide()
-			if response == gtk.RESPONSE_YES:
-				send_stream[2] = self.entry_messagedialog.get_text()
-				if send_stream[2]== "":
-					send_stream[2] = "C131"
-			else:
-				pass
-			self.send(tmp_data,"add")
+			return
+		self.send(tmp_data,"add")
+		self.messagedialog.set_title("Update relay status")
+		self.messagedialog.set_markup("\n\nUpdate current relay status?)")
+		response = self.messagedialog.run()
+		self.messagedialog.hide()
+		if response == gtk.RESPONSE_CANCEL:#cancel
+			print "cancel the Update "
+			return
+		elif response == gtk.RESPONSE_YES:
+			self.send(tmp_data,"set")
+			return
 
 	def buttonsave_clicked(self, widget, sort):
 		response = self.dialog_save.run()
+		self.dialog_save.hide()
 		if response == gtk.RESPONSE_ACCEPT:
 			config_file = self.widget_save.get_filename()
 			if sort == "configure":
@@ -768,8 +908,88 @@ class Glade_main(gtk.Window):
 			elif sort == "diag":
 				self.save_sdm_diag(config_file)
 				pass
-		self.dialog_save.hide()
 		print "in save button  clicked "
+
+	def buttongetcfg_clicked(self,widget):
+		if self.COM.get_option()==False:
+			self.display_error(self.error_dialog,"Please Open Serial Port!")
+			return
+		self.COM.send("apt get cfg")
+		self.COM.read()
+		self.COM.send("\r")
+		string = self.COM.read()
+		spit_list = string.splitlines()
+		print spit_list[2]
+		if spit_list[2] == "No cfg":
+			self.display_error(self.error_dialog,"No cfg be choosed!","Get cfg...")
+		else :
+			#print tmp_data
+			spit__list = spit_list[2].split()
+			if len(spit__list) != 8:
+				self.display_error(self.error_dialog,"Load config fail!\n Please check the connect!","Load Failed")
+				return -1
+			tmp = int(spit__list[0],16)
+			for n in range(8):
+				if tmp & (0x01 << n):
+					conf['loop'+str(n+1)] = "on"
+				else:
+					conf['loop'+str(n+1)] = "off"
+
+			tmp = int(spit__list[1],16)
+			for n in range(4):
+				if  tmp & (0x01 << n):
+					conf['loop'+str(n+9)] = "on"
+				else:
+					conf['loop'+str(n+9)] = "off"
+			i = 11
+			for n in (5,6):
+				if tmp & (0x01 << n) :
+					conf['loop'+str(i)+'b'] = "on"
+				else:
+					conf['loop'+str(i)+'b'] = "off"
+				i = i+1
+
+			tmp = int(spit__list[2],16)
+			for n in range(6):
+				if tmp & (0x01 << n):
+					conf['ess'+str(n+1)] = "on"
+				else :
+					conf['ess'+str(n+1)] = "off"
+
+			tmp = int(spit__list[4],16)
+			i=0
+			for n in (1,2,3,5,6):
+				i = i+1
+				if tmp & (0x01 << n):
+					conf['led'+str(i)] = "on"
+				else :
+					conf['led'+str(i)] = "off"
+			i = 1
+			for n in (0,4):
+				if tmp & (0x01 << n):
+					conf['led'+str(i)+'_a'] = "active high"
+				else :
+					conf['led'+str(i)+'_a'] = "active low"
+				i = i+3
+
+			tmp = int(spit__list[6],16)
+			i=0
+			for n in (0,2,4,5,6):
+				i = i+1
+				if tmp & (0x01 << n):
+					conf['sw'+str(i)] = "on"
+				else :
+					conf['sw'+str(i)] = "off"
+			i = (1,2,5)
+                        n = (1,3,7)
+                        for rag in range(3):                                    #attention
+                                if tmp &(0x01 << n[rag]):
+                                        conf['sw'+str(i[rag])+'_s'] = "state1"
+                                else:
+                                        conf['sw'+str(i[rag])+'_s'] = "state2"    
+
+			self.display_ok(self.ok_dialog,"Get cfg success!")
+			self.set_configure(conf)
 
 	def buttonsdmpwr_clicked(self,widget):
 		value = ""
@@ -795,7 +1015,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop1'] = 'off'
 				tmp_data[0] = tmp_data[0] & (~(0x01 << 0))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq1.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -817,7 +1037,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop2'] = 'off'
 				tmp_data[0] = tmp_data[0] & (~(0x01 << 1))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq2.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -839,7 +1059,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop3'] = 'off'
 				tmp_data[0] = tmp_data[0] & (~(0x01 << 2))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq3.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -861,7 +1081,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop4'] = 'off'
 				tmp_data[0] = tmp_data[0] & (~(0x01 << 3))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq4.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -883,7 +1103,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop5'] = 'off'
 				tmp_data[0] = tmp_data[0] & (~(0x01 << 4))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq5.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -905,7 +1125,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop6'] = 'off'
 				tmp_data[0] = tmp_data[0] & (~(0x01 << 5))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq6.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -927,7 +1147,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop7'] = 'off'
 				tmp_data[0] = tmp_data[0] & (~(0x01 << 6))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq7.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -949,7 +1169,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop8'] = 'off'
 				tmp_data[0] = tmp_data[0] & (~(0x01 << 7))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq8.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -971,7 +1191,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop9'] = 'off'
 				tmp_data[1] = tmp_data[1] & (~(0x01 << 0))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq9.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -993,7 +1213,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop10'] = 'off'
 				tmp_data[1] = tmp_data[1] & (~(0x01 << 1))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq10.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1015,7 +1235,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop11'] = 'off'
 				tmp_data[1] = tmp_data[1] & (~(0x01 << 2))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq11.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1037,7 +1257,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop12'] = 'off'
 				tmp_data[1] = tmp_data[1] & (~(0x01 << 3))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq12.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1059,7 +1279,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop11b'] = 'off'
 				tmp_data[1] = tmp_data[1] & (~(0x01 << 5))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq11b.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1081,7 +1301,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['loop12b'] = 'off'
 				tmp_data[1] = tmp_data[1] & (~(0x01 << 6))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sq12b.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1103,7 +1323,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['ess1'] = 'off'
 				tmp_data[2] = tmp_data[2] & (~(0x01 << 0))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_ess1.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1125,7 +1345,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['ess2'] = 'off'
 				tmp_data[2] = tmp_data[2] & (~(0x01 << 1))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_ess2.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1147,7 +1367,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['ess3'] = 'off'
 				tmp_data[2] = tmp_data[2] & (~(0x01 << 2))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_ess3.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1169,7 +1389,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['ess4'] = 'off'
 				tmp_data[2] = tmp_data[2] & (~(0x01 << 3))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_ess4.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1191,7 +1411,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['ess5'] = 'off'
 				tmp_data[2] = tmp_data[2] & (~(0x01 << 4))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_ess5.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1213,7 +1433,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['ess6'] = 'off'
 				tmp_data[2] = tmp_data[2] & (~(0x01 << 5))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_ess6.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1225,6 +1445,7 @@ class Glade_main(gtk.Window):
 
 	def buttonlamp1_clicked(self,widget,value):
 		if(value == None):
+                        #self.waiting.show()
 			if widget.get_label() == "    ON    ":
 				self.image_lamp1.set_from_pixbuf(self.led_on)
 				widget.set_label("    OFF   ")
@@ -1235,7 +1456,8 @@ class Glade_main(gtk.Window):
 				widget.set_label("    ON    ")
 				conf['led1'] = 'off'
 				tmp_data[4] = tmp_data[4] & (~(0x01 << 1))
-			self.send(tmp_data,"set")
+				#self.waiting.close()
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_lamp1.set_from_pixbuf(self.led_on)
 			widget.set_label("    OFF   ")
@@ -1257,7 +1479,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("    ON    ")
 				conf['led2'] = 'off'
 				tmp_data[4] = tmp_data[4] & (~(0x01 << 2))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_lamp2.set_from_pixbuf(self.led_on)
 			widget.set_label("    OFF   ")
@@ -1279,7 +1501,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("    ON    ")
 				conf['led3'] = 'off'
 				tmp_data[4] = tmp_data[4] & (~(0x01 << 3))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_lamp3.set_from_pixbuf(self.led_on)
 			widget.set_label("    OFF   ")
@@ -1301,7 +1523,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("    ON    ")
 				conf['led4'] = 'off'
 				tmp_data[4] = tmp_data[4] & (~(0x01 << 5))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_lamp4.set_from_pixbuf(self.led_on)
 			widget.set_label("    OFF   ")
@@ -1323,7 +1545,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("    ON    ")
 				conf['led5'] = 'off'
 				tmp_data[4] = tmp_data[4] & (~(0x01 << 6))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_lamp5.set_from_pixbuf(self.led_on)
 			widget.set_label("    OFF   ")
@@ -1345,7 +1567,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['sw1'] = 'off'
 				tmp_data[6] = tmp_data[6] & (~(0x01 << 0))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sw1.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1367,7 +1589,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['sw2'] = 'off'
 				tmp_data[6] = tmp_data[6] & (~(0x01 << 2))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sw2.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1389,7 +1611,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['sw3'] = 'off'
 				tmp_data[6] = tmp_data[6] & (~(0x01 << 4))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sw3.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1411,7 +1633,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['sw4'] = 'off'
 				tmp_data[6] = tmp_data[6] & (~(0x01 << 5))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sw4.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1433,7 +1655,7 @@ class Glade_main(gtk.Window):
 				widget.set_label("   Open   ")
 				conf['sw5'] = 'off'
 				tmp_data[6] = tmp_data[6] & (~(0x01 << 6))
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "on"):
 			self.image_sw5.set_from_pixbuf(self.switch_on)
 			widget.set_label("   Close  ")
@@ -1479,6 +1701,10 @@ class Glade_main(gtk.Window):
 		##self.radio_ledpwr(conf['led_pwr'])
 		self.led1combobox_change(self.combobox_led1 ,conf['led1_a'])
 		self.led4combobox_change(self.combobox_led4 ,conf['led4_a'])
+		self.sw1combobox_change(self.combobox_sw1 ,conf['sw1_s'])
+		self.sw2combobox_change(self.combobox_sw2 ,conf['sw2_s'])
+		self.sw5combobox_change(self.combobox_sw5 ,conf['sw5_s'])
+		
 
 		"""
 			if conf['loop'+str(n+1)] == "off":
@@ -1488,61 +1714,81 @@ class Glade_main(gtk.Window):
 		"""
 
 	def save_configure(self,conf,filename):
-		if os.path.exists(filename):                #dudge the file is  or not cun  zai
-			print filename
-		else:
-			f=open(filename,'w')            
+		#if os.path.exists(filename):                #dudge the file is  or not exists
+			#print filename
+		#else:
+		print filename+"new file \n"
+		f=open(filename,"w")
+		try:
 			f.write("###  CONFIG DATA LOG  ###\n")
-			f.write(time.strftime('%Y-%m-%d  %H:%M:%S',time.localtime(time.time()))+"\n\n")
-			f.write("[loop]\n")
-			for n in range(12):
-				f.write("loop"+str(n+1) +" = \n")
-			f.write("\n\n[ess]\n")
-			for n in range(6):
-				f.write("ess"+str(n+1) +" = \n")
-			f.write("\n\n[led]\n")
-			for n in range(5):
-				f.write("led"+str(n+1) +" = \n")
-			f.write("led1_a = \n")
-			f.write("led4_a = \n")
-			f.write("\n\n[sw]\n")
-			for n in range(5):
-				f.write("sw"+str(n+1) +" = \n")
-			f.close()            
-		self.config.read(filename)     #read configure file
-		self.config.set("loop","loop1",conf['loop1'])
-		self.config.set("loop","loop2",conf['loop2'])
-		self.config.set("loop","loop3",conf['loop3'])
-		self.config.set("loop","loop4",conf['loop4'])
-		self.config.set("loop","loop5",conf['loop5'])
-		self.config.set("loop","loop6",conf['loop6'])
-		self.config.set("loop","loop7",conf['loop7'])
-		self.config.set("loop","loop8",conf['loop8'])
-		self.config.set("loop","loop9",conf['loop9'])
-		self.config.set("loop","loop10",conf['loop10'])
-		self.config.set("loop","loop11",conf['loop11'])
-		self.config.set("loop","loop12",conf['loop12'])
-		self.config.set("loop","loop11b",conf['loop11b'])
-		self.config.set("loop","loop12b",conf['loop12b'])
-		self.config.set("ess","ess1",conf['ess1'])
-		self.config.set("ess","ess2",conf['ess2'])
-		self.config.set("ess","ess3",conf['ess3'])
-		self.config.set("ess","ess4",conf['ess4'])
-		self.config.set("ess","ess5",conf['ess5'])
-		self.config.set("ess","ess6",conf['ess6'])   
-		self.config.set("led","led1",conf['led1'])
-		self.config.set("led","led2",conf['led2'])
-		self.config.set("led","led3",conf['led3'])
-		self.config.set("led","led4",conf['led4'])
-		self.config.set("led","led5",conf['led5'])
-		self.config.set("led","led1_a",conf['led1_a'])
-		self.config.set("led","led4_a",conf['led4_a'])
-		self.config.set("sw","sw1",conf['sw1'])
-		self.config.set("sw","sw2",conf['sw2'])
-		self.config.set("sw","sw3",conf['sw3'])
-		self.config.set("sw","sw4",conf['sw4'])
-		self.config.set("sw","sw5",conf['sw5'])
-		self.config.write(open(filename,"r+"))
+			f.write(time.strftime('###  %Y-%m-%d  %H:%M:%S  ###',time.localtime(time.time()))+"\n\n")
+			#f.write("[loop]\n")
+			#for n in range(12):
+			#	f.write("loop"+str(n+1) +" = \n")
+			#f.write("loop11b = \n")
+			#f.write("loop12b = \n")
+			#f.write("\n\n[ess]\n")
+			#for n in range(6):
+			#	f.write("ess"+str(n+1) +" = \n")
+			#f.write("\n\n[led]\n")
+			#for n in range(5):
+			#	f.write("led"+str(n+1) +" = \n")
+			#f.write("led1_a = \n")
+			#f.write("led4_a = \n")
+			#f.write("\n\n[sw]\n")
+			#for n in range(5):
+			#	f.write("sw"+str(n+1) +" = \n")
+			f.close()
+			self.config.read(filename)     #read configure file
+			self.remove_all_section()
+			#if not(self.config.has_section("loop")):
+			self.config.add_section("loop")
+			self.config.set("loop","loop1",conf['loop1'])
+			self.config.set("loop","loop2",conf['loop2'])
+			self.config.set("loop","loop3",conf['loop3'])
+			self.config.set("loop","loop4",conf['loop4'])
+			self.config.set("loop","loop5",conf['loop5'])
+			self.config.set("loop","loop6",conf['loop6'])
+			self.config.set("loop","loop7",conf['loop7'])
+			self.config.set("loop","loop8",conf['loop8'])
+			self.config.set("loop","loop9",conf['loop9'])
+			self.config.set("loop","loop10",conf['loop10'])
+			self.config.set("loop","loop11",conf['loop11'])
+			self.config.set("loop","loop12",conf['loop12'])
+			self.config.set("loop","loop11b",conf['loop11b'])
+			self.config.set("loop","loop12b",conf['loop12b'])
+			#if not(self.config.has_section("ess")):
+			self.config.add_section("ess")
+			self.config.set("ess","ess1",conf['ess1'])
+			self.config.set("ess","ess2",conf['ess2'])
+			self.config.set("ess","ess3",conf['ess3'])
+			self.config.set("ess","ess4",conf['ess4'])
+			self.config.set("ess","ess5",conf['ess5'])
+			self.config.set("ess","ess6",conf['ess6'])
+			#if not(self.config.has_section("led")):
+			self.config.add_section("led")
+			self.config.set("led","led1",conf['led1'])
+			self.config.set("led","led2",conf['led2'])
+			self.config.set("led","led3",conf['led3'])
+			self.config.set("led","led4",conf['led4'])
+			self.config.set("led","led5",conf['led5'])
+			self.config.set("led","led1_a",conf['led1_a'])
+			self.config.set("led","led4_a",conf['led4_a'])
+			#if not(self.config.has_section("sw")):
+			self.config.add_section("sw")
+			self.config.set("sw","sw1",conf['sw1'])
+			self.config.set("sw","sw2",conf['sw2'])
+			self.config.set("sw","sw3",conf['sw3'])
+			self.config.set("sw","sw4",conf['sw4'])
+			self.config.set("sw","sw5",conf['sw5'])
+			self.config.set("sw","sw1_s",conf['sw1_s'])
+			self.config.set("sw","sw2_s",conf['sw2_s'])
+			self.config.set("sw","sw5_s",conf['sw5_s'])
+			f=open(filename,'a')
+			self.config.write(f)
+			self.display_ok(self.ok_dialog,"Write config file success!")
+		except:
+			self.display_error(self.error_dialog,"Write config file fail!","Write Failed")
 
 	def save_sdm_diag(self,filename):
 		f=open(filename,'w')
@@ -1560,47 +1806,75 @@ class Glade_main(gtk.Window):
 		self.display_ok(self.ok_dialog,"Save SDM Diag Over!")
 		f.close()
 
-	def sw1combobox_change(self,widget):
+	def sw1combobox_change(self,widget,value):
 		print widget.get_active_text()
-		if widget.get_active()==0:
-			tmp_data[6] = tmp_data[6] & (~(0x01 << 1))
-		elif widget.get_active()==1:
-			tmp_data[6] = tmp_data[6] | (0x01 << 1)
+		if (value == None):
+                        if widget.get_active()==0:
+                                conf['sw1_s'] = 'state1'
+                                tmp_data[6] = tmp_data[6] & (~(0x01 << 1))
+                        elif widget.get_active()==1:
+                                conf['sw1_s'] = 'state2'
+                                tmp_data[6] = tmp_data[6] | (0x01 << 1)
+                        else:
+                                pass
+		elif (value == "state1"):
+			widget.set_active(0)
+		elif (value == "state2"):
+			widget.set_active(1)
 		else:
 			pass
-		self.send(tmp_data,"set")
+		#self.send(tmp_data,"set")
 
-	def sw2combobox_change(self,widget):
-		print widget.get_active_text()
-		if widget.get_active()==0:
-			tmp_data[6] = tmp_data[6] & (~(0x01 << 3))
-		elif widget.get_active()==1:
-			tmp_data[6] = tmp_data[6] | (0x01 << 3)
+	def sw2combobox_change(self,widget,value):
+                print widget.get_active_text()
+		if (value == None):
+                        if widget.get_active()==0:
+                                conf['sw2_s'] = 'state1'
+                                tmp_data[6] = tmp_data[6] | (0x01 << 3)#changes state1 and state2
+                        elif widget.get_active()==1:
+                                conf['sw2_s'] = 'state2'
+                                tmp_data[6] = tmp_data[6] & (~(0x01 << 3))
+                        else:
+                                pass
+		elif (value == "state1"):
+			widget.set_active(0)
+		elif (value == "state2"):
+			widget.set_active(1)
 		else:
 			pass
-		self.send(tmp_data,"set")
+		#self.send(tmp_data,"set")
 
-	def sw5combobox_change(self,widget):
+	def sw5combobox_change(self,widget,value):
 		print widget.get_active_text()
-		if widget.get_active()==0:
-			tmp_data[6] = tmp_data[6] & (~(0x01 << 7))
-		elif widget.get_active()==1:
-			tmp_data[6] = tmp_data[6] | (0x01 << 7)
+		if (value == None):
+                        if widget.get_active()==0:
+                                conf['sw5_s'] = 'state1'
+                                tmp_data[6] = tmp_data[6] & (~(0x01 << 7))
+                        elif widget.get_active()==1:
+                                conf['sw5_s'] = 'state2'
+                                tmp_data[6] = tmp_data[6] | (0x01 << 7)
+                        else:
+                                pass
+		elif (value == "state1"):
+			widget.set_active(0)
+		elif (value == "state2"):
+			widget.set_active(1)
 		else:
 			pass
-		self.send(tmp_data,"set")
+		#self.send(tmp_data,"set")
 
 	def led1combobox_change(self,widget,value):
+                print value
 		if (value == None):
-			if widget.get_active()==0:
+			if widget.get_active()== 0:
 				conf['led1_a'] = 'active low'
-				print conf['led1_a']
+				#print conf['led1_a']
 				tmp_data[4] = tmp_data[4] & (~(0x01 << 0))
-			elif widget.get_active()==1:
+			elif widget.get_active()== 1:
 				conf['led1_a'] = 'active high'
-				print conf['led1_a']
+				#print conf['led1_a']
 				tmp_data[4] = tmp_data[4] | (0x01 << 0)
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "active low"):
 			widget.set_active(0)
 		elif (value == "active high"):
@@ -1609,16 +1883,17 @@ class Glade_main(gtk.Window):
 			pass
 
 	def led4combobox_change(self,widget,value):
+                print value
 		if (value == None):
-			if widget.get_active()==0:
+			if widget.get_active()== 0:
 				conf['led4_a'] = 'active low'
-				print conf['led4_a']
+				#print conf['led4_a']
 				tmp_data[4] = tmp_data[4] & (~(0x01 << 4))
-			elif widget.get_active()==1:
+			elif widget.get_active() == 1:
 				conf['led4_a'] = 'active high'
-				print conf['led4_a']
+				#print conf['led4_a']
 				tmp_data[4] = tmp_data[4] | (0x01 << 4)
-			self.send(tmp_data,"set")
+			#self.send(tmp_data,"set")
 		elif (value == "active low"):
 			widget.set_active(0)
 		elif (value == "active high"):
@@ -1664,8 +1939,7 @@ class Glade_main(gtk.Window):
 				self.COM.send(send_pwr_stream[n])
 				self.COM.send(" ")
 			self.COM.send("\r")
-			print "send succeed!!!!!!!!!!!!!!!"
 
 if __name__== "__main__":
-	frm=Glade_main()
+	Glade_main()
 	gtk.main()
