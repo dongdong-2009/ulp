@@ -463,7 +463,7 @@ void TIM1_TRG_COM_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void TIM1_CC_IRQHandler(void)
+__weak void TIM1_CC_IRQHandler(void)
 {
 }
 
@@ -578,7 +578,7 @@ void SPI2_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void USART1_IRQHandler(void)
+__weak void USART1_IRQHandler(void)
 {
 }
 

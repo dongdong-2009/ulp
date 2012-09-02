@@ -296,7 +296,7 @@ int c131_DiagLOOP(void)
 			result = ERROR_LOOP;
 			loop_flag[j] = 1;
 		}
-		temp = (((temp * 2500)>>12) * 10000) / (75 * 50);
+		temp = (((temp * 2500)>>12) * 10000) / (75 * 50);//7.5ma gain:50
 		diag_loop[j] = temp;
 		j++;
 	}

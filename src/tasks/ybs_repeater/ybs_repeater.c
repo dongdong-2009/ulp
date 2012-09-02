@@ -9,27 +9,25 @@
 #include "ulp/sys.h"
 #include "shell/cmd.h"
 #include <stdlib.h>
+#include "ybs_repeater.h"
+#include "ybs_dc.h"
+#include "ybs_dsp.h"
+#include "lpc177x_8x_clkpwr.h"
+#include "lpc177x_8x_gpio.h"
+#include "lpc177x_8x_rtc.h"
+#include "lpc177x_8x_uart.h"
+#include "lpc177x_8x_pinsel.h"
 #include "ybs_sensor.h"
+#include "lpc177x_8x.h"
 
-extern ybs_sensor_t sensor[SENSORNUMBER];
-static uint32_t sensor_enable = 0;
-
-/*
- * 	use USB clock to drive ethernet
- */
-void ethernet_clk_init()
-{
-	PINSEL_ConfigPin(1,27,4);
-	LPC_SC->PLL1CON = 0x00;			/* PLL1 Disable */
-	LPC_SC->PLL1CFG = 24;
-	LPC_SC->PLL1CON = 0x01;			/* PLL1 Enable */
-	LPC_SC->PLL1FEED = 0xAA;
-	LPC_SC->PLL1FEED = 0x55;
-	while (!(LPC_SC->PLL1STAT & (1<<10)));		/* Wait for PLOCK1 */
-	LPC_SC->USBCLKSEL = (0x00000006|(0x02<<8)); /* Setup USB Clock Divider */
-	LPC_SC->CLKOUTCFG = 3 | 0x00000100;			//set USB clock as clkout
-}
-
+ybs_sensor_t sensor[SENSOR_NUMBER];
+static uint32_t systick_enable = 0;
+int sensor_now = 0;
+unsigned int address;
+int average_point_number = 2;
+int alarm_cnt_max = 100;
+int cut_cnt_max = 100;
+int no_response_cnt_max = 100;
 
 void address_init()
 {
@@ -60,63 +58,37 @@ void rtc_set(RTC_TIME_Type *time)
 
 void sys_tick()
 {
-	static uint32_t com_now = 0;
-	if(!sensor_enable) {
+	if(!systick_enable) {
 		return;
 	}
-	com_now = com_now > 9 ? 0 : com_now;
-	if(com_now < (SENSORNUMBER >> 1)) {
-		uint32_t temp1 = sensor[com_now].normaldata.data_now & ~(0xffffffff << NORMALDATASIZESHIFT);
-		uint32_t temp2 = sensor[com_now + (SENSORNUMBER >> 1)].normaldata.data_now & ~(0xffffffff << NORMALDATASIZESHIFT);
-		read_sensor(com_now, &(sensor[com_now].normaldata.data[temp1]), &(sensor[com_now + (SENSORNUMBER >> 1)].normaldata.data[temp2]));
-		uint32_t temp3 = com_now == ((SENSORNUMBER >> 1) - 1) ? 0 : com_now + 1;
-		write_sensor(temp3, 'a');
-		analize_sensor(com_now, sensor[com_now].normaldata.data[temp1]);
-		analize_sensor(com_now + (SENSORNUMBER >> 1), sensor[com_now + (SENSORNUMBER >> 1)].normaldata.data[temp2]);
-		sensor[com_now].normaldata.data_now++;
-		sensor[com_now + (SENSORNUMBER >> 1)].normaldata.data_now++;
-	}
-	com_now++;
-}
+	sensor_now++;
+	sensor_now = sensor_now > 9 ? 0 : sensor_now;
+	if(sensor_now < (SENSOR_NUMBER >> 1)) {
+		unsigned short temp1;
+		unsigned short temp2;
+		int temp3 = (sensor_now + 1) < (SENSOR_NUMBER >> 1) ? sensor_now + 1 : 0;
 
+		read_sensor(&temp1, &temp2);
+		write_sensor(temp3, 'R');
 
-static uint32_t address;
+		dc_config_ybs(sensor_now);
+		temp1 = ybs_dsp(sensor_now, temp1);
+		dc_save(temp1);
 
-void RTC_IRQHandler(void)
-{
-	RTC_TIME_Type time;
-
-	/* This is increment counter interrupt*/
-	if (RTC_GetIntPending(LPC_RTC, RTC_INT_COUNTER_INCREASE))
-	{
-		RTC_GetFullTime (LPC_RTC, &time);
-		printf("%d-%02d-%02d %02d:%02d:%02d\n", time.YEAR,time.MONTH,time.DOM,time.HOUR,time.MIN,time.SEC);
-		// Clear pending interrupt
-		RTC_ClearIntPending(LPC_RTC, RTC_INT_COUNTER_INCREASE);
+		dc_config_ybs(sensor_now + (SENSOR_NUMBER >> 1));
+		temp2 = ybs_dsp(sensor_now + (SENSOR_NUMBER >> 1), temp2);
+		dc_save(temp2);
 	}
 }
 
 void app_init()
 {
-
 	CLKPWR_ConfigPPWR(CLKPWR_PCONP_PCGPIO, ENABLE);		//enable gpio clk
-	ethernet_clk_init();
+	rtc_init();
 	address_init();
 	address = address_read();
-	rtc_init();
-	// RTC_TIME_Type time;
-	// time.SEC = 1;
-	// time.MIN = 1;
-	// time.HOUR = 1;
-	// time.DOM = 1;
-	// time.MONTH = 1;
-	// time.YEAR = 1;
-	// rtc_set(&time);
-	// RTC_CntIncrIntConfig (LPC_RTC, RTC_TIMETYPE_SECOND, ENABLE);
-	// NVIC_EnableIRQ(RTC_IRQn);
 	sensor_init();
-	sensor_enable = 1;
-	//sensor[0].status = 3;
+	systick_enable = 1;
 }
 
 void app_update()

@@ -38,6 +38,11 @@ mainmenu_option next_comment
 endmenu
 
 mainmenu_option next_comment
+	comment 'lin config'
+	source src/drivers/lin/Kconfig
+endmenu
+
+mainmenu_option next_comment
 	comment 'usb config'
 	source src/drivers/usb/Kconfig
 endmenu
@@ -65,6 +70,11 @@ endmenu
 mainmenu_option next_comment
 	comment 'pwm config'
 	source src/drivers/pwm/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'pwmin config'
+	source src/drivers/pwmin/Kconfig
 endmenu
 
 mainmenu_option next_comment

@@ -41,6 +41,13 @@ static const can_msg_t sdm11_power_off_msg =	{0x10002040, 4, {0x00,0x00,0x00,0x0
 static const can_msg_t sdm11_pwrbp_crank_msg =	{0x10004060, 1, {0x03}, 1};
 static const can_msg_t sdm11_pwrbp_off_msg =	{0x10004060, 1, {0x00}, 1};
 
+//local power mode can msg varibles for sdm30
+//static const can_msg_t sdm30_power_acc_msg =	{0x10242040, 4, {0x01,0x00,0x00,0x00}, 1};
+//static const can_msg_t sdm30_power_crank_msg =	{0x10002040, 4, {0x03,0x00,0x00,0x00}, 1};
+//static const can_msg_t sdm30_power_off_msg =	{0x10002040, 4, {0x00,0x00,0x00,0x00}, 1};
+static const can_msg_t sdm30_pwrbp_crank_msg1 =	{0x102C0040, 1, {0x31,0x32,0x00,0x00,0x02}, 1};
+static const can_msg_t sdm30_pwrbp_crank_msg2 =	{0x102C0040, 1, {0x31,0x32,0x58,0x1C,0x01}, 1};
+//static const can_msg_t sdm30_pwrbp_off_msg =	{0x10004060, 1, {0x00}, 1};
 struct can_queue_s {
 	int ms;
 	time_t timer;
@@ -96,7 +103,7 @@ static ls1203_t pdi_ls1203 = {
 static int sdm_GetDID(char did, char *data);
 static int sdm_GetDPID(char dpid, char *data);
 static int sdm_GetFault(char *data, int * pnum_fault);
-static int sdi_clear_dtc(void);
+static int sdm_clear_dtc(void);
 static int sdm_wakeup(void);
 static int sdm_sleep(void);
 
@@ -375,7 +382,7 @@ static int check_barcode(void)
 		return 0;
 }
 
-static int sdi_clear_dtc()
+static int sdm_clear_dtc()
 {
 	can_msg_t pdi_recv_msg;
 	can_msg_t pdi_send_msg = {0x247, 8, {0x01, 0x04, 0, 0, 0, 0, 0, 0}, 0};
@@ -520,7 +527,7 @@ static int sdm_check(const struct pdi_cfg_s *sr)
 	}
 
 	if (num_fault) {
-		//sdi_clear_dtc();
+		//sdm_clear_dtc();
 		printf("##START##EC-");
 		printf("num of fault is: %d * ", num_fault);
 		for (i = 0; i < num_fault*3; i += 3)
@@ -660,6 +667,11 @@ static int sdm_wakeup(void)
 		pdi_can_bus->send(&sdm11_pwrbp_crank_msg);  //sdm11 power mode backup
 		pdi_can_bus->send(&sdm11_pwrbp_crank_msg);
 		sdm_mdelay(100);
+		pdi_can_bus->send(&sdm30_pwrbp_crank_msg1);  //sdm30 power mode backup1
+		pdi_can_bus->send(&sdm30_pwrbp_crank_msg1);
+		pdi_can_bus->send(&sdm30_pwrbp_crank_msg2);  //sdm30 power mode backup2
+		pdi_can_bus->send(&sdm30_pwrbp_crank_msg2);
+		sdm_mdelay(100);
 		pdi_can_bus->send(&sdm_621_crank_msg);
 		pdi_can_bus->send(&sdm_621_crank_msg);
 		sdm_mdelay(100);
@@ -792,7 +804,7 @@ static int cmd_sdm_func(int argc, char *argv[])
 		if(argv[1][0] == 'c') {
 			sdm_wakeup();
 			sdm_mdelay(2000);
-			sdi_clear_dtc();
+			sdm_clear_dtc();
 			sdm_mdelay(2000);
 			sdm_sleep();
 			printf("##OK##\n");
