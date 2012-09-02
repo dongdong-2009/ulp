@@ -6,6 +6,8 @@
 #ifndef __MEMPOOL_H_
 #define __MEMPOOL_H_
 
+#include "common/circbuf.h"
+
 typedef struct mempool_s {
 	int sz; /*unit size, after alignment*/
 	int nr; /*nr of units*/
