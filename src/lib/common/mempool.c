@@ -32,7 +32,7 @@ mempool_t *mempool_create(int sz, int nr)
 	pool->pmem = (char *) pool + ofs;
 	pool->fu.data = (char *) pool->bits + bsz;
 	pool->fu.totalsize = nr;
-	buf_init(&pool->fu, 0);
+	buf_init(&pool->fu, -1);
 
 	memset(pool->bits, 0, bsz);
 	for(index = 0; index < nr; index ++) {
