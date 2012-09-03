@@ -6,7 +6,7 @@
 #include "lcd.h"
 #include <stdlib.h>
 #include <string.h>
-#include "sys/sys.h"
+#include "ulp/sys.h"
 #include "common/bitops.h"
 #include "lpt.h"
 
@@ -46,7 +46,10 @@ int lcd_add(const struct lcd_dev_s *dev, const char *name, int type)
 	}
 
 	//get real resolution
-	lcd_get_res(lcd, &lcd -> xres, &lcd -> yres);
+	int xres, yres;
+	lcd_get_res(lcd, &xres, &yres);
+	lcd->xres = xres;
+	lcd->yres = yres;
 	return 0;
 }
 
@@ -103,18 +106,6 @@ int lcd_get_res(struct lcd_s *lcd, int *x, int *y)
 		*x = lcd -> dev -> xres;
 		*y = lcd -> dev -> yres;
 	}
-	return 0;
-}
-
-int lcd_set_fgcolor(struct lcd_s *lcd, int cr)
-{
-	lcd -> fgcolor = cr;
-	return 0;
-}
-
-int lcd_set_bgcolor(struct lcd_s *lcd, int cr)
-{
-	lcd -> bgcolor = cr;
 	return 0;
 }
 
@@ -321,4 +312,34 @@ int lcd_puts(struct lcd_s *lcd, int x, int y, const char *str)
 	}
 
 	return ret;
+}
+
+int lcd_line(struct lcd_s *lcd, int x, int y, int dx, int dy)
+{
+	/*slash is not supported yet*/
+	assert((dx == 0) || (dy == 0));
+
+	if(dx < 0) {
+		dx = 0 - dx;
+		x += dx;
+	}
+	if(dy < 0) {
+		dy = 0 - dy;
+		y += dy;
+	}
+
+	dx += (dx == 0) ? lcd->line_width: 0;
+	dy += (dy == 0) ? lcd->line_width: 0;
+	lcd_set_window(lcd, x, y, dx, dy);
+	lcd->dev->wgram(NULL, dx * dy, lcd->fgcolor);
+	return 0;
+}
+
+int lcd_rect(struct lcd_s *lcd, int x, int y, int w, int h)
+{
+	lcd_line(lcd, x, y, w, 0);
+	lcd_line(lcd, x, y, 0, h);
+	lcd_line(lcd, x, y + h, w, 0);
+	lcd_line(lcd, x + w, y, 0, h);
+	return 0;
 }
