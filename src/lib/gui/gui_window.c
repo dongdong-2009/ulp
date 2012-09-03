@@ -8,30 +8,37 @@
 #include "gui/gui_widget.h"
 #include "gui/gui_window.h"
 #include "gui/gui_event.h"
+#include "gui/gui_lcd.h"
 #include "linux/list.h"
 #include "ulp/sys.h"
 
 static struct list_head gui_windows;
 static gwindow *gui_window_cache;
 
-static int gui_window_on_expose(gwidget *widget, gevent *event, void *data)
+static int gui_window_on_expose(gwidget *widget, gevent *event)
 {
-	gwindow *window = (gwindow *) widget;
-	list_add_tail(&gui_windows, &window->list);
+	gwindow *window = widget->window;
 	window->active_time = time_get(0);
 
+	gui_widget_draw(widget);
 	gui_widget_react(widget->child, event);
 	return 0;
 }
 
-static int gui_window_on_touch(gwidget *widget, gevent *event, void *data)
+static int gui_window_on_touch(gwidget *widget, gevent *event)
 {
+	int x, y, w, h;
+	x = event->ts.x - 1;
+	y = event->ts.y - 1;
+	w = 1;
+	h = 1;
+	gui_lcd_rectangle(x, y, w, h);
 	return 0;
 }
 
-static int gui_window_on_destroy(gwidget *widget, gevent *event, void *data)
+static int gui_window_on_destroy(gwidget *widget, gevent *event)
 {
-	gwindow *window = (gwindow *) widget;
+	gwindow *window = widget->window;
 	gui_widget_react(widget->child, event);
 	list_del(&window->list);
 
@@ -40,20 +47,20 @@ static int gui_window_on_destroy(gwidget *widget, gevent *event, void *data)
 	return 0;
 }
 
-static int gui_window_event_func(gwidget *widget, gevent *event, void *data)
+static int gui_window_event_func(gwidget *widget, gevent *event)
 {
 	int ret = -1;
 	switch(event->type) {
 	case GUI_EXPOSE:
-		ret = gui_window_on_expose(widget, event, data);
+		ret = gui_window_on_expose(widget, event);
 		break;
 	case GUI_DESTROY:
-		ret = gui_window_on_destroy(widget, event, data);
+		ret = gui_window_on_destroy(widget, event);
 		break;
 	case GUI_TOUCH_BEGIN:
 	case GUI_TOUCH_UPDATE:
 	case GUI_TOUCH_END:
-		ret = gui_window_on_touch(widget, event, data);
+		ret = gui_window_on_touch(widget, event);
 		break;
 	default:
 		;
@@ -65,18 +72,32 @@ static int gui_window_event_func(gwidget *widget, gevent *event, void *data)
 
 gwidget* gui_window_new(gwindow_type type)
 {
+	int w, h;
 	gwidget *widget;
 	gwindow *window = sys_malloc(sizeof(gwindow));
 	assert(window != NULL);
 
-	widget = &window->widget;
+	widget = gui_widget_new();
+	assert(widget != NULL);
+	widget->flag_window = 1;
 	widget->sys_event_func = gui_window_event_func;
-	widget->sys_event_priv = NULL;
+	gui_lcd_get_resolution(&w, &h);
+	widget->x = 0;
+	widget->y = 0;
+	widget->w = w;
+	widget->h = h;
+	widget->window = window;
+
+	window->widget = widget;
+	window->active_time = 0;
+	INIT_LIST_HEAD(&window->equeue);
+	INIT_LIST_HEAD(&window->list);
 	return widget;
 }
 
 void gui_window_del(gwindow *window)
 {
+	gui_widget_del(window->widget);
 	sys_free(window);
 }
 
@@ -112,10 +133,23 @@ int gui_window_update(void)
 	struct list_head *pos;
 	gevent *event;
 
+	//fetch event from public event queue
+	event = gui_event_recv(NULL);
+	while(event != NULL) {
+		list_for_each(pos, &gui_windows) {
+			window = list_entry(pos, gui_window_s, list);
+			gui_widget_react(window->widget, event);
+		}
+		event = gui_event_recv(NULL);
+	}
+
+	//fetch event from private event queue
 	list_for_each(pos, &gui_windows) {
 		window = list_entry(pos, gui_window_s, list);
-		for(event = gui_event_recv(window); event != NULL; ) {
-			gui_widget_react(&window->widget, event);
+		event = gui_event_recv(window);
+		while (event != NULL) {
+			gui_widget_react(window->widget, event);
+			event = gui_event_recv(window);
 		}
 	}
 	return 0;
@@ -125,9 +159,10 @@ int gui_window_update(void)
 int gui_window_show(gwidget *widget)
 {
 	gevent *event;
-	gwindow *window = (gwindow *) widget;
-	assert(widget->window == 1);
+	gwindow *window = widget->window;
+	assert(widget->flag_window == 1);
 
+	list_add_tail(&gui_windows, &window->list);
 	event = gui_event_new(GUI_EXPOSE, widget);
 	assert(event != NULL);
 	gui_event_emit(window, event);
@@ -137,8 +172,8 @@ int gui_window_show(gwidget *widget)
 void gui_window_destroy(gwidget *widget)
 {
 	gevent *event;
-	gwindow *window = (gwindow *) widget;
-	assert(widget->window == 1);
+	gwindow *window = widget->window;
+	assert(widget->flag_window == 1);
 
 	event = gui_event_new(GUI_DESTROY, widget);
 	assert(event != NULL);

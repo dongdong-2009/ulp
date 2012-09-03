@@ -59,6 +59,13 @@ typedef enum
 struct gui_event_s {
 	gevent_type type;
 	gwidget *dst;
+	union {
+		struct {
+			unsigned x: 12;
+			unsigned y: 12;
+			unsigned z: 8; /*pressure*/
+		} ts;
+	};
 	struct list_head list;
 };
 
@@ -66,7 +73,7 @@ void gui_event_init(void);
 void gui_event_update(void);
 gevent* gui_event_new(gevent_type type, gwidget *dst);
 void gui_event_del(gevent *event);
-int gui_event_connect(gwidget *dst, gcallback func, const void *priv);
+int gui_event_connect(gwidget *widget, gcallback func);
 int gui_event_emit(gwindow *window, gevent *event);
 gevent* gui_event_recv(gwindow *window);
 

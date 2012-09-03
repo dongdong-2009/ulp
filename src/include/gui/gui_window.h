@@ -14,12 +14,12 @@ typedef enum {
 	GUI_WINDOW_POPUP,
 } gwindow_type;
 
-typedef struct gui_window_s {
-	gwidget widget;
+struct gui_window_s {
+	gwidget *widget;
 	time_t active_time;
 	struct list_head equeue; /*head of event queue*/
 	struct list_head list;
-} gwindow;
+};
 
 gwidget* gui_window_new(gwindow_type type);
 void gui_window_del(gwindow *window);

@@ -5,6 +5,7 @@
 #define __GUI_H_
 
 #include "gui/gui_config.h"
+#include "gui/gui_lcd.h"
 #include "gui/gui_event.h"
 #include "gui/gui_widget.h"
 
