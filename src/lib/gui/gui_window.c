@@ -11,6 +11,7 @@
 #include "gui/gui_lcd.h"
 #include "linux/list.h"
 #include "ulp/sys.h"
+#include "common/color.h"
 
 static struct list_head gui_windows;
 static gwindow *gui_window_cache;
@@ -28,11 +29,17 @@ static int gui_window_on_expose(gwidget *widget, gevent *event)
 static int gui_window_on_touch(gwidget *widget, gevent *event)
 {
 	int x, y, w, h;
-	x = event->ts.x - 1;
-	y = event->ts.y - 1;
-	w = 1;
-	h = 1;
-	gui_lcd_rectangle(x, y, w, h);
+/*
+	if(event->type == GUI_TOUCH_BEGIN) {
+		x = event->ts.x - 1;
+		y = event->ts.y - 1;
+		w = 2;
+		h = 2;
+		gui_lcd_pen(BLUE, WHITE, 1);
+		gui_lcd_rectangle(x, y, w, h);
+	}
+*/
+	gui_widget_react(widget->child, event);
 	return 0;
 }
 

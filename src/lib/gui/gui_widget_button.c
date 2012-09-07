@@ -9,6 +9,9 @@
 
 static int gui_button_on_draw(gwidget *widget, gevent *event)
 {
+	gui_widget_draw(widget);
+	gui_widget_set_text(widget, widget->string);
+	gui_widget_react(widget->child, event);
 	return 0;
 }
 
@@ -40,4 +43,10 @@ gwidget* gui_button_new(void)
 	gwidget *widget = gui_widget_new();
 	widget->sys_event_func = gui_button_event_func;
 	return widget;
+}
+
+gwidget* gui_button_new_with_label(const char *label)
+{
+	gwidget *widget = gui_button_new();
+	widget->string = label;
 }

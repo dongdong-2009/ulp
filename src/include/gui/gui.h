@@ -4,6 +4,7 @@
 #ifndef __GUI_H_
 #define __GUI_H_
 
+#include "common/color.h"
 #include "gui/gui_config.h"
 #include "gui/gui_lcd.h"
 #include "gui/gui_event.h"

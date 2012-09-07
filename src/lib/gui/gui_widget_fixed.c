@@ -9,11 +9,25 @@
 
 static int gui_fixed_on_draw(gwidget *widget, gevent *event)
 {
+	struct gui_widget_s *child;
+	struct list_head *pos;
+
+	list_for_each(pos, &widget->list) {
+		child = list_entry(pos, gui_widget_s, list);
+		gui_widget_react(child, event);
+	}
 	return 0;
 }
 
 static int gui_fixed_on_touch(gwidget *widget, gevent *event)
 {
+	struct gui_widget_s *child;
+	struct list_head *pos;
+
+	list_for_each(pos, &widget->list) {
+		child = list_entry(pos, gui_widget_s, list);
+		gui_widget_react(child, event);
+	}
 	return 0;
 }
 
@@ -44,4 +58,9 @@ gwidget* gui_fixed_new(void)
 
 void gui_fixed_put(gwidget *fixed, gwidget *widget, int x, int y)
 {
+	widget->x = fixed->x + x;
+	widget->y = fixed->y + y;
+	widget->w = widget->req_w;
+	widget->h = widget->req_h;
+	list_add_tail(&widget->list, &fixed->list);
 }

@@ -38,3 +38,23 @@ void gui_lcd_rectangle(int x, int y, int w, int h)
 {
 	lcd_rect(gui_lcd, x, y, w, h);
 }
+
+void gui_lcd_clear(int x, int y, int w, int h)
+{
+	lcd_clear(gui_lcd, x, y, w, h);
+}
+
+void gui_lcd_puts(int x, int y, const char *text)
+{
+	lcd_puts(gui_lcd, x, y, text);
+}
+
+void gui_lcd_get_font(int *fw, int *fh)
+{
+	lcd_get_font(gui_lcd, fw, fh);
+}
+
+void gui_lcd_imageblt(const void *image, int x, int y, int w, int h)
+{
+	lcd_imageblt(gui_lcd, image, x, y, w, h);
+}

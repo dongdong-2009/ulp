@@ -4,7 +4,10 @@
 #ifndef __GUI_WIDGET_H_
 #define __GUI_WIDGET_H_
 
-struct list_head;
+#include "linux/list.h"
+
+#define GUI_COLORMAP_NEW(fgcolor, bgcolor) {fgcolor, bgcolor}
+
 typedef struct gui_window_s gwindow;
 typedef struct gui_event_s gevent;
 typedef struct gui_widget_s gwidget;
@@ -43,13 +46,14 @@ struct gui_widget_s {
 	//const void* sys_event_priv;
 	const void* usr_event_priv;
 
-	/*sub widget*/
 	struct gui_widget_s *child;
+	struct list_head list;
 
 	/*specified propert*/
 	union {
 		void *priv;
 		gwindow *window;
+		const char *string;
 	};
 };
 
@@ -63,7 +67,10 @@ void gui_widget_set_border_width(gwidget *widget, int width);
 void gui_widget_set_image(gwidget *widget, const void *image);
 void gui_widget_add(gwidget *widget, gwidget *child);
 void gui_widget_show_all(gwidget *widget);
+void gui_widget_set_text(gwidget *widget, const char *text);
+void gui_widget_set_colormap(gwidget *widget, const unsigned *colormap);
 void gui_widget_draw(gwidget *widget);
+int gui_widget_touched(gwidget *widget, gevent *event);
 
 /*widget - label*/
 gwidget* gui_label_new(const char *str);

@@ -9,6 +9,7 @@
 #include "linux/list.h"
 #include "key.h"
 #include "pd.h"
+#include "ulp_time.h"
 
 static mempool_t *gui_epool;
 static struct list_head gui_equeue_public;
@@ -28,13 +29,13 @@ void gui_event_update(void)
 {
 	gevent *event = NULL;
 #ifdef CONFIG_DRIVER_PD
-	dot_t p;
-	int pde = pd_GetEvent(&p);
-	if(pde != PDE_NONE) {
-		event = gui_event_new(GUI_TOUCH_BEGIN, NULL);
-		event->ts.x = p.x;
-		event->ts.y = p.y;
-		event->ts.z = 0;
+	unsigned x, y, z;
+	gevent_type et = (gevent_type) pd_get_event(&x, &y, &z);
+	if(et != GUI_NOTHING) {
+		event = gui_event_new(et, NULL);
+		event->ts.x = x;
+		event->ts.y = y;
+		event->ts.z = z;
 		gui_event_emit(NULL, event);
 	}
 #endif
