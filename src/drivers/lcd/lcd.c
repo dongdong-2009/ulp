@@ -169,20 +169,55 @@ static int lcd_set_window(struct lcd_s *lcd, int x, int y, int w, int h)
 	//virtual -> real
 	lcd_transform( lcd, &x0, &y0 );
 	lcd_transform( lcd, &x1, &y1 );
+	if(x0 > x1) {
+		w = x0;
+		x0 = x1;
+		x1 = w;
+	}
+	if(y0 > y1) {
+		w = y0;
+		y0 = y1;
+		y1 = w;
+	}
 	return lcd -> dev -> setwindow( x0, y0, x1, y1 );
+}
+
+static int lcd_transform_index(struct lcd_s *lcd, int x, int y, int w, int h)
+{
+	int xx, yy, index;
+	switch (lcd -> rot) {
+	case LCD_ROT_090:
+		break;
+	case LCD_ROT_180:
+		break;
+	case LCD_ROT_270:
+		xx = h - y - 1;
+		yy = x;
+		index = yy * h + xx;
+		break;
+	default:
+		xx = x;
+		yy = y;
+		index = y * w + x;
+	}
+	return index;
 }
 
 int lcd_bitblt(struct lcd_s *lcd, const void *bits, int x, int y, int w, int h)
 {
 	short i, v, n = w * h;
-	int ret = lcd_set_window(lcd, x, y, w, h);
+	int vx, vy, _x, _y, ret = lcd_set_window(lcd, x, y, w, h);
 	static short gram[32*16];
 
 	if(n <= 32 * 16) {
-		for(i = 0; i < n; i ++) {
-			v = bit_get(i, bits);
-			v = (v != 0) ? lcd -> fgcolor : lcd -> bgcolor;
-			gram[i] = v;
+		for(vy = 0; vy < h; vy ++) {
+			for(vx = 0; vx < w; vx ++) {
+				i = vy * w + vx;
+				v = bit_get(i, bits);
+				v = (v != 0) ? lcd -> fgcolor : lcd -> bgcolor;
+				i = lcd_transform_index(lcd, vx, vy, w, h);
+				gram[i] = v;
+			}
 		}
 
 		ret = lcd ->dev ->wgram(gram, n, 0);
