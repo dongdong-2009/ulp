@@ -24,12 +24,22 @@ static unsigned cmap_kcode[] = GUI_COLORMAP_NEW(GRAY, WHITE);
 static unsigned cmap_timer[] = GUI_COLORMAP_NEW(PURPLE, WHITE);
 
 static struct {
-	unsigned char lines;
+	unsigned start : 1;
+	unsigned lines : 3;
+	unsigned seconds : 9;
+	unsigned mode : 8;
 	const unsigned char *ground;
-	unsigned char mode;
-	unsigned char seconds;
-	unsigned char start;
 } oid_config;
+
+enum {
+	READY,
+	BUSY
+};
+
+static struct {
+	unsigned stm : 4;
+	unsigned counter : 9;
+} oid_status;
 
 static int main_identify_on_event(gwidget *widget, gevent *event)
 {
@@ -39,41 +49,61 @@ static int main_identify_on_event(gwidget *widget, gevent *event)
 		printf("x = %d, y = %d\n", event->ts.x, event->ts.y);
 		if(gui_widget_touched(widget, event)) {
 			if(widget == button_lines) {
-				oid_config.lines = (oid_config.lines < 4) ? (oid_config.lines + 1) : 1;
-				sprintf(str, "%d", oid_config.lines);
-				gui_widget_set_text(widget, str);
+				if(oid_status.stm == READY) {
+					oid_config.lines = (oid_config.lines < 4) ? (oid_config.lines + 1) : 1;
+					sprintf(str, "%d", oid_config.lines);
+					gui_widget_set_text(widget, str);
+				}
 			}
 			else if(widget == button_ground) {
-				switch(oid_config.ground[0]) {
-				case '?':
-					oid_config.ground = "N";
-					break;
-				case 'N':
-					oid_config.ground = "Y";
-					break;
-				default:
-					oid_config.ground = "?";
-					break;
+				if(oid_status.stm == READY) {
+					switch(oid_config.ground[0]) {
+					case '?':
+						oid_config.ground = "N";
+						break;
+					case 'N':
+						oid_config.ground = "Y";
+						break;
+					default:
+						oid_config.ground = "?";
+						break;
+					}
+					gui_widget_set_text(widget, oid_config.ground);
 				}
-				gui_widget_set_text(widget, oid_config.ground);
 			}
 			else if(widget == button_mode_dg) {
-				oid_config.mode = 'd';
-				gui_widget_set_text(button_mode_id, " ");
-				gui_widget_set_text(button_mode_dg, "<");
+				if(oid_status.stm == READY) {
+					oid_config.mode = 'd';
+					gui_widget_set_text(button_mode_id, " ");
+					gui_widget_set_text(button_mode_dg, "<");
+				}
+				else {
+					if(oid_config.mode == 'd') {
+						oid_status.counter += 30;
+					}
+				}
 			}
 			else if(widget == button_mode_id) {
-				oid_config.mode = 'i';
-				gui_widget_set_text(button_mode_id, "<");
-				gui_widget_set_text(button_mode_dg, " ");
+				if(oid_status.stm == READY) {
+					oid_config.mode = 'i';
+					gui_widget_set_text(button_mode_id, "<");
+					gui_widget_set_text(button_mode_dg, " ");
+				}
+				else {
+					if(oid_config.mode == 'i') {
+						oid_status.counter += 30;
+					}
+				}
 			}
 			else if(widget == button_start) {
-				oid_config.start = (oid_config.start == 1) ? 0 : 1;
+				oid_config.start = 1;
 			}
 			else {
+			/*
 				i = (i < 19) ? (i + 1) : 0;
 				sprintf(str, "%d", i);
 				gui_widget_set_text(widget, str);
+			*/
 			}
 		}
 	}
@@ -138,13 +168,73 @@ void main_window_init(void)
 	gui_window_show(main_window);
 }
 
+void oid_init(void)
+{
+	oid_config.lines = 4;
+	oid_config.ground = "?";
+	oid_config.mode = 'i';
+	oid_config.seconds = 60;
+	oid_config.start = 0;
+	oid_status.stm = READY;
+	oid_status.counter = 0;
+}
+
+void oid_update(void)
+{
+	static time_t oid_second_timer = 0;
+	gwidget *widget;
+	char str[4];
+
+	sys_update();
+	gui_update();
+	if(oid_status.counter > 0) {
+		if(time_left(oid_second_timer) < 0) {
+			oid_second_timer = time_get(1000);
+			oid_status.counter --;
+			widget = (oid_config.mode == 'i') ? button_mode_id : button_mode_dg;
+			sprintf(str, "%d", oid_status.counter);
+			gui_widget_set_text(widget, str);
+		}
+	}
+}
+
+void oid_start(void)
+{
+	oid_update();
+	if(oid_config.start == 1) {
+		oid_config.start = 0;
+		oid_status.stm = BUSY;
+		oid_status.counter = oid_config.seconds;
+		while(oid_status.counter > 0) {
+			oid_update();
+			if(oid_config.start == 1) {
+				//cancel ...
+				oid_config.start = 0;
+				break;
+			}
+		}
+		oid_status.stm = READY;
+		oid_status.counter = 0;
+		gwidget *widget = (oid_config.mode == 'i') ? button_mode_id : button_mode_dg;
+		gui_widget_set_text(widget, "<");
+	}
+}
+
+void oid_mdelay(int ms)
+{
+	time_t deadline = time_get(ms);
+	while(time_left(deadline) > 0) {
+		oid_update();
+	}
+}
+
 void main(void)
 {
 	sys_init();
 	gui_init(NULL);
+	oid_init();
 	main_window_init();
 	while(1) {
-		sys_update();
-		gui_update();
+		oid_start();
 	}
 }
