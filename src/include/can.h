@@ -41,6 +41,12 @@ typedef struct {
 	int (*recv)(can_msg_t *msg); //non block, check -> ?empty ret-> recv
 	int (*filt)(can_filter_t const *filter, int n);
 	void (*flush)(void); //flush tx & rx
+
+#ifdef CONFIG_CAN_ENHANCED
+	/*when enhanced mode is on, traditional recv is redirect to RFIFO0 only*/
+	int (*erecv)(int rfifo, can_msg_t *msg);
+	int (*efilt)(int rfifo, can_filter_t const *filter, int n);
+#endif
 } can_bus_t;
 
 extern const can_bus_t can0;

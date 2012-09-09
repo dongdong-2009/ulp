@@ -5,16 +5,22 @@
 #
 
 #common config options
+bool "enhanced can support" CONFIG_CAN_ENHANCED
 bool "enable debug command" CONFIG_CMD_CAN
 #can 0
+if [ "$CONFIG_CPU_STM32" = "n" ]; then
 bool "enable CAN 0" CONFIG_DRIVER_CAN0
+fi
 #can 1
 bool "enable CAN 1" CONFIG_DRIVER_CAN1
 if [ "$CONFIG_DRIVER_CAN1" = "y" ]; then
 	if [ "$CONFIG_CPU_STM32" = "y" ]; then
 		bool "remap PB8/9 as tx/rx pin" CONFIG_CAN1_REMAP
 	fi
+
+	if [ "$CONFIG_CAN_ENHANCED" = "n" ]; then
 	bool "enable swFIFO function" CONFIG_CAN1_SWFIFO
+	fi
 	if [ "$CONFIG_CAN1_SWFIFO" = "y" ]; then
 		int "can rx fifo size" CONFIG_CAN1_RF_SZ 32
 		bool "enable override feature of FIFO" CONFIG_CAN1_FIFO_OVERRIDE
