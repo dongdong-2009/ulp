@@ -43,9 +43,9 @@ typedef struct {
 	void (*flush)(void); //flush tx & rx
 
 #ifdef CONFIG_CAN_ENHANCED
-	/*when enhanced mode is on, traditional recv is redirect to RFIFO0 only*/
-	int (*erecv)(int rfifo, can_msg_t *msg);
-	int (*efilt)(int rfifo, can_filter_t const *filter, int n);
+	/*when enhanced mode is on, traditional recv is redirect to RBUF0 only*/
+	int (*erecv)(int rbuf, can_msg_t *msg);
+	int (*efilt)(int rbuf, can_filter_t const *filter, int n);
 #endif
 } can_bus_t;
 
