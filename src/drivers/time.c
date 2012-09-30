@@ -58,7 +58,7 @@ int time_diff(time_t t0, time_t t1)
 	int left;
 
 	dt = (t0 > t1) ? t0 - t1 : t1 - t0;
-	if(dt >= (1U << 31)) {
+	if(dt >= (1U << 20)) {
 		dt = 0 - (int)(dt);
 	}
 
