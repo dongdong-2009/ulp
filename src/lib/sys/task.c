@@ -22,7 +22,7 @@ void task_init(void)
 	}
 }
 
-void task_update(void)
+void __task_update(void)
 {
 	void (**update)(void);
 	void (**end)(void);
@@ -51,7 +51,7 @@ void lib_init(void)
 	}
 }
 
-void lib_update(void)
+void __lib_update(void)
 {
 	void (**update)(void);
 	void (**end)(void);
@@ -82,13 +82,18 @@ void task_Init(void)
 	task_init();
 }
 
+__weak void __sys_update(void)
+{
+}
+
 void task_Update(void)
 {
 	if(task_foreground)
 		task_foreground();
 	else {
-		lib_update();
-		task_update();
+		__lib_update();
+		__sys_update();
+		__task_update();
 	}
 }
 
@@ -110,8 +115,8 @@ void task_Isr(void)
 	if(task_foreground) {
 		if(time_left(task_timer) < 0) {
 			task_timer = time_get(CONFIG_SYSTEM_UPDATE_MS);
-			lib_update();
-			task_update();
+			__lib_update();
+			__task_update();
 		}
 	}
 }
@@ -126,6 +131,7 @@ void task_mdelay(int ms)
 	time_t deadline = time_get(ms);
 	while(time_left(deadline) > 0) {
 		task_Update();
+		__sys_update();
 	}
 }
 #endif

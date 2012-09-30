@@ -36,7 +36,11 @@
 #define sys_init	task_Init
 #define sys_update	task_Update
 #define sys_mdelay	task_mdelay
-#define sys_tick	task_tick /*be called periodly per 1mS*/
+
+/*optional callback functions*/
+#define __sys_tick task_tick /*called by system timer isr periodly*/
+#define __sys_init bsp_init /*called by sys_init as early as possible*/
+void __sys_update(void); /*called by sys_update*/
 
 /* ulp api for dynamic memory management
  * sys_malloc
@@ -54,7 +58,7 @@ static inline int sys_align(int x, int base) {
 #define sys_assert	assert
 #define sys_dump	dump /*dump(unsigned addr, const void *p, int bytes)*/
 
-/*optional*/
-void bsp_init(void);
+/*obsolete*/
+#define sys_tick	task_tick /*be called periodly per 1mS*/
 
 #endif /*__ULP_SYS_H_*/
