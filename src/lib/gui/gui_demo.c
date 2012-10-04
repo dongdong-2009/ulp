@@ -4,6 +4,10 @@
 
 #include "ulp/sys.h"
 #include "gui/gui.h"
+#include "instr/instr.h"
+#include "instr/matrix.h"
+#include "instr/dmm.h"
+#include <string.h>
 
 static gwidget *main_window;
 static gwidget *fixed;
@@ -21,14 +25,13 @@ static gwidget *button_ecode2;
 static unsigned cmap_ecode[] = GUI_COLORMAP_NEW(RED, WHITE);
 static unsigned cmap_tcode[] = GUI_COLORMAP_NEW(GREEN, WHITE);
 static unsigned cmap_kcode[] = GUI_COLORMAP_NEW(GRAY, WHITE);
-static unsigned cmap_timer[] = GUI_COLORMAP_NEW(PURPLE, WHITE);
 
 static struct {
 	unsigned start : 1;
 	unsigned lines : 3;
 	unsigned seconds : 9;
 	unsigned mode : 8;
-	const unsigned char *ground;
+	const char *ground;
 } oid_config;
 
 enum {
@@ -41,10 +44,43 @@ static struct {
 	unsigned counter : 9;
 } oid_status;
 
+/*matrix bus connection*/
+enum {
+	BUS_CSP, /*BUS 0*/
+	BUS_VMP,
+	BUS_VMN,
+	BUS_CSN,
+};
+
+/*matrix row connection*/
+enum {
+	PIN_SHELL, /*default to pin 0*/
+	PIN_OSIGN, /*default to pin 1, gray line*/
+	PIN_OSIGP, /*default to pin 2, black line*/
+	PIN_HEAT1, /*default to pin 3, white line*/
+	PIN_HEAT2, /*default to pin 4, white line*/
+
+	PIN_RCAL1, /*calibration resistor*/
+	PIN_RCAL2,
+	PIN_VCAL1, /*calibration voltage source*/
+	PIN_VCAL2,
+
+	NR_OF_PINS,
+};
+
+static struct {
+	int R[5][5];
+	int mv;
+} oid_result;
+
+static inline void oid_result_init(void)
+{
+	memset(&oid_result, 0xff, sizeof(oid_result));
+}
+
 static int main_identify_on_event(gwidget *widget, gevent *event)
 {
 	static char str[5];
-	static char i = 0;
 	if(event->type == GUI_TOUCH_BEGIN) {
 		printf("x = %d, y = %d\n", event->ts.x, event->ts.y);
 		if(gui_widget_touched(widget, event)) {
@@ -168,6 +204,150 @@ void main_window_init(void)
 	gui_window_show(main_window);
 }
 
+static enum oid_error_type {
+	E_OK,
+	E_SYS_ERR,
+	E_DMM_INIT,
+	E_MATRIX_INIT,
+	E_RES_CAL,
+	E_VOL_CAL,
+} oid_ecode[3], oid_ecode_sys;
+
+static inline void oid_error_init(void)
+{
+	oid_ecode_sys = E_OK;
+	oid_ecode[0] = E_OK;
+	oid_ecode[1] = E_OK;
+	oid_ecode[2] = E_OK;
+}
+
+static void oid_error(enum oid_error_type ecode)
+{
+	char str[8];
+	gwidget *widget;
+	if(ecode > E_SYS_ERR) {
+		widget = button_ecode0;
+		oid_ecode_sys = ecode;
+	}
+
+	switch(ecode) {
+	case E_DMM_INIT:
+		snprintf(str, 7, "DMMI%02d", ecode);
+		gui_widget_set_text(widget, str);
+		break;
+
+	case E_MATRIX_INIT:
+		snprintf(str, 7, "MATI%02d", ecode);
+		gui_widget_set_text(widget, str);
+		break;
+
+	case E_RES_CAL:
+		snprintf(str, 7, "RCAL%02d", ecode);
+		gui_widget_set_text(widget, str);
+		break;
+
+	case E_VOL_CAL:
+		snprintf(str, 7, "VCAL%02d", ecode);
+		gui_widget_set_text(widget, str);
+		break;
+
+	default:
+		;
+	}
+}
+
+static void oid_error_flash(void)
+{
+	char str[] = "      ";
+	gwidget *widget = button_ecode0;
+
+	for(int i = 0; i < 3; i ++) {
+		gui_widget_set_text(widget, str);
+		sys_mdelay(200);
+		oid_error(oid_ecode_sys);
+		sys_mdelay(100);
+	}
+}
+
+static int oid_measure_resistor(int pin0, int pin1)
+{
+	int mohm = -1;
+	matrix_reset();
+	matrix_connect(BUS_CSP, pin0);
+	matrix_connect(BUS_VMP, pin0);
+	matrix_connect(BUS_VMN, pin1);
+	matrix_connect(BUS_CSN, pin1);
+	if(!matrix_execute()) {
+		sys_mdelay(1000);
+		mohm = dmm_read(0);
+	}
+	return mohm;
+}
+
+void oid_instr_cal(void)
+{
+	struct dmm_s *oid_dmm = NULL;
+	struct matrix_s *oid_matrix = NULL;
+
+	time_t deadline = time_get(3000);
+	do {
+		sys_update();
+		oid_dmm = dmm_open(NULL);
+	} while(oid_dmm == NULL && time_left(deadline) > 0);
+
+	do {
+		sys_update();
+		oid_matrix = matrix_open(NULL);
+	} while(oid_matrix == NULL && time_left(deadline) > 0);
+
+	if(oid_dmm == NULL) {
+		oid_error(E_DMM_INIT);
+		return;
+	}
+
+	if(oid_matrix == NULL) {
+		oid_error(E_MATRIX_INIT);
+		return;
+	}
+
+#define RCAL_MIN ((int)(1000 * (1 + 0.1)))
+#define RCAL_MAX ((int)(1000 * (1 - 0.1)))
+#define VCAL_MIN ((int)(1250 * (1 + 0.1)))
+#define VCAL_MAX ((int)(1250 * (1 - 0.1)))
+
+	int mohm = oid_measure_resistor(PIN_RCAL1, PIN_RCAL2);
+	if((mohm > RCAL_MAX) || (mohm < RCAL_MIN)) {
+		oid_error(E_RES_CAL);
+		return;
+	}
+
+	/*
+	int mv = oid_measure_voltage(PIN_VCAL1, PIN_VCAL2);
+	if((mv > VCAL_MAX) || (mv > VCAL_MAX)) {
+	}
+	*/
+}
+
+void oid_cold_test()
+{
+	int i, j;
+	/*ground test, to identify gray line*/
+	for(i = 1; i <= oid_config.lines; i ++) {
+		oid_result.R[0][i] = oid_measure_resistor(0, i);
+	}
+
+	/*heat wire test*/
+	for(j = 1; j <= oid_config.lines; j ++) {
+		for(i = j + 1; i <= oid_config.lines; i ++) {
+			oid_result.R[j][i] = oid_measure_resistor(j, i);
+		}
+	}
+}
+
+void oid_hot_test()
+{
+}
+
 void oid_init(void)
 {
 	oid_config.lines = 4;
@@ -177,6 +357,7 @@ void oid_init(void)
 	oid_config.start = 0;
 	oid_status.stm = READY;
 	oid_status.counter = 0;
+	oid_error_init();
 }
 
 void oid_update(void)
@@ -185,8 +366,6 @@ void oid_update(void)
 	gwidget *widget;
 	char str[4];
 
-	sys_update();
-	gui_update();
 	if(oid_status.counter > 0) {
 		if(time_left(oid_second_timer) < 0) {
 			oid_second_timer = time_get(1000);
@@ -198,43 +377,54 @@ void oid_update(void)
 	}
 }
 
-void oid_start(void)
+void __sys_update(void)
 {
+	instr_update();
 	oid_update();
-	if(oid_config.start == 1) {
-		oid_config.start = 0;
-		oid_status.stm = BUSY;
-		oid_status.counter = oid_config.seconds;
-		while(oid_status.counter > 0) {
-			oid_update();
-			if(oid_config.start == 1) {
-				//cancel ...
-				oid_config.start = 0;
-				break;
-			}
-		}
-		oid_status.stm = READY;
-		oid_status.counter = 0;
-		gwidget *widget = (oid_config.mode == 'i') ? button_mode_id : button_mode_dg;
-		gui_widget_set_text(widget, "<");
-	}
+	gui_update();
 }
 
-void oid_mdelay(int ms)
+void oid_start(void)
 {
-	time_t deadline = time_get(ms);
-	while(time_left(deadline) > 0) {
-		oid_update();
+	oid_config.start = 0;
+	oid_status.stm = BUSY;
+	oid_status.counter = oid_config.seconds;
+	oid_result_init();
+	oid_cold_test();
+	while(oid_status.counter > 0) {
+		sys_update();
+		if(oid_config.start == 1) {
+			//cancel ...
+			oid_config.start = 0;
+			break;
+		}
 	}
+	oid_hot_test();
+	oid_status.stm = READY;
+	oid_status.counter = 0;
+	gwidget *widget = (oid_config.mode == 'i') ? button_mode_id : button_mode_dg;
+	gui_widget_set_text(widget, "<");
 }
 
 void main(void)
 {
 	sys_init();
-	gui_init(NULL);
+	instr_init();
 	oid_init();
+	gui_init(NULL);
 	main_window_init();
+	gui_update();
+	oid_instr_cal();
 	while(1) {
-		oid_start();
+		sys_update();
+		if(oid_config.start == 1) {
+			if(oid_ecode_sys) {
+				oid_error_flash();
+				oid_config.start = 0;
+			}
+			else {
+				oid_start();
+			}
+		}
 	}
 }
