@@ -12,5 +12,6 @@ obj-$(CONFIG_LIB_UDISK) += mass_storage/
 obj-$(CONFIG_LIB_PRIV) += priv/
 obj-$(CONFIG_LIB_LUA) += lua/
 obj-$(CONFIG_LIB_ZBAR) += zbar/
+obj-$(CONFIG_LIB_INSTR) += instr/
 
 inc-$(CONFIG_LIB_FATFS) += fatfs/

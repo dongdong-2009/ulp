@@ -21,6 +21,7 @@ bool "mass storage - virtual usb disk" CONFIG_LIB_UDISK
 bool "priv - copyright related library" CONFIG_LIB_PRIV
 bool "lua - lua script language" CONFIG_LIB_LUA
 bool "zbar - barcode scanner library" CONFIG_LIB_ZBAR
+bool "instr - instrument support routines" CONFIG_LIB_INSTR
 
 mainmenu_option next_comment
 	comment 'library detail configuration'

@@ -84,3 +84,10 @@ if [ "$CONFIG_LIB_ZBAR" = "y" ]; then
 		source src/lib/zbar/Kconfig
 	endmenu
 fi
+
+if [ "$CONFIG_LIB_INSTR" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'instr'
+		source src/lib/instr/Kconfig
+	endmenu
+fi
