@@ -34,8 +34,8 @@
  */
 #include "sys/task.h"
 #define sys_init	task_Init
-#define sys_update	task_Update
-#define sys_mdelay	task_mdelay
+#define sys_update	task_Update /*to avoid init sequence issue, never call me at xxx_init!!!*/
+#define sys_mdelay	task_mdelay /*to avoid init sequence issue, never call me at xxx_init!!!*/
 
 /*optional callback functions*/
 #define __sys_tick task_tick /*called by system timer isr periodly*/
