@@ -32,7 +32,7 @@ enum {
 
 /*common instrument commands*/
 enum {
-	INSTR_CMD_GET_NAME,
+	INSTR_CMD_GET_NAME = 0x01,
 	INSTR_CMD_END = 0x10,
 };
 
@@ -55,14 +55,14 @@ struct instr_outbox_s {
 };
 
 struct instr_s {
-	union {
-		unsigned uuid;
+	union instr_uuid {
+		unsigned value;
 		struct {
-			unsigned class : 8;
-			unsigned index : 8;
 			unsigned crc_name : 16;
+			unsigned index : 8;
+			unsigned class : 8;
 		};
-	};
+	} uuid;
 	unsigned id_cmd : 16;
 	unsigned id_dat : 16;
 	unsigned char mode;

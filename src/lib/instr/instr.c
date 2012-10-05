@@ -40,7 +40,7 @@ static struct instr_s* __instr_search(unsigned uuid, unsigned mask)
 
 	list_for_each(pos, &instr_list) {
 		instr = list_entry(pos, instr_s, list);
-		if((instr->uuid & mask) == (uuid & mask)) {
+		if((instr->uuid.value & mask) == (uuid & mask)) {
 			return instr;
 		}
 	}
@@ -54,8 +54,8 @@ static int __instr_newbie(struct instr_nreq_s *nreq)
 	if(newbie == NULL) {
 		newbie = sys_malloc(sizeof(struct instr_s));
 		sys_assert(newbie != NULL);
-		list_add(&newbie->list, &instr->list);
-		newbie->uuid = nreq->uuid;
+		list_add(&newbie->list, &instr_list);
+		newbie->uuid.value = nreq->uuid;
 		//assign can id
 		newbie->id_cmd = instr_id ++;
 		newbie->id_dat = instr_id ++;
@@ -67,7 +67,7 @@ static int __instr_newbie(struct instr_nreq_s *nreq)
 	//change to normal work mode
 	can_msg_t msg;
 	struct instr_echo_s *echo = (struct instr_echo_s *) msg.data;
-	echo->uuid = newbie->uuid;
+	echo->uuid = newbie->uuid.value;
 	echo->id_cmd = newbie->id_cmd;
 	echo->id_dat = newbie->id_dat;
 	msg.id = INSTR_ID_BROADCAST;
@@ -81,20 +81,23 @@ static int __instr_newbie(struct instr_nreq_s *nreq)
 		}
 	}
 
+	//wait for slave to change its work mode
+	sys_mdelay(100);
+
 	//get instrument name .. to ensure mcamos works ok now
 	unsigned char cmd = INSTR_CMD_GET_NAME;
 	instr_select(newbie);
 	instr_send(&cmd, 1, 10);
 	int ecode = instr_recv(newbie->dummy, INSTR_NAME_LEN_MAX + 3, 10);
 	if(ecode == 0) {
-		if(cyg_crc16(newbie->name, strlen(newbie->name)) != newbie->crc_name) {
-			newbie->mode = INSTR_MODE_FAIL;
-			return -1;
+		if(cyg_crc16(newbie->name, strlen(newbie->name)) == newbie->uuid.crc_name) {
+			newbie->mode = INSTR_MODE_NORMAL;
+			return 0;
 		}
 	}
 
-	newbie->mode = INSTR_MODE_NORMAL;
-	return 0;
+	newbie->mode = INSTR_MODE_FAIL;
+	return -1;
 }
 
 /*handle newbie requestion*/
@@ -137,6 +140,17 @@ int instr_select(struct instr_s *instr_new)
 	instr_mcamos.id_dat = instr->id_dat;
 	instr_mcamos.timeout = 100;
 	mcamos_init_ex(&instr_mcamos);
+
+	//reconfigure the can filter settings
+	can_filter_t filter_mcamos[] = {
+		{.id = instr->id_cmd, .mask = 0xffff},
+		{.id = instr->id_dat, .mask = 0xffff},
+	};
+	instr_can->efilt(INSTR_PIPE_MCAMOS, filter_mcamos, 2);
+
+	/*enable rbuf1 for newbie requestion*/
+	const can_filter_t filter_broadcast = {.id = INSTR_ID_BROADCAST, .mask = 0xffff};
+	instr_can->efilt(INSTR_PIPE_BROADCAST, &filter_broadcast, 1);
 	return 0;
 }
 
