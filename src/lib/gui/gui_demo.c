@@ -289,24 +289,15 @@ void oid_instr_cal(void)
 	struct dmm_s *oid_dmm = NULL;
 	struct matrix_s *oid_matrix = NULL;
 
-	time_t deadline = time_get(3000);
-	do {
-		sys_update();
-		oid_dmm = dmm_open(NULL);
-	} while(oid_dmm == NULL && time_left(deadline) > 0);
-
-	do {
-		sys_update();
-		oid_matrix = matrix_open(NULL);
-	} while(oid_matrix == NULL && time_left(deadline) > 0);
-
-	if(oid_dmm == NULL) {
-		oid_error(E_DMM_INIT);
+	oid_matrix = matrix_open(NULL);
+	if(oid_matrix == NULL) {
+		oid_error(E_MATRIX_INIT);
 		return;
 	}
 
-	if(oid_matrix == NULL) {
-		oid_error(E_MATRIX_INIT);
+	oid_dmm = dmm_open(NULL);
+	if(oid_dmm == NULL) {
+		oid_error(E_DMM_INIT);
 		return;
 	}
 
@@ -357,7 +348,6 @@ void oid_init(void)
 	oid_config.start = 0;
 	oid_status.stm = READY;
 	oid_status.counter = 0;
-	oid_error_init();
 }
 
 void oid_update(void)
@@ -414,10 +404,11 @@ void main(void)
 	gui_init(NULL);
 	main_window_init();
 	gui_update();
-	oid_instr_cal();
 	while(1) {
 		sys_update();
 		if(oid_config.start == 1) {
+			oid_error_init();
+			oid_instr_cal();
 			if(oid_ecode_sys) {
 				oid_error_flash();
 				oid_config.start = 0;
