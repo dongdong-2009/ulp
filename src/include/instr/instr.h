@@ -14,6 +14,7 @@
 
 #include "linux/list.h"
 #include "priv/mcamos.h"
+#include "ulp_time.h"
 
 #define INSTR_BAUD MCAMOS_BAUD
 #define INSTR_INBOX_ADDR MCAMOS_INBOX_ADDR
@@ -22,6 +23,7 @@
 #define INSTR_NAME_LEN_MAX (31)
 #define INSTR_PIPE_BROADCAST 1
 #define INSTR_PIPE_MCAMOS 0
+#define INSTR_UPDATE_MS 1000
 
 /*instrument work modes*/
 enum {
@@ -33,6 +35,7 @@ enum {
 /*common instrument commands*/
 enum {
 	INSTR_CMD_GET_NAME = 0x01,
+	INSTR_CMD_UPDATE,
 	INSTR_CMD_END = 0x10,
 };
 
@@ -70,6 +73,8 @@ struct instr_s {
 	char dummy[2];
 	char name[INSTR_NAME_LEN_MAX + 1];
 	struct list_head list; /*point to next instrument*/
+	time_t timer; /*update timer*/
+	void *priv;
 };
 
 /*newbie broadcast message structure*/

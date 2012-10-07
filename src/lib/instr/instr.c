@@ -36,12 +36,12 @@ void instr_init(void)
 static struct instr_s* __instr_search(unsigned uuid, unsigned mask)
 {
 	struct list_head *pos;
-	struct instr_s *instr;
+	struct instr_s *p;
 
 	list_for_each(pos, &instr_list) {
-		instr = list_entry(pos, instr_s, list);
-		if((instr->uuid.value & mask) == (uuid & mask)) {
-			return instr;
+		p = list_entry(pos, instr_s, list);
+		if((p->uuid.value & mask) == (uuid & mask)) {
+			return p;
 		}
 	}
 	return NULL;
@@ -59,10 +59,12 @@ static int __instr_newbie(struct instr_nreq_s *nreq)
 		//assign can id
 		newbie->id_cmd = instr_id ++;
 		newbie->id_dat = instr_id ++;
+		newbie->priv = NULL;
 	}
 
 	newbie->ecode = nreq->ecode;
 	newbie->mode = (nreq->ecode == 0) ? INSTR_MODE_INIT : INSTR_MODE_FAIL;
+	newbie->timer = 0;
 
 	//change to normal work mode
 	can_msg_t msg;
@@ -92,12 +94,29 @@ static int __instr_newbie(struct instr_nreq_s *nreq)
 	if(ecode == 0) {
 		if(cyg_crc16(newbie->name, strlen(newbie->name)) == newbie->uuid.crc_name) {
 			newbie->mode = INSTR_MODE_NORMAL;
+			printf("INSTR %08x: %04x %04x %s\n", newbie->uuid.value, newbie->id_cmd, newbie->id_dat, newbie->name);
 			return 0;
 		}
 	}
 
 	newbie->mode = INSTR_MODE_FAIL;
 	return -1;
+}
+
+static void __instr_update(void)
+{
+	unsigned char inbox[2], cmd = INSTR_CMD_UPDATE;
+	instr->timer = time_get(INSTR_UPDATE_MS);
+	instr->ecode = 0xff; /*not response*/
+	instr->mode = INSTR_MODE_FAIL;
+
+	instr_send(&cmd, 1, 10);
+	int ecode = instr_recv(inbox, 2, 10);
+	if(ecode == 0) {
+		instr->ecode = inbox[1];
+		if(instr->ecode == 0)
+			instr->mode = INSTR_MODE_NORMAL;
+	}
 }
 
 /*handle newbie requestion*/
@@ -108,10 +127,28 @@ void instr_update(void)
 		return;
 
 	instr_update_lock = 1;
+
+	/*handle newbie request*/
 	while(!instr_can->erecv(INSTR_PIPE_BROADCAST, &msg)) {
 		if(msg.id == INSTR_ID_BROADCAST) {
 			__instr_newbie((struct instr_nreq_s *) msg.data);
 		}
+	}
+
+	/*handle instr status update*/
+	struct list_head *pos;
+	struct instr_s *p, *instr_save = instr;
+
+	list_for_each(pos, &instr_list) {
+		p = list_entry(pos, instr_s, list);
+		if(time_left(p->timer) < 0) {
+			instr_select(p);
+			__instr_update();
+		}
+	}
+
+	if(instr != instr_save) {
+		instr_select(instr_save);
 	}
 	instr_update_lock = 0;
 }
@@ -191,3 +228,29 @@ int instr_recv(void *data, int n, int ms)
 	}
 	return -1;
 }
+
+#include "shell/cmd.h"
+
+static int cmd_instr_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"instr list	list all instruments\n"
+	};
+
+	if(argc > 1 && !strcmp(argv[1], "list")) {
+		struct list_head *pos;
+		struct instr_s *p;
+
+		list_for_each(pos, &instr_list) {
+			p = list_entry(pos, instr_s, list);
+			printf("%08x: %04x %04x %02x %s\n", p->uuid.value, p->id_cmd, p->id_dat, p->ecode, p->name);
+		}
+		return 0;
+	}
+
+	printf(usage);
+	return 0;
+}
+
+const cmd_t cmd_instr = {"instr", cmd_instr_func, "instr cmds"};
+DECLARE_SHELL_CMD(cmd_instr)
