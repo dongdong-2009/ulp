@@ -106,7 +106,6 @@ static int __instr_newbie(struct instr_nreq_s *nreq)
 static void __instr_update(void)
 {
 	unsigned char inbox[2], cmd = INSTR_CMD_UPDATE;
-	instr->timer = time_get(INSTR_UPDATE_MS);
 	instr->ecode = 0xff; /*not response*/
 	instr->mode = INSTR_MODE_FAIL;
 
@@ -142,6 +141,7 @@ void instr_update(void)
 	list_for_each(pos, &instr_list) {
 		p = list_entry(pos, instr_s, list);
 		if(time_left(p->timer) < 0) {
+			p->timer = time_get(INSTR_UPDATE_MS);
 			instr_select(p);
 			__instr_update();
 		}
