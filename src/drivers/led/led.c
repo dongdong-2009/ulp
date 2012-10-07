@@ -87,6 +87,7 @@ void led_on(led_t led)
 
 	flag_status |= 1 << i;
 	flag_flash &= ~(1 << i);
+	led_hwSetStatus(led, LED_ON);
 }
 
 void led_off(led_t led)
@@ -95,6 +96,7 @@ void led_off(led_t led)
 
 	flag_status &= ~(1 << i);
 	flag_flash &= ~(1 << i);
+	led_hwSetStatus(led, LED_OFF);
 }
 
 void led_inv(led_t led)
@@ -103,6 +105,7 @@ void led_inv(led_t led)
 
 	flag_status ^= 1 << i;
 	flag_flash &= ~(1 << i);
+	led_hwSetStatus(led, (flag_status & (1 << i)) ? LED_ON : LED_OFF);
 }
 
 void led_flash(led_t led)
