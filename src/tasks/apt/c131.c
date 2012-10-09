@@ -254,6 +254,8 @@ static void c131_Update(void)
 	//for device under testing check
 	if (Get_SDMStatus()) {
 		status_link = SDM_UNEXIST;
+		Disable_SDMPWR();
+		Disable_LEDPWR();
 	} else {
 		status_link = SDM_EXIST;
 	}
