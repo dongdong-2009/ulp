@@ -2,44 +2,34 @@
  *  miaofng@2012 initial version
  */
 
-#ifndef __DMM_H_
-#define __DMM_H_
+#ifndef __INSTR_DMM_H_
+#define __INSTR_DMM_H_
 
 #include "instr/instr.h"
 
+enum {
+	DMM_PROFILE_R = 'R',
+	DMM_PROFILE_V = 'V',
+};
+
 struct dmm_s {
+	char profile;
 	struct instr_s *instr;
 };
 
 enum {
-	DMM_CMD_CONFIG,
-	DMM_CMD_READ, /*INBOX: CMD BYTES CRC16 IMG0 IMG1 ..., OUTBOX: CMD ECODE*/
+	DMM_CMD_CONFIG = INSTR_CMD_END,
+	DMM_CMD_READ,
 };
 
-struct dmm_mailbox_s {
-	unsigned char cmd;
-	union {
-		struct {
-			unsigned char bytes;
-			unsigned short crc16;
-		} set_image;
-
-		/*outbox*/
-		struct {
-			unsigned char status;
-			union {
-				struct {
-					unsigned char bus;
-					unsigned char row;
-				} get_size;
-			};
-		};
-	};
-};
-
-struct dmm_s* dmm_open(const char *uuid);
+/* each instrument can only be opened once
+ * name  could be 'dmm0'(class_name + index), xxx(uuid),
+ *       or yyy[:0](name[:index]), or null
+ */
+struct dmm_s* dmm_open(const char *name);
 int dmm_select(struct dmm_s *dmm_new);
-int dmm_read(int ch);
+int dmm_config(const char *str_cfg);
+int dmm_read(void);
 void dmm_close(void);
 
-#endif /* __DMM_H_ */
+#endif /* __INSTR_DMM_H_ */
