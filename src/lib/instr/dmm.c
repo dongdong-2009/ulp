@@ -37,7 +37,9 @@ void dmm_close(void)
 
 int dmm_select(struct dmm_s *dmm_new)
 {
+	sys_assert(dmm_new != NULL);
 	dmm = dmm_new;
+	return instr_select(dmm->instr);
 	return 0;
 }
 
