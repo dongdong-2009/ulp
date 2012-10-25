@@ -214,7 +214,7 @@ static int __instr_wait(int ms)
 	} while(cmd != 0);
 
 	ret = mcamos_upload(instr_can, INSTR_OUTBOX_ADDR, outbox, 2, 10);
-	if(ret)
+	if(ret || (outbox[0] == 0))
 		return -1;
 
 	return outbox[1];
@@ -226,7 +226,7 @@ int instr_recv(void *data, int n, int ms)
 	if(!ecode) {
 		return mcamos_upload(instr_can, INSTR_OUTBOX_ADDR, data, n, 10);
 	}
-	return -1;
+	return ecode;
 }
 
 #include "shell/cmd.h"
