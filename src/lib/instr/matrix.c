@@ -34,6 +34,7 @@ static int matrix_cmd_set_image(void)
 {
 	int ecode, crc16;
 
+	instr_select(matrix->instr);
 	crc16 = cyg_crc16(matrix->image, matrix->image_bytes);
 	matrix_mailbox[0] = MATRIX_CMD_SET_IMAGE;
 	matrix_mailbox[1] = matrix->image_bytes;

@@ -48,6 +48,7 @@ int dmm_config(const char *str_cfg)
 	int ecode;
 	char mailbox[4];
 
+	instr_select(dmm->instr);
 	mailbox[0] = DMM_CMD_CONFIG;
 	mailbox[1] = str_cfg[0];
 	ecode = instr_send(mailbox, 2, 10);
@@ -61,6 +62,7 @@ int dmm_read(void)
 	int value = 0;
 	char mailbox[10];
 	mailbox[0] = DMM_CMD_READ;
+	instr_select(dmm->instr);
 	int ecode = instr_send(mailbox, 1, 10);
         memset(mailbox, 0, 6);
 	ecode += instr_recv(mailbox, 10, 10);
