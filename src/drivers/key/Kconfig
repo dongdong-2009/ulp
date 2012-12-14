@@ -17,7 +17,8 @@ if [ "$CONFIG_DRIVER_KEYBOARD" = "y" ]; then
 		choice 'keyboard layout select'	" \
 			goldbull	CONFIG_GPIOKEY_LAYOUT_GB \
 			vvt		CONFIG_GPIOKEY_LAYOUT_VVT \
-		" goldbull
+			custom		CONFIG_GPIOKEY_LAYOUT_CUSTOM \
+		" custom
 	fi
 	bool "general remote control driver" CONFIG_DRIVER_RCKEY
 	if [ "$CONFIG_DRIVER_RCKEY" = "y" ]; then

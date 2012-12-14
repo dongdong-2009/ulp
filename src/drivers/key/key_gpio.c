@@ -6,7 +6,6 @@
 #include "ulp/driver.h"
 #include "ulp_time.h"
 
-#define NOKEY 0xff
 #define KEY_UPDATE_MS (10)
 #define KEY_DETECT_CNT (5) /*detect time = KEY_DETECT_CNT * KEY_UPDATE_MS*/
 
@@ -60,7 +59,7 @@ static short key_hwgetvalue(void)
 #if CONFIG_GPIOKEY_LAYOUT_VVT == 1
 #include "stm32f10x.h"
 
-static int key_hwinit(void)
+int key_hwinit(void)
 {
 	/* key pin map:
 		key0, S_ENCODER		PB11
@@ -75,7 +74,7 @@ static int key_hwinit(void)
 	return 0;
 }
 
-static short key_hwgetvalue(void)
+int key_hwgetvalue(void)
 {
 	short value = 0;
 	value |= (!GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11));
@@ -109,7 +108,7 @@ static void key_update(void)
 	key_timer = time_get(KEY_UPDATE_MS);
 
 	//get key code from gpio level
-	value = key_hwgetvalue();
+	value = (short)key_hwgetvalue();
 
 	//update?
 	if(value != key.code) {
