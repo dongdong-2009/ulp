@@ -83,6 +83,13 @@ int console_getch(void)
 	return c;
 }
 
+void console_flush(void)
+{
+	while(console_IsNotEmpty()) {
+		console_getch();
+	}
+}
+
 int console_putchar(char c)
 {
 	if(c == '\n') {
