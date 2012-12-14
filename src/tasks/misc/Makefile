@@ -8,3 +8,4 @@ obj-$(CONFIG_MISC_LPC1788DK) += lpc1788dk.o
 icf-$(CONFIG_MISC_LPC1788DK) += lpc1788dk.icf
 obj-$(CONFIG_MISC_MUX) += mux.o
 obj-$(CONFIG_MISC_MATRIX) += ybs_matrix.o
+obj-$(CONFIG_MISC_GSM) += gsm.o
