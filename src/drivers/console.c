@@ -85,10 +85,10 @@ int console_getch(void)
 
 int console_putchar(char c)
 {
-	console_putch(c);
 	if(c == '\n') {
 		console_putch('\r');
 	}
+	console_putch(c);
 	return 0;
 }
 
