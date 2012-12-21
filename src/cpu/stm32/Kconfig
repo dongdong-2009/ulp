@@ -13,6 +13,13 @@ choice 'stm32 cpu type select'	" \
 " md
 bool "use stm32 std periph driver?" CONFIG_USE_STDPERIPH_DRIVER y
 bool "use stm32 internal RC OSC?" CONFIG_USE_HSI n
+choice 'system freq select(note: must < 64MHz when using HSI!!!)'	" \
+	24MHz	SYSCLK_FREQ_24MHz \
+	36MHz	SYSCLK_FREQ_36MHz \
+	48MHz	SYSCLK_FREQ_48MHz \
+	56MHz	SYSCLK_FREQ_56MHz \
+	72MHz	SYSCLK_FREQ_72MHz \
+" 72MHz
 
 if [ "$CONFIG_STM32F10X_CL" = "y"]; then
 	bool "use stm32 std ethernet driver?" CONFIG_USE_STDETHERNET_DRIVER y
