@@ -7,6 +7,7 @@
 #common config options
 bool "enhanced can support" CONFIG_CAN_ENHANCED
 bool "enable debug command" CONFIG_CMD_CAN
+bool "enable bpanel monitor routine" CONFIG_CAN_BPMON
 #can 0
 if [ "$CONFIG_CPU_STM32" = "n" ]; then
 bool "enable CAN 0" CONFIG_DRIVER_CAN0
