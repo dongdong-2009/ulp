@@ -38,7 +38,7 @@ int time_left(time_t deadline)
 	return time_diff(deadline, jiffies);
 }
 
-static time_t time_shift(time_t time, int ms)
+time_t time_shift(time_t time, int ms)
 {
 	unsigned int delta, result;
 	if(ms > 0) {
