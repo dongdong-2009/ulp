@@ -70,11 +70,21 @@
     */
 
 /* #define SYSCLK_FREQ_HSE    HSE_Value */
-/* #define SYSCLK_FREQ_24MHz  24000000 */
-/* #define SYSCLK_FREQ_36MHz  36000000 */
-/* #define SYSCLK_FREQ_48MHz  48000000 */
-/* #define SYSCLK_FREQ_56MHz  56000000 */
+#ifdef CONFIG_SYS_FREQ_24MHz
+#define SYSCLK_FREQ_24MHz  24000000
+#endif
+#ifdef CONFIG_SYS_FREQ_36MHz
+#define SYSCLK_FREQ_36MHz  36000000
+#endif
+#ifdef CONFIG_SYS_FREQ_48MHz
+#define SYSCLK_FREQ_48MHz  48000000
+#endif
+#ifdef CONFIG_SYS_FREQ_56MHz
+#define SYSCLK_FREQ_56MHz  56000000
+#endif
+#ifdef CONFIG_SYS_FREQ_72MHz
 #define SYSCLK_FREQ_72MHz  72000000
+#endif
 
 /*!< Uncomment the following line if you need to use external SRAM mounted
      on STM3210E-EVAL board (STM32 High density devices) as data memory  */
