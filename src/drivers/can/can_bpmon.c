@@ -11,21 +11,21 @@
 #include "ulp_time.h"
 #include "linux/list.h"
 #include "ulp/sys.h"
+#include "common/debounce.h"
 
-#define frame_period_threshold 30%
+#define frame_period_threshold 10%
 
 static const can_bus_t *bpmon_can = &can1;
 static LIST_HEAD(record_queue);
 
 struct record_s {
-	unsigned sync :1;
-	unsigned counter : 7;
 	unsigned id;
 	time_t time; /*time of last frame*/
 	int ms; /*frame period of last time*/
 	int ms_min;
 	int ms_max;
 	int ms_avg;
+	struct debounce_s sync;
 	struct list_head list;
 };
 
@@ -44,6 +44,7 @@ static void *record_get(int id)
 	memset(record, 0, sizeof(struct record_s));
 	list_add(&record->list, &record_queue);
 	record->id = id;
+	debounce_init(&record->sync, 3, 0);
 	return record;
 }
 
@@ -67,46 +68,34 @@ static void bpmon_update(void)
 {
 	can_msg_t msg;
 	struct record_s *record;
+
+	//frame lost detection
+	struct list_head *pos, *bak;
+	list_for_each_safe(pos, bak, &record_queue) {
+		record = list_entry(pos, record_s, list);
+		if(record->sync.on) {
+			int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100;
+			if(time_left(record->time) < - ms_threshold) {
+				printf("%08d : %03xh timeout(T = %dmS[%dms, %dms])\n", time_get(0), record->id, record->ms, record->ms_min, record->ms_max);
+				record->time = time_shift(record->time, record->ms_avg);
+				if(debounce(&record->sync, 0)) { //can frame lost
+					printf("%08d : %03xh !!! is lost(T = %dmS)\n", time_get(0), record->id, record->ms_avg);
+					list_del(&record->list);
+					sys_free(record);
+				}
+			}
+		}
+	}
+
 	if(!bpmon_can -> recv(&msg)) {
 		record = record_get(msg.id);
-		if(record->sync == 0) { //try to sync
-			if(record->ms == 0) { //1st, 2nd frame
-				record->ms = (record->time == 0) ? 0 : - time_left(record->time);
+		if((record->sync.off) && (record->ms == 0)) { //1st, 2nd frame
+			if(record->time != 0) {
+				record->ms = - time_left(record->time);
 				record->ms_avg = record->ms;
-				record->time = time_get(record->ms_avg);
+				debounce(&record->sync, 1);
 			}
-			else { //3rd, 4th, ...
-				int ms = time_left(record->time); //estimation err
-				record->ms -= ms;
-				record->time = time_get(record->ms_avg);
-
-				ms = (ms > 0) ? ms : - ms;
-				int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100;
-				if((ms < ms_threshold) && (record->ms > 0)) {
-					record->ms_avg = (record->ms_avg + record->ms) / 2;
-					record->counter ++;
-					if(record->counter > 2) {
-						record->sync = 1;
-
-						//new can frame is sync, print it ...
-						printf("%08d : %03xh", time_get(0), record->id);
-						for(int i = 0; i < msg.dlc; i ++) {
-							printf(" %02x", ((unsigned)(msg.data[i])) & 0xff);
-						}
-						printf(" (T = %dmS) is sync\n", record->ms_avg);
-					}
-				}
-				else {
-					if(record->counter > 0) {
-						record->counter --;
-					}
-					else {
-						record->time = 0;
-						record->ms = record->ms_avg = 0;
-						record->ms_min = record->ms_max = 0;
-					}
-				}
-			}
+			record->time = time_get(record->ms_avg);
 			return;
 		}
 
@@ -117,41 +106,32 @@ static void bpmon_update(void)
 		ms = (ms > 0) ? ms : - ms;
 		int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100;
 		if((ms < ms_threshold) && (record->ms > 0)) {
-			if(record->counter > 0) {
-				record->counter --;
-			}
 			record->ms_avg = (record->ms_avg + record->ms) / 2;
-			if(record->ms_min == 0) record->ms_min = record->ms;
-			else record->ms_min = (record->ms < record->ms_min)?record->ms : record->ms_min;
-			record->ms_max = (record->ms > record->ms_max)?record->ms : record->ms_max;
-			return;
+			if(debounce(&record->sync, 1)){
+				//new can frame is sync, print it ...
+				printf("%08d : %03xh !!!", time_get(0), record->id);
+				for(int i = 0; i < msg.dlc; i ++) {
+					printf(" %02x", ((unsigned)(msg.data[i])) & 0xff);
+				}
+				printf(" (T = %dmS) is sync\n", record->ms_avg);
+			}
+			if(record->sync.on) { //update statistics info
+				if(record->ms_min == 0) record->ms_min = record->ms;
+				else record->ms_min = (record->ms < record->ms_min)?record->ms : record->ms_min;
+				record->ms_max = (record->ms > record->ms_max)?record->ms : record->ms_max;
+			}
 		}
-
-		//peculiar can frame received, print it ...
-		printf("%08d : %03xh", time_get(0), record->id);
-		for(int i = 0; i < msg.dlc; i ++) {
-			printf(" %02x", ((unsigned)(msg.data[i])) & 0xff);
-		}
-		printf(" (T = %dmS[%dms,%dms])\n", record->ms, record->ms_min, record->ms_max);
-		record->counter ++;
-		if(record->counter > 2) { //sync err, resync is needed
-			printf("%08d : %03xh sync err, resync ..(T = %dmS)\n", time_get(0), record->id, record->ms_avg);
-			list_del(&record->list);
-			sys_free(record);
-		}
-	}
-
-	//frame lost detection
-	struct list_head *pos, *bak;
-	list_for_each_safe(pos, bak, &record_queue) {
-		record = list_entry(pos, record_s, list);
-		int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100;
-		if((record->sync == 1) && time_left(record->time) < - ms_threshold) {
-			printf("%08d : %03xh timeout(T = %dmS[%dms, %dms])\n", time_get(0), record->id, record->ms, record->ms_min, record->ms_max);
-			record->time = time_shift(record->time, record->ms_avg);
-			record->counter ++;
-			if(record->counter > 2) { //can frame lost
-				printf("%08d : %03xh is lost(T = %dmS)\n", time_get(0), record->id, record->ms_avg);
+		else {
+			if(record->sync.on) {
+				//peculiar can frame received, print it ...
+				printf("%08d : %03xh", time_get(0), record->id);
+				for(int i = 0; i < msg.dlc; i ++) {
+					printf(" %02x", ((unsigned)(msg.data[i])) & 0xff);
+				}
+				printf(" (T = %dmS[%dms,%dms])\n", record->ms, record->ms_min, record->ms_max);
+			}
+			if(debounce(&record->sync, 0)) { //sync err, resync is needed
+				printf("%08d : %03xh !!! sync err, resync ..(T = %dmS)\n", time_get(0), record->id, record->ms_avg);
 				list_del(&record->list);
 				sys_free(record);
 			}
