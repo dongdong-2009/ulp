@@ -3,9 +3,9 @@
  * debounce algo, common used the filt the noise on digital lines like keyboard input and etc
  *
  */
- 
+
  #include "common/debounce.h"
- 
+
 void debounce_init(struct debounce_s *signal, unsigned threshold, unsigned init_lvl)
 {
 	signal->on = init_lvl;
@@ -20,7 +20,8 @@ int debounce(struct debounce_s *signal, unsigned lvl)
 	if(lvl != signal->on) {
 		if(signal->cnt < signal->threshold) {
 			signal->cnt ++;
-			if(signal->cnt == signal->threshold) {
+			if(signal->cnt >= signal->threshold) {
+				signal->cnt = 0;
 				event = 1;
 			}
 		}
@@ -28,17 +29,13 @@ int debounce(struct debounce_s *signal, unsigned lvl)
 	else {
 		if(signal->cnt > 0) {
 			signal->cnt --;
-			if(signal->cnt == 0) {
-				event = 1;
-			}
 		}
 	}
-	
+
 	if(event) {
-		signal->cnt = 0;
 		signal->on = ! signal->on;
 		signal->off = ! signal->off;
 	}
-	
+
 	return event;
 }
