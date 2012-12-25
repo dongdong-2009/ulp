@@ -12,13 +12,18 @@
 #include "linux/list.h"
 #include "ulp/sys.h"
 #include "common/debounce.h"
+#include <ctype.h>
 
 #define frame_period_threshold 10%
 
 static const can_bus_t *bpmon_can = &can1;
 static struct {
+	unsigned baud; //can baudrate
+	unsigned kline_baud; //kline baudrate
+	unsigned kline_ms : 16;
 	unsigned power : 1;
-} bpmon_flag;
+	unsigned kline : 1;
+} bpmon_config;
 static struct debounce_s pwr_12v;
 static struct debounce_s pwr_5v;
 static LIST_HEAD(record_queue);
@@ -223,65 +228,92 @@ static int bpmon_measure(int ch)
 	return mv;
 }
 
-static can_cfg_t cfg = {.baud = 500000, .silent = 1};
-static can_filter_t *filter = NULL;
 static int cmd_bpmon_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"usage:\n"
 		"bpmon			monitor can frame with baud = 500000 and all can id\n"
 		"bpmon 158h 039h [...]	monitor can frame with id 0x158, 0x039, ...\n"
-		"bpmon 500000 158h	monitor can with baudrate = 500000\n"
-		"bpmon pwrd 500000 158h	monitor can with power detection on\n"
+		"bpmon -b 500000 158h	monitor can with baudrate = 500000\n"
+		"bpmon -p -k 19200	monitor can with power & kline ods detection on\n"
 	};
 
 	if(argc > 0) {
-		int index = 1, id, para_err = 0;
-		bpmon_flag.power = 0;
-		for(;index < argc; index ++) {
-			if(!strcmp(argv[index], "pwrd")) { //enable power on detection
-				bpmon_flag.power = 1;
-				debounce_init(&pwr_12v, 10, 0);
-				debounce_init(&pwr_5v, 300, 0);
-				bpmon_measure_init();
+		bpmon_config.baud = 500000;
+		bpmon_config.power = 0;
+		bpmon_config.kline = 0;
+		bpmon_config.kline_baud = 19200;
+		bpmon_config.kline_ms = 8;
+		can_filter_t *filter = NULL;
+		int v, n, e, id = 0;
+		for(int i = 1; i < argc; i ++) {
+			if(argv[i][strlen(argv[i])-1] == 'h') { //filter id
+				n = argc - i;
+				filter = sys_malloc(sizeof(can_filter_t)*n);
+				assert(filter != NULL);
+				for(int j = 0; j < n; j ++) {
+					sscanf(argv[i + j], "%xh", &id);
+					if(id > 0) {
+						filter[j].id = id;
+						filter[j].mask = -1;
+					}
+					else e ++;
+				}
+				break;
 			}
-			else if(argv[index][strlen(argv[1])-1] != 'h') {
-				cfg.baud = (argc > 1) ? atoi(argv[1]) : 500000;
-				para_err += (cfg.baud <= 100) ? 1 : 0;
+			else e += (argv[i][0] != '-');
+
+			switch(argv[i][1]) {
+			case 'p':
+				bpmon_config.power = 1;
+				break;
+			case 'b':
+				v = atoi(argv[++i]);
+				if(v > 0) bpmon_config.baud = v;
+				else e ++;
+				break;
+			case 'k':
+				bpmon_config.kline = 1;
+				v = atoi(argv[++i]);
+				if(v > 0) bpmon_config.kline_ms = v;
+				else e ++;
+				if(isdigit(argv[i + 1][0])) { // kline baud
+					v = atoi(argv[++i]);
+					if(v > 0) bpmon_config.kline_baud = v;
+					else e ++;
+				}
+				break;
+			default:
+				e ++;
 			}
-			else break;
 		}
 
-		if(filter != NULL) {
-			sys_free(filter);
-			filter = NULL;
-		}
-		if(index < argc) {
-			filter = sys_malloc(sizeof(can_filter_t)*(argc - index));
-			assert(filter != NULL);
-			for(int i = 0; i < (argc - index); i ++) {
-				sscanf(argv[i + index], "%xh", &id);
-				filter[i].id = id;
-				filter[i].mask = -1;
-				para_err += (id <= 0) ? 1 : 0;
-				para_err += (id >= 0xffff) ? 1 : 0; /*only std id is supported yet*/
-			}
-		}
-		if(para_err) {
+		if(e) {
 			printf("%s", usage);
 			return 0;
 		}
 
+		can_cfg_t cfg;
+		cfg.baud = bpmon_config.baud;
+		cfg.silent = 1;
 		bpmon_can->init(&cfg);
 		if(filter != NULL) {
-			bpmon_can->filt(filter, argc - index);
+			bpmon_can->filt(filter, n);
+			sys_free(filter);
+			filter = NULL;
+		}
+
+		if(bpmon_config.power) {
+			debounce_init(&pwr_12v, 10, 0);
+			debounce_init(&pwr_5v, 300, 0);
+			bpmon_measure_init();
 		}
 
 		bpmon_init();
 		return 1;
 	}
 
-	if(bpmon_flag.power) {
+	if(bpmon_config.power) {
 		int mv = bpmon_measure(ADC_CH_12V);
 		//printf("%08d : 12V = %dmV\n", time_get(0), mv);
 		if(debounce(&pwr_12v, (mv > 8000))) {
@@ -302,7 +334,7 @@ static int cmd_bpmon_func(int argc, char *argv[])
 		}
 	}
 
-	if((bpmon_flag.power == 0) || (pwr_5v.on && pwr_12v.on))
+	if((bpmon_config.power == 0) || (pwr_5v.on && pwr_12v.on))
 		bpmon_update();
 	return 1;
 }
@@ -332,7 +364,7 @@ static int cmd_bpstatus_func(int argc, char *argv[])
 	printf("%08d : 5V = %dmV\n", time_get(0), mv);
 
 	struct record_s *record;
-	if((bpmon_flag.power == 0) || (pwr_5v.on && pwr_12v.on)) {
+	if((bpmon_config.power == 0) || (pwr_5v.on && pwr_12v.on)) {
 		//frame lost detection
 		struct list_head *pos;
 		list_for_each(pos, &record_queue) {
