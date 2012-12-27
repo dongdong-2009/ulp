@@ -110,6 +110,7 @@ static void getxy(int *x, int *y)
 
 static void put_cross(struct lcd_s *lcd, int x, int y)
 {
+#if 0
 	int i;
 	char *p = sys_malloc(128);
 
@@ -123,6 +124,10 @@ static void put_cross(struct lcd_s *lcd, int x, int y)
 
 	lcd_bitblt(lcd, p, x - 15, y - 15, 32, 32);
 	sys_free(p);
+#else
+	lcd_set_line_width(lcd, 1);
+	lcd_rect(lcd, x-4, y-4, 8, 8);
+#endif
 }
 
 static void clr_cross(struct lcd_s *lcd, int x, int y)

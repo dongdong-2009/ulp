@@ -38,7 +38,7 @@ int time_left(time_t deadline)
 	return time_diff(deadline, jiffies);
 }
 
-static time_t time_shift(time_t time, int ms)
+time_t time_shift(time_t time, int ms)
 {
 	unsigned int delta, result;
 	if(ms > 0) {
@@ -57,12 +57,14 @@ int time_diff(time_t t0, time_t t1)
 	unsigned dt;
 	int left;
 
-	dt = (t0 > t1) ? t0 - t1 : t1 - t0;
-	if(dt >= (1U << 31)) {
-		dt = 0 - (int)(dt);
+	if(t0 > t1) {
+		dt = t0 - t1;
+		left = (int) dt;
 	}
-
-	left = (t0 > t1) ? dt : (0 - dt);
+	else {
+		dt = t1 - t0;
+		left = - (int) dt;
+	}
 	return left;
 }
 

@@ -58,14 +58,21 @@ int mcamos_init_ex(const struct mcamos_s *m)
 		ret += mcamos_new. can ->init(&cfg);
 	}
 
-#if 0
+#if 1
 	//can filter init
-	can_filter_t filter = {
-		.id = mcamos_new.id_dat,
-		.mask = 0xffff,
-		.flag = 0,
+	can_filter_t filter[] = {
+		{
+			.id = mcamos_new.id_dat,
+			.mask = 0xffff,
+			.flag = 0,
+		},
+		{
+			.id = mcamos_new.id_cmd,
+			.mask = 0xffff,
+			.flag = 0,
+		},
 	};
-	ret += can -> filt(&filter, 1);
+	ret += mcamos_new.can -> filt(filter, 2);
 #endif
 	return ret;
 }

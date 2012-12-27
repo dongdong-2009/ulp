@@ -4,6 +4,9 @@
 # Written by miaofng@2010
 #
 
+string "shell banner" CONFIG_BLDC_BANNER "Welcome to Brushless Motor Console"
+string "shell prompt" CONFIG_SHELL_PROMPT "bldc# "
+
 int "max bytes of a shell command?" CONFIG_SHELL_LEN_CMD_MAX 64
 int "max paras of a shell command?" CONFIG_SHELL_NR_PARA_MAX 16
 int "max bytes of command history?" CONFIG_SHELL_LEN_HIS_MAX 256

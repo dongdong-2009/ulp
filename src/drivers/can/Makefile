@@ -1,4 +1,5 @@
 obj-$(CONFIG_CMD_CAN) += can_cmd.o
+obj-$(CONFIG_CAN_BPMON) += can_bpmon.o
 
 #stm32
 ifeq ($(CONFIG_CPU_STM32),y)

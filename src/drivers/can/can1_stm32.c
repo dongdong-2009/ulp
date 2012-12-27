@@ -17,6 +17,9 @@ static can_msg_t can_fifo_rx[RX_FIFO_SZ];
 static int circle_header;
 static int circle_tailer;
 static int circle_number;
+#ifdef CONFIG_CAN_ENHANCED
+#error "enhanced mode is not supported when swfifo function is on"
+#endif
 #endif
 
 static int can_init(const can_cfg_t *cfg)
@@ -131,7 +134,7 @@ int can_send(const can_msg_t *msg)
 	return ret;
 }
 
-int can_recv(can_msg_t *msg)
+int can_erecv(int rfifo, can_msg_t *msg)
 {
 #if ENABLE_CAN_INT
 	if (circle_number == 0) {
@@ -146,11 +149,10 @@ int can_recv(can_msg_t *msg)
 	return 0;
 #else
 	CanRxMsg msg_st;
+	uint8_t rxfifo = (rfifo == 0) ? CAN_FIFO0 : CAN_FIFO1;
 
-	if(CAN_MessagePending(CAN1, CAN_FIFO0) > 0)
-		CAN_Receive(CAN1, CAN_FIFO0, &msg_st);
-	else if(CAN_MessagePending(CAN1, CAN_FIFO1) > 0)
-		CAN_Receive(CAN1, CAN_FIFO1, &msg_st);
+	if(CAN_MessagePending(CAN1, rxfifo) > 0)
+		CAN_Receive(CAN1, rxfifo, &msg_st);
 	else
 		return -1;
 
@@ -162,14 +164,25 @@ int can_recv(can_msg_t *msg)
 #endif
 }
 
-int can_filt(can_filter_t const *filter, int n)
+int can_recv(can_msg_t *msg)
+{
+	int ret = can_erecv(0, msg);
+#ifndef CONFIG_CAN_ENHANCED
+	if(ret)
+		ret = can_erecv(1, msg);
+#endif
+	return ret;
+}
+
+/*note: there are 14 32bit filter bank, we separate it half for RFIFO0 and half for RFIFO1*/
+int can_efilt(int rfifo, can_filter_t const *filter, int n)
 {
 	int i, j, ret = 0;
 	short id0, id1, msk0, msk1;
 	CAN_FilterInitTypeDef  CAN_FilterInitStructure;
 
 	if ((n == 0) || (filter == NULL)) {
-			/* CAN filter init */
+		/* CAN filter init */
 		CAN_FilterInitStructure.CAN_FilterNumber = 0;
 		CAN_FilterInitStructure.CAN_FilterMode = CAN_FilterMode_IdMask; //default id mask mode
 		CAN_FilterInitStructure.CAN_FilterScale = CAN_FilterScale_16bit; //default id 16bit
@@ -177,11 +190,11 @@ int can_filt(can_filter_t const *filter, int n)
 		CAN_FilterInitStructure.CAN_FilterIdLow = 0x0;
 		CAN_FilterInitStructure.CAN_FilterMaskIdHigh = 0x0;
 		CAN_FilterInitStructure.CAN_FilterMaskIdLow = 0x0;
-		CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0 ; //default fifo use 0
+		CAN_FilterInitStructure.CAN_FilterFIFOAssignment = (rfifo == 0) ? CAN_FilterFIFO0 : CAN_FilterFIFO1 ; //default fifo use 0
 		CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
 		CAN_FilterInit(&CAN_FilterInitStructure);
 	} else {
-		for(i = 0, j = 0; i < n; j ++) {
+		for(i = 0, j = (rfifo == 0) ? 0 : 7; i < n; j ++) {
 			id0 = filter[i].id << 5;
 			msk0 = filter[i].mask << 5;
 			i ++;
@@ -198,13 +211,18 @@ int can_filt(can_filter_t const *filter, int n)
 			CAN_FilterInitStructure.CAN_FilterIdLow = id1;
 			CAN_FilterInitStructure.CAN_FilterMaskIdHigh = msk0;
 			CAN_FilterInitStructure.CAN_FilterMaskIdLow = msk1;
-			CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0 ; //default fifo use 0
+			CAN_FilterInitStructure.CAN_FilterFIFOAssignment = (rfifo == 0) ? CAN_FilterFIFO0 : CAN_FilterFIFO1 ; //default fifo use 0
 			CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
 			CAN_FilterInit(&CAN_FilterInitStructure);
 		}
 	}
 
 	return ret;
+}
+
+int can_filt(can_filter_t const *filter, int n)
+{
+	return can_efilt(0, filter, n);
 }
 
 void can_flush(void)
@@ -224,7 +242,9 @@ void can_flush(void)
 	CAN_CancelTransmit(CAN1, 1);
 	CAN_CancelTransmit(CAN1, 2);
 	CAN_FIFORelease(CAN1, CAN_FIFO0);
+#ifndef CONFIG_CAN_ENHANCED
 	CAN_FIFORelease(CAN1, CAN_FIFO1);
+#endif
 
 #if ENABLE_CAN_INT
 	circle_header = 0;
@@ -281,4 +301,8 @@ const can_bus_t can1 = {
 	.recv = can_recv,
 	.filt = can_filt,
 	.flush = can_flush,
+#ifdef CONFIG_CAN_ENHANCED
+	.efilt = can_efilt,
+	.erecv = can_erecv,
+#endif
 };

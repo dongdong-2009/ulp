@@ -1,0 +1,9 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2012
+#
+
+bool "matrix support" CONFIG_INSTR_MATRIX
+bool "dmm support" CONFIG_INSTR_DMM
+

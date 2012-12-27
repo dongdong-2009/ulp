@@ -94,4 +94,10 @@ int key_SetEntryAndGetDigit(void);
 
 int keyboard_Add(const keyboard_t *kb, int kt);
 
+#define NOKEY 0xff
+
+/*gpio key driver*/
+int key_hwinit(void);
+int key_hwgetvalue(void);
+
 #endif /*__KEY_H_*/

@@ -53,6 +53,35 @@
 #endif
 
 #ifdef CONFIG_PDI_B515
+#define start_botton		(1<<4)
+#define counter_fail		(1<<5)
+#define target				(1<<2)
+#define counter_pass		(1<<3)
+#define LED_red_on			(1<<0)
+#define LED_green_on		(1<<1)
+#define Beep_on				(1<<6)
+#define swcan_mode0			(1<<10)
+#define swcan_mode1			(1<<11)
+#define battary_on			(1<<13)
+#define IGN_on				(1<<15)
+#endif
+
+#ifdef CONFIG_PDI_J04N
+#define start_botton		(1<<3)
+#define counter_fail		(1<<4)
+#define target				(1<<7)
+#define counter_pass		(1<<5)
+#define LED_red_on			(1<<1)
+#define LED_green_on		(1<<0)
+#define JAMA				(1<<2)
+#define Beep_on				(1<<8)
+#define swcan_mode0			(1<<10)
+#define swcan_mode1			(1<<11)
+#define battary_on			(1<<13)
+#define IGN_on				(1<<15)
+#endif
+
+#ifdef CONFIG_PDI_RP
 #define start_botton		(1<<0)
 #define counter_fail		(1<<1)
 #define target				(1<<2)
@@ -65,6 +94,21 @@
 #define battary_on			(1<<13)
 #define IGN_on				(1<<15)
 #endif
+
+#ifdef CONFIG_PDI_SDM30
+#define LED_red_on			(1<<0)
+#define LED_green_on		(1<<1)
+#define Beep_on				(1<<8)
+#define start_botton		(1<<3)
+#define counter_pass		(1<<5)
+#define counter_fail		(1<<4)
+#define target				(1<<2)
+#define swcan_mode0			(1<<10)
+#define swcan_mode1			(1<<11)
+#define IGN_on				(1<<15)
+#define battary_on			(1<<9)
+#endif
+
 //static time_t check_fail_beep;
 int pdi_batt_on()
 {
@@ -130,6 +174,39 @@ int pdi_drv_Init()
 
 #ifdef CONFIG_PDI_B515
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_3|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_6|GPIO_Pin_13|GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+#endif
+
+#ifdef CONFIG_PDI_J04N
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_3|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_8|GPIO_Pin_13|GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2|GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+#endif
+
+#ifdef CONFIG_PDI_RP
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_3|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_6|GPIO_Pin_13|GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+#endif
+
+#ifdef CONFIG_PDI_SDM30
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_8|GPIO_Pin_3|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_10|GPIO_Pin_11|GPIO_Pin_9|GPIO_Pin_15;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
@@ -206,6 +283,16 @@ int start_botton_off()
 }
 
 #ifdef CONFIG_PDI_RC
+int JAMA_on()
+{
+	if((GPIOE->IDR & JAMA) == 0)		//如果有JAMA返回为0，否则返回为1
+		return 0;
+	else
+		return 1;
+}
+#endif
+
+#ifdef CONFIG_PDI_J04N
 int JAMA_on()
 {
 	if((GPIOE->IDR & JAMA) == 0)		//如果有JAMA返回为0，否则返回为1

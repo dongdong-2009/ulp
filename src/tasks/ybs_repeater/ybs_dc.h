@@ -18,6 +18,7 @@
 #include "config.h"
 #include "linux/list.h"
 #include "ulp/lwip.h"
+#include "ulp_time.h"
 
 #define DC_BASE	0xA0000000
 #define DC_SIZE 0x01000000 /*32MB*/

@@ -29,6 +29,13 @@ if [ "$CONFIG_TASK_OSD" = "y" ]; then
 	endmenu
 fi
 
+if [ "$CONFIG_TASK_GUI" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'gui'
+		source src/lib/gui/Kconfig
+	endmenu
+fi
+
 if [ "$CONFIG_LIB_LWIP" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'lwip'
@@ -75,5 +82,12 @@ if [ "$CONFIG_LIB_ZBAR" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'zbar scanner library'
 		source src/lib/zbar/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_LIB_INSTR" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'instr'
+		source src/lib/instr/Kconfig
 	endmenu
 fi
