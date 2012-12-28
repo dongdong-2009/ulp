@@ -169,3 +169,9 @@ distclean: clean iar_clr unconfig
 	@rm -rf .config
 	@cp -f $(subst _config,.config,$@) .config ; \
 	make xconfig
+
+# "make src/drivers/time.c.debug"
+# self debug src/drivers/time.c with gcc
+%.c.debug:
+	@echo compiling $(subst .debug,,$@) with gcc ...;
+	@gcc -std=c99 -o $(notdir $(subst .c.debug,.exe,$@)) $(subst .debug,,$@) -iquote $(TOP_DIR) -iquote $(TOP_DIR)/src/include/ -iquote ./  -D __SELF_DEBUG=1
