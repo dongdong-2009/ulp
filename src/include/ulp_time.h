@@ -4,7 +4,7 @@
 #ifndef __ULP_TIME_H_
 #define __ULP_TIME_H_
 
-typedef unsigned int time_t;
+#include <time.h>
 
 void time_Init(void);
 void time_Update(void);
