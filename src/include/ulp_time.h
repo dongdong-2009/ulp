@@ -17,4 +17,9 @@ void udelay(int us);
 void mdelay(int ms);
 void sdelay(int ss);
 
+/*rtc interface*/
+void rtc_init(unsigned now);
+unsigned rtc_get(void);
+void rtc_alarm(unsigned t);
+
 #endif /*__ULP_TIME_H_*/
