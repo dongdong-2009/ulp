@@ -48,9 +48,5 @@
       <symbol>__ICFEDIT_size_heap__</symbol>
       <tooltip>The size of the heap</tooltip>
     </item>
-    <item name="NVM" type="Number">
-      <symbol>__ICFEDIT_size_nvm__</symbol>
-      <tooltip>The size of the nvm be emulated by flash</tooltip>
-    </item>
   </tab>
 </icf_annotations>
