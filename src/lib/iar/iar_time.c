@@ -12,7 +12,8 @@
  *
  ********************/
 
-#include "time.h"
+#include "config.h"
+#include "ulp_time.h"
 
 #pragma module_name = "?time"
 

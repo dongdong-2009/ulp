@@ -11,7 +11,7 @@
 static int cmd_date_func(int argc, char *argv[])
 {
 	const char *usage = {
-		"date -s [2012-12-30] [21:19:09]	config current date\n"
+		"date -s [2012-12-30] [21:19:09]		config current date\n"
 		"date					display current date\n"
 	};
 
@@ -24,14 +24,24 @@ static int cmd_date_func(int argc, char *argv[])
 		for(int i = 1; i < argc; i ++) {
 			switch(argv[i][1]) {
 			case 's':
-				if(strchr(argv[++ i], '-') != NULL) {
+				++ i;
+				if((i < argc) && strchr(argv[i], '-') != NULL) {
 					n = sscanf(argv[i], "%d-%d-%d", &now->tm_year, &now->tm_mon, &now->tm_mday);
 					err += (n == 3) ? 0 : 1;
+					err += (now->tm_year < 1970) ? 1 : 0;
+					err += (now->tm_mon > 12) ? 1 : 0;
+					err += (now->tm_mday > 31) ? 1 : 0;
+					now->tm_year -= 1900;
+					now->tm_mon -= 1; //0-11
 					++ i;
 				}
-				n = sscanf(argv[i], "%d:%d:%d", &now->tm_hour, &now->tm_min, &now->tm_sec);
-				err += (n >= 2) ? 0 : 1;
+				if(i < argc) {
+					n = sscanf(argv[i], "%d:%d:%d", &now->tm_hour, &now->tm_min, &now->tm_sec);
+					err += (n >= 2) ? 0 : 1;
+				}
 				if(err == 0) { //config new date
+					t = mktime(now);
+					//printf("setting time to %s", ctime(&t));
 					rtc_init(mktime(now));
 				}
 				break;
@@ -41,7 +51,7 @@ static int cmd_date_func(int argc, char *argv[])
 		}
 		if(err == 0) {
 			time(&t);
-			printf("current time is %s\n", ctime(&t));
+			printf("current time is %s", ctime(&t));
 			return 0;
 		}
 	}

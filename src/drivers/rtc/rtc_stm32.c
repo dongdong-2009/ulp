@@ -34,8 +34,12 @@ void rtc_init(unsigned now)
 
 unsigned rtc_get(void)
 {
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
+	PWR_BackupAccessCmd(ENABLE);
 	RTC_WaitForLastTask();
-	return RTC_GetCounter();
+	unsigned seconds = RTC_GetCounter();
+	PWR_BackupAccessCmd(DISABLE);
+	return seconds;
 }
 
 void rtc_alarm(unsigned t)
