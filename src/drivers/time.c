@@ -80,6 +80,8 @@ void sdelay(int ss)
 #elif CONFIG_CPU_LPC178X == 1
 #include "LPC177x_8x.h"
 #include "system_LPC177x_8x.h"
+#elif defined CONFIG_CPU_ADUC706X
+#include "aduc706x.h"
 #endif
 
 void time_hwInit(void)
