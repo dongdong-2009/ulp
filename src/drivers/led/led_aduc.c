@@ -12,6 +12,7 @@ void led_hwInit(void)
 	GP1DAT |= 1 << (24 + 6); //DIR = OUT
 	GP1SET = 1 << (16 + 6); //led off
 	GP1CLR = 1 << (16 + 6); //led on
+	led_flash(LED_RED);
 }
 
 void led_hwSetStatus(led_t led, led_status_t status)
@@ -20,8 +21,8 @@ void led_hwSetStatus(led_t led, led_status_t status)
 		case LED_GREEN:
 			break;
 		case LED_RED:
-			GP1SET = (LED_ON) ? (1 << (16 + 6)) : 0;
-			GP1CLR = (LED_OFF) ? (1 << (16 + 6)) : 0;
+			GP1SET = (status == LED_ON) ? (1 << (16 + 6)) : 0;
+			GP1CLR = (status == LED_OFF) ? (1 << (16 + 6)) : 0;
 			break;
 		case LED_YELLOW:
 			break;
