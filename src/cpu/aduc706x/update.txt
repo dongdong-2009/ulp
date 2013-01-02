@@ -1,0 +1,4 @@
+in order to update ADI std drv lib, pls:
+- decompress new 7060Libs to src/cpu/aduc706x/
+- double click clean.bat
+- type make in msys shell

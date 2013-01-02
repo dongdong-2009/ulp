@@ -1,0 +1,7 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2013-1-1
+#
+
+bool "ADI std driver lib support" CONFIG_ADUC706X_ADILIB

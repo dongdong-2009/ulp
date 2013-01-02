@@ -38,6 +38,9 @@ endif
 ifeq ($(CONFIG_CPU_LPC178X),y)
 	$(IAR_TOOL) cfg $(IAR_FILE) 'LPC1788	NXP LPC1788' 'ulp.icf'
 endif
+ifeq ($(CONFIG_CPU_ADUC706X),y)
+	$(IAR_TOOL) cfg $(IAR_FILE) 'ADuC7061	AnalogDevices ADuC7061' 'ulp.icf'
+endif
 iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) ./
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/
