@@ -6,6 +6,11 @@
 
 __irq __arm void IRQ_Handler(void)
 {
+	unsigned status = IRQSTA;
+	if(status & IRQ_TIM0) {
+		T0CLRI = 0;
+		task_Isr();
+	}
 }
 
 __irq __arm void FIQ_Handler(void)

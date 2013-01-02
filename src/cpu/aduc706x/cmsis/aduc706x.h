@@ -10,7 +10,9 @@
 #include "7060Libs.h"
 #endif
 
+#include <intrinsics.h>
 #include <AnalogDevices/ioaduc7060.h>
 #include "system_aduc706x.h"
+#include "aduc706x_it.h"
 
 #endif /*__ADUC706X_H_*/

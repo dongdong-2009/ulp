@@ -37,11 +37,20 @@ void SetSysClock(unsigned hz)
 	ClkSpd(cd);
 }
 
+/*
+* ARM7TDMI do not like cm3 has systick timer,
+* So TIM1 is used for it.
+*/
 void SysTick_Config(unsigned cd)
 {
+	TCfg(0, T_D1, T_HCLK, 1); //TIM0 in auto reload mode
+	TMod(0, T_DOWN, T_BIN); //binary mode
+	TGo(0, cd - 1, T_RUN);
+	IRQEN |= 1 << 3;
 }
 
 void SystemInit (void)
 {
 	SetSysClock(SystemFrequency);
+	__enable_interrupt();
 }
