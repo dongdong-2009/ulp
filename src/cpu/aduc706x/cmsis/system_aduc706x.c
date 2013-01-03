@@ -46,11 +46,15 @@ void SysTick_Config(unsigned cd)
 	TCfg(0, T_D1, T_HCLK, 1); //TIM0 in auto reload mode
 	TMod(0, T_DOWN, T_BIN); //binary mode
 	TGo(0, cd - 1, T_RUN);
-	IRQEN |= 1 << 3;
+	IRQEN |= IRQ_TIM0;
 }
 
 void SystemInit (void)
 {
 	SetSysClock(SystemFrequency);
+#ifdef CONFIG_ADUC706X_VECTOR
+	IRQBASE = ((unsigned) vectors_irq) >> 7;
+	IRQCONN = 1;
+#endif
 	__enable_interrupt();
 }
