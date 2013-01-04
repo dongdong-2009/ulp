@@ -11,8 +11,11 @@
 #include "ulp/device.h"
 
 static const struct console_s *cnsl; /*current console*/
+
+#ifdef CONFIG_SHELL_MULTI
 static const struct console_s *cnsl_def; /*system default console*/
 static const struct console_s *cnsl_old;
+#endif
 
 void console_Init(void)
 {
@@ -24,41 +27,39 @@ void console_Init(void)
 
 #ifdef CONFIG_CONSOLE_UARTg
 	uartg.init(&cfg);
-	cnsl_def = cnsl = (const struct console_s *) &uartg;
+	cnsl = (const struct console_s *) &uartg;
 #endif
 #ifdef CONFIG_CONSOLE_UART0
 	uart0.init(&cfg);
-	cnsl_def = cnsl = (const struct console_s *) &uart0;
+	cnsl = (const struct console_s *) &uart0;
 #endif
 #ifdef CONFIG_CONSOLE_UART1
 	uart1.init(&cfg);
-	cnsl_def = cnsl = (const struct console_s *) &uart1;
+	cnsl = (const struct console_s *) &uart1;
 #endif
 #ifdef CONFIG_CONSOLE_UART2
 	uart2.init(&cfg);
-	cnsl_def = cnsl = (const struct console_s *) &uart2;
+	cnsl = (const struct console_s *) &uart2;
 #endif
+#ifdef CONFIG_SHELL_MULTI
+	cnsl_def = cnsl;
+#endif
+}
+
+int console_set(const struct console_s *new)
+{
+#ifdef CONFIG_SHELL_MULTI
+	cnsl_old = cnsl;
+	cnsl = (new == NULL) ? cnsl_def : new;
+#else
+	cnsl = new;
+#endif
+	return 0;
 }
 
 const struct console_s* console_get(void)
 {
 	return cnsl;
-}
-
-int console_set(const struct console_s *new)
-{
-	cnsl_old = cnsl;
-	cnsl = (new == NULL) ? cnsl_def : new;
-	return 0;
-}
-
-int console_restore(void)
-{
-	const struct console_s *tmp;
-	tmp = cnsl;
-	cnsl = cnsl_old;
-	cnsl_old = tmp;
-	return 0;
 }
 
 int console_putch(char c)
@@ -117,6 +118,16 @@ int console_IsNotEmpty(void)
 	return n;
 }
 
+#ifdef CONFIG_SHELL_MULTI
+int console_restore(void)
+{
+	const struct console_s *tmp;
+	tmp = cnsl;
+	cnsl = cnsl_old;
+	cnsl_old = tmp;
+	return 0;
+}
+
 /*patch for new style device driver*/
 struct console_s * console_register(int fd)
 {
@@ -136,3 +147,4 @@ int console_unregister(struct console_s *cnsl)
 	sys_free(cnsl);
 	return 0;
 }
+#endif

@@ -42,13 +42,16 @@ struct shell_s {
 	char cmd_buffer[CONFIG_SHELL_LEN_CMD_MAX];
 	short cmd_idx;
 
+#if CONFIG_SHELL_LEN_HIS_MAX > 0
 	/*cmd history*/
 	short cmd_hsz; /*cmd history size*/
 	char *cmd_history;
 	short cmd_hrail;
 	short cmd_hrpos;
-
+#endif
+#ifdef CONFIG_SHELL_MULTI
 	struct list_head list; //list of shells
+#endif
 	struct cmd_queue_s cmd_queue;
 };
 

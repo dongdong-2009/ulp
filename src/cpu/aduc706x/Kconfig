@@ -1,0 +1,18 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2013-1-1
+#
+
+choice 'system freq select'	" \
+	10.24MHz	CONFIG_SYSCLK_CD0 \
+	5.12MHz		CONFIG_SYSCLK_CD1 \
+	2.56MHz		CONFIG_SYSCLK_CD2 \
+	1.28MHz		CONFIG_SYSCLK_CD3 \
+	640KHz		CONFIG_SYSCLK_CD4 \
+	320KHz		CONFIG_SYSCLK_CD5 \
+	160KHz		CONFIG_SYSCLK_CD6 \
+	80KHz		CONFIG_SYSCLK_CD7 \
+" 10.24MHz
+bool "vector interrupt support" CONFIG_ADUC706X_VECTOR
+bool "ADI std driver lib support" CONFIG_ADUC706X_ADILIB

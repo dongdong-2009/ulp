@@ -5,10 +5,10 @@ obj-$(CONFIG_COMMON_PTP) += ptp.o
 obj-$(CONFIG_COMMON_KERMIT) += kermit.o
 
 #linux
-obj-y += sort.o
+obj-$(CONFIG_COMMON_SORT) += sort.o
 obj-y += circbuf.o
-obj-y += crc16.o
-obj-y += crc32.o
-obj-y += posix_crc.o
-obj-y += mempool.o
+obj-$(CONFIG_COMMON_CRC16) += crc16.o
+obj-$(CONFIG_COMMON_CRC32) += crc32.o
+obj-$(CONFIG_COMMON_CRC_POSIX) += posix_crc.o
+obj-$(CONFIG_COMMON_MEMPOOL) += mempool.o
 obj-y += debounce.o

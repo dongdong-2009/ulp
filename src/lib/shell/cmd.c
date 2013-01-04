@@ -22,6 +22,7 @@ void cmd_Update(void)
 {
 }
 
+#ifdef CONFIG_CMD_PATTERN
 /*get pattern from a string, such as: 0,2-5,8*/
 int cmd_pattern_get(const char *str)
 {
@@ -59,6 +60,7 @@ int cmd_pattern_get(const char *str)
 	}
 	return pt;
 }
+#endif
 
 static cmd_t *__name2cmd(const char *name)
 {
@@ -79,6 +81,7 @@ static cmd_t *__name2cmd(const char *name)
 /*to call cmd like: help& or help&100*/
 void __cmd_preprocess(struct cmd_list_s *clst)
 {
+#ifdef CONFIG_CMD_BKG
 	char *p;
 	int i;
 
@@ -95,15 +98,18 @@ void __cmd_preprocess(struct cmd_list_s *clst)
 			break;
 		}
 	}
+#endif
 }
 
 static int __cmd_parse(char *cmdline, int len, char **argv, int n)
 {
-	int i, argc, flag, mode_func, mode_str;
-
+	int i, argc, flag, mode_str = 0;
+#ifdef CONFIG_CMD_BKG
+	int mode_func = 0;
+#endif
 	//parse the Command Line
 	argc = 0;
-	for(mode_func = mode_str = flag = i = 0; i < len; i ++) {
+	for(flag = i = 0; i < len; i ++) {
 		switch(cmdline[i]) {
 		case ' ':
 		case '	':
@@ -113,7 +119,7 @@ static int __cmd_parse(char *cmdline, int len, char **argv, int n)
 			cmdline[i] = 0;
 			flag = 0;
 			continue;
-
+#ifdef CONFIG_CMD_FUNCTION
 		case '(':
 			if(mode_str)
 				continue;
@@ -145,6 +151,7 @@ static int __cmd_parse(char *cmdline, int len, char **argv, int n)
 				continue;
 			}
 			else break;
+#endif
 
 		case '\'':
 		case '"':
@@ -216,10 +223,11 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 	if(argc > 0) {
 		cmd = (cmd_queue->trap != NULL) ? cmd_queue->trap : __name2cmd(argv[0]);
 		if(cmd != NULL) {
+#ifdef CONFIG_CMD_BKG
 			if(clst -> ms >= 0) {
 				clst -> deadline = time_get(clst -> ms);
 			}
-
+#endif
 			switch (flag) {
 			case __CMD_EXEC_FLAG_CLOSE:
 				_argv = NULL;
@@ -255,19 +263,21 @@ int cmd_queue_update(struct cmd_queue_s *cq)
 
 	list_for_each_safe(pos, bkup, &cq -> cmd_list) {
 		clst = list_entry(pos, cmd_list_s, list);
-
+#ifdef CONFIG_CMD_BKG
 		//timeout check
 		if(clst -> ms > 0) {
 			if(time_left(clst -> deadline) > 0)
 				continue;
 		}
-
+#endif
 		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) <= 0) {
+#ifdef CONFIG_CMD_BKG
 			//remove from queue
 			if(clst -> ms < 0) {
 				list_del(&clst -> list);
 				sys_free(clst);
 			}
+#endif
 		}
 	}
 	return 0;
@@ -291,7 +301,11 @@ int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 
 	//exec clst
 	cmd_queue = cq;
-	if(__cmd_exec(clst, __CMD_EXEC_FLAG_INIT) > 0 || clst -> ms >= 0) {
+	if(__cmd_exec(clst, __CMD_EXEC_FLAG_INIT) > 0
+#ifdef CONFIG_CMD_BKG
+		|| clst -> ms >= 0
+#endif
+	) {
 		//repeat, add to cmd queue
 		list_add(&clst -> list, &cq -> cmd_list);
 	}
@@ -329,11 +343,13 @@ static int cmd_ListBgTasks(void)
 	printf("bg tasks:\n");
 	list_for_each(pos, &cmd_queue -> cmd_list) {
 		clst = list_entry(pos, cmd_list_s, list);
+#ifdef CONFIG_CMD_BKG
 		if(clst -> ms < 0)
 			printf("%d, %s\n", i, clst -> cmdline);
 		else if(clst -> ms > 0)
 			printf("%d, %s&%d\n", i, clst -> cmdline, clst -> ms);
 		else
+#endif
 			printf("%d, %s&\n", i, clst -> cmdline);
 		i++;
 	}

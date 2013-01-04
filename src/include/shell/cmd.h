@@ -4,6 +4,7 @@
 #ifndef __CMD_H_
 #define __CMD_H_
 
+#include "config.h"
 #include "ulp_time.h"
 #include <stdio.h>
 #include <linux/list.h>
@@ -21,8 +22,10 @@ typedef const struct {
 struct cmd_list_s {
 	char *cmdline;
 	short len;
+#ifdef CONFIG_CMD_BKG
 	short ms; //repeat period
 	time_t deadline;
+#endif
 	struct list_head list;
 };
 

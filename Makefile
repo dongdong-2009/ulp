@@ -38,6 +38,9 @@ endif
 ifeq ($(CONFIG_CPU_LPC178X),y)
 	$(IAR_TOOL) cfg $(IAR_FILE) 'LPC1788	NXP LPC1788' 'ulp.icf'
 endif
+ifeq ($(CONFIG_CPU_ADUC706X),y)
+	$(IAR_TOOL) cfg $(IAR_FILE) 'ADuC7061	AnalogDevices ADuC7061' 'ulp.icf'
+endif
 iar_inc:
 	$(IAR_TOOL) inc $(IAR_FILE) ./
 	$(IAR_TOOL) inc $(IAR_FILE) src/include/
@@ -169,3 +172,9 @@ distclean: clean iar_clr unconfig
 	@rm -rf .config
 	@cp -f $(subst _config,.config,$@) .config ; \
 	make xconfig
+
+# "make src/drivers/time.c.debug"
+# self debug src/drivers/time.c with gcc
+%.c.debug:
+	@echo compiling $(subst .debug,,$@) with gcc ...;
+	@gcc -std=c99 -o $(notdir $(subst .c.debug,.exe,$@)) $(subst .debug,,$@) -iquote $(TOP_DIR) -iquote $(TOP_DIR)/src/include/ -iquote ./  -D __SELF_DEBUG=1

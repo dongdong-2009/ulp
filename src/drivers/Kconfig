@@ -11,6 +11,7 @@ choice 'default console select'	" \
 	UART2	CONFIG_CONSOLE_UART2 \
 " UART2
 int 'console baudrate' CONFIG_CONSOLE_BAUD 115200
+bool 'rtc driver' CONFIG_DRIVER_RTC
 
 mainmenu_option next_comment
 	comment 'uart config'

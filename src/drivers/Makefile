@@ -28,3 +28,4 @@ obj-$(CONFIG_DRIVER_WL) += wl/
 obj-y += video/
 obj-y += wdt/
 obj-y += dac/
+obj-$(CONFIG_DRIVER_RTC) += rtc/

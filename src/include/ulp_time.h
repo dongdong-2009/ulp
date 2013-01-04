@@ -4,7 +4,7 @@
 #ifndef __ULP_TIME_H_
 #define __ULP_TIME_H_
 
-typedef unsigned int time_t;
+#include <time.h>
 
 void time_Init(void);
 void time_Update(void);
@@ -16,5 +16,10 @@ int time_diff(time_t t0, time_t t1);
 void udelay(int us);
 void mdelay(int ms);
 void sdelay(int ss);
+
+/*rtc interface*/
+void rtc_init(unsigned now);
+unsigned rtc_get(void);
+void rtc_alarm(unsigned t);
 
 #endif /*__ULP_TIME_H_*/
