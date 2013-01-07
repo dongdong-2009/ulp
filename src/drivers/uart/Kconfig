@@ -27,6 +27,7 @@ if [ "$CONFIG_CONSOLE_UART3" = "y"]; then
 fi
 
 #common config options
+bool "uart debug command support" CONFIG_UART_CMD
 bool "KWP2000 wakeup support" CONFIG_UART_KWP_SUPPORT
 
 #uartg

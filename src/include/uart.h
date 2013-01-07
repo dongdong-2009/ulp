@@ -37,7 +37,7 @@ typedef struct {
 	.baud = BAUD_115200, \
 }
 
-typedef struct {
+typedef const struct {
 	int (*init)(const uart_cfg_t *cfg);
 	int (*putchar)(int data);
 	int (*getchar)(void);
