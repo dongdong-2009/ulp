@@ -228,6 +228,82 @@ static int bpmon_measure(int ch)
 	return mv;
 }
 
+#include "uart.h"
+static uart_bus_t *bpmon_uart = &uart1;
+static struct bpmon_kline_s {
+	time_t timer;
+	int ms, ms_min, ms_max, ms_avg;
+	struct debounce_s sync;
+} bpmon_kline;
+
+static void bpmon_kline_init(void)
+{
+	bpmon_kline.timer = 0;
+	bpmon_kline.ms = 0;
+	bpmon_kline.ms_min = 0;
+	bpmon_kline.ms_max = 0;
+	bpmon_kline.ms_avg = 0;
+	debounce_init(&bpmon_kline.sync, 3, 0);
+
+	//kline input flush
+	while(bpmon_uart->poll()) {
+		bpmon_uart->getchar();
+	}
+}
+
+static void bpmon_kline_update(void)
+{
+	if(bpmon_uart->poll() == 0)
+		return;
+	while(bpmon_uart->poll()) {
+		bpmon_uart->getchar();
+	}
+
+	if(bpmon_kline.timer == 0) {
+		bpmon_kline.timer = time_get(0);
+		return;
+	}
+
+	int ms = - time_left(bpmon_kline.timer);
+	if(ms > bpmon_config.kline_ms) { //a new frame is found
+		bpmon_kline.ms = ms;
+		bpmon_kline.timer = time_get(0);
+		if(bpmon_kline.ms_avg == 0) {
+			bpmon_kline.ms_avg = ms;
+			return;
+		}
+
+		//in expected range???
+		ms -= bpmon_kline.ms_avg;
+		ms = (ms > 0) ? ms : - ms;
+		int ms_threshold = bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 5;
+		if(ms < ms_threshold) { //good !!!
+			bpmon_kline.ms_avg = (bpmon_kline.ms_avg + bpmon_kline.ms) / 2;
+			if(debounce(&bpmon_kline.sync, 1)) {
+				printf("%08d : ods !!! is sync(T = %dmS)!!!\n", time_get(0), bpmon_kline.ms_avg);
+			}
+			if(bpmon_kline.sync.on) { //update statistics info
+				if(bpmon_kline.ms_min == 0) bpmon_kline.ms_min = bpmon_kline.ms;
+				else bpmon_kline.ms_min = (bpmon_kline.ms < bpmon_kline.ms_min)?bpmon_kline.ms : bpmon_kline.ms_min;
+				bpmon_kline.ms_max = (bpmon_kline.ms > bpmon_kline.ms_max)?bpmon_kline.ms : bpmon_kline.ms_max;
+			}
+		}
+		else {
+			if(bpmon_kline.sync.on) { //peculiar kline frame received, print it ...
+				printf("%08d : ", time_get(0));
+				printf("ods (T = %dmS[%dms,%dms]) .. peculiar\n", bpmon_kline.ms, bpmon_kline.ms_min, bpmon_kline.ms_max);
+				if(debounce(&bpmon_kline.sync, 0)) { //sync err, resync is needed
+					printf("%08d : ods !!! sync err, resync ..(T = %dmS)\n", time_get(0), bpmon_kline.ms_avg);
+					bpmon_kline_init();
+				}
+			}
+			else {	//try to sync with new frame period
+				bpmon_kline_init();
+			}
+		}
+	}
+}
+
 static int cmd_bpmon_func(int argc, char *argv[])
 {
 	const char *usage = {
@@ -235,7 +311,7 @@ static int cmd_bpmon_func(int argc, char *argv[])
 		"bpmon			monitor can frame with baud = 500000 and all can id\n"
 		"bpmon 158h 039h [...]	monitor can frame with id 0x158, 0x039, ...\n"
 		"bpmon -b 500000 158h	monitor can with baudrate = 500000\n"
-		"bpmon -p -k 19200	monitor can with power & kline ods detection on\n"
+		"bpmon -k [20] [19200]	monitor can with ods detection, >20ms idle time\n"
 	};
 
 	if(argc > 0) {
@@ -243,7 +319,7 @@ static int cmd_bpmon_func(int argc, char *argv[])
 		bpmon_config.power = 0;
 		bpmon_config.kline = 0;
 		bpmon_config.kline_baud = 19200;
-		bpmon_config.kline_ms = 8;
+		bpmon_config.kline_ms = 10;
 		can_filter_t *filter = NULL;
 		int v, n, e, id = 0;
 		for(int i = 1; i < argc; i ++) {
@@ -274,9 +350,11 @@ static int cmd_bpmon_func(int argc, char *argv[])
 				break;
 			case 'k':
 				bpmon_config.kline = 1;
-				v = atoi(argv[++i]);
-				if(v > 0) bpmon_config.kline_ms = v;
-				else e ++;
+					if(isdigit(argv[i + 1][0])) { // kline ms
+					v = atoi(argv[++i]);
+					if(v > 0) bpmon_config.kline_ms = v;
+					else e ++;
+				}
 				if(isdigit(argv[i + 1][0])) { // kline baud
 					v = atoi(argv[++i]);
 					if(v > 0) bpmon_config.kline_baud = v;
@@ -309,6 +387,12 @@ static int cmd_bpmon_func(int argc, char *argv[])
 			bpmon_measure_init();
 		}
 
+		if(bpmon_config.kline) {
+			uart_cfg_t kcfg;
+			kcfg.baud = bpmon_config.kline_baud;
+			bpmon_uart->init(&kcfg);
+			bpmon_kline_init();
+		}
 		bpmon_init();
 		return 1;
 	}
@@ -320,6 +404,7 @@ static int cmd_bpmon_func(int argc, char *argv[])
 			printf("%08d : !!!12V (%dmV) is power %s\n", time_get(0), mv, (pwr_12v.on)?"up" : "down");
 			if(pwr_12v.on) {
 				bpmon_init();
+				bpmon_kline_init();
 			}
 		}
 
@@ -330,12 +415,16 @@ static int cmd_bpmon_func(int argc, char *argv[])
 			if(pwr_5v.on) {
 				printf("####################################\n");
 				bpmon_init();
+				bpmon_kline_init();
 			}
 		}
 	}
 
-	if((bpmon_config.power == 0) || (pwr_5v.on && pwr_12v.on))
+	if((bpmon_config.power == 0) || (pwr_5v.on && pwr_12v.on)) {
 		bpmon_update();
+		if(bpmon_config.kline)
+			bpmon_kline_update();
+	}
 	return 1;
 }
 
@@ -363,6 +452,9 @@ static int cmd_bpstatus_func(int argc, char *argv[])
 	mv = bpmon_measure(ADC_CH_5V);
 	printf("%08d : 5V = %dmV\n", time_get(0), mv);
 
+	if(bpmon_config.kline) {
+		printf("%08d : ods !!! is %s(T = %dmS)!!!\n", time_get(0), (bpmon_kline.sync.on) ? "sync" : "lost", bpmon_kline.ms_avg);
+	}
 	struct record_s *record;
 	if((bpmon_config.power == 0) || (pwr_5v.on && pwr_12v.on)) {
 		//frame lost detection
