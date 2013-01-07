@@ -10,8 +10,13 @@ choice 'stm32 cpu type select'	" \
 	md	CONFIG_STM32F10X_MD \
 	hi	CONFIG_STM32F10X_HD \
 	cl	CONFIG_STM32F10X_CL \
+	xl	CONFIG_STM32F10X_XL \
 " md
-bool "use stm32 std periph driver?" CONFIG_USE_STDPERIPH_DRIVER y
+choice 'stm32 std periph lib select'	" \
+	v1.0	CONFIG_USE_STDPERIPH_DRIVER \
+	v3.5	CONFIG_USE_STDPERIPH_V35 \
+	none	CONFIG_USE_STDPERIPH_NONE \
+" v1.0
 bool "use stm32 internal RC OSC?" CONFIG_USE_HSI n
 choice 'system freq select(note: must < 64MHz when using HSI!!!)'	" \
 	24MHz	CONFIG_SYSCLK_FREQ_24MHz \

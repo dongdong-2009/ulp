@@ -66,7 +66,7 @@ void shell_Update(void)
 	list_for_each(pos, &shell_queue) {
 		shell = list_entry(pos, shell_s, list);
 #endif
-		if(shell->config & SHELL_CONFIG_LOCK == 0) {
+		if((shell->config & SHELL_CONFIG_LOCK) == 0) {
 			console_set(shell -> console);
 			cmd_queue_update(&shell -> cmd_queue);
 			ok = shell_ReadLine(shell->prompt, NULL);

@@ -22,5 +22,10 @@ ifeq ($(CONFIG_CPU_LPC178X),y)
 endif
 
 obj-$(CONFIG_UART_CMD) += uart_cmd.o
+#aduc706x
+ifeq ($(CONFIG_CPU_ADUC706X),y)
+	obj-$(CONFIG_DRIVER_UART0) += uart0_aduc706x.o
+endif
+
 obj-$(CONFIG_DEVICE_MD204L) += md204l.o
 obj-$(CONFIG_DEVICE_LS1203) += ls1203.o
