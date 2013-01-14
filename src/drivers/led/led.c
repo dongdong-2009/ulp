@@ -20,6 +20,7 @@ void led_Init(void)
 	flag_hwstatus = 0;
 
 	led_hwInit();
+	led_flash(LED_GREEN);
 }
 
 void led_Update(void)
