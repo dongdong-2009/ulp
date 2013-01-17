@@ -238,6 +238,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 			}
 
 			ret = cmd -> func(argc, _argv);
+			clst->cmd = cmd;
 		}
 	}
 
@@ -314,6 +315,16 @@ int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 #endif
 	) {
 		//repeat, add to cmd queue
+		struct list_head *pos;
+		list_for_each(pos, &cq -> cmd_list) {
+			struct cmd_list_s *p = list_entry(pos, cmd_list_s, list);
+			if(p->cmd == clst->cmd) { //remove the old one
+				list_del(&p -> list);
+				sys_free(p);
+				break;
+			}
+		}
+
 		list_add(&clst -> list, &cq -> cmd_list);
 	}
 	else

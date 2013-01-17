@@ -26,6 +26,7 @@ struct cmd_list_s {
 	unsigned repeat : 1;
 	unsigned ms : 19; //repeat period
 	time_t deadline;
+	cmd_t *cmd;
 #endif
 	struct list_head list;
 };
