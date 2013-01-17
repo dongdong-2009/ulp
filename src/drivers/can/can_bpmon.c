@@ -1,5 +1,9 @@
 /*
- *	miaofng@2010 can debugger initial version
+ *	miaofng@2012 bpanel monitor to solve EAT timeout issue
+ *	led status:
+ *	- green flash: dut is power on & monitor is busy
+ *	- green continued on: monitor is idle, usb power on/off is allowed
+ *	- red flash: err code
  */
 
 #include "config.h"
@@ -171,18 +175,28 @@ static void bpmon_update(void)
 }
 
 #include "stm32f10x.h"
-#define ADC_CH_12V ADC_Channel_15 //PC5
-#define ADC_CH_5V ADC_Channel_14 //PC4
+#define AIN_VBAT ADC_Channel_10 //PC0
+#define AIN0 ADC_Channel_4//PA4
+#define AIN1 ADC_Channel_5//PA5
+#define AIN2 ADC_Channel_6//PA6
+#define AIN3 ADC_Channel_7//PA7
+#define ADC_CH_12V AIN_VBAT
+#define ADC_CH_5V AIN0
 static void bpmon_measure_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	ADC_InitTypeDef ADC_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	RCC_ADCCLKConfig(RCC_PCLK2_Div6); /*72Mhz/6 = 12Mhz*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC2, ENABLE);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
