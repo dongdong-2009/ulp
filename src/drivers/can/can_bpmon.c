@@ -17,6 +17,12 @@
 #include "ulp/sys.h"
 #include "common/debounce.h"
 #include <ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
+
+char bpmon_time_str[32]; //"1/17/2013 18:07:22"
+time_t bpmon_time_start;
+#define __now__ ((0 - time_left(bpmon_time_start)) % 1000)
 
 #define frame_period_threshold 10%
 
@@ -31,6 +37,42 @@ static struct {
 static struct debounce_s pwr_12v;
 static struct debounce_s pwr_5v;
 static LIST_HEAD(record_queue);
+
+char line_buffer[128];
+enum info_type {
+	BPMON_SYNC,
+	BPMON_LOST,
+	BPMON_INFO,
+	BPMON_MISC,
+	BPMON_NULL,
+};
+
+int bpmon_print(enum info_type type, const char *fmt, ...)
+{
+	va_list ap;
+	int n = 0;
+
+	//add suffix
+	switch(type) {
+	case BPMON_LOST:
+	case BPMON_SYNC:
+	case BPMON_INFO:
+		printf("!!! %s: ", bpmon_time_str);
+		break;
+	case BPMON_MISC:
+		printf("%03d : ", __now__);
+		break;
+	default:;
+	}
+
+	va_start(ap, fmt);
+	n += vsnprintf(line_buffer + n, 128 - n, fmt, ap);
+	va_end(ap);
+
+	//output string to console or log buffer
+	printf("%s", line_buffer);
+	return 0;
+}
 
 struct record_s {
 	unsigned id;
@@ -68,6 +110,8 @@ static int bpmon_init(void)
 	struct list_head *pos, *n;
 	struct record_s *q = NULL;
 
+	bpmon_time_start = time_get(0);
+
 	//free old records's memory
 	list_for_each_safe(pos, n, &record_queue) {
 		q = list_entry(pos, record_s, list);
@@ -92,10 +136,10 @@ static void bpmon_update(void)
 		if(record->sync.on) {
 			int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100 + 5;
 			if(time_left(record->time) < - ms_threshold) {
-				printf("%08d : %03xh timeout\n", time_get(0), record->id);
+				bpmon_print(BPMON_LOST, "%03xh timeout\n", record->id);
 				record->time = time_shift(record->time, record->ms_avg);
 				if(debounce(&record->sync, 0)) { //can frame lost
-					printf("%08d : %03xh !!! is lost(T = %dmS)\n", time_get(0), record->id, record->ms_avg);
+					bpmon_print(BPMON_LOST, "%03xh (T=%dmS) is lost\n", record->id, record->ms_avg);
 					list_del(&record->list);
 					sys_free(record);
 				}
@@ -137,15 +181,15 @@ static void bpmon_update(void)
 		if(ms < ms_threshold) {
 			record->ms_avg = (record->ms_avg + record->ms) / 2;
 			if(record->sync.off) {
-				printf("%08d : %03xh", time_get(0), record->id);
+				bpmon_print(BPMON_MISC, "%03xh (%dmS?=%dmS) is hit", record->id, record->ms, record->ms_avg);
 				for(int i = 0; i < msg.dlc; i ++) {
-					printf(" %02x", ((unsigned)(msg.data[i])) & 0xff);
+					bpmon_print(BPMON_NULL, " %02x", ((unsigned)(msg.data[i])) & 0xff);
 				}
-				printf(" is in range(%dmS ?= %dmS)\n", record->ms, record->ms_avg);
+				bpmon_print(BPMON_NULL, "\n");
 			}
 			if(debounce(&record->sync, 1)){
 				//new can frame is sync, print it ...
-				printf("%08d : %03xh !!!(T = %dmS) is sync\n", time_get(0), record->id, record->ms_avg);
+				bpmon_print(BPMON_SYNC, "%03xh (T=%dmS) is sync\n", record->id, record->ms_avg);
 			}
 			if(record->sync.on) { //update statistics info
 				if(record->ms_min == 0) record->ms_min = record->ms;
@@ -156,13 +200,13 @@ static void bpmon_update(void)
 		else {
 			if(record->sync.on) {
 				//peculiar can frame received, print it ...
-				printf("%08d : %03xh", time_get(0), record->id);
+				bpmon_print(BPMON_LOST, "%03xh (T=%dmS[%dms,%dms]) is peculiar ..", record->id, record->ms, record->ms_min, record->ms_max);
 				for(int i = 0; i < msg.dlc; i ++) {
-					printf(" %02x", ((unsigned)(msg.data[i])) & 0xff);
+					bpmon_print(BPMON_NULL, " %02x", ((unsigned)(msg.data[i])) & 0xff);
 				}
-				printf(" (T = %dmS[%dms,%dms]) .. peculiar\n", record->ms, record->ms_min, record->ms_max);
+				bpmon_print(BPMON_NULL, "\n");
 				if(debounce(&record->sync, 0)) { //sync err, resync is needed
-					printf("%08d : %03xh !!! sync err, resync ..(T = %dmS)\n", time_get(0), record->id, record->ms_avg);
+					bpmon_print(BPMON_LOST, "%03xh (T=%dmS) is lost, resync ..\n", record->id, record->ms_avg);
 					list_del(&record->list);
 					sys_free(record);
 				}
@@ -291,10 +335,10 @@ static void bpmon_kline_update(void)
 		ms -= bpmon_kline.ms_avg;
 		ms = (ms > 0) ? ms : - ms;
 		int ms_threshold = bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 5;
-		if(ms < ms_threshold) { //good !!!
+		if(ms < ms_threshold) { //good
 			bpmon_kline.ms_avg = (bpmon_kline.ms_avg + bpmon_kline.ms) / 2;
 			if(debounce(&bpmon_kline.sync, 1)) {
-				printf("%08d : ods !!! is sync(T = %dmS)!!!\n", time_get(0), bpmon_kline.ms_avg);
+				bpmon_print(BPMON_SYNC, "ods (T=%dmS) is sync\n", bpmon_kline.ms_avg);
 			}
 			if(bpmon_kline.sync.on) { //update statistics info
 				if(bpmon_kline.ms_min == 0) bpmon_kline.ms_min = bpmon_kline.ms;
@@ -304,10 +348,9 @@ static void bpmon_kline_update(void)
 		}
 		else {
 			if(bpmon_kline.sync.on) { //peculiar kline frame received, print it ...
-				printf("%08d : ", time_get(0));
-				printf("ods (T = %dmS[%dms,%dms]) .. peculiar\n", bpmon_kline.ms, bpmon_kline.ms_min, bpmon_kline.ms_max);
+				bpmon_print(BPMON_LOST, "ods (T=%dmS[%dms,%dms]) is peculiar\n", bpmon_kline.ms, bpmon_kline.ms_min, bpmon_kline.ms_max);
 				if(debounce(&bpmon_kline.sync, 0)) { //sync err, resync is needed
-					printf("%08d : ods !!! sync err, resync ..(T = %dmS)\n", time_get(0), bpmon_kline.ms_avg);
+					bpmon_print(BPMON_LOST, "ods (T=%dmS) is lost, resync ..\n", bpmon_kline.ms_avg);
 					bpmon_kline_init();
 				}
 			}
@@ -328,7 +371,17 @@ static int cmd_bpmon_func(int argc, char *argv[])
 		"bpmon -k [20] [19200]	monitor can with ods detection, >20ms idle time\n"
 	};
 
+	time_t t;
+	time(&t);
+	struct tm *now = localtime(&t);
+	strftime(bpmon_time_str, 32, "%H:%M:%S", now);
+
 	if(argc > 0) {
+		strftime(bpmon_time_str, 32, "%m/%d/%Y %H:%M:%S", now);
+		bpmon_print(BPMON_INFO, "Monitor is Starting ...\n");
+		strftime(bpmon_time_str, 32, "%H:%M:%S", now);
+
+
 		bpmon_config.baud = 500000;
 		bpmon_config.power = 0;
 		bpmon_config.kline = 0;
@@ -413,9 +466,9 @@ static int cmd_bpmon_func(int argc, char *argv[])
 
 	if(bpmon_config.power) {
 		int mv = bpmon_measure(ADC_CH_12V);
-		//printf("%08d : 12V = %dmV\n", time_get(0), mv);
+		//bpmon_print(BPMON_MISC, "12V = %dmV\n", mv);
 		if(debounce(&pwr_12v, (mv > 8000))) {
-			printf("%08d : !!!12V (%dmV) is power %s\n", time_get(0), mv, (pwr_12v.on)?"up" : "down");
+			bpmon_print(BPMON_INFO, "12V (%dmV) is power %s\n", mv, (pwr_12v.on)?"up" : "down");
 			if(pwr_12v.on) {
 				bpmon_init();
 				bpmon_kline_init();
@@ -423,11 +476,11 @@ static int cmd_bpmon_func(int argc, char *argv[])
 		}
 
 		mv = bpmon_measure(ADC_CH_5V);
-		//printf("%08d : 5V = %dmV\n", time_get(0), mv);
+		//bpmon_print(BPMON_MISC, "5V = %dmV\n", mv);
 		if(debounce(&pwr_5v, (mv > 4500))) {
-			printf("%08d : !!!5V (%dmV) is power %s\n", time_get(0), mv, (pwr_5v.on)?"up" : "down");
+			bpmon_print(BPMON_INFO, "5V (%dmV) is power %s\n", mv, (pwr_5v.on)?"up" : "down");
 			if(pwr_5v.on) {
-				printf("####################################\n");
+				bpmon_print(BPMON_NULL, "####################################\n");
 				bpmon_init();
 				bpmon_kline_init();
 			}
@@ -460,14 +513,19 @@ static int cmd_bpstatus_func(int argc, char *argv[])
 		}
 	}
 
+	time_t t;
+	time(&t);
+	struct tm *now = localtime(&t);
+	strftime(bpmon_time_str, 32, "%m/%d/%Y %H:%M:%S", now);
+
 	int mv = bpmon_measure(ADC_CH_12V);
-	printf("%08d : 12V = %dmV\n", time_get(0), mv);
+	bpmon_print(BPMON_INFO, "12V = %dmV(%s)\n", mv);
 
 	mv = bpmon_measure(ADC_CH_5V);
-	printf("%08d : 5V = %dmV\n", time_get(0), mv);
+	bpmon_print(BPMON_INFO, "5V = %dmV(%s)\n", mv);
 
 	if(bpmon_config.kline) {
-		printf("%08d : ods !!! is %s(T = %dmS)!!!\n", time_get(0), (bpmon_kline.sync.on) ? "sync" : "lost", bpmon_kline.ms_avg);
+		bpmon_print(BPMON_INFO, "ods (T=%dmS) is %s\n", (bpmon_kline.sync.on) ? "sync" : "lost", bpmon_kline.ms_avg);
 	}
 	struct record_s *record;
 	if((bpmon_config.power == 0) || (pwr_5v.on && pwr_12v.on)) {
@@ -475,9 +533,9 @@ static int cmd_bpstatus_func(int argc, char *argv[])
 		struct list_head *pos;
 		list_for_each(pos, &record_queue) {
 			record = list_entry(pos, record_s, list);
-			printf("%08d : %03xh is %s(T = %dmS[%dms, %dms])\n", time_get(0), record->id, (record->sync.on)?"sync":"lost", record->ms_avg, record->ms_min, record->ms_max);
+			bpmon_print(BPMON_INFO, "%03xh (T=%dmS[%dms, %dms]) is %s\n", record->id, (record->sync.on)?"sync":"lost", record->ms_avg, record->ms_min, record->ms_max);
 		}
-		printf("\n");
+		bpmon_print(BPMON_NULL, "\n");
 	}
 	return 0;
 }
