@@ -85,13 +85,13 @@ void __cmd_preprocess(struct cmd_list_s *clst)
 	char *p;
 	int i;
 
-	clst -> ms = -1;
+	clst -> repeat = 0;
+	clst -> ms = 0;
 	for( i = clst -> len; i > 0; i --) {
 		p = clst -> cmdline + i;
 		if(*p == '&') {
 			clst -> len = i; //new clst cmdline length
 			*p ++ = 0;
-			clst -> ms = 0;
 			if(*p != 0) {
 				clst -> ms = atoi(p);
 			}
@@ -224,7 +224,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 		cmd = (cmd_queue->trap != NULL) ? cmd_queue->trap : __name2cmd(argv[0]);
 		if(cmd != NULL) {
 #ifdef CONFIG_CMD_BKG
-			if(clst -> ms >= 0) {
+			if(clst->repeat) {
 				clst -> deadline = time_get(clst -> ms);
 			}
 #endif
@@ -273,10 +273,8 @@ int cmd_queue_update(struct cmd_queue_s *cq)
 		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) <= 0) {
 #ifdef CONFIG_CMD_BKG
 			//remove from queue
-			if(clst -> ms < 0) {
-				list_del(&clst -> list);
-				sys_free(clst);
-			}
+			list_del(&clst -> list);
+			sys_free(clst);
 #endif
 		}
 	}
@@ -286,11 +284,20 @@ int cmd_queue_update(struct cmd_queue_s *cq)
 /*note: this is the common entry of all cmd_xxx_func*/
 int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 {
-	int n;
+	int i,j, n;
 	struct cmd_list_s *clst;
 
 	//create a new clst object
 	n = strlen(cl);
+	for(j = i = 0; i < n; i ++) {
+		char c = cl[i];
+		j += (c == ' ') ? 1 : 0;
+		j += (c == '&') ? 1 : 0;
+		j += (c == '\t') ? 1 : 0;
+	}
+	if(j == n) { //a null cmd
+		return 0;
+	}
 	clst = sys_malloc(sizeof(struct cmd_list_s) + n + 1);
 	assert(cq != NULL);
 	clst -> cmdline = (char *)clst + sizeof(struct cmd_list_s);
@@ -301,9 +308,9 @@ int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 
 	//exec clst
 	cmd_queue = cq;
-	if(__cmd_exec(clst, __CMD_EXEC_FLAG_INIT) > 0
+	if((__cmd_exec(clst, __CMD_EXEC_FLAG_INIT) > 0)
 #ifdef CONFIG_CMD_BKG
-		|| clst -> ms >= 0
+		|| (clst -> repeat)
 #endif
 	) {
 		//repeat, add to cmd queue
@@ -344,13 +351,17 @@ static int cmd_ListBgTasks(void)
 	list_for_each(pos, &cmd_queue -> cmd_list) {
 		clst = list_entry(pos, cmd_list_s, list);
 #ifdef CONFIG_CMD_BKG
-		if(clst -> ms < 0)
+		if(clst -> repeat == 0)
 			printf("%d, %s\n", i, clst -> cmdline);
-		else if(clst -> ms > 0)
-			printf("%d, %s&%d\n", i, clst -> cmdline, clst -> ms);
-		else
+		else {
+			if(clst -> ms > 0)
+				printf("%d, %s&%d\n", i, clst -> cmdline, clst -> ms);
+			else
 #endif
-			printf("%d, %s&\n", i, clst -> cmdline);
+				printf("%d, %s&\n", i, clst -> cmdline);
+#ifdef CONFIG_CMD_BKG
+		}
+#endif
 		i++;
 	}
 

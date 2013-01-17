@@ -21,9 +21,10 @@ typedef const struct {
 
 struct cmd_list_s {
 	char *cmdline;
-	short len;
+	unsigned len : 12;
 #ifdef CONFIG_CMD_BKG
-	short ms; //repeat period
+	unsigned repeat : 1;
+	unsigned ms : 19; //repeat period
 	time_t deadline;
 #endif
 	struct list_head list;
