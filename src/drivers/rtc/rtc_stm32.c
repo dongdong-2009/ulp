@@ -9,7 +9,7 @@
 
 void rtc_init(unsigned now)
 {
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP,ENABLE);
 	PWR_BackupAccessCmd(ENABLE);
 #if 0
 	RCC_LSICmd(ENABLE);
@@ -29,16 +29,17 @@ void rtc_init(unsigned now)
 
 	RTC_WaitForLastTask();
 	RTC_SetCounter(now);
+	RTC_WaitForLastTask();
 	PWR_BackupAccessCmd(DISABLE);
 }
 
 unsigned rtc_get(void)
 {
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
-	PWR_BackupAccessCmd(ENABLE);
-	RTC_WaitForLastTask();
+	//RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
+	//PWR_BackupAccessCmd(ENABLE);
+	//RTC_WaitForLastTask();
 	unsigned seconds = RTC_GetCounter();
-	PWR_BackupAccessCmd(DISABLE);
+	//PWR_BackupAccessCmd(DISABLE);
 	return seconds;
 }
 
