@@ -499,7 +499,7 @@ static int cmd_bpmon_func(int argc, char *argv[])
 				break;
 			case 'k':
 				bpmon_config.kline = 1;
-					if(isdigit(argv[i + 1][0])) { // kline ms
+				if((i + 1) < argc && isdigit(argv[i + 1][0])) { // kline ms
 					v = atoi(argv[++i]);
 					if(v > 0) bpmon_config.kline_ms = v;
 					else e ++;
@@ -601,13 +601,13 @@ static int cmd_bpstatus_func(int argc, char *argv[])
 	strftime(bpmon_time_str, 32, "%m/%d/%Y %H:%M:%S", now);
 
 	int mv = bpmon_measure(ADC_CH_12V);
-	bpmon_print(BPMON_INFO, "12V = %dmV(%s)\n", mv);
+	bpmon_print(BPMON_INFO, "12V = %dmV\n", mv);
 
-	mv = bpmon_measure(ADC_CH_5V);
-	bpmon_print(BPMON_INFO, "5V = %dmV(%s)\n", mv);
+	//mv = bpmon_measure(ADC_CH_5V);
+	bpmon_print(BPMON_INFO, "5V = %dmV\n", mv);
 
 	if(bpmon_config.kline) {
-		bpmon_print(BPMON_INFO, "ods (T=%dmS) is %s\n", (bpmon_kline.sync.on) ? "sync" : "lost", bpmon_kline.ms_avg);
+		bpmon_print(BPMON_INFO, "ods (T=%dmS) is %s\n", bpmon_kline.ms_avg, (bpmon_kline.sync.on) ? "sync" : "lost");
 	}
 	struct record_s *record;
 	if((bpmon_config.power == 0) || (pwr_5v.on && pwr_12v.on)) {
@@ -615,7 +615,8 @@ static int cmd_bpstatus_func(int argc, char *argv[])
 		struct list_head *pos;
 		list_for_each(pos, &record_queue) {
 			record = list_entry(pos, record_s, list);
-			bpmon_print(BPMON_INFO, "%03xh (T=%dmS[%dms, %dms]) is %s\n", record->id, (record->sync.on)?"sync":"lost", record->ms_avg, record->ms_min, record->ms_max);
+			bpmon_print(BPMON_INFO, "%03xh (T=%dmS[%dms, %dms]) is %s\n", record->id, 
+				record->ms_avg, record->ms_min, record->ms_max, (record->sync.on)?"sync":"lost");
 		}
 		bpmon_print(BPMON_NULL, "\n");
 	}
