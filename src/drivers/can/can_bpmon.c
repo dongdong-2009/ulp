@@ -19,7 +19,10 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include "stm32f10x.h"
+#include "flash.h"
 
+char bpmon_line[128];
 char bpmon_time_str[32]; //"1/17/2013 18:07:22"
 time_t bpmon_time_start;
 #define __now__ ((0 - time_left(bpmon_time_start)) % 1000)
@@ -38,7 +41,79 @@ static struct debounce_s pwr_12v;
 static struct debounce_s pwr_5v;
 static LIST_HEAD(record_queue);
 
-char line_buffer[128];
+#define bpmon_log_start 0x08010000 /*provided code size <64K!!!*/
+#define bpmon_log_pages (FLASH_PAGE_NR - 40) /*STM32F103RET6: 432K*/
+
+static struct bpmon_log_s {
+	unsigned short magic;
+	unsigned short rv0;
+	unsigned short addr_h;
+	unsigned short rv1;
+	unsigned short addr_l;
+	unsigned short rv2;
+	unsigned short end_h;
+	unsigned short rv3;
+	unsigned short end_l;
+	unsigned short rv4;
+} *bpmon_log;
+
+void bpmon_log_init(int pages_to_be_erased)
+{
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP,ENABLE);
+	PWR_BackupAccessCmd(ENABLE); //disable bkp domain write protection
+	bpmon_log = (struct bpmon_log_s *) (BKP_BASE + BKP_DR1);
+
+	if(pages_to_be_erased) {
+		bpmon_log->magic = 0x1234;
+		bpmon_log->addr_h = bpmon_log_start >> 16;
+		bpmon_log->addr_l = (short) bpmon_log_start;
+		unsigned bpmon_log_end = bpmon_log_start + (pages_to_be_erased * FLASH_PAGE_SZ - 128);
+		bpmon_log->end_h = bpmon_log_end >> 16;
+		bpmon_log->end_l = (short) bpmon_log_end;
+		flash_Erase((char *)bpmon_log_start, pages_to_be_erased);
+	}
+}
+
+void bpmon_log_print(void)
+{
+	bpmon_log_init(0);
+	if(bpmon_log->magic != 0x1234) {
+		printf("bkp not init or data lost??? pls try 'bplog -E'\n");
+		return;
+	}
+
+	char *end = (char *) bpmon_log->addr_l;
+	end += (unsigned)(bpmon_log->addr_h) << 16;
+	for(char *p = (char *) bpmon_log_start; p < end; p ++) {
+		putchar(*p);
+	}
+}
+
+void bpmon_log_save(const void *str, int n)
+{
+	if(bpmon_log->magic != 0x1234) {
+		printf("!!! %s: bkp not init or data lost??? pls try 'bplog -E'\n", bpmon_time_str);
+		//led_ecode(1);
+		return;
+	}
+
+	char *addr = (char *) bpmon_log->addr_l;
+	addr += (unsigned)(bpmon_log->addr_h) << 16;
+	char *end = (char *) bpmon_log->end_l;
+	end += (unsigned)(bpmon_log->end_h) << 16;
+
+	if(addr < end) {
+		flash_Write(addr, str, n);
+		addr += n;
+		bpmon_log->addr_h = (unsigned)addr >> 16;
+		bpmon_log->addr_l = (short)addr;
+	}
+	else {
+		printf("!!! %s: bkp is full, pls try 'bplog -E'\n", bpmon_time_str);
+		//led_ecode(2);
+	}
+}
+
 enum info_type {
 	BPMON_SYNC,
 	BPMON_LOST,
@@ -57,21 +132,29 @@ int bpmon_print(enum info_type type, const char *fmt, ...)
 	case BPMON_LOST:
 	case BPMON_SYNC:
 	case BPMON_INFO:
-		printf("!!! %s: ", bpmon_time_str);
+		n += sprintf(bpmon_line, "!!! %s: ", bpmon_time_str);
 		break;
 	case BPMON_MISC:
-		printf("%03d : ", __now__);
+		n += sprintf(bpmon_line, "%03d : ", __now__);
 		break;
 	default:;
 	}
 
 	va_start(ap, fmt);
-	n += vsnprintf(line_buffer + n, 128 - n, fmt, ap);
+	n += vsnprintf(bpmon_line + n, 128 - n, fmt, ap);
 	va_end(ap);
 
+	if(n & 0x03) {
+		int odd = 4 - (n & 0x03);
+		for(int i = 0; i < odd; i ++) {
+			bpmon_line[++ n] = 0;
+		}
+	}
+
 	//output string to console or log buffer
-	printf("%s", line_buffer);
-	return 0;
+	printf("%s", bpmon_line);
+	bpmon_log_save(bpmon_line, n);
+	return n;
 }
 
 struct record_s {
@@ -218,7 +301,6 @@ static void bpmon_update(void)
 	}
 }
 
-#include "stm32f10x.h"
 #define AIN_VBAT ADC_Channel_10 //PC0
 #define AIN0 ADC_Channel_4//PA4
 #define AIN1 ADC_Channel_5//PA5
@@ -380,7 +462,7 @@ static int cmd_bpmon_func(int argc, char *argv[])
 		strftime(bpmon_time_str, 32, "%m/%d/%Y %H:%M:%S", now);
 		bpmon_print(BPMON_INFO, "Monitor is Starting ...\n");
 		strftime(bpmon_time_str, 32, "%H:%M:%S", now);
-
+		bpmon_log_init(0);
 
 		bpmon_config.baud = 500000;
 		bpmon_config.power = 0;
@@ -542,3 +624,57 @@ static int cmd_bpstatus_func(int argc, char *argv[])
 
 const cmd_t cmd_bpstatus = {"bpst", cmd_bpstatus_func, "bpmon status display"};
 DECLARE_SHELL_CMD(cmd_bpstatus)
+
+static int cmd_bplog_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"bplog			display recorded messages in flash\n"
+		"bplog -E [pages]	erase all recorded messages\n"
+		"bplog -s xyz		save xyz to flash\n"
+	};
+
+	int v, e = 0;
+	if(argc == 1) {
+		bpmon_log_print();
+		return 0;
+	}
+
+	for(int i = 1; i < argc; i ++) {
+		e += (argv[i][0] != '-');
+		switch(argv[i][1]) {
+		case 'E':
+			i ++;
+			v = (i < argc) ? atoi(argv[i]) : bpmon_log_pages;
+			if((v > 0) && (v <= bpmon_log_pages)) {
+				printf("Erasing %d pages, pls wait ...\n", v);
+				bpmon_log_init(v);
+				return 0;
+			}
+
+			printf("err: pages is out range(0, %d]\n", bpmon_log_pages);
+			e ++;
+			break;
+
+		case 's':
+			i ++;
+			if(i < argc) {
+				int n = bpmon_print(BPMON_NULL, "%s\n", argv[i]);
+				printf("%d bytes has been saved\n", n);
+				return 0;
+			}
+			e ++;
+			break;
+
+		default:
+			e ++;
+		}
+	}
+
+	if(e)
+		printf("%s", usage);
+	return 0;
+}
+
+const cmd_t cmd_bplog = {"bplog", cmd_bplog_func, "bpanel log cmds"};
+DECLARE_SHELL_CMD(cmd_bplog)
