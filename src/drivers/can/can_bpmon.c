@@ -459,10 +459,10 @@ static int cmd_bpmon_func(int argc, char *argv[])
 	strftime(bpmon_time_str, 32, "%H:%M:%S", now);
 
 	if(argc > 0) {
+		bpmon_log_init(0);
 		strftime(bpmon_time_str, 32, "%m/%d/%Y %H:%M:%S", now);
 		bpmon_print(BPMON_INFO, "Monitor is Starting ...\n");
 		strftime(bpmon_time_str, 32, "%H:%M:%S", now);
-		bpmon_log_init(0);
 
 		bpmon_config.baud = 500000;
 		bpmon_config.power = 0;
