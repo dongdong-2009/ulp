@@ -1,9 +1,8 @@
 /*
  *	miaofng@2012 bpanel monitor to solve EAT timeout issue
  *	led status:
- *	- green flash: dut is power on & monitor is busy
- *	- green continued on: monitor is idle, usb power on/off is allowed
- *	- red flash: err code
+ *	- green flash: monitor works normal
+ *	- red flash: error occurs, specified operation should be taken
  */
 
 #include "config.h"
@@ -21,6 +20,7 @@
 #include <stdio.h>
 #include "stm32f10x.h"
 #include "flash.h"
+#include "led.h"
 
 char bpmon_line[128];
 char bpmon_time_str[32]; //"1/17/2013 18:07:22"
@@ -93,7 +93,8 @@ void bpmon_log_save(const void *str, int n)
 {
 	if(bpmon_log->magic != 0x1234) {
 		printf("!!! %s: bkp not init or data lost??? pls try 'bplog -E'\n", bpmon_time_str);
-		//led_ecode(1);
+		led_off(LED_GREEN);
+		led_error(1);
 		return;
 	}
 
@@ -110,7 +111,8 @@ void bpmon_log_save(const void *str, int n)
 	}
 	else {
 		printf("!!! %s: bkp is full, pls try 'bplog -E'\n", bpmon_time_str);
-		//led_ecode(2);
+		led_off(LED_GREEN);
+		led_error(2);
 	}
 }
 
@@ -130,6 +132,8 @@ int bpmon_print(enum info_type type, const char *fmt, ...)
 	//add suffix
 	switch(type) {
 	case BPMON_LOST:
+		led_off(LED_GREEN);
+		led_error(3);
 	case BPMON_SYNC:
 	case BPMON_INFO:
 		n += sprintf(bpmon_line, "!!! %s: ", bpmon_time_str);
@@ -459,6 +463,8 @@ static int cmd_bpmon_func(int argc, char *argv[])
 	strftime(bpmon_time_str, 32, "%H:%M:%S", now);
 
 	if(argc > 0) {
+		led_flash(LED_GREEN);
+		led_off(LED_RED);
 		bpmon_log_init(0);
 		strftime(bpmon_time_str, 32, "%m/%d/%Y %H:%M:%S", now);
 		bpmon_print(BPMON_INFO, "Monitor is Starting ...\n");
