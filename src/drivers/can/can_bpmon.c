@@ -510,7 +510,7 @@ static int cmd_bpmon_func(int argc, char *argv[])
 					if(v > 0) bpmon_config.kline_ms = v;
 					else e ++;
 				}
-				if(isdigit(argv[i + 1][0])) { // kline baud
+				if((i + 1) < argc && isdigit(argv[i + 1][0])) { // kline baud
 					v = atoi(argv[++i]);
 					if(v > 0) bpmon_config.kline_baud = v;
 					else e ++;
