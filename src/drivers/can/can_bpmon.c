@@ -412,8 +412,20 @@ static void bpmon_kline_init(void)
 
 static void bpmon_kline_update(void)
 {
-	if(bpmon_uart->poll() == 0)
+	if(bpmon_uart->poll() == 0) {
+		if(bpmon_kline.sync.on) {
+			int ms_threshold = bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 5;
+			if(time_left(bpmon_kline.timer) < - ms_threshold) {
+				bpmon_print(BPMON_LOST, "ods (T=%dmS) is timeout\n", bpmon_kline.ms_avg);
+				if(debounce(&bpmon_kline.sync, 0)) {
+					bpmon_print(BPMON_LOST, "ods (T=%dmS) is lost\n", bpmon_kline.ms_avg);
+					bpmon_kline.timer = 0;
+				}
+			}
+		}
 		return;
+	}
+
 	while(bpmon_uart->poll()) {
 		bpmon_uart->getchar();
 	}
