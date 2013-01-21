@@ -15,6 +15,11 @@
 #include "uart.h"
 #include <stdarg.h>
 
+#ifdef CONFIG_CMD_AUTORUN
+#include "nvm.h"
+static char shell_autorun_cmdline[CONFIG_SHELL_LEN_CMD_MAX] __nvm;
+#endif
+
 #if CONFIG_SHELL_LEN_HIS_MAX > 0
 static void cmd_GetHistory(char *cmd, int dir);
 static void cmd_SetHistory(const char *cmd);
@@ -118,6 +123,18 @@ int shell_register(const struct console_s *console)
 #endif
 	shell_print("\033c"); /*clear screen*/
 	shell_print("%s\n", CONFIG_BLDC_BANNER);
+#ifdef CONFIG_SHELL_AUTORUN
+	shell->cmd_buffer[0] = 0;
+	if(strlen(CONFIG_AUTORUN_CMDLINE) > 0) {
+		strcpy(shell->cmd_buffer, CONFIG_AUTORUN_CMDLINE);
+	}
+	#ifdef CONFIG_CMD_AUTORUN
+	if(shell_autorun_cmdline[0] == 'A') {
+		strcpy(shell->cmd_buffer, shell_autorun_cmdline + 1);
+	}
+	#endif
+	cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
+#endif
 	console_set(NULL);
 	return 0;
 }
@@ -565,4 +582,49 @@ static void cmd_SetHistory(const char *cmd)
 	if( shell -> cmd_hrail >= shell -> cmd_hsz)
 		shell -> cmd_hrail -= shell -> cmd_hsz;
 }
+#endif
+
+#ifdef CONFIG_CMD_AUTORUN
+static char shell_autorun_cmdline[] __nvm;
+static int cmd_autorun_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"autorun		display current auto cmdline\n"
+		"autorun -s [xyz]	set/clr new autorun cmdline\n"
+	};
+
+	int e = 0;
+	for(int i = 1; i < argc; i ++) {
+		e += (argv[i][0] != '-');
+		switch(argv[i][1]) {
+		case 's':
+			i ++;
+			shell_autorun_cmdline[0] = 0;
+			if(i < argc) {
+				shell_autorun_cmdline[0] = 'A';
+				memcpy(shell_autorun_cmdline + 1, argv[i], strlen(argv[i]));
+			}
+			nvm_save();
+			break;
+
+		default:
+			e ++;
+		}
+	}
+
+	printf("autorun = ");
+	if(shell_autorun_cmdline[0] == 'A') {
+		printf("%s", shell_autorun_cmdline + 1);
+	}
+	printf("\n");
+
+	if(e)
+		printf("%s", usage);
+
+	return 0;
+}
+
+const cmd_t cmd_autorun = {"autorun", cmd_autorun_func, "autorun a specified cmdline"};
+DECLARE_SHELL_CMD(cmd_autorun)
 #endif

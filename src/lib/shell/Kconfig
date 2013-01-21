@@ -13,7 +13,11 @@ bool "multiple console support" CONFIG_SHELL_MULTI
 bool "cmd pattern like 0,2-5,8 support" CONFIG_CMD_PATTERN
 bool "cmd background run(like cmdxxx&100) support" CONFIG_CMD_BKG
 bool "cmd para function mode, like fun(x, y) support" CONFIG_CMD_FUNCTION
-
+bool "shell autorun support" CONFIG_SHELL_AUTORUN
+if [ "$CONFIG_SHELL_AUTORUN" = "y" ]; then
+	string "autorun cmdline" CONFIG_AUTORUN_CMDLINE ""
+	bool "cmd autorun support" CONFIG_CMD_AUTORUN
+fi
 if [ "$CONFIG_TASK_SHELL" = "y" -a "$CONFIG_TASK_MOTOR" = "y"]; then
 	bool "enable commands for motor?" CONFIG_SHELL_MOTOR
 	bool "enable commands for motor debug?" CONFIG_SHELL_MOTOR_DEBUG
