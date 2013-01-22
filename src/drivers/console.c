@@ -51,8 +51,6 @@ int console_set(const struct console_s *new)
 #ifdef CONFIG_SHELL_MULTI
 	cnsl_old = cnsl;
 	cnsl = (new == NULL) ? cnsl_def : new;
-#else
-	cnsl = new;
 #endif
 	return 0;
 }

@@ -36,6 +36,7 @@ static struct {
 	unsigned kline_ms : 16;
 	unsigned power : 1;
 	unsigned kline : 1;
+	unsigned verbose : 1;
 } bpmon_config;
 static struct debounce_s pwr_12v;
 static struct debounce_s pwr_5v;
@@ -117,6 +118,7 @@ void bpmon_log_save(const void *str, int n)
 }
 
 enum info_type {
+	BPMON_MORE, //VERBOSE INFO
 	BPMON_SYNC,
 	BPMON_LOST,
 	BPMON_INFO,
@@ -139,7 +141,8 @@ int bpmon_print(enum info_type type, const char *fmt, ...)
 		n += sprintf(bpmon_line, "!!! %s: ", bpmon_time_str);
 		break;
 	case BPMON_MISC:
-		n += sprintf(bpmon_line, "%03d : ", __now__);
+	case BPMON_MORE:
+		n += sprintf(bpmon_line, "%04d : ", __now__);
 		break;
 	default:;
 	}
@@ -157,7 +160,10 @@ int bpmon_print(enum info_type type, const char *fmt, ...)
 
 	//output string to console or log buffer
 	printf("%s", bpmon_line);
-	bpmon_log_save(bpmon_line, n);
+	static char __type;
+	__type = (type != BPMON_MISC) ? type : __type;
+	if(__type != BPMON_MORE)
+		bpmon_log_save(bpmon_line, n);
 	return n;
 }
 
@@ -235,6 +241,15 @@ static void bpmon_update(void)
 	}
 
 	if(!bpmon_can -> recv(&msg)) {
+		if(bpmon_config.verbose) {
+			bpmon_print(BPMON_MORE, "%03xh", msg.id);
+			for(int i = 0; i < msg.dlc; i ++) {
+				bpmon_print(BPMON_NULL, " %02x", ((unsigned)(msg.data[i])) & 0xff);
+			}
+			bpmon_print(BPMON_NULL, "\n");
+			return;
+		}
+
 		record = record_get(msg.id);
 		record->fsn ++;
 		if(record->fsn == 1) { // 1st frame
@@ -397,8 +412,20 @@ static void bpmon_kline_init(void)
 
 static void bpmon_kline_update(void)
 {
-	if(bpmon_uart->poll() == 0)
+	if(bpmon_uart->poll() == 0) {
+		if(bpmon_kline.sync.on) {
+			int ms_threshold = bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 5;
+			if(time_left(bpmon_kline.timer) < - ms_threshold) {
+				bpmon_print(BPMON_LOST, "ods (T=%dmS) is timeout\n", bpmon_kline.ms_avg);
+				if(debounce(&bpmon_kline.sync, 0)) {
+					bpmon_print(BPMON_LOST, "ods (T=%dmS) is lost\n", bpmon_kline.ms_avg);
+					bpmon_kline.timer = 0;
+				}
+			}
+		}
 		return;
+	}
+
 	while(bpmon_uart->poll()) {
 		bpmon_uart->getchar();
 	}
@@ -455,6 +482,8 @@ static int cmd_bpmon_func(int argc, char *argv[])
 		"bpmon 158h 039h [...]	monitor can frame with id 0x158, 0x039, ...\n"
 		"bpmon -b 500000 158h	monitor can with baudrate = 500000\n"
 		"bpmon -k [20] [19200]	monitor can with ods detection, >20ms idle time\n"
+		"bpmon -p -k		monitor can with power/ods detection\n"
+		"bpmon -v		monitor can with details info\n"
 	};
 
 	time_t t;
@@ -475,6 +504,7 @@ static int cmd_bpmon_func(int argc, char *argv[])
 		bpmon_config.kline = 0;
 		bpmon_config.kline_baud = 19200;
 		bpmon_config.kline_ms = 10;
+		bpmon_config.verbose = 0;
 		can_filter_t *filter = NULL;
 		int v, n, e, id = 0;
 		for(int i = 1; i < argc; i ++) {
@@ -510,11 +540,14 @@ static int cmd_bpmon_func(int argc, char *argv[])
 					if(v > 0) bpmon_config.kline_ms = v;
 					else e ++;
 				}
-				if(isdigit(argv[i + 1][0])) { // kline baud
+				if((i + 1) < argc && isdigit(argv[i + 1][0])) { // kline baud
 					v = atoi(argv[++i]);
 					if(v > 0) bpmon_config.kline_baud = v;
 					else e ++;
 				}
+				break;
+			case 'v':
+				bpmon_config.verbose = 1;
 				break;
 			default:
 				e ++;
@@ -621,7 +654,7 @@ static int cmd_bpstatus_func(int argc, char *argv[])
 		struct list_head *pos;
 		list_for_each(pos, &record_queue) {
 			record = list_entry(pos, record_s, list);
-			bpmon_print(BPMON_INFO, "%03xh (T=%dmS[%dms, %dms]) is %s\n", record->id, 
+			bpmon_print(BPMON_INFO, "%03xh (T=%dmS[%dms, %dms]) is %s\n", record->id,
 				record->ms_avg, record->ms_min, record->ms_max, (record->sync.on)?"sync":"lost");
 		}
 		bpmon_print(BPMON_NULL, "\n");
