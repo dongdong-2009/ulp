@@ -1,5 +1,6 @@
 /*
 *	king@2011 initial version
+*	king@2013 modify
 */
 #include "stm32f10x.h"
 #include "sys/task.h"
@@ -30,11 +31,11 @@ static enum {
 
 static unsigned short ma_indicator_fifo[MA_INDICATOR_FIFOSIZE];
 static unsigned short ma_indicator_value[MA_INDICATOR_FIFOSIZE];
-static time_t ma_indicator_timer;
-static int n;
-static unsigned char value[15];
-static unsigned char ID[64];
+static int autoflag;
+static char value[15];
+static char ID[64];
 static unsigned int counter;
+static int overtime;
 static const i2c_cfg_t ma_i2c = {
 	.speed = 100000,
 	.option = 0,
@@ -49,7 +50,7 @@ static unsigned int Ma_Button_Check()
 	return status;
 }
 
-static int Ma_EEPROM_Operation(unsigned int address, unsigned char *buffer, int length, unsigned char operation)
+static int Ma_EEPROM_Operation(unsigned int address, char *buffer, int length, char operation)
 {
 	switch(operation) {
 	case 0:
@@ -115,10 +116,78 @@ static int Ma_Device_Operation(int device, int operation)
 	}
 }
 
-static int Ma_Data_Handle(unsigned short *data, unsigned char *v)
+static int Ma_Data_char(unsigned short *data, char *v)
 {
 	int i, j, p;
-	unsigned char m[12];
+	char m[12];
+	if(data[0] != 0xffff) {
+		printf("error:	error data\n");
+		return -1;
+	}
+	for(i = 1;i < 4; i++) {
+		for(j = 0; j < 4; j++) {
+			m[(i - 1) * 4 + j] = (data[i] >> (j * 4)) & 0x000f;
+		}
+	}
+	switch(m[0]) {
+	case 0:
+		v[0] = '+';
+		break;
+	case 8:
+		v[0] = '-';
+		break;
+	default:
+		printf("error:	error data\n");
+		return -1;
+	}
+	for(i = 1, j = 0; i <= (6 - m[7]); i++) {
+		if(m[i] && !j)
+			v[++j] = '0' + m[i];
+		else if(j)
+			v[++j] = '0' + m[i];
+	}
+	if(!j) {
+		v[1] = '0';
+		v[2] = '.';
+		p = 3;
+	}
+	else {
+		v[++j] = '.';
+		p = j + 1;
+	}
+	for(i = 7 - m[7]; i < 7; i++)
+		v[p++] = '0' + m[i];
+	v[p++] = ' ';
+	switch(m[8]) {
+	case 0:
+		v[p++] = 'm';
+		v[p++] = 'm';
+		v[p] = 0;
+		break;
+	case 1:
+		v[p++] = 'i';
+		v[p++] = 'n';
+		v[p++] = 'c';
+		v[p++] = 'h';
+		v[p] = 0;
+		break;
+	default:
+		printf("error:	error data\n");
+		return -1;
+	}
+	return 0;
+}
+
+/*
+ * 	bit 0 (unit) : 0->mm, 1->inch
+ * 	bit 1-3 (decimal point) : 0->XXXXXX., 1->XXXXX.X, 2->XXXX.XX, 3->XXX.XXX, 4->XX.XXXX, 5->X.XXXXX
+ * 	bit 4-29 (measurements)
+ * 	bit 30 (sign) : 0->+, 1->-
+ */
+static int Ma_Data_int(unsigned short *data, int *v)
+{
+	int i, j, p;
+	char m[12];
 	if(data[0] != 0xffff) {
 		printf("error:	error data\n");
 		return -1;
@@ -326,51 +395,44 @@ static void Ma_Indicator_Init()
 	DMA_Cmd(DMA1_Channel2, ENABLE);
 }
 
-static void Ma_Indicator_Update()
+static int Ma_Indicator_read(int id, /*int *data,*/ int ms)
 {
-	switch(ma_indicator_stm) {
-	case MA_INDICATOR_STM_NULL:
-		break;
-	case MA_INDICATOR_STM_INIT_INDICATOR1:
-		ma_indicator_stm = MA_INDICATOR_STM_RUN;
-		SPI_Cmd(SPI1, ENABLE);
-		DMA_Cmd(DMA1_Channel2, ENABLE);
+	time_t timer;
+	int n;
+	SPI_Cmd(SPI1, ENABLE);
+	DMA_Cmd(DMA1_Channel2, ENABLE);
+	GPIO_ResetBits(GPIOB, GPIO_Pin_11);
+
+	if(id == 1) {
 		GPIO_ResetBits(GPIOB, GPIO_Pin_11);
-		ma_indicator_timer = time_get(500);
-		break;
-	case MA_INDICATOR_STM_INIT_INDICATOR2:
-		ma_indicator_stm = MA_INDICATOR_STM_RUN;
-		SPI_Cmd(SPI1, ENABLE);
-		DMA_Cmd(DMA1_Channel2, ENABLE);
+	}
+	else if(id == 2) {
 		GPIO_ResetBits(GPIOC, GPIO_Pin_4);
-		ma_indicator_timer = time_get(500);
-		break;
-	case MA_INDICATOR_STM_RUN:
+	}
+
+	timer = time_get(ms);
+	do {
 		n = DMA_GetCurrDataCounter(DMA1_Channel2);
 		if(!n) {
 			GPIO_SetBits(GPIOB, GPIO_Pin_11);
 			GPIO_SetBits(GPIOC, GPIO_Pin_4);
-			ma_indicator_stm = MA_INDICATOR_STM_OVER;
+			memcpy(ma_indicator_value, ma_indicator_fifo, sizeof(ma_indicator_fifo));
+			SPI_Cmd(SPI1, DISABLE);
+			DMA_Cmd(DMA1_Channel2, DISABLE);
+			Ma_Indicator_Init();//????????????????
+			// if(!Ma_Data_char(ma_indicator_value, value))
+				// printf("%s\n", value);
+			return 0;
 		}
 		else {
-			if(time_left(ma_indicator_timer) < 0) {
+			if(time_left(timer) < 0) {
 				printf("error:	timeout\n");
 				GPIO_SetBits(GPIOB, GPIO_Pin_11);
 				GPIO_SetBits(GPIOC, GPIO_Pin_4);
-				ma_indicator_stm = MA_INDICATOR_STM_NULL;
+				return -1;
 			}
 		}
-		break;
-	case MA_INDICATOR_STM_OVER:
-		memcpy(ma_indicator_value, ma_indicator_fifo, sizeof(ma_indicator_fifo));
-		ma_indicator_stm = MA_INDICATOR_STM_NULL;
-		SPI_Cmd(SPI1, DISABLE);
-		DMA_Cmd(DMA1_Channel2, DISABLE);
-		Ma_Indicator_Init();
-		if(!Ma_Data_Handle(ma_indicator_value, value))
-			printf("%s\n", value);
-		break;
-	}
+	} while(n == 0);
 }
 
 static int cmd_ma_func(int argc, char *argv[])
@@ -385,8 +447,11 @@ static int cmd_ma_func(int argc, char *argv[])
 		"  ma get id\n"
 		"  ma get counter\n"
 		"  ma get button\n"
-	};
 
+		"  ma auto on/off\n"
+		"  ma auto overtime 500"
+	};
+	int a;
 	if(argc == 3 && !strcmp(argv[1], "get")) {
 		if(!strcmp(argv[2], "value1") | !strcmp(argv[2], "value")) {
 			if(ma_indicator_stm == MA_INDICATOR_STM_NULL)
@@ -415,7 +480,7 @@ static int cmd_ma_func(int argc, char *argv[])
 			return 0;
 		}
 		else if(!strcmp(argv[2], "counter")) {
-			if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (unsigned char *)&counter, sizeof(counter), 0)) {
+			if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (char *)&counter, sizeof(counter), 0)) {
 				printf("operation fail\n");
 				return -1;
 			}
@@ -434,7 +499,6 @@ static int cmd_ma_func(int argc, char *argv[])
 	}
 
 	else if(argc == 4 && !strcmp(argv[1], "set")) {
-		int a;
 		if(!strcmp(argv[2], "ledr")) {
 			sscanf(argv[3], "%d", &a);
 			if(Ma_LED_Operation(LED_R, a)) {
@@ -524,7 +588,7 @@ static int cmd_ma_func(int argc, char *argv[])
 		else if(!strcmp(argv[2], "counter")) {
 			if(!strcmp(argv[3], "+")) {
 				counter++;
-				if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (unsigned char *)&counter, sizeof(counter), 1)) {
+				if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (char *)&counter, sizeof(counter), 1)) {
 					printf("operation fail\n");
 					return -1;
 				}
@@ -533,7 +597,7 @@ static int cmd_ma_func(int argc, char *argv[])
 			}
 			else {
 				sscanf(argv[3], "%d", &counter);
-				if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (unsigned char *)&counter, sizeof(counter), 1)) {
+				if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (char *)&counter, sizeof(counter), 1)) {
 					printf("operation fail\n");
 					return -1;
 				}
@@ -547,6 +611,33 @@ static int cmd_ma_func(int argc, char *argv[])
 			return -1;
 		}
 	}
+
+	else if(argc == 3 && !strcmp(argv[1], "auto")) {
+		if(!strcmp(argv[2], "on")) {
+			autoflag = 1;
+		}
+		else if(!strcmp(argv[2], "off")) {
+			autoflag = 0;
+		}
+		else {
+			printf("operation fail\n");
+			return -1;
+		}
+		printf("operation success\n");
+		return 0;
+	}
+
+	else if(argc == 4 && !strcmp(argv[1], "auto")) {
+		if(!strcmp(argv[2], "overtime")) {
+			sscanf(argv[3], "%d", &overtime);
+			printf("operation success\n");
+			return 0;
+		}
+		else if(0) {
+
+		}
+	}
+
 	else {
 		printf("error: command is wrong!!\n");
 		printf("%s", usage);
@@ -556,6 +647,18 @@ static int cmd_ma_func(int argc, char *argv[])
 
 const cmd_t cmd_ma = {"ma", cmd_ma_func, "control ma"};
 DECLARE_SHELL_CMD(cmd_ma)
+
+static void ma_mdelay(int ms)
+{
+	int left;
+	time_t deadline = time_get(ms);
+	do {
+		left = time_left(deadline);
+		if(left >= 10) {
+			task_Update();
+		}
+	} while(left > 0);
+}
 
 static void Ma_Init()
 {
@@ -568,23 +671,52 @@ static void Ma_Init()
 		printf("read ID fail\n");
 	else
 		printf("ID = %s\n", ID);
-	if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (unsigned char *)&counter, sizeof(counter), 0))
+	if(Ma_EEPROM_Operation(MA_COUNTER_ADDRESS, (char *)&counter, sizeof(counter), 0))
 		printf("read counter fail\n");
 	else
 		printf("counter = %d\n", counter);
+
+
 }
 
 static void Ma_Update()
 {
-	Ma_Indicator_Update();
+	//Ma_Indicator_Update();
 }
 
 void main()
 {
+	unsigned int data;
 	task_Init();
 	Ma_Init();
+
+	Ma_LED_Operation(LED_Y, 50);
+	Ma_Device_Operation(2, 1);
+	ma_mdelay(1000);
+	Ma_Device_Operation(1, 1);
+	ma_mdelay(1000);
+
 	while(1) {
+		if(autoflag == 1) {
+			//while((Ma_Button_Check() & 0x00000001) != 0xaaaaaaa1) {
+				//ma_mdelay(100);
+			//}
+			Ma_LED_Operation(LED_Y, 50);
+			Ma_Device_Operation(1, 0);
+			ma_mdelay(1000);
+			Ma_Device_Operation(2, 0);
+			ma_mdelay(1000);
+			if(Ma_Indicator_read(1, 500) == 0) {
+
+			}
+			else {
+				//error
+			}
+			Ma_Device_Operation(2, 1);
+			ma_mdelay(1000);
+			Ma_Device_Operation(1, 1);
+			ma_mdelay(1000);
+		}
 		task_Update();
-		Ma_Update();
 	}
 }
