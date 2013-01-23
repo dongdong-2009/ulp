@@ -2,7 +2,6 @@
  * cong.chen@2011 initial version
  * David@2011 improved
  */
-#include "eth_demo/tcpserver.h"
 #include "lwip/tcp.h"
 #include "spi.h"
 #include "ulp_time.h"
@@ -26,7 +25,7 @@ void lwip_app_Init(void)
 
 	/* Assign to the new pcb a local IP address and a port number */
 	/* Using IP_ADDR_ANY allow the pcb to be used by any local interface */
-	tcp_bind(pcb, IP_ADDR_ANY, TCP_SERVER_PORT);
+	tcp_bind(pcb, IP_ADDR_ANY, 3838);
 
 	/* Set the connection to the LISTEN state */
 	pcb = tcp_listen(pcb);
