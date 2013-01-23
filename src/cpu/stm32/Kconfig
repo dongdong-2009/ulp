@@ -17,12 +17,15 @@ choice 'stm32 std periph lib select'	" \
 	v3.5	CONFIG_USE_STDPERIPH_V35 \
 	none	CONFIG_USE_STDPERIPH_NONE \
 " v1.0
+if [ "$CONFIG_USE_STDPERIPH_DRIVER" = "y"]; then
 bool "use stm32 internal RC OSC?" CONFIG_USE_HSI n
-choice 'system freq select(note: must < 64MHz when using HSI!!!)'	" \
+fi
+choice 'system freq select(note: <= 64MHz only for using HSI!!!)'	" \
 	24MHz	CONFIG_SYSCLK_FREQ_24MHz \
 	36MHz	CONFIG_SYSCLK_FREQ_36MHz \
 	48MHz	CONFIG_SYSCLK_FREQ_48MHz \
 	56MHz	CONFIG_SYSCLK_FREQ_56MHz \
+	64MHz	CONFIG_SYSCLK_FREQ_64MHz \
 	72MHz	CONFIG_SYSCLK_FREQ_72MHz \
 " 72MHz
 
