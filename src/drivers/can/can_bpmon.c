@@ -27,7 +27,7 @@ char bpmon_time_str[32]; //"1/17/2013 18:07:22"
 time_t bpmon_time_start;
 #define __now__ ((0 - time_left(bpmon_time_start)) % 1000)
 
-#define frame_period_threshold 10%
+#define frame_period_threshold 30%
 
 static const can_bus_t *bpmon_can = &can1;
 static struct {
@@ -227,7 +227,7 @@ static void bpmon_update(void)
 	list_for_each_safe(pos, bak, &record_queue) {
 		record = list_entry(pos, record_s, list);
 		if(record->sync.on) {
-			int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100 + 5;
+			int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100 + 10;
 			if(time_left(record->time) < - ms_threshold) {
 				bpmon_print(BPMON_LOST, "%03xh timeout\n", record->id);
 				record->time = time_shift(record->time, record->ms_avg);
@@ -279,7 +279,7 @@ static void bpmon_update(void)
 
 		ms = ms - record->ms_avg;
 		ms = (ms > 0) ? ms : - ms;
-		int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100 + 5;
+		int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100 + 10;
 		if(ms < ms_threshold) {
 			record->ms_avg = (record->ms_avg + record->ms) / 2;
 			if(record->sync.off) {
@@ -414,8 +414,9 @@ static void bpmon_kline_update(void)
 {
 	if(bpmon_uart->poll() == 0) {
 		if(bpmon_kline.sync.on) {
-			int ms_threshold = bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 5;
+			int ms_threshold = bpmon_kline.ms_avg + bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 10;
 			if(time_left(bpmon_kline.timer) < - ms_threshold) {
+				bpmon_kline.timer = time_get(0);
 				bpmon_print(BPMON_LOST, "ods (T=%dmS) is timeout\n", bpmon_kline.ms_avg);
 				if(debounce(&bpmon_kline.sync, 0)) {
 					bpmon_print(BPMON_LOST, "ods (T=%dmS) is lost\n", bpmon_kline.ms_avg);
@@ -447,8 +448,10 @@ static void bpmon_kline_update(void)
 		//in expected range???
 		ms -= bpmon_kline.ms_avg;
 		ms = (ms > 0) ? ms : - ms;
-		int ms_threshold = bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 5;
+		int ms_threshold = bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 10;
 		if(ms < ms_threshold) { //good
+			if(bpmon_kline.sync.off)
+				bpmon_print(BPMON_MISC, "ods (T=%dmS) is hit\n", bpmon_kline.ms);
 			bpmon_kline.ms_avg = (bpmon_kline.ms_avg + bpmon_kline.ms) / 2;
 			if(debounce(&bpmon_kline.sync, 1)) {
 				bpmon_print(BPMON_SYNC, "ods (T=%dmS) is sync\n", bpmon_kline.ms_avg);
