@@ -91,7 +91,7 @@ void time_hwInit(void)
 #elif CONFIG_CPU_LPC178X == 1
 	SysTick_Config(SystemCoreClock / CONFIG_TICK_HZ);
 #else
-	SysTick_Config(SystemFrequency / CONFIG_TICK_HZ);
+	SysTick_Config((SystemFrequency >> 3) / CONFIG_TICK_HZ);
 #endif
 }
 #endif
