@@ -7,21 +7,15 @@
 #include "config.h"
 #include "shell/cmd.h"
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include "i2c.h"
+#include "nvm.h"
 
 #define MA_INDICATOR_FIFOSIZE 4
 #define MA_ID_ADDRESS 0
 #define MA_COUNTER_ADDRESS 64
-
-static enum {
-	MA_INDICATOR_STM_NULL,
-	MA_INDICATOR_STM_INIT_INDICATOR1,
-	MA_INDICATOR_STM_INIT_INDICATOR2,
-	MA_INDICATOR_STM_RUN,
-	MA_INDICATOR_STM_OVER,
-} ma_indicator_stm = MA_INDICATOR_STM_NULL;
 
 static enum {
 	LED_R,
@@ -29,18 +23,32 @@ static enum {
 	LED_Y,
 };
 
+struct ma_auto_s {
+	int autoflag; // 0->off, 1->on
+
+	float max;
+	float min;
+
+	int indicator_overtime; // unit : ms
+	int device1;
+	int device2;
+
+	// 0~100
+	int ledr;
+	int ledy;
+	int ledg;
+} ma_auto_para __nvm;
+
 static unsigned short ma_indicator_fifo[MA_INDICATOR_FIFOSIZE];
-static unsigned short ma_indicator_value[MA_INDICATOR_FIFOSIZE];
-static int autoflag;
+unsigned short ma_indicator_value[MA_INDICATOR_FIFOSIZE];
 static char value[15];
 static char ID[64];
 static unsigned int counter;
-static int overtime;
+float indicator_data;
 static const i2c_cfg_t ma_i2c = {
 	.speed = 100000,
 	.option = 0,
 };
-
 
 static unsigned int Ma_Button_Check()
 {
@@ -183,10 +191,15 @@ static int Ma_Data_char(unsigned short *data, char *v)
  * 	bit 1-3 (decimal point) : 0->XXXXXX., 1->XXXXX.X, 2->XXXX.XX, 3->XXX.XXX, 4->XX.XXXX, 5->X.XXXXX
  * 	bit 4-29 (measurements)
  * 	bit 30 (sign) : 0->+, 1->-
+ *
+ * 	return -1 : error
+ * 	return 0 : mm
+ * 	return 1 : inch
  */
-static int Ma_Data_int(unsigned short *data, int *v)
+static int Ma_Data_float(unsigned short *data, float *v)
 {
-	int i, j, p;
+	int i, j, temp;
+	float d;
 	char m[12];
 	if(data[0] != 0xffff) {
 		printf("error:	error data\n");
@@ -197,53 +210,25 @@ static int Ma_Data_int(unsigned short *data, int *v)
 			m[(i - 1) * 4 + j] = (data[i] >> (j * 4)) & 0x000f;
 		}
 	}
-	switch(m[0]) {
-	case 0:
-		v[0] = '+';
-		break;
-	case 8:
-		v[0] = '-';
-		break;
-	default:
-		printf("error:	error data\n");
-		return -1;
+	temp = (int)m[1] * 100000 + (int)m[2] * 10000 + (int)m[3] * 1000 + (int)m[4] * 100 + (int)m[5] * 10 + (int)m[6];
+	d = (float)temp / pow(10, (int)m[7]);
+	if(m[0] == 0) {
+		d = d;
 	}
-	for(i = 1, j = 0; i <= (6 - m[7]); i++) {
-		if(m[i] && !j)
-			v[++j] = '0' + m[i];
-		else if(j)
-			v[++j] = '0' + m[i];
-	}
-	if(!j) {
-		v[1] = '0';
-		v[2] = '.';
-		p = 3;
+	else if(m[0] == 8) {
+		d = 0 - d;
 	}
 	else {
-		v[++j] = '.';
-		p = j + 1;
-	}
-	for(i = 7 - m[7]; i < 7; i++)
-		v[p++] = '0' + m[i];
-	v[p++] = ' ';
-	switch(m[8]) {
-	case 0:
-		v[p++] = 'm';
-		v[p++] = 'm';
-		v[p] = 0;
-		break;
-	case 1:
-		v[p++] = 'i';
-		v[p++] = 'n';
-		v[p++] = 'c';
-		v[p++] = 'h';
-		v[p] = 0;
-		break;
-	default:
 		printf("error:	error data\n");
 		return -1;
 	}
-	return 0;
+	*v = d;
+	if(m[8] == 0) {
+		return 0;
+	}
+	else if(m[8] == 1) {
+		return 1;
+	}
 }
 
 static void Ma_EEPROM_Init()
@@ -393,15 +378,15 @@ static void Ma_Indicator_Init()
 	DMA_Init(DMA1_Channel2, &DMA_InitStructure);
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, ENABLE);
 	DMA_Cmd(DMA1_Channel2, ENABLE);
+	memset(ma_indicator_fifo, 0, sizeof(ma_indicator_fifo));
 }
 
-static int Ma_Indicator_read(int id, /*int *data,*/ int ms)
+static int Ma_Indicator_read(int id, unsigned short *data, int ms)
 {
 	time_t timer;
 	int n;
 	SPI_Cmd(SPI1, ENABLE);
 	DMA_Cmd(DMA1_Channel2, ENABLE);
-	GPIO_ResetBits(GPIOB, GPIO_Pin_11);
 
 	if(id == 1) {
 		GPIO_ResetBits(GPIOB, GPIO_Pin_11);
@@ -416,12 +401,10 @@ static int Ma_Indicator_read(int id, /*int *data,*/ int ms)
 		if(!n) {
 			GPIO_SetBits(GPIOB, GPIO_Pin_11);
 			GPIO_SetBits(GPIOC, GPIO_Pin_4);
-			memcpy(ma_indicator_value, ma_indicator_fifo, sizeof(ma_indicator_fifo));
+			memcpy(data, ma_indicator_fifo, sizeof(ma_indicator_fifo));
 			SPI_Cmd(SPI1, DISABLE);
 			DMA_Cmd(DMA1_Channel2, DISABLE);
-			Ma_Indicator_Init();//????????????????
-			// if(!Ma_Data_char(ma_indicator_value, value))
-				// printf("%s\n", value);
+			Ma_Indicator_Init();
 			return 0;
 		}
 		else {
@@ -432,7 +415,7 @@ static int Ma_Indicator_read(int id, /*int *data,*/ int ms)
 				return -1;
 			}
 		}
-	} while(n == 0);
+	} while(n != 0);
 }
 
 static int cmd_ma_func(int argc, char *argv[])
@@ -449,13 +432,22 @@ static int cmd_ma_func(int argc, char *argv[])
 		"  ma get button\n"
 
 		"  ma auto on/off\n"
-		"  ma auto overtime 500"
+		"  ma auto save\n"
+		"  ma auto overtime xxxx\n"
+		"  ma auto device1 xxxx\n"
+		"  ma auto device2 xxxx\n"
+		"  ma auto ledr/ledg/ledy 0~100\n"
+		"  ma auto max xxxx\n"
+		"  ma auto min xxxx\n"
 	};
 	int a;
 	if(argc == 3 && !strcmp(argv[1], "get")) {
 		if(!strcmp(argv[2], "value1") | !strcmp(argv[2], "value")) {
-			if(ma_indicator_stm == MA_INDICATOR_STM_NULL)
-				ma_indicator_stm = MA_INDICATOR_STM_INIT_INDICATOR1;
+			if(Ma_Indicator_read(1, ma_indicator_value, 500) == 0) {
+				if(!Ma_Data_char(ma_indicator_value, value)) {
+					printf("%s\n", value);
+				}
+			}
 			else {
 				printf("operation fail\n");
 				return -1;
@@ -463,8 +455,11 @@ static int cmd_ma_func(int argc, char *argv[])
 			return 0;
 		}
 		else if(!strcmp(argv[2], "value2")) {
-			if(ma_indicator_stm == MA_INDICATOR_STM_NULL)
-				ma_indicator_stm = MA_INDICATOR_STM_INIT_INDICATOR2;
+			if(Ma_Indicator_read(2, ma_indicator_value, 500) == 0) {
+				if(!Ma_Data_char(ma_indicator_value, value)) {
+					printf("%s\n", value);
+				}
+			}
 			else {
 				printf("operation fail\n");
 				return -1;
@@ -614,10 +609,20 @@ static int cmd_ma_func(int argc, char *argv[])
 
 	else if(argc == 3 && !strcmp(argv[1], "auto")) {
 		if(!strcmp(argv[2], "on")) {
-			autoflag = 1;
+			ma_auto_para.autoflag = 1;
 		}
 		else if(!strcmp(argv[2], "off")) {
-			autoflag = 0;
+			ma_auto_para.autoflag = 0;
+		}
+		else if(!strcmp(argv[2], "save")){
+			if(nvm_save()){
+				printf("operation fail!!\n");
+				return -1;
+			}
+			else{
+				printf("operation success!!\n");
+				return 0;
+			}
 		}
 		else {
 			printf("operation fail\n");
@@ -629,12 +634,49 @@ static int cmd_ma_func(int argc, char *argv[])
 
 	else if(argc == 4 && !strcmp(argv[1], "auto")) {
 		if(!strcmp(argv[2], "overtime")) {
-			sscanf(argv[3], "%d", &overtime);
+			sscanf(argv[3], "%d", &ma_auto_para.indicator_overtime);
 			printf("operation success\n");
 			return 0;
 		}
-		else if(0) {
-
+		else if(!strcmp(argv[2], "device1")) {
+			sscanf(argv[3], "%d", &ma_auto_para.device1);
+			printf("operation success\n");
+			return 0;
+		}
+		else if(!strcmp(argv[2], "device2")) {
+			sscanf(argv[3], "%d", &ma_auto_para.device2);
+			printf("operation success\n");
+			return 0;
+		}
+		else if(!strcmp(argv[2], "max")) {
+			sscanf(argv[3], "%f", &ma_auto_para.max);
+			printf("operation success\n");
+			return 0;
+		}
+		else if(!strcmp(argv[2], "min")) {
+			sscanf(argv[3], "%f", &ma_auto_para.min);
+			printf("operation success\n");
+			return 0;
+		}
+		else if(!strcmp(argv[2], "ledr")) {
+			sscanf(argv[3], "%d", &ma_auto_para.ledr);
+			printf("operation success\n");
+			return 0;
+		}
+		else if(!strcmp(argv[2], "ledg")) {
+			sscanf(argv[3], "%d", &ma_auto_para.ledg);
+			printf("operation success\n");
+			return 0;
+		}
+		else if(!strcmp(argv[2], "ledy")) {
+			sscanf(argv[3], "%d", &ma_auto_para.ledy);
+			printf("operation success\n");
+			return 0;
+		}
+		else {
+			printf("error: command is wrong!!\n");
+			printf("%s", usage);
+			return -1;
 		}
 	}
 
@@ -675,47 +717,46 @@ static void Ma_Init()
 		printf("read counter fail\n");
 	else
 		printf("counter = %d\n", counter);
-
-
-}
-
-static void Ma_Update()
-{
-	//Ma_Indicator_Update();
 }
 
 void main()
 {
-	unsigned int data;
+	int i = 0;
 	task_Init();
 	Ma_Init();
 
-	Ma_LED_Operation(LED_Y, 50);
+	Ma_LED_Operation(LED_Y, ma_auto_para.ledy);
 	Ma_Device_Operation(2, 1);
-	ma_mdelay(1000);
+	ma_mdelay(ma_auto_para.device2);
 	Ma_Device_Operation(1, 1);
-	ma_mdelay(1000);
+	ma_mdelay(ma_auto_para.device1);
 
 	while(1) {
-		if(autoflag == 1) {
-			//while((Ma_Button_Check() & 0x00000001) != 0xaaaaaaa1) {
-				//ma_mdelay(100);
-			//}
-			Ma_LED_Operation(LED_Y, 50);
+		if(ma_auto_para.autoflag == 1) {
+			while((Ma_Button_Check() & 0x00000001) != 0x00000001) {
+				ma_mdelay(200);
+			}
+			Ma_LED_Operation(LED_Y, ma_auto_para.ledy);
 			Ma_Device_Operation(1, 0);
-			ma_mdelay(1000);
+			ma_mdelay(ma_auto_para.device1);
 			Ma_Device_Operation(2, 0);
-			ma_mdelay(1000);
-			if(Ma_Indicator_read(1, 500) == 0) {
-
+			ma_mdelay(ma_auto_para.device2);
+			if(Ma_Indicator_read(1, ma_indicator_value, ma_auto_para.indicator_overtime) == 0) {
+				Ma_Data_float(ma_indicator_value, &indicator_data);
+				if(indicator_data > ma_auto_para.max || indicator_data < ma_auto_para.min) {
+					Ma_LED_Operation(LED_R, ma_auto_para.ledr);
+				}
+				else {
+					Ma_LED_Operation(LED_G, ma_auto_para.ledg);
+				}
 			}
 			else {
 				//error
 			}
 			Ma_Device_Operation(2, 1);
-			ma_mdelay(1000);
+			ma_mdelay(ma_auto_para.device2);
 			Ma_Device_Operation(1, 1);
-			ma_mdelay(1000);
+			ma_mdelay(ma_auto_para.device1);
 		}
 		task_Update();
 	}
