@@ -238,7 +238,9 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 			}
 
 			ret = cmd -> func(argc, _argv);
+#ifdef CONFIG_CMD_BKG
 			clst->cmd = cmd;
+#endif
 		}
 	}
 
@@ -314,6 +316,7 @@ int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 		|| (clst -> repeat)
 #endif
 	) {
+#ifdef CONFIG_CMD_BKG
 		//repeat, add to cmd queue
 		struct list_head *pos;
 		list_for_each(pos, &cq -> cmd_list) {
@@ -326,6 +329,7 @@ int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 		}
 
 		list_add(&clst -> list, &cq -> cmd_list);
+#endif
 	}
 	else
 		sys_free(clst);

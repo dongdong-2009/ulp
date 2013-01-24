@@ -33,9 +33,11 @@ static unsigned IPaddress = 0;
 static unsigned LocalTime = 0;
 static time_t lwip_timer;
 
+/*please customize it in your own application*/
+__weak void lwip_app_Init(void) {}; 
+
 /* public function prototypes */
 static void LwIP_Periodic_Handle(unsigned localtime);
-
 void lwip_lib_Init(void)
 {
 	struct ip_addr ipaddr;
@@ -86,6 +88,7 @@ void lwip_lib_Init(void)
 #ifdef	CONFIG_LWIP_APP_HTTPD
 	httpd_init();
 #endif
+	lwip_app_Init();
 }
 
 void lwip_lib_Update(void)
