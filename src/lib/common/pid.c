@@ -2,7 +2,7 @@
  * 	king@2013 initial version
  */
 
-#include "pid.h"
+#include "common/pid.h"
 
 /*
  * 	y[n] = y[n-1] + A0 * x[n] + A1 * x[n-1] + A2 * x[n-2]

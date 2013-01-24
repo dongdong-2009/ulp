@@ -1,0 +1,7 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by king@2013
+#
+
+bool "enable PMSMD1" CONFIG_PMSMD1_STM32

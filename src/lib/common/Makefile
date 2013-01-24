@@ -11,4 +11,6 @@ obj-$(CONFIG_COMMON_CRC16) += crc16.o
 obj-$(CONFIG_COMMON_CRC32) += crc32.o
 obj-$(CONFIG_COMMON_CRC_POSIX) += posix_crc.o
 obj-$(CONFIG_COMMON_MEMPOOL) += mempool.o
+obj-$(CONFIG_COMMON_PID) += pid.o
+
 obj-y += debounce.o
