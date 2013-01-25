@@ -721,7 +721,6 @@ static void Ma_Init()
 
 void main()
 {
-	int i = 0;
 	task_Init();
 	Ma_Init();
 
