@@ -82,6 +82,9 @@
 #ifdef CONFIG_SYSCLK_FREQ_56MHz
 #define SYSCLK_FREQ_56MHz  56000000
 #endif
+#ifdef CONFIG_SYSCLK_FREQ_64MHz
+#define SYSCLK_FREQ_64MHz  64000000
+#endif
 #ifdef CONFIG_SYSCLK_FREQ_72MHz
 #define SYSCLK_FREQ_72MHz  72000000
 #endif
@@ -141,6 +144,12 @@
   const uint32_t SystemFrequency_AHBClk  = SYSCLK_FREQ_56MHz;      /*!< AHB System bus speed                */
   const uint32_t SystemFrequency_APB1Clk = (SYSCLK_FREQ_56MHz/2);  /*!< APB Peripheral bus 1 (low)  speed   */
   const uint32_t SystemFrequency_APB2Clk = SYSCLK_FREQ_56MHz;      /*!< APB Peripheral bus 2 (high) speed   */
+#elif defined SYSCLK_FREQ_64MHz
+  const uint32_t SystemFrequency         = SYSCLK_FREQ_64MHz;      /*!< System Clock Frequency (Core Clock) */
+  const uint32_t SystemFrequency_SysClk  = SYSCLK_FREQ_64MHz;      /*!< System clock                        */
+  const uint32_t SystemFrequency_AHBClk  = SYSCLK_FREQ_64MHz;      /*!< AHB System bus speed                */
+  const uint32_t SystemFrequency_APB1Clk = (SYSCLK_FREQ_64MHz/2);  /*!< APB Peripheral bus 1 (low)  speed   */
+  const uint32_t SystemFrequency_APB2Clk = SYSCLK_FREQ_64MHz;      /*!< APB Peripheral bus 2 (high) speed   */
 #elif defined SYSCLK_FREQ_72MHz
 #ifdef CONFIG_USE_HSI
 	#error "PLL Fmax = 8MHz/2*16 = 64Mhz when using HSI, configuation err"
@@ -172,6 +181,8 @@ static void SetSysClock(void);
   static void SetSysClockTo48(void);
 #elif defined SYSCLK_FREQ_56MHz
   static void SetSysClockTo56(void);
+#elif defined SYSCLK_FREQ_64MHz
+  static void SetSysClockTo64(void);
 #elif defined SYSCLK_FREQ_72MHz
   static void SetSysClockTo72(void);
 #endif
@@ -260,6 +271,8 @@ static void SetSysClock(void)
   SetSysClockTo48();
 #elif defined SYSCLK_FREQ_56MHz
   SetSysClockTo56();
+#elif defined SYSCLK_FREQ_64MHz
+  SetSysClockTo64();
 #elif defined SYSCLK_FREQ_72MHz
   SetSysClockTo72();
 #endif
@@ -823,7 +836,112 @@ static void SetSysClockTo56(void)
     }
   }
 }
+#elif defined SYSCLK_FREQ_64MHz
+/**
+  * @brief  Sets System clock frequency to 64MHz and configure HCLK, PCLK2
+  *          and PCLK1 prescalers.
+  * @note   This function should be used only after reset.
+  * @param  None
+  * @retval None
+  */
+static void SetSysClockTo64(void)
+{
+  __IO uint32_t StartUpCounter = 0, HSEStatus = 0;
 
+  /* SYSCLK, HCLK, PCLK2 and PCLK1 configuration ---------------------------*/
+  /* Enable HSE */
+  RCC->CR |= ((uint32_t)RCC_CR_HSEON);
+
+  /* Wait till HSE is ready and if Time out is reached exit */
+  do
+  {
+    HSEStatus = RCC->CR & RCC_CR_HSERDY;
+    StartUpCounter++;
+  } while((HSEStatus == 0) && (StartUpCounter != HSEStartUp_TimeOut));
+
+  if ((RCC->CR & RCC_CR_HSERDY) != RESET)
+  {
+    HSEStatus = (uint32_t)0x01;
+  }
+  else
+  {
+    HSEStatus = (uint32_t)0x00;
+  }
+
+  if (HSEStatus == (uint32_t)0x01)
+  {
+    /* Enable Prefetch Buffer */
+    FLASH->ACR |= FLASH_ACR_PRFTBE;
+
+    /* Flash 2 wait state */
+    FLASH->ACR &= (uint32_t)((uint32_t)~FLASH_ACR_LATENCY);
+    FLASH->ACR |= (uint32_t)FLASH_ACR_LATENCY_2;
+
+    /* HCLK = SYSCLK */
+    RCC->CFGR |= (uint32_t)RCC_CFGR_HPRE_DIV1;
+
+    /* PCLK2 = HCLK */
+    RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE2_DIV1;
+
+    /* PCLK1 = HCLK/2 */
+    RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV2;
+
+#ifdef STM32F10X_CL
+    /* Configure PLLs ------------------------------------------------------*/
+    /* PLL2 configuration: PLL2CLK = (HSE / 5) * 8 = 40 MHz */
+    /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 5 = 8 MHz */
+
+    RCC->CFGR2 &= (uint32_t)~(RCC_CFGR2_PREDIV2 | RCC_CFGR2_PLL2MUL |
+                              RCC_CFGR2_PREDIV1 | RCC_CFGR2_PREDIV1SRC);
+    RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV5 | RCC_CFGR2_PLL2MUL8 |
+                             RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV5);
+
+    /* Enable PLL2 */
+    RCC->CR |= RCC_CR_PLL2ON;
+    /* Wait till PLL2 is ready */
+    while((RCC->CR & RCC_CR_PLL2RDY) == 0)
+    {
+    }
+
+
+    /* PLL configuration: PLLCLK = PREDIV1 * 8 = 64 MHz */
+    RCC->CFGR &= (uint32_t)~(RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL);
+    RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLXTPRE_PREDIV1 | RCC_CFGR_PLLSRC_PREDIV1 |
+                            RCC_CFGR_PLLMULL8);
+#else
+    /* PLL configuration: PLLCLK = HSE * 8 = 64 MHz */
+    RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL));
+    RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL8);
+
+#endif /* STM32F10X_CL */
+
+    /* Enable PLL */
+    RCC->CR |= RCC_CR_PLLON;
+
+    /* Wait till PLL is ready */
+    while((RCC->CR & RCC_CR_PLLRDY) == 0)
+    {
+    }
+
+    /* Select PLL as system clock source */
+    RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_SW));
+    RCC->CFGR |= (uint32_t)RCC_CFGR_SW_PLL;
+
+    /* Wait till PLL is used as system clock source */
+    while ((RCC->CFGR & (uint32_t)RCC_CFGR_SWS) != (uint32_t)0x08)
+    {
+    }
+  }
+  else
+  { /* If HSE fails to start-up, the application will have wrong clock
+         configuration. User can add here some code to deal with this error */
+
+    /* Go to infinite loop */
+    while (1)
+    {
+    }
+  }
+}
 #elif defined SYSCLK_FREQ_72MHz
 /**
   * @brief  Sets System clock frequency to 72MHz and configure HCLK, PCLK2

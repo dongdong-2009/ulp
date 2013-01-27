@@ -11,7 +11,7 @@
 	miaofng@2010 revised for bldc platform
 */
 
-#include "driver.h"
+#include "ulp/driver.h"
 #include "lcd.h"
 #include "lpt.h"
 
@@ -20,7 +20,7 @@
 #define STA 0
 #define DAT 1
 
-static lpt_bus_t *ssd_bus;
+static const lpt_bus_t *ssd_bus;
 
 /*write index register*/
 static void ssd_WriteIndex(int idx)
@@ -63,6 +63,7 @@ static int ssd_SetWindow(int x0, int y0, int x1, int y1)
 	ssd_WriteRegister(0x4e, x0); //x: 0~239
 	ssd_WriteRegister(0x4f, y0); //y: 0~319
 
+	#if 0
 	//sort
 	if(x1 < x0) {
 		tmp = x1;
@@ -75,6 +76,7 @@ static int ssd_SetWindow(int x0, int y0, int x1, int y1)
 		y1 = y0;
 		y0 = tmp;
 	}
+	#endif
 
 	//set window
 	ssd_WriteRegister(0x44, (x1 << 8) | x0); //HEA|HSA
@@ -86,27 +88,23 @@ static int ssd_SetWindow(int x0, int y0, int x1, int y1)
 	return 0;
 }
 
-static int ssd_wgram(const void *src, int n)
+static int ssd_wgram(const void *src, int n, int color)
 {
-	const short *p = src;
-	while(n > 0) {
-		ssd_WriteData(*p);
-		p ++;
-		n --;
+	const unsigned short *p = src;
+	if(src == NULL) {
+		return ssd_bus ->writen(DAT, color, n);
 	}
 
-	return 0;
+	return ssd_bus ->writeb(DAT, src, n);
 }
 
 static int ssd_rgram(void *dest, int n)
 {
-	short *p = dest;
-	while(n > 0) {
-		*p = ssd_ReadData();
-		p ++;
+	unsigned short *p = dest;
+	while (n > 0) {
+		*p ++ = ssd_bus -> read(DAT);
 		n --;
 	}
-
 	return 0;
 }
 

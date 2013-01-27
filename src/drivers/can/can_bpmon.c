@@ -1,5 +1,8 @@
 /*
- *	miaofng@2010 can debugger initial version
+ *	miaofng@2012 bpanel monitor to solve EAT timeout issue
+ *	led status:
+ *	- green flash: monitor works normal
+ *	- red flash: error occurs, specified operation should be taken
  */
 
 #include "config.h"
@@ -13,8 +16,18 @@
 #include "ulp/sys.h"
 #include "common/debounce.h"
 #include <ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include "stm32f10x.h"
+#include "flash.h"
+#include "led.h"
 
-#define frame_period_threshold 10%
+char bpmon_line[128];
+char bpmon_time_str[32]; //"1/17/2013 18:07:22"
+time_t bpmon_time_start;
+#define __now__ ((0 - time_left(bpmon_time_start)) % 1000)
+
+#define frame_period_threshold 30%
 
 static const can_bus_t *bpmon_can = &can1;
 static struct {
@@ -23,10 +36,136 @@ static struct {
 	unsigned kline_ms : 16;
 	unsigned power : 1;
 	unsigned kline : 1;
+	unsigned verbose : 1;
 } bpmon_config;
 static struct debounce_s pwr_12v;
 static struct debounce_s pwr_5v;
 static LIST_HEAD(record_queue);
+
+#define bpmon_log_start 0x08010000 /*provided code size <64K!!!*/
+#define bpmon_log_pages (FLASH_PAGE_NR - 40) /*STM32F103RET6: 432K*/
+
+static struct bpmon_log_s {
+	unsigned short magic;
+	unsigned short rv0;
+	unsigned short addr_h;
+	unsigned short rv1;
+	unsigned short addr_l;
+	unsigned short rv2;
+	unsigned short end_h;
+	unsigned short rv3;
+	unsigned short end_l;
+	unsigned short rv4;
+} *bpmon_log;
+
+void bpmon_log_init(int pages_to_be_erased)
+{
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP,ENABLE);
+	PWR_BackupAccessCmd(ENABLE); //disable bkp domain write protection
+	bpmon_log = (struct bpmon_log_s *) (BKP_BASE + BKP_DR1);
+
+	if(pages_to_be_erased) {
+		bpmon_log->magic = 0x1234;
+		bpmon_log->addr_h = bpmon_log_start >> 16;
+		bpmon_log->addr_l = (short) bpmon_log_start;
+		unsigned bpmon_log_end = bpmon_log_start + (pages_to_be_erased * FLASH_PAGE_SZ - 128);
+		bpmon_log->end_h = bpmon_log_end >> 16;
+		bpmon_log->end_l = (short) bpmon_log_end;
+		flash_Erase((char *)bpmon_log_start, pages_to_be_erased);
+	}
+}
+
+void bpmon_log_print(void)
+{
+	bpmon_log_init(0);
+	if(bpmon_log->magic != 0x1234) {
+		printf("bkp not init or data lost??? pls try 'bplog -E'\n");
+		return;
+	}
+
+	char *end = (char *) bpmon_log->addr_l;
+	end += (unsigned)(bpmon_log->addr_h) << 16;
+	for(char *p = (char *) bpmon_log_start; p < end; p ++) {
+		putchar(*p);
+	}
+}
+
+void bpmon_log_save(const void *str, int n)
+{
+	if(bpmon_log->magic != 0x1234) {
+		printf("!!! %s: bkp not init or data lost??? pls try 'bplog -E'\n", bpmon_time_str);
+		led_off(LED_GREEN);
+		led_error(1);
+		return;
+	}
+
+	char *addr = (char *) bpmon_log->addr_l;
+	addr += (unsigned)(bpmon_log->addr_h) << 16;
+	char *end = (char *) bpmon_log->end_l;
+	end += (unsigned)(bpmon_log->end_h) << 16;
+
+	if(addr < end) {
+		flash_Write(addr, str, n);
+		addr += n;
+		bpmon_log->addr_h = (unsigned)addr >> 16;
+		bpmon_log->addr_l = (short)addr;
+	}
+	else {
+		printf("!!! %s: bkp is full, pls try 'bplog -E'\n", bpmon_time_str);
+		led_off(LED_GREEN);
+		led_error(2);
+	}
+}
+
+enum info_type {
+	BPMON_MORE, //VERBOSE INFO
+	BPMON_SYNC,
+	BPMON_LOST,
+	BPMON_INFO,
+	BPMON_MISC,
+	BPMON_NULL,
+};
+
+int bpmon_print(enum info_type type, const char *fmt, ...)
+{
+	va_list ap;
+	int n = 0;
+
+	//add suffix
+	switch(type) {
+	case BPMON_LOST:
+		led_off(LED_GREEN);
+		led_error(3);
+	case BPMON_SYNC:
+	case BPMON_INFO:
+		n += sprintf(bpmon_line, "!!! %s: ", bpmon_time_str);
+		break;
+	case BPMON_MISC:
+	case BPMON_MORE:
+		n += sprintf(bpmon_line, "%04d : ", __now__);
+		break;
+	default:;
+	}
+
+	va_start(ap, fmt);
+	n += vsnprintf(bpmon_line + n, 128 - n, fmt, ap);
+	va_end(ap);
+
+	if(n & 0x03) {
+		int odd = 4 - (n & 0x03);
+		for(int i = 0; i < odd; i ++) {
+			bpmon_line[++ n] = 0;
+		}
+	}
+
+	//output string to console or log buffer
+	printf("%s", bpmon_line);
+	static char __type;
+	__type = (type != BPMON_MISC) ? type : __type;
+	if(__type != BPMON_MORE)
+		bpmon_log_save(bpmon_line, n);
+	return n;
+}
 
 struct record_s {
 	unsigned id;
@@ -64,6 +203,8 @@ static int bpmon_init(void)
 	struct list_head *pos, *n;
 	struct record_s *q = NULL;
 
+	bpmon_time_start = time_get(0);
+
 	//free old records's memory
 	list_for_each_safe(pos, n, &record_queue) {
 		q = list_entry(pos, record_s, list);
@@ -86,12 +227,12 @@ static void bpmon_update(void)
 	list_for_each_safe(pos, bak, &record_queue) {
 		record = list_entry(pos, record_s, list);
 		if(record->sync.on) {
-			int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100 + 5;
+			int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100 + 10;
 			if(time_left(record->time) < - ms_threshold) {
-				printf("%08d : %03xh timeout\n", time_get(0), record->id);
+				bpmon_print(BPMON_LOST, "%03xh timeout\n", record->id);
 				record->time = time_shift(record->time, record->ms_avg);
 				if(debounce(&record->sync, 0)) { //can frame lost
-					printf("%08d : %03xh !!! is lost(T = %dmS)\n", time_get(0), record->id, record->ms_avg);
+					bpmon_print(BPMON_LOST, "%03xh (T=%dmS) is lost\n", record->id, record->ms_avg);
 					list_del(&record->list);
 					sys_free(record);
 				}
@@ -100,6 +241,15 @@ static void bpmon_update(void)
 	}
 
 	if(!bpmon_can -> recv(&msg)) {
+		if(bpmon_config.verbose) {
+			bpmon_print(BPMON_MORE, "%03xh", msg.id);
+			for(int i = 0; i < msg.dlc; i ++) {
+				bpmon_print(BPMON_NULL, " %02x", ((unsigned)(msg.data[i])) & 0xff);
+			}
+			bpmon_print(BPMON_NULL, "\n");
+			return;
+		}
+
 		record = record_get(msg.id);
 		record->fsn ++;
 		if(record->fsn == 1) { // 1st frame
@@ -129,19 +279,19 @@ static void bpmon_update(void)
 
 		ms = ms - record->ms_avg;
 		ms = (ms > 0) ? ms : - ms;
-		int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100 + 5;
+		int ms_threshold = record->ms_avg * (frame_period_threshold 100) / 100 + 10;
 		if(ms < ms_threshold) {
 			record->ms_avg = (record->ms_avg + record->ms) / 2;
 			if(record->sync.off) {
-				printf("%08d : %03xh", time_get(0), record->id);
+				bpmon_print(BPMON_MISC, "%03xh (%dmS?=%dmS) is hit", record->id, record->ms, record->ms_avg);
 				for(int i = 0; i < msg.dlc; i ++) {
-					printf(" %02x", ((unsigned)(msg.data[i])) & 0xff);
+					bpmon_print(BPMON_NULL, " %02x", ((unsigned)(msg.data[i])) & 0xff);
 				}
-				printf(" is in range(%dmS ?= %dmS)\n", record->ms, record->ms_avg);
+				bpmon_print(BPMON_NULL, "\n");
 			}
 			if(debounce(&record->sync, 1)){
 				//new can frame is sync, print it ...
-				printf("%08d : %03xh !!!(T = %dmS) is sync\n", time_get(0), record->id, record->ms_avg);
+				bpmon_print(BPMON_SYNC, "%03xh (T=%dmS) is sync\n", record->id, record->ms_avg);
 			}
 			if(record->sync.on) { //update statistics info
 				if(record->ms_min == 0) record->ms_min = record->ms;
@@ -152,13 +302,13 @@ static void bpmon_update(void)
 		else {
 			if(record->sync.on) {
 				//peculiar can frame received, print it ...
-				printf("%08d : %03xh", time_get(0), record->id);
+				bpmon_print(BPMON_LOST, "%03xh (T=%dmS[%dms,%dms]) is peculiar ..", record->id, record->ms, record->ms_min, record->ms_max);
 				for(int i = 0; i < msg.dlc; i ++) {
-					printf(" %02x", ((unsigned)(msg.data[i])) & 0xff);
+					bpmon_print(BPMON_NULL, " %02x", ((unsigned)(msg.data[i])) & 0xff);
 				}
-				printf(" (T = %dmS[%dms,%dms]) .. peculiar\n", record->ms, record->ms_min, record->ms_max);
+				bpmon_print(BPMON_NULL, "\n");
 				if(debounce(&record->sync, 0)) { //sync err, resync is needed
-					printf("%08d : %03xh !!! sync err, resync ..(T = %dmS)\n", time_get(0), record->id, record->ms_avg);
+					bpmon_print(BPMON_LOST, "%03xh (T=%dmS) is lost, resync ..\n", record->id, record->ms_avg);
 					list_del(&record->list);
 					sys_free(record);
 				}
@@ -170,19 +320,28 @@ static void bpmon_update(void)
 	}
 }
 
-#include "stm32f10x.h"
-#define ADC_CH_12V ADC_Channel_15 //PC5
-#define ADC_CH_5V ADC_Channel_14 //PC4
+#define AIN_VBAT ADC_Channel_10 //PC0
+#define AIN0 ADC_Channel_4//PA4
+#define AIN1 ADC_Channel_5//PA5
+#define AIN2 ADC_Channel_6//PA6
+#define AIN3 ADC_Channel_7//PA7
+#define ADC_CH_12V AIN_VBAT
+#define ADC_CH_5V AIN0
 static void bpmon_measure_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	ADC_InitTypeDef ADC_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	RCC_ADCCLKConfig(RCC_PCLK2_Div6); /*72Mhz/6 = 12Mhz*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC2, ENABLE);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
@@ -253,8 +412,21 @@ static void bpmon_kline_init(void)
 
 static void bpmon_kline_update(void)
 {
-	if(bpmon_uart->poll() == 0)
+	if(bpmon_uart->poll() == 0) {
+		if(bpmon_kline.sync.on) {
+			int ms_threshold = bpmon_kline.ms_avg + bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 10;
+			if(time_left(bpmon_kline.timer) < - ms_threshold) {
+				bpmon_kline.timer = time_get(0);
+				bpmon_print(BPMON_LOST, "ods (T=%dmS) is timeout\n", bpmon_kline.ms_avg);
+				if(debounce(&bpmon_kline.sync, 0)) {
+					bpmon_print(BPMON_LOST, "ods (T=%dmS) is lost\n", bpmon_kline.ms_avg);
+					bpmon_kline.timer = 0;
+				}
+			}
+		}
 		return;
+	}
+
 	while(bpmon_uart->poll()) {
 		bpmon_uart->getchar();
 	}
@@ -276,11 +448,13 @@ static void bpmon_kline_update(void)
 		//in expected range???
 		ms -= bpmon_kline.ms_avg;
 		ms = (ms > 0) ? ms : - ms;
-		int ms_threshold = bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 5;
-		if(ms < ms_threshold) { //good !!!
+		int ms_threshold = bpmon_kline.ms_avg * (frame_period_threshold 100) / 100 + 10;
+		if(ms < ms_threshold) { //good
+			if(bpmon_kline.sync.off)
+				bpmon_print(BPMON_MISC, "ods (T=%dmS) is hit\n", bpmon_kline.ms);
 			bpmon_kline.ms_avg = (bpmon_kline.ms_avg + bpmon_kline.ms) / 2;
 			if(debounce(&bpmon_kline.sync, 1)) {
-				printf("%08d : ods !!! is sync(T = %dmS)!!!\n", time_get(0), bpmon_kline.ms_avg);
+				bpmon_print(BPMON_SYNC, "ods (T=%dmS) is sync\n", bpmon_kline.ms_avg);
 			}
 			if(bpmon_kline.sync.on) { //update statistics info
 				if(bpmon_kline.ms_min == 0) bpmon_kline.ms_min = bpmon_kline.ms;
@@ -290,10 +464,9 @@ static void bpmon_kline_update(void)
 		}
 		else {
 			if(bpmon_kline.sync.on) { //peculiar kline frame received, print it ...
-				printf("%08d : ", time_get(0));
-				printf("ods (T = %dmS[%dms,%dms]) .. peculiar\n", bpmon_kline.ms, bpmon_kline.ms_min, bpmon_kline.ms_max);
+				bpmon_print(BPMON_LOST, "ods (T=%dmS[%dms,%dms]) is peculiar\n", bpmon_kline.ms, bpmon_kline.ms_min, bpmon_kline.ms_max);
 				if(debounce(&bpmon_kline.sync, 0)) { //sync err, resync is needed
-					printf("%08d : ods !!! sync err, resync ..(T = %dmS)\n", time_get(0), bpmon_kline.ms_avg);
+					bpmon_print(BPMON_LOST, "ods (T=%dmS) is lost, resync ..\n", bpmon_kline.ms_avg);
 					bpmon_kline_init();
 				}
 			}
@@ -312,14 +485,29 @@ static int cmd_bpmon_func(int argc, char *argv[])
 		"bpmon 158h 039h [...]	monitor can frame with id 0x158, 0x039, ...\n"
 		"bpmon -b 500000 158h	monitor can with baudrate = 500000\n"
 		"bpmon -k [20] [19200]	monitor can with ods detection, >20ms idle time\n"
+		"bpmon -p -k		monitor can with power/ods detection\n"
+		"bpmon -v		monitor can with details info\n"
 	};
 
+	time_t t;
+	time(&t);
+	struct tm *now = localtime(&t);
+	strftime(bpmon_time_str, 32, "%H:%M:%S", now);
+
 	if(argc > 0) {
+		led_flash(LED_GREEN);
+		led_off(LED_RED);
+		bpmon_log_init(0);
+		strftime(bpmon_time_str, 32, "%m/%d/%Y %H:%M:%S", now);
+		bpmon_print(BPMON_INFO, "Monitor is Starting ...\n");
+		strftime(bpmon_time_str, 32, "%H:%M:%S", now);
+
 		bpmon_config.baud = 500000;
 		bpmon_config.power = 0;
 		bpmon_config.kline = 0;
 		bpmon_config.kline_baud = 19200;
 		bpmon_config.kline_ms = 10;
+		bpmon_config.verbose = 0;
 		can_filter_t *filter = NULL;
 		int v, n, e, id = 0;
 		for(int i = 1; i < argc; i ++) {
@@ -350,16 +538,19 @@ static int cmd_bpmon_func(int argc, char *argv[])
 				break;
 			case 'k':
 				bpmon_config.kline = 1;
-					if(isdigit(argv[i + 1][0])) { // kline ms
+				if((i + 1) < argc && isdigit(argv[i + 1][0])) { // kline ms
 					v = atoi(argv[++i]);
 					if(v > 0) bpmon_config.kline_ms = v;
 					else e ++;
 				}
-				if(isdigit(argv[i + 1][0])) { // kline baud
+				if((i + 1) < argc && isdigit(argv[i + 1][0])) { // kline baud
 					v = atoi(argv[++i]);
 					if(v > 0) bpmon_config.kline_baud = v;
 					else e ++;
 				}
+				break;
+			case 'v':
+				bpmon_config.verbose = 1;
 				break;
 			default:
 				e ++;
@@ -399,9 +590,9 @@ static int cmd_bpmon_func(int argc, char *argv[])
 
 	if(bpmon_config.power) {
 		int mv = bpmon_measure(ADC_CH_12V);
-		//printf("%08d : 12V = %dmV\n", time_get(0), mv);
+		//bpmon_print(BPMON_MISC, "12V = %dmV\n", mv);
 		if(debounce(&pwr_12v, (mv > 8000))) {
-			printf("%08d : !!!12V (%dmV) is power %s\n", time_get(0), mv, (pwr_12v.on)?"up" : "down");
+			bpmon_print(BPMON_INFO, "12V (%dmV) is power %s\n", mv, (pwr_12v.on)?"up" : "down");
 			if(pwr_12v.on) {
 				bpmon_init();
 				bpmon_kline_init();
@@ -409,11 +600,11 @@ static int cmd_bpmon_func(int argc, char *argv[])
 		}
 
 		mv = bpmon_measure(ADC_CH_5V);
-		//printf("%08d : 5V = %dmV\n", time_get(0), mv);
+		//bpmon_print(BPMON_MISC, "5V = %dmV\n", mv);
 		if(debounce(&pwr_5v, (mv > 4500))) {
-			printf("%08d : !!!5V (%dmV) is power %s\n", time_get(0), mv, (pwr_5v.on)?"up" : "down");
+			bpmon_print(BPMON_INFO, "5V (%dmV) is power %s\n", mv, (pwr_5v.on)?"up" : "down");
 			if(pwr_5v.on) {
-				printf("####################################\n");
+				bpmon_print(BPMON_NULL, "####################################\n");
 				bpmon_init();
 				bpmon_kline_init();
 			}
@@ -446,14 +637,19 @@ static int cmd_bpstatus_func(int argc, char *argv[])
 		}
 	}
 
-	int mv = bpmon_measure(ADC_CH_12V);
-	printf("%08d : 12V = %dmV\n", time_get(0), mv);
+	time_t t;
+	time(&t);
+	struct tm *now = localtime(&t);
+	strftime(bpmon_time_str, 32, "%m/%d/%Y %H:%M:%S", now);
 
-	mv = bpmon_measure(ADC_CH_5V);
-	printf("%08d : 5V = %dmV\n", time_get(0), mv);
+	int mv = bpmon_measure(ADC_CH_12V);
+	bpmon_print(BPMON_INFO, "12V = %dmV\n", mv);
+
+	//mv = bpmon_measure(ADC_CH_5V);
+	bpmon_print(BPMON_INFO, "5V = %dmV\n", mv);
 
 	if(bpmon_config.kline) {
-		printf("%08d : ods !!! is %s(T = %dmS)!!!\n", time_get(0), (bpmon_kline.sync.on) ? "sync" : "lost", bpmon_kline.ms_avg);
+		bpmon_print(BPMON_INFO, "ods (T=%dmS) is %s\n", bpmon_kline.ms_avg, (bpmon_kline.sync.on) ? "sync" : "lost");
 	}
 	struct record_s *record;
 	if((bpmon_config.power == 0) || (pwr_5v.on && pwr_12v.on)) {
@@ -461,12 +657,67 @@ static int cmd_bpstatus_func(int argc, char *argv[])
 		struct list_head *pos;
 		list_for_each(pos, &record_queue) {
 			record = list_entry(pos, record_s, list);
-			printf("%08d : %03xh is %s(T = %dmS[%dms, %dms])\n", time_get(0), record->id, (record->sync.on)?"sync":"lost", record->ms_avg, record->ms_min, record->ms_max);
+			bpmon_print(BPMON_INFO, "%03xh (T=%dmS[%dms, %dms]) is %s\n", record->id,
+				record->ms_avg, record->ms_min, record->ms_max, (record->sync.on)?"sync":"lost");
 		}
-		printf("\n");
+		bpmon_print(BPMON_NULL, "\n");
 	}
 	return 0;
 }
 
 const cmd_t cmd_bpstatus = {"bpst", cmd_bpstatus_func, "bpmon status display"};
 DECLARE_SHELL_CMD(cmd_bpstatus)
+
+static int cmd_bplog_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"bplog			display recorded messages in flash\n"
+		"bplog -E [pages]	erase all recorded messages\n"
+		"bplog -s xyz		save xyz to flash\n"
+	};
+
+	int v, e = 0;
+	if(argc == 1) {
+		bpmon_log_print();
+		return 0;
+	}
+
+	for(int i = 1; i < argc; i ++) {
+		e += (argv[i][0] != '-');
+		switch(argv[i][1]) {
+		case 'E':
+			i ++;
+			v = (i < argc) ? atoi(argv[i]) : bpmon_log_pages;
+			if((v > 0) && (v <= bpmon_log_pages)) {
+				printf("Erasing %d pages, pls wait ...\n", v);
+				bpmon_log_init(v);
+				return 0;
+			}
+
+			printf("err: pages is out range(0, %d]\n", bpmon_log_pages);
+			e ++;
+			break;
+
+		case 's':
+			i ++;
+			if(i < argc) {
+				int n = bpmon_print(BPMON_NULL, "%s\n", argv[i]);
+				printf("%d bytes has been saved\n", n);
+				return 0;
+			}
+			e ++;
+			break;
+
+		default:
+			e ++;
+		}
+	}
+
+	if(e)
+		printf("%s", usage);
+	return 0;
+}
+
+const cmd_t cmd_bplog = {"bplog", cmd_bplog_func, "bpanel log cmds"};
+DECLARE_SHELL_CMD(cmd_bplog)

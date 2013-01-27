@@ -25,6 +25,14 @@ void led_hwInit(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+#elif CONFIG_CAN_BPMON == 1
+	//PC4->GREEN, PC5->RED
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
 #elif CONFIG_MISC_VHD == 1
 	//PC6->red, PC7->yellow, PC8->green
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
@@ -50,6 +58,14 @@ void led_hwInit(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+#elif CONFIG_BOARD_HY_SMART == 1
+	//PB1 led green
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
 #elif CONFIG_MISC_MATRIX == 1
 	/*PA0 RLED, PA1 GLED*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
@@ -94,12 +110,16 @@ void led_hwSetStatus(led_t led, led_status_t status)
 		case LED_GREEN:
 #if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1) || (CONFIG_TASK_SSS == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_12, ba);
+#elif CONFIG_CAN_BPMON == 1
+			GPIO_WriteBit(GPIOC, GPIO_Pin_5, ba);
 #elif CONFIG_MISC_VHD == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_8, ba);
 #elif CONFIG_TASK_PDI == 1
 			GPIO_WriteBit(GPIOE, GPIO_Pin_1, ba);
 #elif CONFIG_MISC_ICT == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_8, ba);
+#elif CONFIG_BOARD_HY_SMART == 1
+			GPIO_WriteBit(GPIOB, GPIO_Pin_1, ba);
 #elif CONFIG_MISC_MATRIX == 1
 			GPIO_WriteBit(GPIOA, GPIO_Pin_1, ba);
 #elif CONFIG_MISC_OID2 == 1
@@ -111,6 +131,8 @@ void led_hwSetStatus(led_t led, led_status_t status)
 		case LED_RED:
 #if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1) || (CONFIG_TASK_SSS == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_10, ba);
+#elif CONFIG_CAN_BPMON == 1
+			GPIO_WriteBit(GPIOC, GPIO_Pin_4, ba);
 #elif CONFIG_MISC_VHD == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_6, ba);
 #elif CONFIG_TASK_PDI == 1
