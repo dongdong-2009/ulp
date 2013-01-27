@@ -14,6 +14,12 @@ int "default bus period, unit: ns" CONFIG_LPT_T 400
 #bus access time
 int "default bus access time, unit: ns" CONFIG_LPT_TP 200
 bool "enable lpt debug command?" CONFIG_LPT_CMD
+if [ "$CONFIG_LPT_FSMC" = "y" ]; then
+	choice 'LCD RS pin select(such as: BANK1/A16, ADDR 0x01->0x60020000)'	" \
+		PD11/A16	CONFIG_LPT_A16 \
+		PD12/A17	CONFIG_LPT_A17 \
+	" PD11/A16
+fi
 if [ "$CONFIG_LPT_GPIO" = "y" ]; then
 	choice 'bus timing mode'	" \
 		I80	CONFIG_LPT_MODE_I80 \

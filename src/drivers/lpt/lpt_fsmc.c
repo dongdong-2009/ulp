@@ -18,12 +18,21 @@ struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
 	for(int i = ((ns) >> 3); i > 0 ; i -- ); \
 } while(0)
 
+#if CONFIG_LPT_A17 == 1
+static inline void * __addr(unsigned addr)
+{
+	if(addr == 0) return (void *) 0x60000000;
+	if(addr == 1) return (void *) 0x60040000;
+	return (void *) addr;
+}
+#else /*CONFIG_LPT_A16*/
 static inline void * __addr(unsigned addr)
 {
 	if(addr == 0) return (void *) 0x60000000;
 	if(addr == 1) return (void *) 0x60020000;
 	return (void *) addr;
 }
+#endif
 
 static int lpt_init(const struct lpt_cfg_s *cfg)
 {
@@ -47,16 +56,22 @@ static int lpt_init(const struct lpt_cfg_s *cfg)
 	/*PD7 LCD_CS, FSMC_NE1 BANK1*/
 	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_7;
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+#if CONFIG_LPT_A17 == 1
+	/*PD12 LCD_RS FSMC_A17*/
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_12;
+#else
 	/*PD11 LCD_RS FSMC_A16*/
 	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_11;
+#endif
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
 
 	FSMC_NORSRAMInitTypeDef  FSMC_NORSRAMInitStructure;
 	FSMC_NORSRAMTimingInitTypeDef FSMC_NORSRAMTimingInitStructure;
 	/*FSMC read settings*/
-	FSMC_NORSRAMTimingInitStructure.FSMC_AddressSetupTime = 30;
+	FSMC_NORSRAMTimingInitStructure.FSMC_AddressSetupTime = 10;
 	FSMC_NORSRAMTimingInitStructure.FSMC_AddressHoldTime = 0;
-	FSMC_NORSRAMTimingInitStructure.FSMC_DataSetupTime = 30;
+	FSMC_NORSRAMTimingInitStructure.FSMC_DataSetupTime = 10;
 	FSMC_NORSRAMTimingInitStructure.FSMC_BusTurnAroundDuration = 0x00;
 	FSMC_NORSRAMTimingInitStructure.FSMC_CLKDivision = 0x00;
 	FSMC_NORSRAMTimingInitStructure.FSMC_DataLatency = 0x00;
@@ -78,9 +93,9 @@ static int lpt_init(const struct lpt_cfg_s *cfg)
 	FSMC_NORSRAMInitStructure.FSMC_ReadWriteTimingStruct = &FSMC_NORSRAMTimingInitStructure;
 	FSMC_NORSRAMInit(&FSMC_NORSRAMInitStructure);
 	/*fsmc write settings*/
-	FSMC_NORSRAMTimingInitStructure.FSMC_AddressSetupTime = 2;
+	FSMC_NORSRAMTimingInitStructure.FSMC_AddressSetupTime = 10;
 	FSMC_NORSRAMTimingInitStructure.FSMC_AddressHoldTime = 0;
-	FSMC_NORSRAMTimingInitStructure.FSMC_DataSetupTime = 2;
+	FSMC_NORSRAMTimingInitStructure.FSMC_DataSetupTime = 10;
 	FSMC_NORSRAMTimingInitStructure.FSMC_BusTurnAroundDuration = 0x00;
 	FSMC_NORSRAMTimingInitStructure.FSMC_CLKDivision = 0x00;
 	FSMC_NORSRAMTimingInitStructure.FSMC_DataLatency = 0x00;
