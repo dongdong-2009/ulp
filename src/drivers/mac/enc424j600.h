@@ -4,7 +4,7 @@
 #ifndef __enc424j600_H_
 #define __enc424j600_H_
 
-#include "device.h"
+#include "ulp/device.h"
 #include "spi.h"
 typedef struct {
 	const spi_bus_t *bus;

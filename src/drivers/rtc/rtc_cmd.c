@@ -19,6 +19,8 @@ static int cmd_date_func(int argc, char *argv[])
 		time_t t;
 		struct tm *now;
 		int n, err = 0;
+		char *fmt = NULL;
+
 		time(&t);
 		now = localtime(&t);
 		for(int i = 1; i < argc; i ++) {
@@ -46,12 +48,22 @@ static int cmd_date_func(int argc, char *argv[])
 				}
 				break;
 			default:
-				err ++;
+				if(argv[i][0] == '+') { //format
+					fmt = &argv[i][1];
+				}
+				else
+					err ++;
 			}
 		}
 		if(err == 0) {
 			time(&t);
-			printf("current time is %s", ctime(&t));
+			if(fmt == NULL)
+				printf("current time is %s", ctime(&t));
+			else {
+				char str[64];
+				strftime(str, 64, fmt, localtime(&t));
+				printf("%s\n", str);
+			}
 			return 0;
 		}
 	}

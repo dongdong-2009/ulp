@@ -16,15 +16,13 @@
 	#error "flash driver not available!!!"
 #endif
 
-//erase n-pages of flash sectors, which is given by address of dest(must be PAGE_SIZE aligned)
-int flash_Erase(const void *dest, size_t n);
+//erase pages of flash sectors, which is given by address of dest(must be PAGE_SIZE aligned)
+int flash_Erase(const void *dest, size_t pages);
 
-/*write/read flash,  return bytes have been wrote/read
-note: 
-	1, flash mem space must be erased before program
-	2, dest, n must be 4 bytes aligned
+/*write/read flash, return bytes have been wrote/read
+note: flash mem space must be erased before program!!!
 */
-int flash_Write(const void *dest, const void *src, size_t n);
+int flash_Write(const void *dest, const void *src, size_t bytes);
 int flash_Read(void *dest, const void *src, size_t n);
 
 #endif /*__FLASH_H_*/
