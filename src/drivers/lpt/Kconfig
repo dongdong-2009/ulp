@@ -5,12 +5,20 @@
 #
 
 #gpio emulate
-choice 'bus timing mode'	" \
-	I80	CONFIG_LPT_MODE_I80 \
-	M68	CONFIG_LPT_MODE_M68 \
-" I80
-bool "gpio emulated lpt bus?" CONFIG_LPT_GPIO
+choice 'phy bus select'	" \
+	GPIO	CONFIG_LPT_GPIO \
+	FSMC	CONFIG_LPT_FSMC \
+" GPIO
+#bus period
+int "default bus period, unit: ns" CONFIG_LPT_T 400
+#bus access time
+int "default bus access time, unit: ns" CONFIG_LPT_TP 200
+bool "enable lpt debug command?" CONFIG_LPT_CMD
 if [ "$CONFIG_LPT_GPIO" = "y" ]; then
+	choice 'bus timing mode'	" \
+		I80	CONFIG_LPT_MODE_I80 \
+		M68	CONFIG_LPT_MODE_M68 \
+	" I80
 	choice 'bus pinmap type'	" \
 		DEF8BIT	CONFIG_LPT_PINMAP_DEF8 \
 		DEF16BIT	CONFIG_LPT_PINMAP_DEF16 \
@@ -21,12 +29,6 @@ if [ "$CONFIG_LPT_GPIO" = "y" ]; then
 		OPENDRAIN	CONFIG_LPT_DB_OD \
 		PUSHPULL	CONFIG_LPT_DB_PP \
 	" OPENDRAIN
-	
-	#bus period
-	int "default bus period, unit: ns" CONFIG_LPT_T 400
-	#bus access time
-	int "default bus access time, unit: ns" CONFIG_LPT_TP 200
-	bool "enable lpt debug command?" CONFIG_LPT_CMD
 fi
 
 #extern memory bus such as FSMC
