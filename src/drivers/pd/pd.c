@@ -26,7 +26,11 @@ int pd_Init(void)
 
 #if CONFIG_PD_BUS_SPI1 == 1
 	const spi_bus_t *spi = &spi1;
+	#ifdef CONFIG_BOARD_HY_SMART
+	int idx = SPI_CS_PD12;
+	#else
 	int idx = SPI_1_NSS;
+	#endif
 #elif CONFIG_PD_BUS_SPI2 == 1
 	const spi_bus_t *spi = &spi2;
 	int idx = SPI_2_NSS;
