@@ -1,7 +1,7 @@
 /*
-*
 *	miaofng@2013/1/14 initial version for smart board
 *	ported from smart demo program
+*	miaofng@2013/1/28 with Tas = Tds = 5 => Tcycle = 6 + 6 + 2 = 14Thclk => F = 72MHz/14 = 5.1MHz
 */
 
 #include "config.h"
@@ -69,9 +69,9 @@ static int lpt_init(const struct lpt_cfg_s *cfg)
 	FSMC_NORSRAMInitTypeDef  FSMC_NORSRAMInitStructure;
 	FSMC_NORSRAMTimingInitTypeDef FSMC_NORSRAMTimingInitStructure;
 	/*FSMC read settings*/
-	FSMC_NORSRAMTimingInitStructure.FSMC_AddressSetupTime = 10;
+	FSMC_NORSRAMTimingInitStructure.FSMC_AddressSetupTime = 5;
 	FSMC_NORSRAMTimingInitStructure.FSMC_AddressHoldTime = 0;
-	FSMC_NORSRAMTimingInitStructure.FSMC_DataSetupTime = 10;
+	FSMC_NORSRAMTimingInitStructure.FSMC_DataSetupTime = 5;
 	FSMC_NORSRAMTimingInitStructure.FSMC_BusTurnAroundDuration = 0x00;
 	FSMC_NORSRAMTimingInitStructure.FSMC_CLKDivision = 0x00;
 	FSMC_NORSRAMTimingInitStructure.FSMC_DataLatency = 0x00;
@@ -91,16 +91,6 @@ static int lpt_init(const struct lpt_cfg_s *cfg)
 	FSMC_NORSRAMInitStructure.FSMC_ExtendedMode = FSMC_ExtendedMode_Disable;
 	FSMC_NORSRAMInitStructure.FSMC_WriteBurst = FSMC_WriteBurst_Disable;
 	FSMC_NORSRAMInitStructure.FSMC_ReadWriteTimingStruct = &FSMC_NORSRAMTimingInitStructure;
-	FSMC_NORSRAMInit(&FSMC_NORSRAMInitStructure);
-	/*fsmc write settings*/
-	FSMC_NORSRAMTimingInitStructure.FSMC_AddressSetupTime = 10;
-	FSMC_NORSRAMTimingInitStructure.FSMC_AddressHoldTime = 0;
-	FSMC_NORSRAMTimingInitStructure.FSMC_DataSetupTime = 10;
-	FSMC_NORSRAMTimingInitStructure.FSMC_BusTurnAroundDuration = 0x00;
-	FSMC_NORSRAMTimingInitStructure.FSMC_CLKDivision = 0x00;
-	FSMC_NORSRAMTimingInitStructure.FSMC_DataLatency = 0x00;
-	FSMC_NORSRAMTimingInitStructure.FSMC_AccessMode = FSMC_AccessMode_A;
-	FSMC_NORSRAMInitStructure.FSMC_WriteTimingStruct = &FSMC_NORSRAMTimingInitStructure;
 	FSMC_NORSRAMInit(&FSMC_NORSRAMInitStructure);
 
 	/* Enable FSMC Bank1_SRAM Bank */
