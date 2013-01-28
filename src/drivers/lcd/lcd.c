@@ -374,7 +374,7 @@ int lcd_rect(struct lcd_s *lcd, int x, int y, int w, int h)
 {
 	lcd_line(lcd, x, y, w, 0);
 	lcd_line(lcd, x, y, 0, h);
-	lcd_line(lcd, x, y + h, w, 0);
-	lcd_line(lcd, x + w, y, 0, h);
+	lcd_line(lcd, x, y + h - 1, w, 0);
+	lcd_line(lcd, x + w - 1, y, 0, h);
 	return 0;
 }
