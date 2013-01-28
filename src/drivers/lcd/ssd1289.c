@@ -22,37 +22,19 @@
 
 static const lpt_bus_t *ssd_bus;
 
-/*write index register*/
-static void ssd_WriteIndex(int idx)
-{
-	ssd_bus -> write(IDX, idx);
-}
-
-/*write data register*/
-static void ssd_WriteData(int data)
-{
-	ssd_bus -> write(DAT, data);
-}
-
-/*read data register*/
-static int ssd_ReadData(void)
-{
-	return ssd_bus -> read(DAT);
-}
-
 /*write indexed register*/
 static int ssd_WriteRegister(int index, int dat)
 {
-	ssd_WriteIndex(index);
-	ssd_WriteData(dat);
+	ssd_bus->write(IDX, index);;
+	ssd_bus->write(DAT, dat);
 	return 0;
 }
 
 /*read indexed register*/
 static int ssd_ReadRegister(int index)
 {
-	ssd_WriteIndex(index);
-	return ssd_ReadData();
+	ssd_bus->write(IDX,  index);;
+	return ssd_bus->read(DAT);
 }
 
 static int ssd_SetWindow(int x0, int y0, int x1, int y1)
@@ -84,7 +66,7 @@ static int ssd_SetWindow(int x0, int y0, int x1, int y1)
 	ssd_WriteRegister(0x46, y1); //VEA
 
 	//set index
-	ssd_WriteIndex( 0x22 );
+	ssd_bus->write(IDX, 0X22);
 	return 0;
 }
 
@@ -102,7 +84,7 @@ static int ssd_rgram(void *dest, int n)
 {
 	unsigned short *p = dest;
 	while (n > 0) {
-		*p ++ = ssd_bus -> read(DAT);
+		*p ++ = ssd_bus->read(DAT);
 		n --;
 	}
 	return 0;
@@ -117,8 +99,8 @@ static int ssd_Initializtion(const struct lcd_cfg_s *cfg)
 	lpt_cfg.mode = LPT_MODE_I80;
 	lpt_cfg.t = 0;
 	lpt_cfg.tp = 0;
-	ssd_bus = cfg -> bus;
-	ssd_bus -> init(&lpt_cfg);
+	ssd_bus = cfg->bus;
+	ssd_bus->init(&lpt_cfg);
 
 	//read dev code and verify
 	id = ssd_ReadRegister(0x00);
@@ -149,7 +131,7 @@ static int ssd_Initializtion(const struct lcd_cfg_s *cfg)
 	ssd_WriteRegister(0x10,0x0000);
 
 	//lcd display direction setting
-	switch (cfg -> rot) {
+	switch (cfg->rot) {
 	case LCD_ROT_090:
 		ssd_WriteRegister(0x11,0x6018);
 		break;
