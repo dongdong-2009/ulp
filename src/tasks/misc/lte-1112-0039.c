@@ -50,6 +50,18 @@ static const i2c_cfg_t ma_i2c = {
 	.option = 0,
 };
 
+static void ma_mdelay(int ms)
+{
+	int left;
+	time_t deadline = time_get(ms);
+	do {
+		left = time_left(deadline);
+		if(left >= 10) {
+			task_Update();
+		}
+	} while(left > 0);
+}
+
 static unsigned int Ma_Button_Check()
 {
 	unsigned int status = 0;
@@ -376,8 +388,7 @@ static void Ma_Indicator_Init()
 	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel2, &DMA_InitStructure);
-	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, ENABLE);
-	DMA_Cmd(DMA1_Channel2, ENABLE);
+	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, DISABLE);
 	memset(ma_indicator_fifo, 0, sizeof(ma_indicator_fifo));
 }
 
@@ -385,6 +396,8 @@ static int Ma_Indicator_read(int id, unsigned short *data, int ms)
 {
 	time_t timer;
 	int n;
+	short a;
+	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, ENABLE);
 	SPI_Cmd(SPI1, ENABLE);
 	DMA_Cmd(DMA1_Channel2, ENABLE);
 
@@ -399,20 +412,29 @@ static int Ma_Indicator_read(int id, unsigned short *data, int ms)
 	do {
 		n = DMA_GetCurrDataCounter(DMA1_Channel2);
 		if(!n) {
-			GPIO_SetBits(GPIOB, GPIO_Pin_11);
-			GPIO_SetBits(GPIOC, GPIO_Pin_4);
+			if(id == 1) {
+				GPIO_SetBits(GPIOB, GPIO_Pin_11);
+			}
+			else if(id == 2) {
+				GPIO_SetBits(GPIOC, GPIO_Pin_4);
+			}
 			memcpy(data, ma_indicator_fifo, sizeof(ma_indicator_fifo));
-			SPI_Cmd(SPI1, DISABLE);
-			DMA_Cmd(DMA1_Channel2, DISABLE);
+
 			Ma_Indicator_Init();
+			ma_mdelay(20);
 			return 0;
 		}
 		else {
 			if(time_left(timer) < 0) {
 				printf("error:	timeout\n");
-				GPIO_SetBits(GPIOB, GPIO_Pin_11);
-				GPIO_SetBits(GPIOC, GPIO_Pin_4);
-				return -1;
+				Ma_Indicator_Init();
+				if(id == 1) {
+					GPIO_SetBits(GPIOB, GPIO_Pin_11);
+				}
+				else if(id == 2) {
+					GPIO_SetBits(GPIOC, GPIO_Pin_4);
+				}
+					return -1;
 			}
 		}
 	} while(n != 0);
@@ -690,18 +712,6 @@ static int cmd_ma_func(int argc, char *argv[])
 const cmd_t cmd_ma = {"ma", cmd_ma_func, "control ma"};
 DECLARE_SHELL_CMD(cmd_ma)
 
-static void ma_mdelay(int ms)
-{
-	int left;
-	time_t deadline = time_get(ms);
-	do {
-		left = time_left(deadline);
-		if(left >= 10) {
-			task_Update();
-		}
-	} while(left > 0);
-}
-
 static void Ma_Init()
 {
 	Ma_LED_Init();
@@ -741,12 +751,14 @@ void main()
 			Ma_Device_Operation(2, 0);
 			ma_mdelay(ma_auto_para.device2);
 			if(Ma_Indicator_read(1, ma_indicator_value, ma_auto_para.indicator_overtime) == 0) {
-				Ma_Data_float(ma_indicator_value, &indicator_data);
-				if(indicator_data > ma_auto_para.max || indicator_data < ma_auto_para.min) {
-					Ma_LED_Operation(LED_R, ma_auto_para.ledr);
-				}
-				else {
-					Ma_LED_Operation(LED_G, ma_auto_para.ledg);
+				if(Ma_Data_float(ma_indicator_value, &indicator_data) >= 0) {
+					printf("%f\n", indicator_data);
+					if(indicator_data > ma_auto_para.max || indicator_data < ma_auto_para.min) {
+						Ma_LED_Operation(LED_R, ma_auto_para.ledr);
+					}
+					else {
+						Ma_LED_Operation(LED_G, ma_auto_para.ledg);
+					}
 				}
 			}
 			else {
