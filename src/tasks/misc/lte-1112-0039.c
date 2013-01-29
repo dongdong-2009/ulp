@@ -56,7 +56,7 @@ static void ma_mdelay(int ms)
 	time_t deadline = time_get(ms);
 	do {
 		left = time_left(deadline);
-		if(left >= 10) {
+		if(left >= 3) {
 			task_Update();
 		}
 	} while(left > 0);
@@ -199,11 +199,6 @@ static int Ma_Data_char(unsigned short *data, char *v)
 }
 
 /*
- * 	bit 0 (unit) : 0->mm, 1->inch
- * 	bit 1-3 (decimal point) : 0->XXXXXX., 1->XXXXX.X, 2->XXXX.XX, 3->XXX.XXX, 4->XX.XXXX, 5->X.XXXXX
- * 	bit 4-29 (measurements)
- * 	bit 30 (sign) : 0->+, 1->-
- *
  * 	return -1 : error
  * 	return 0 : mm
  * 	return 1 : inch
@@ -395,8 +390,8 @@ static void Ma_Indicator_Init()
 static int Ma_Indicator_read(int id, unsigned short *data, int ms)
 {
 	time_t timer;
-	int n;
-	short a;
+	int ret;
+
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, ENABLE);
 	SPI_Cmd(SPI1, ENABLE);
 	DMA_Cmd(DMA1_Channel2, ENABLE);
@@ -409,35 +404,32 @@ static int Ma_Indicator_read(int id, unsigned short *data, int ms)
 	}
 
 	timer = time_get(ms);
-	do {
-		n = DMA_GetCurrDataCounter(DMA1_Channel2);
-		if(!n) {
-			if(id == 1) {
-				GPIO_SetBits(GPIOB, GPIO_Pin_11);
-			}
-			else if(id == 2) {
-				GPIO_SetBits(GPIOC, GPIO_Pin_4);
-			}
+	while(1) {
+		ma_mdelay(10);
+		if(!DMA_GetCurrDataCounter(DMA1_Channel2)) {
 			memcpy(data, ma_indicator_fifo, sizeof(ma_indicator_fifo));
-
-			Ma_Indicator_Init();
-			ma_mdelay(20);
-			return 0;
+			ret = 0;
+			break;
 		}
 		else {
 			if(time_left(timer) < 0) {
 				printf("error:	timeout\n");
-				Ma_Indicator_Init();
-				if(id == 1) {
-					GPIO_SetBits(GPIOB, GPIO_Pin_11);
-				}
-				else if(id == 2) {
-					GPIO_SetBits(GPIOC, GPIO_Pin_4);
-				}
-					return -1;
+				ret = -1;
+				break;
 			}
 		}
-	} while(n != 0);
+	}
+
+	if(id == 1) {
+		GPIO_SetBits(GPIOB, GPIO_Pin_11);
+	}
+	else if(id == 2) {
+		GPIO_SetBits(GPIOC, GPIO_Pin_4);
+	}
+
+	Ma_Indicator_Init();
+	ma_mdelay(20);
+	return ret;
 }
 
 static int cmd_ma_func(int argc, char *argv[])
@@ -731,6 +723,7 @@ static void Ma_Init()
 
 void main()
 {
+	int i;
 	task_Init();
 	Ma_Init();
 
@@ -742,6 +735,7 @@ void main()
 
 	while(1) {
 		if(ma_auto_para.autoflag == 1) {
+			printf("press start button to start test\n");
 			while((Ma_Button_Check() & 0x00000001) != 0x00000001) {
 				ma_mdelay(200);
 			}
@@ -750,19 +744,36 @@ void main()
 			ma_mdelay(ma_auto_para.device1);
 			Ma_Device_Operation(2, 0);
 			ma_mdelay(ma_auto_para.device2);
-			if(Ma_Indicator_read(1, ma_indicator_value, ma_auto_para.indicator_overtime) == 0) {
-				if(Ma_Data_float(ma_indicator_value, &indicator_data) >= 0) {
-					printf("%f\n", indicator_data);
-					if(indicator_data > ma_auto_para.max || indicator_data < ma_auto_para.min) {
-						Ma_LED_Operation(LED_R, ma_auto_para.ledr);
+			for(i = 0; i < 5; i++) {
+				if(Ma_Indicator_read(1, ma_indicator_value, ma_auto_para.indicator_overtime) == 0) {
+					if(Ma_Data_float(ma_indicator_value, &indicator_data) >= 0) {
+						printf("%f\n", indicator_data);
+						if(indicator_data > ma_auto_para.max || indicator_data < ma_auto_para.min) {
+							Ma_LED_Operation(LED_R, ma_auto_para.ledr);
+						}
+						else {
+							Ma_LED_Operation(LED_G, ma_auto_para.ledg);
+						}
+						break;
 					}
 					else {
-						Ma_LED_Operation(LED_G, ma_auto_para.ledg);
+						printf("data error, read again : %d\n", i + 1);
 					}
 				}
+				else {
+					printf("overtime, read again : %d\n", i + 1);
+				}
 			}
-			else {
-				//error
+			if(i >= 5) {
+				printf("can not read value\n");
+				printf("press start button to continue\n");
+				i = 0;
+				while((Ma_Button_Check() & 0x00000001) != 0x00000001) {
+					ma_mdelay(200);
+					i = ma_auto_para.ledr - i;
+					Ma_LED_Operation(LED_R, i);
+				}
+				Ma_LED_Operation(LED_R, 0);
 			}
 			Ma_Device_Operation(2, 1);
 			ma_mdelay(ma_auto_para.device2);
