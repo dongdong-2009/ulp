@@ -58,6 +58,14 @@ void led_hwInit(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+#elif CONFIG_BOARD_HY_SMART == 1
+	//PB1 led green
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
 #elif CONFIG_MISC_MATRIX == 1
 	/*PA0 RLED, PA1 GLED*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
@@ -66,6 +74,14 @@ void led_hwInit(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
+#elif CONFIG_MISC_OID2 == 1
+	/*PC0 RLED, PC1 GLED*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
 #else
 	/*led_r pg8, led_g pg15*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
@@ -102,8 +118,12 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			GPIO_WriteBit(GPIOE, GPIO_Pin_1, ba);
 #elif CONFIG_MISC_ICT == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_8, ba);
+#elif CONFIG_BOARD_HY_SMART == 1
+			GPIO_WriteBit(GPIOB, GPIO_Pin_1, ba);
 #elif CONFIG_MISC_MATRIX == 1
 			GPIO_WriteBit(GPIOA, GPIO_Pin_1, ba);
+#elif CONFIG_MISC_OID2 == 1
+			GPIO_WriteBit(GPIOC, GPIO_Pin_1, ba);
 #else
 			GPIO_WriteBit(GPIOG, GPIO_Pin_15, ba);
 #endif
@@ -119,6 +139,8 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			GPIO_WriteBit(GPIOE, GPIO_Pin_0, ba);
 #elif CONFIG_MISC_MATRIX == 1
 			GPIO_WriteBit(GPIOA, GPIO_Pin_0, ba);
+#elif CONFIG_MISC_OID2 == 1
+			GPIO_WriteBit(GPIOC, GPIO_Pin_0, ba);
 #else
 			GPIO_WriteBit(GPIOG, GPIO_Pin_8, ba);
 #endif
