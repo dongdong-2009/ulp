@@ -131,19 +131,7 @@ static int ssd_Initializtion(const struct lcd_cfg_s *cfg)
 	ssd_WriteRegister(0x10,0x0000);
 
 	//lcd display direction setting
-	switch (cfg->rot) {
-	case LCD_ROT_090:
-		ssd_WriteRegister(0x11,0x6018);
-		break;
-	case LCD_ROT_180:
-		ssd_WriteRegister(0x11,0x6000);
-		break;
-	case LCD_ROT_270:
-		ssd_WriteRegister(0x11,0x6028);
-		break;
-	default:
-		ssd_WriteRegister(0x11,0x6030);
-	}
+	ssd_WriteRegister(0x11,0x6030);
 
 	ssd_WriteRegister(0x05,0x0000);
 	ssd_WriteRegister(0x06,0x0000);
