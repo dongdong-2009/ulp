@@ -123,35 +123,45 @@ int lcd_init(struct lcd_s *lcd)
 	return ret;
 }
 
-/*coordinate transformation, virtual -> real*/
-static void lcd_transform(struct lcd_s *lcd, int *px, int *py)
+/*coordinate transformation, virtual -> real, rotate angle is centered top&left of lcd, clockwise direction*/
+static int __lcd_transform(int angle, int x, int y, int w, int h, int *px, int *py)
 {
-	int x, y, w, h;
+	int lcd_x, lcd_y, lcd_i;
 
-	w = lcd -> dev -> xres;
-	h = lcd -> dev -> yres;
-
-	switch (lcd -> rot) {
-	case LCD_ROT_090:
-		x = (*py);
-		y = h - (*px) - 1;
+	switch (angle) {
+	case 90:
+		lcd_x = y;
+		lcd_y = w - x - 1;
+		lcd_i = lcd_y * h + lcd_x;
 		break;
-	case LCD_ROT_180:
-		x = w - (*px) - 1;
-		y = h - (*py) - 1;
+	case 180:
+		lcd_x = w - x - 1;
+		lcd_y = h - y - 1;
+		lcd_i = lcd_y * w + lcd_x;
 		break;
-	case LCD_ROT_270:
-		x = w - (*py) - 1;
-		y = (*px);
+	case 270:
+		lcd_x = h - y - 1;
+		lcd_y = x;
+		lcd_i = lcd_y * h + lcd_x;
 		break;
 	default:
-		x = *px;
-		y = *py;
+		lcd_x = x;
+		lcd_y = y;
+		lcd_i = lcd_y * w + lcd_x;
 	}
 
-	//write back
-	*px = x;
-	*py = y;
+	*px = lcd_x;
+	*py = lcd_y;
+
+	return lcd_i;
+}
+
+static int lcd_transform(struct lcd_s *lcd, int *x, int *y)
+{
+	int w, h;
+	w = lcd->xres;
+	h = lcd->yres;
+	return __lcd_transform(lcd->rot * 90, *x, *y, w, h, x, y);
 }
 
 static int lcd_set_window(struct lcd_s *lcd, int x, int y, int w, int h)
@@ -182,40 +192,19 @@ static int lcd_set_window(struct lcd_s *lcd, int x, int y, int w, int h)
 	return lcd -> dev -> setwindow( x0, y0, x1, y1 );
 }
 
-static int lcd_transform_index(struct lcd_s *lcd, int x, int y, int w, int h)
-{
-	int xx, yy, index;
-	switch (lcd -> rot) {
-	case LCD_ROT_090:
-		break;
-	case LCD_ROT_180:
-		break;
-	case LCD_ROT_270:
-		xx = h - y - 1;
-		yy = x;
-		index = yy * h + xx;
-		break;
-	default:
-		xx = x;
-		yy = y;
-		index = y * w + x;
-	}
-	return index;
-}
-
 int lcd_bitblt(struct lcd_s *lcd, const void *bits, int x, int y, int w, int h)
 {
 	short i, v, n = w * h;
-	int vx, vy, _x, _y, ret = lcd_set_window(lcd, x, y, w, h);
+	int _x, _y, ret = lcd_set_window(lcd, x, y, w, h);
 	static short gram[32*16];
 
 	if(n <= 32 * 16) {
-		for(vy = 0; vy < h; vy ++) {
-			for(vx = 0; vx < w; vx ++) {
-				i = vy * w + vx;
+		for(y = 0; y < h; y ++) {
+			for(x = 0; x < w; x ++) {
+				i = y * w + x;
 				v = bit_get(i, bits);
 				v = (v != 0) ? lcd -> fgcolor : lcd -> bgcolor;
-				i = lcd_transform_index(lcd, vx, vy, w, h);
+				i = __lcd_transform(lcd->rot * 90U, x, y, w, h, &_x, &_y);
 				gram[i] = v;
 			}
 		}
@@ -374,7 +363,7 @@ int lcd_rect(struct lcd_s *lcd, int x, int y, int w, int h)
 {
 	lcd_line(lcd, x, y, w, 0);
 	lcd_line(lcd, x, y, 0, h);
-	lcd_line(lcd, x, y + h, w, 0);
-	lcd_line(lcd, x + w, y, 0, h);
+	lcd_line(lcd, x, y + h - 1, w, 0);
+	lcd_line(lcd, x + w - 1, y, 0, h);
 	return 0;
 }
