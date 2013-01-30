@@ -9,6 +9,8 @@
 #include "ulp/pmsmd.h"
 #include "stm32f10x.h"
 #include "common/pid.h"
+#include "shell/cmd.h"
+#include <string.h>
 
 const pmsm_t pmsm1 = {
 	.pp = 2,
@@ -42,3 +44,32 @@ void TIM1_CC_IRQHandler(void)
 		TIM1->SR &= 0xffef;
 	}
 }
+
+static int cmd_foc_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"  foc set speed xxx\n"
+	};
+	int a;
+	if(argc == 4 && !strcmp(argv[1], "set")) {
+		if(!strcmp(argv[2], "speed")) {
+			sscanf(argv[3], "%d", &a);
+			foc_speed_set(foc1, a);
+			return 0;
+		}
+		else {
+			printf("error: command is wrong!!\n");
+			printf("%s", usage);
+			return -1;
+		}
+	}
+	else {
+		printf("error: command is wrong!!\n");
+		printf("%s", usage);
+		return -1;
+	}
+}
+
+const cmd_t cmd_foc = {"foc", cmd_foc_func, "control foc"};
+DECLARE_SHELL_CMD(cmd_foc)

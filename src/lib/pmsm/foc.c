@@ -341,11 +341,11 @@ void foc_isr(int handle)
 
 	if(++i == 200) {
 		speed_get(dev, 10);
-		dev->elec.uq_expect = pid_q15(&dev->speed_pid, 400 - dev->mech.speed_now);
+		dev->elec.uq_expect = pid_q15(&dev->speed_pid, dev->mech.speed_expect - dev->mech.speed_now);
 		i = 0;
 	}
 	if(++j == 20000) {
-		printf("speed = %4d rpm\n", dev->mech.speed_now);
+		//printf("speed = %4d rpm\n", dev->mech.speed_now);
 		j = 0;
 	}
 
