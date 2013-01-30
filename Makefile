@@ -27,7 +27,7 @@ iar_clr:
 	$(IAR_TOOL) clr $(IAR_FILE)
 iar_cfg:
 ifeq ($(CONFIG_CPU_STM32),y)
-	$(IAR_TOOL) cfg $(IAR_FILE) 'STM32F10xxB	ST STM32F10xxB' 'ulp.icf'
+	$(IAR_TOOL) cfg $(IAR_FILE) 'STM32F10xxE	ST STM32F10xxE' 'ulp.icf'
 endif
 ifeq ($(CONFIG_CPU_LM3S),y)
 	$(IAR_TOOL) cfg $(IAR_FILE) 'LM3Sx9xx	Luminary LM3Sx9xx' 'ulp.icf'
@@ -58,7 +58,7 @@ ifeq ($(CONFIG_TARGET_LIB),y)
 endif
 
 iar_add:
-	@echo target=$@ M=$(M): obj-y = $(obj-y) inc-y = $(inc-y) icf-y = $(icf-y)
+	@echo target=$@ M=$(M): obj-y = $(obj-y) inc-y = $(inc-y) icf-y = $(icf-y) bin-y = $(bin-y)
 	@for dir in $(inc-y); do\
 		if [ -d $(M)$$dir ];\
 		then \
@@ -76,6 +76,14 @@ iar_add:
 		echo "found new icf file" $(M)$$icf ...; \
 		cp -f $(M)$$icf $(PRJ_ICF); \
 		cat $(ULP_ICF) >> $(PRJ_ICF); \
+	done
+	@for bin in $(bin-y); do \
+		if test -r "$(M)$$bin";\
+		then \
+			name=`echo $$bin | sed -e "s/\./_/g"`; \
+			$(IAR_TOOL) ldf $(IAR_FILE) --image_input "$$"PROJ_DIR"$$""/../.."/$(M)$$bin,$$name,.text,4; \
+			$(IAR_TOOL) ldf $(IAR_FILE) --keep $$name; \
+		fi \
 	done
 ifeq ($(CONFIG_TARGET_LIB),y)
 	@-for dir in $(inc-y); do\
