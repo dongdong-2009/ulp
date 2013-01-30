@@ -18,8 +18,13 @@ EXPORT_INC_DIR = $(EXE_DIR)/inc
 -include $(M)Makefile
 -include $(ENV_FILE)
 
-iar: iar_script detect_config iar_clr iar_cfg iar_inc iar_add
+iar: iar_script detect_config iar_clr iar_cfg iar_inc iar_add icf_cfg
 	@echo "projects/bldc/bldc.ewp has been created!"
+
+icf_cfg:
+	@sed -i -r 's/\<symbol __ICFEDIT_size_cstack__.*;/symbol __ICFEDIT_size_cstack__ = 0x$(CONFIG_STACK_SIZE);/' $(PRJ_ICF)
+	@sed -i -r 's/\<symbol __ICFEDIT_size_heap__.*;/symbol __ICFEDIT_size_heap__   = 0x$(CONFIG_HEAP_SIZE);/' $(PRJ_ICF)
+	@sed -i -e "s/$$/\r/" $(PRJ_ICF) #change LF to windows CRLF
 
 iar_help:
 	$(IAR_TOOL)

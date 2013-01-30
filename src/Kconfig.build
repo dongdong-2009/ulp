@@ -8,3 +8,6 @@ choice 'target file type'	" \
 	bin	CONFIG_TARGET_BIN \
 	lib	CONFIG_TARGET_LIB \
 " bin
+
+hex "stack size(hex)" CONFIG_STACK_SIZE 800
+hex "heap size(hex)" CONFIG_HEAP_SIZE 1000
