@@ -39,7 +39,6 @@ typedef struct {
 		int theta_expect;
 		int theta_next;
 		int theta_diff;
-		int theta_diff_max;
 
 		int speed_now;
 		int speed_expect;
@@ -82,12 +81,28 @@ static const int sector_decide[8] = {0, 2, 6, 1, 4, 3, 5, 0};
 static void theta_get(foc_t *dev)
 {
 	int a;
-	int b;
+	int now, before, diff;
 	a = (dev->mech.theta_per_counter_q10) * dev->pmsmd.encoder_get();
-	b = (a >> 10) - 0x00008000;
-	dev->mech.theta_now = b;
-	b += 0x000100000;
-	dev->elec.theta = ((b * dev->pmsm.pp + 0x00008000) & 0x0000ffff) - 0x00008000;
+	now = (a >> 10) - 0x00008000;
+	before = dev->mech.theta_now;
+
+	if(now >= before) {
+		diff = now - before;
+		if(diff > (1 << 15)) {
+			diff = now - before - (1 << 16);
+		}
+	}
+	else if(now < before) {
+		diff = now - before;
+		if(diff < -(1 << 15)) {
+			diff = now + (1 << 16) - before;
+		}
+	}
+	dev->mech.theta_diff += diff;
+	dev->mech.theta_before = before;
+	dev->mech.theta_now = now;
+	now += 0x000100000;
+	dev->elec.theta = ((now * dev->pmsm.pp + 0x00008000) & 0x0000ffff) - 0x00008000;
 }
 
 static void theta_set(foc_t *dev, int theta_mech)
@@ -95,23 +110,10 @@ static void theta_set(foc_t *dev, int theta_mech)
 	dev->pmsmd.encoder_set(((theta_mech + 0x00008000) << 10) / dev->mech.theta_per_counter_q10);
 }
 
-static void speed_get(foc_t *dev)
+static void speed_get(foc_t *dev, int ms)
 {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	dev->mech.speed_now = dev->mech.theta_diff * 1875 / ms / (1 << 11); // dev->mech.theta_diff * 60000 / ms / (1 << 16);
+	dev->mech.theta_diff = 0;
 }
 
 /*
@@ -314,15 +316,6 @@ void foc_update(int handle)
 		dev->status = RUN;
 		break;
 	case RUN:
-		if(dev->pid_update == 0) {
-			//dev.elec.uq_expect = pid(&dev.math.speed_pid, 1000 - dev.mech.speed_now);
-			//id_temp = pid(speed_pid, dev.mech.speed_expect - dev.mech.speed_now);
-			//ud_temp = pid(id_pid, id_temp - dev.elec.id);
-			//uq_temp = pid(iq_pid, 0 - dev.elec.iq);
-			dev->elec.ud_expect = 0;
-			dev->elec.uq_expect = 0x00000DE6;
-			dev->pid_update = 1;
-		}
 		break;
 	case STOP:
 		dev->pmsmd.svpwm_ctl(0);
@@ -337,25 +330,30 @@ void foc_update(int handle)
 	}
 }
 
-
 void foc_isr(int handle)
 {
+	static int i = 0;static int j = 0;
 	foc_t *dev = (foc_t *)handle;
 	int sinval, cosval;
 	int ud, uq, ualpha, ubeta;
 
-	//mech_theta_before = mech_theta;
-
 	theta_get(dev);
-	speed_get(dev);
+
+	if(++i == 200) {
+		speed_get(dev, 10);
+		dev->elec.uq_expect = pid_q15(&dev->speed_pid, 400 - dev->mech.speed_now);
+		i = 0;
+	}
+	if(++j == 20000) {
+		printf("speed = %4d rpm\n", dev->mech.speed_now);
+		j = 0;
+	}
 
 	sin_cos_q15(dev->elec.theta, &sinval, &cosval);
-	//dev->mech.theta_now_temp = dev->mech.theta_now / 182;
-	if(dev->pid_update) {
-		ud = dev->elec.ud_expect;
-		uq = dev->elec.uq_expect;
-		dev->pid_update = 0;
-	}
+
+	ud = 0;//ud = dev->elec.ud_expect;
+	uq = dev->elec.uq_expect;
+
 	inv_park_q15(ud, uq, &ualpha, &ubeta, sinval, cosval);
 	svpwm_set(dev, ualpha, ubeta);
 }
