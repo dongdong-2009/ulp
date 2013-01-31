@@ -704,16 +704,16 @@ struct enc_head_s {
 #define PHSTAT3_r1		(1<<1)
 #define PHSTAT3_r0		(1)
 
-void enc_Init(enc_t *chip);
-void WriteReg(enc_t *chip,int wAddress, int wValue);
-int ReadReg(enc_t *chip,int wAddress);
-void BFSReg(enc_t *chip,int wAddress, int wValue);
-void BFCReg(enc_t *chip,int wAddress, int wValue);
-void SendSystemReset(enc_t chip);
-void WritePHYReg(enc_t chip,unsigned char Register, int Data);
-void ReadN(enc_t *chip,unsigned char vOpcode, unsigned char* vData, int wDataLen);
-void WriteN(enc_t *chip,unsigned char vOpcode, unsigned char* vData, int wDataLen);
-void WriteMemoryWindow(enc_t *chip,unsigned char vWindow, unsigned char *vData, int wLength);
-void ReadMemoryWindow(enc_t *chip,unsigned char vWindow, unsigned char *vData,int wLength);
+void enc_Init(void);
+void WriteReg(int wAddress, int wValue);
+int ReadReg(int wAddress);
+void BFSReg(int wAddress, int wValue);
+void BFCReg(int wAddress, int wValue);
+void SendSystemReset(void);
+void WritePHYReg(unsigned char Register, int Data);
+void ReadN(unsigned char vOpcode, unsigned char* vData, int wDataLen);
+void WriteN(unsigned char vOpcode, unsigned char* vData, int wDataLen);
+void WriteMemoryWindow(unsigned char vWindow, unsigned char *vData, int wLength);
+void ReadMemoryWindow(unsigned char vWindow, unsigned char *vData,int wLength);
 
 #endif /*__enc424j600_H_*/
