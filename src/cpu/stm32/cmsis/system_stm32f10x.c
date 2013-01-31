@@ -244,13 +244,14 @@ void SystemInit (void)
   SetSysClock();
 #else
 	RCC_HSEConfig(RCC_HSE_OFF);
-	RCC_PLLConfig(RCC_PLLSource_HSI_Div2, (SystemFrequency/4000000) /*RCC_PLLMul_8*/);
+	RCC_PLLConfig(RCC_PLLSource_HSI_Div2, (SystemFrequency/4000000 - 2) << 18);
 	RCC_HCLKConfig(RCC_SYSCLK_Div1); //SystemFrequency
 	RCC_PCLK1Config(RCC_HCLK_Div2); //SystemFrequency / 2
 	RCC_PCLK2Config(RCC_HCLK_Div1); //SystemFrequency
 	RCC_PLLCmd(ENABLE);
 	while(RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET);
 	RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);	//PLL selected as sysclk
+	while(RCC_GetSYSCLKSource()!=0x08);
 #endif
 }
 

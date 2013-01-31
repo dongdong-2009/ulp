@@ -91,3 +91,10 @@ if [ "$CONFIG_LIB_INSTR" = "y" ]; then
 		source src/lib/instr/Kconfig
 	endmenu
 fi
+
+if [ "$CONFIG_LIB_PMSM" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'pmsm'
+		source src/lib/pmsm/Kconfig
+	endmenu
+fi

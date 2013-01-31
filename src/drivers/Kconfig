@@ -118,3 +118,8 @@ mainmenu_option next_comment
 	comment 'dac config'
 	source src/drivers/dac/Kconfig
 endmenu
+
+mainmenu_option next_comment
+	comment 'pmsmd config'
+	source src/drivers/pmsmd/Kconfig
+endmenu

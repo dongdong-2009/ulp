@@ -21,7 +21,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
-#include "motor/motor.h"
 #include "sys/system.h"
 #include "sys/task.h"
 #include <stdio.h>
