@@ -20,6 +20,7 @@ choice 'task select'	" \
 	VVT		CONFIG_TASK_VVT \
 	YBS		CONFIG_TASK_YBS \
 	YBSREPEATER	CONFIG_TASK_YBSREPEATER \
+	OID		CONFIG_TASK_OID \
 " NONE
 
 if [ "$CONFIG_TASK_APT" = "y" ]; then
