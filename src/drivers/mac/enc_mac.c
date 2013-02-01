@@ -19,26 +19,18 @@
 #include "stm32f10x.h"
 #include <string.h>
 
-/*================ Private functions =============================*/
-
 #define CS_LOW() spi_cs_set(enc24j.idx, 0)
 #define CS_HIGH() spi_cs_set(enc24j.idx, 1)
 
-#define GP_WINDOW		(0x2)
-#define RX_WINDOW		(0x4)
-
-#define RXSTART 0x1000u
-#define TXSTART 0x0000u
+const struct {
+	const spi_bus_t *bus;
+	int idx;
+} enc24j = { .bus = &spi1, .idx = SPI_1_NSS };
 
 // Internal MAC level variables and flags.
 unsigned char vCurrentBank=0xff;
-int rCurrentPacketPointer;
-int rNextPacketPointer;
-
-enc_t enc24j = {
-	.bus = &spi1,
-	.idx = SPI_1_NSS,
-};
+unsigned short wCurrentPacketPointer;
+unsigned short wNextPacketPointer;
 
 void low_level_init(struct netif *netif)
 {
@@ -61,26 +53,49 @@ void low_level_init(struct netif *netif)
 	/* device capabilities */
 	/* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
 	netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
+}
 
-	GPIO_InitTypeDef  GPIO_InitStructure;
-	EXTI_InitTypeDef EXTI_InitStructure;
-	NVIC_InitTypeDef NVIC_InitStructure;
-	GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_4;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode= GPIO_Mode_IN_FLOATING ;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	EXTI_InitStructure.EXTI_Line = EXTI_Line4;
-	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
-	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
-	EXTI_Init(&EXTI_InitStructure);
-	GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource4);
+void MACFlush(void)
+{
+	unsigned short w;
 
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_0);
-	NVIC_InitStructure.NVIC_IRQChannel = EXTI4_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure);
+	// Check to see if the duplex status has changed.  This can
+	// change if the user unplugs the cable and plugs it into a
+	// different node.  Auto-negotiation will automatically set
+	// the duplex in the PHY, but we must also update the MAC
+	// inter-packet gap timing and duplex state to match.
+	if(ReadReg(EIR) & EIR_LINKIF)
+	{
+		BFCReg(EIR, EIR_LINKIF);
+
+		// Update MAC duplex settings to match PHY duplex setting
+		w = ReadReg(MACON2);
+		if(ReadReg(ESTAT) & ESTAT_PHYDPX)
+		{
+			// Switching to full duplex
+			WriteReg(MABBIPG, 0x15);
+			w |= MACON2_FULDPX;
+		}
+		else
+		{
+			// Switching to half duplex
+			WriteReg(MABBIPG, 0x12);
+			w &= ~MACON2_FULDPX;
+		}
+		WriteReg(MACON2, w);
+	}
+
+
+	// Start the transmission, but only if we are linked.  Supressing
+	// transmissing when unlinked is necessary to avoid stalling the TX engine
+	// if we are in PHY energy detect power down mode and no link is present.
+	// A stalled TX engine won't do any harm in itself, but will cause the
+	// ENCX24J600_MACIsTXReady() function to continuously return false, which will
+	// ultimately stall the Microchip TCP/IP stack since there is blocking code
+	// elsewhere in other files that expect the TX engine to always self-free
+	// itself very quickly.
+	if(ReadReg(ESTAT) & ESTAT_PHYLNK)
+		BFSReg(ECON1, ECON1_TXRTS);
 }
 
 /*
@@ -100,28 +115,59 @@ void low_level_init(struct netif *netif)
  */
 err_t low_level_output(struct netif *netif, struct pbuf *p)
 {
-	int addr, busy;
+	int addr, busy = 0, n = 0;
 	struct pbuf *q;
+
 	addr = ReadReg(ETXST);
 	if(ReadReg(ECON1) & ECON1_TXRTS) {
-		addr = (addr == 0x800) ? 0 : 0x800;
+		addr = (addr == 1518) ? 0 : 1518;
 		busy = 1;
 	}
 	//write payload to buffer
 	WriteReg(EGPWRPT, addr);
 	for (q = p; q != NULL; q = q->next) {
-		WriteMemoryWindow(GP_WINDOW, q->payload, q->len);
+		if(q->len > 0) {
+			WriteMemoryWindow(GP_WINDOW, q->payload, q->len);
+			n += q->len;
+		}
 	}
 	if(!(ReadReg(ESTAT) & ESTAT_PHYLNK))
 		return ERR_CONN;
 	//wait old packet sent
 	while(busy && (ReadReg(ECON1) & ECON1_TXRTS));
-	
+
 	//send current packet
 	WriteReg(ETXST, addr);
-	WriteReg(ETXLEN, p -> len);
-	BFSReg(ECON1, ECON1_TXRTS);
+	WriteReg(ETXLEN, n);
+	#ifdef __DEBUG_PING
+	struct eth_hdr * ethhdr = (struct eth_hdr *)p->payload;
+	struct ip_hdr *iphdr = (struct ip_hdr *)((u8_t*)ethhdr + 14);
+	if((ethhdr->type == 0x0008)&&(iphdr->_proto == 0x01)) {
+		printf("ping packet reply to 192.168.2.%d\n\n", (iphdr->dest.addr) >> 24);
+	}
+	#endif
+	MACFlush();
 	return ERR_OK;
+}
+
+void MACDiscardRx(void)
+{
+	unsigned short wNewRXTail;
+
+	// Decrement the next packet pointer before writing it into
+	// the ERXRDPT registers. RX buffer wrapping must be taken into account if the
+	// NextPacketLocation is precisely RXSTART.
+	wNewRXTail = wNextPacketPointer - 2;
+	if(wNextPacketPointer == RXSTART)
+		wNewRXTail = ENC100_RAM_SIZE - 2;
+
+	// Decrement the RX packet counter register, EPKTCNT
+	BFSReg(ECON1, ECON1_PKTDEC);
+
+	// Move the receive read pointer to unwrite-protect the memory used by the
+	// last packet.  The writing order is important: set the low byte first,
+	// high byte last (handled automatically in WriteReg()).
+	WriteReg(ERXTAIL, wNewRXTail);
 }
 
 /*
@@ -134,29 +180,45 @@ err_t low_level_output(struct netif *netif, struct pbuf *p)
  */
 struct pbuf * low_level_input(struct netif *netif)
 {
-	struct pbuf *p, *q;
+	struct pbuf *p = NULL, *q;
 	int length;
-	struct enc_head_s header;
+	ENC100_PREAMBLE header;
+
 	// Test if at least one packet has been received and is waiting
 	if(!(ReadReg(EIR) & EIR_PKTIF)) {
 		return(NULL);
 	}
 
 	// Set the RX Read Pointer to the beginning of the next unprocessed packet
-	rCurrentPacketPointer = rNextPacketPointer;
-	WriteReg(ERXRDPT, rCurrentPacketPointer);
+	wCurrentPacketPointer = wNextPacketPointer;
+	WriteReg(ERXRDPT, wCurrentPacketPointer);
 	ReadMemoryWindow(RX_WINDOW, (unsigned char *) &header, sizeof(header));
-	rNextPacketPointer = header.next; 
-	length = header.n; 
+	if(header.NextPacketPointer > RXSTOP || ((TCPIP_UINT8_VAL*)(&header.NextPacketPointer))->bits.b0 ||
+		header.StatusVector.bits.Zero || header.StatusVector.bits.ZeroH ||
+		header.StatusVector.bits.CRCError ||
+		header.StatusVector.bits.ByteCount > 1522u) {
+		MACDiscardRx();
+		return NULL;
+	}
+
+	wNextPacketPointer = header.NextPacketPointer;
+	length = header.StatusVector.bits.ByteCount;
 	p = pbuf_alloc(PBUF_RAW, length, PBUF_POOL);
 	if (p != NULL) {
-		for (q = p; q != NULL; q = q -> next) {
-			ReadMemoryWindow(RX_WINDOW, q -> payload, q -> len);
-			
+		for (q = p; (q != NULL) && (length > 0); q = q -> next) {
+			int n = (length > q->len) ? q->len : length;
+			ReadMemoryWindow(RX_WINDOW, q -> payload, n);
+			length -= n;
 		}
 	}
-	WriteReg(ERXTAIL, rNextPacketPointer-2);
-	BFSReg(ECON1, ECON1_PKTDEC);
+	#if __DEBUG_PING
+	struct eth_hdr * ethhdr = (struct eth_hdr *)p->payload;
+	struct ip_hdr *iphdr = (struct ip_hdr *)((u8_t*)ethhdr + 14);
+	if((ethhdr->type == 0x0008)&&(iphdr->_proto == 0x01)) {
+		printf("ping packet received from 192.168.2.%d\n", (iphdr->src.addr) >> 24);
+	}
+	#endif
+	MACDiscardRx();
 	return p;
 }
 
@@ -172,8 +234,9 @@ void enc_Init(void)
 	};
 	enc24j.bus->init(&cfg);
 	SendSystemReset();
-	rNextPacketPointer = RXSTART;
-	rCurrentPacketPointer = 0x0000;
+
+	// Initialize RX tracking variables and other control state flags
+	wNextPacketPointer = RXSTART;
 
 	// Set up TX/RX/UDA buffer addresses
 	WriteReg(ETXST, TXSTART);
@@ -181,8 +244,12 @@ void enc_Init(void)
 	WriteReg(ERXTAIL, ENC100_RAM_SIZE-2);
 	WriteReg(EUDAST, ENC100_RAM_SIZE);
 	WriteReg(EUDAND, ENC100_RAM_SIZE+1);
+
 	WritePHYReg(PHANA, PHANA_ADPAUS0 | PHANA_AD10FD | PHANA_AD10 | PHANA_AD100FD | PHANA_AD100 | PHANA_ADIEEE0);
 	WritePHYReg(PHCON1, PHCON1_SPD100 | PHCON1_PFULDPX);
+	//enable ethernet CRC
+
+	WriteReg(MACON2, MACON2_PADCFG2 | MACON2_PADCFG1 | MACON2_PADCFG0 | MACON2_TXCRCEN);
 
 	//Enable interupt
 	BFSReg(EIE, EIE_INTIE);

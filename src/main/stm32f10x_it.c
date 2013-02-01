@@ -264,15 +264,9 @@ void EXTI3_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-extern void lwip_lib_isr(void);
-void EXTI4_IRQHandler(void)
+__weak void EXTI4_IRQHandler(void)
 {
-#if (CONFIG_LIB_LWIP == 1) 
-#if (CONFIG_MAC_ENC28J60 == 1) || (CONFIG_MAC_ENC424J600 == 1)
-	lwip_lib_isr();
 	EXTI_ClearFlag(EXTI_Line4);
-#endif
-#endif
 }
 
 /*******************************************************************************
