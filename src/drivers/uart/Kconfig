@@ -46,6 +46,7 @@ if [ "$CONFIG_CPU_STM32" != "y" ]; then
 	fi
 fi
 
+if [ "$CONFIG_CPU_ADUC706X" != "y" ]; then
 #uart1
 bool "enable uart1" CONFIG_DRIVER_UART1
 if [ "$CONFIG_DRIVER_UART1" = "y" ]; then
@@ -74,6 +75,7 @@ if [ "$CONFIG_DRIVER_UART3" = "y" ]; then
 		int "tx fifo size" CONFIG_UART3_TF_SZ 64
 		int "rx fifo size" CONFIG_UART3_RF_SZ 32
 	fi
+fi
 fi
 
 bool "add md204l module" CONFIG_DEVICE_MD204L
