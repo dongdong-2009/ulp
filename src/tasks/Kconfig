@@ -99,3 +99,10 @@ if [ "$CONFIG_TASK_YBSREPEATER" = "y" ]; then
 		source src/tasks/ybs_repeater/Kconfig
 	endmenu
 fi
+
+if [ "$CONFIG_TASK_OID" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'oid'
+		source src/tasks/oid/Kconfig
+	endmenu
+fi
