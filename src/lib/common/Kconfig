@@ -10,6 +10,7 @@ bool "ini file parser" CONFIG_COMMON_INIFILE
 bool "keyword protocol" CONFIG_COMMON_KWP
 bool "s-record parser" CONFIG_COMMON_PTP
 bool "kermit communication protocol" CONFIG_COMMON_KERMIT
+bool "vchip communication protocol" CONFIG_COMMON_VCHIP
 bool "linux fast sort algo" CONFIG_COMMON_SORT
 bool "crc16 algo" CONFIG_COMMON_CRC16
 bool "crc32 algo" CONFIG_COMMON_CRC32
