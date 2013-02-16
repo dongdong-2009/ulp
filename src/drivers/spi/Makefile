@@ -7,7 +7,12 @@ ifeq ($(CONFIG_CPU_STM32),y)
 	obj-$(CONFIG_DRIVER_SPI3) += spi3_stm32.o
 endif
 
+ifeq ($(CONFIG_CPU_ADUC706X),y)
+	obj-$(CONFIG_DRIVER_SPI) += spi_aduc.o
+endif
+
 #spi chips
+obj-$(CONFIG_DRIVER_VCHIP) += vchip.o
 obj-$(CONFIG_DRIVER_AD9833) += ad9833.o
 obj-$(CONFIG_DRIVER_MCP41X) += mcp41x.o
 obj-$(CONFIG_DRIVER_DAC1X8S) += dac1x8s.o
