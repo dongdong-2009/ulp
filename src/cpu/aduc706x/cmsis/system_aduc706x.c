@@ -2,10 +2,12 @@
 	miaofng@2012-1-2 initial version
 	The ADuC706x integrates a 32.768 kHz ¡À3% oscillator and a PLL.
 	When powerup, the HCLK is equal to PLL clock divided by 8(CD=3,
-	HCLK = 10.24MHz / 8 = 1.28MHz).
+	HCLK(= core clock) = 10.24MHz(UCLK) / 8 = 1.28MHz).
+
 */
 #include "aduc706x.h"
 
+const unsigned SystemFrequency_UCLK = 10240000;
 #if   defined CONFIG_SYSCLK_CD0
 const unsigned SystemFrequency = (10240000/(1 << 0));
 #elif defined CONFIG_SYSCLK_CD1
