@@ -17,15 +17,21 @@
 #ifndef __VCHIP_H_
 #define __VCHIP_H_
 
-#define VCHIP_SOH 0x01
-#define VCHIP_ESC '\\'
-
 enum {
 	VCHIP_AA, /*+4 bytes absolute address*/
 	VCHIP_AR, /*+2 bytes relative address*/
 	VCHIP_W,
 	VCHIP_R,
+	VCHIP_SOH = 0xf0,
+	VCHIP_ESC,
 };
+
+#define VCHIP_WL ((4 << 4) | VCHIP_W)
+#define VCHIP_WW ((2 << 4) | VCHIP_W)
+#define VCHIP_WB ((1 << 4) | VCHIP_W)
+#define VCHIP_RL ((4 << 4) | VCHIP_R)
+#define VCHIP_RW ((2 << 4) | VCHIP_R)
+#define VCHIP_RB ((1 << 4) | VCHIP_R)
 
 typedef union {
 	struct {
@@ -52,5 +58,13 @@ typedef struct {
 void vchip_init(void *mmr);
 void vchip_reset(vchip_t *vchip);
 void vchip_update(vchip_t *vchip);
+
+typedef struct {
+	int (*wb)(char byte);
+	int (*rb)(char *byte);
+} vchip_slave_t;
+
+int vchip_outl(const vchip_slave_t *slave, unsigned addr, unsigned value);
+int vchip_inl(const vchip_slave_t *slave, unsigned addr, unsigned *value);
 
 #endif /*__VCHIP_H_*/

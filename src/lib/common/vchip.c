@@ -98,3 +98,62 @@ void vchip_update(vchip_t *vchip)
 	default:;
 	}
 }
+
+static int __wcmd(const vchip_slave_t *slave, char cmd)
+{
+	slave->wb(VCHIP_SOH);
+	slave->wb(VCHIP_SOH);
+	slave->wb(cmd);
+	return 0;
+}
+
+static int __wdat(const vchip_slave_t *slave, const void *buf, int n)
+{
+	const char *p = buf;
+	for(int i = 0; i < n; i ++) {
+		char byte = p[i];
+		if((byte == VCHIP_SOH) || (byte == VCHIP_ESC)) {
+			slave->wb(VCHIP_ESC);
+		}
+		slave->wb(byte);
+	}
+	return 0;
+}
+
+static int __rdat(const vchip_slave_t *slave, void *buf, int n)
+{
+	char *echo = buf;
+	for(int i = 0; i < n; i ++) {
+		char byte;
+		slave->rb(&byte);
+		echo[i] = byte;
+	}
+	return 0;
+}
+
+int vchip_outl(const vchip_slave_t *slave, unsigned addr, unsigned value)
+{
+	char ecode;
+	__wcmd(slave, VCHIP_AR);
+	__wdat(slave, &addr, 2);
+	__rdat(slave, &ecode, 1);
+	if(ecode == 0) {
+		__wcmd(slave, VCHIP_WL);
+		__wdat(slave, &value, 4);
+		__rdat(slave, &ecode, 1);
+	}
+	return ecode;
+}
+
+int vchip_inl(const vchip_slave_t *slave, unsigned addr, unsigned *value)
+{
+	char ecode;
+	__wcmd(slave, VCHIP_AR);
+	__wdat(slave, &addr, 2);
+	__rdat(slave, &ecode, 1);
+	if(ecode == 0) {
+		__wcmd(slave, VCHIP_RL);
+		__rdat(slave, value, 4);
+	}
+	return 0;
+}
