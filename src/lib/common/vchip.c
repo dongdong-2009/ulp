@@ -6,6 +6,11 @@
 #include <stddef.h>
 #include <string.h>
 
+enum {
+	ECODE_OK = 0x01, /*note: 0x00 is the spi default output value*/
+	ECODE_FAIL,
+};
+
 static unsigned vchip_base;
 void vchip_init(void *mmr)
 {
@@ -16,6 +21,7 @@ void vchip_reset(vchip_t *vchip)
 {
 	vchip->flag_soh = 0;
 	vchip->flag_esc = 0;
+	vchip->txd = NULL;
 }
 
 static inline void vchip_soh(vchip_t *vchip)
@@ -29,8 +35,6 @@ static inline void vchip_soh(vchip_t *vchip)
 void vchip_update(vchip_t *vchip)
 {
 	char byte;
-	vchip->txd = NULL;
-
 	if(vchip->rxd != NULL) {
 		byte = *(vchip->rxd);
 		if((byte == VCHIP_SOH) && (vchip->flag_esc == 0)) {
@@ -51,7 +55,7 @@ void vchip_update(vchip_t *vchip)
 		}
 
 		vchip->flag_esc = 0;
-		if(vchip->flag_cmd) {
+		if(vchip->flag_cmd && (vchip->n < 14)) {
 			vchip->dat[vchip->n ++] = byte;
 		}
 		else {
@@ -67,7 +71,8 @@ void vchip_update(vchip_t *vchip)
 			memcpy(&ofs, vchip->dat, 2);
 			vchip->adr = (char *) (vchip_base + ofs);
 			vchip_reset(vchip);
-			vchip->txd = 0x00;
+			vchip->ecode = ECODE_OK;
+			vchip->txd = &vchip->ecode;
 		}
 		break;
 	case VCHIP_AA:
@@ -76,26 +81,29 @@ void vchip_update(vchip_t *vchip)
 			memcpy(&adr, vchip->dat, 4);
 			vchip->adr = (char *) adr;
 			vchip_reset(vchip);
-			vchip->txd = 0x00;
+			vchip->ecode = ECODE_OK;
+			vchip->txd = &vchip->ecode;
 		}
 		break;
 	case VCHIP_W:
 		if(vchip->n == vchip->cmd.len) { //do write here
 			memcpy(vchip->adr, vchip->dat, vchip->cmd.len);
 			vchip_reset(vchip);
-			vchip->txd = 0x00;
+			vchip->ecode = ECODE_OK;
+			vchip->txd = &vchip->ecode;
 		}
 		break;
 	case VCHIP_R:
 		if(vchip->n == 0) {
-			memcpy(vchip->dat, vchip->adr, vchip->cmd.len);
+			memcpy(vchip->dat, vchip->adr , vchip->cmd.len);
 		}
 
 		if(vchip->n < vchip->cmd.len) {
 			vchip->txd = vchip->dat + vchip->n;
 		}
 		break;
-	default:;
+	default:
+		vchip_reset(vchip);
 	}
 }
 
@@ -137,12 +145,12 @@ int vchip_outl(const vchip_slave_t *slave, unsigned addr, unsigned value)
 	__wcmd(slave, VCHIP_AR);
 	__wdat(slave, &addr, 2);
 	__rdat(slave, &ecode, 1);
-	if(ecode == 0) {
+	if(ecode == ECODE_OK) {
 		__wcmd(slave, VCHIP_WL);
 		__wdat(slave, &value, 4);
 		__rdat(slave, &ecode, 1);
 	}
-	return ecode;
+	return (ecode == ECODE_OK) ? 0 : ecode;
 }
 
 int vchip_inl(const vchip_slave_t *slave, unsigned addr, unsigned *value)
@@ -151,9 +159,9 @@ int vchip_inl(const vchip_slave_t *slave, unsigned addr, unsigned *value)
 	__wcmd(slave, VCHIP_AR);
 	__wdat(slave, &addr, 2);
 	__rdat(slave, &ecode, 1);
-	if(ecode == 0) {
+	if(ecode == ECODE_OK) {
 		__wcmd(slave, VCHIP_RL);
 		__rdat(slave, value, 4);
 	}
-	return 0;
+	return (ecode == ECODE_OK) ? 0 : ecode;
 }
