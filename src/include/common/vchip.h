@@ -67,6 +67,6 @@ typedef struct {
 } vchip_slave_t;
 
 int vchip_outl(const vchip_slave_t *slave, unsigned addr, unsigned value);
-int vchip_inl(const vchip_slave_t *slave, unsigned addr, unsigned *value);
+int vchip_inl(const vchip_slave_t *slave, unsigned addr, void *value);
 
 #endif /*__VCHIP_H_*/

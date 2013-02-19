@@ -28,7 +28,6 @@ void vchip_reset(vchip_t *vchip)
 {
 	vchip->flag_soh = 0;
 	vchip->flag_esc = 0;
-	vchip->txd = NULL;
 }
 
 static inline void vchip_soh(vchip_t *vchip)
@@ -117,29 +116,29 @@ void vchip_update(vchip_t *vchip)
 		}
 		break;
 	case VCHIP_R:
-		if(vchip->n == 0) {
+		if(vchip->n < vchip->cmd.len) {
 			if(vchip->flag_abs) {
-				memcpy(vchip->dat, (char *) vchip->ofs, vchip->cmd.len);
+				byte = *(char *) vchip->ofs;
 			}
 			else {
-				if(vchip->ofs + vchip->cmd.len < vchip_n) {
-					for(int i = 0; i < vchip->cmd.len; i ++) {
-						x = vchip_ro[vchip->ofs + i];
-						y = vchip_ri[vchip->ofs + i];
-						s = vchip_az[vchip->ofs + i];
-						byte = ((x ^ y) & s) | (x & (~ s));
-						vchip->dat[i] = byte;
-					}
+				if(vchip->ofs + vchip->n  < vchip_n) {
+					x = vchip_ro[vchip->ofs + vchip->n];
+					y = vchip_ri[vchip->ofs + vchip->n];
+					s = vchip_az[vchip->ofs + vchip->n];
+					byte = ((x ^ y) & s) | (x & (~ s));
+
 				}
-				else {
-					memset(vchip->dat, 0xff, vchip->cmd.len);
-				}
+				else
+					byte = 0x01;
+			}
+			vchip->dat[vchip->n] = byte;
+			vchip->txd = vchip->dat + vchip->n;
+			if(vchip->n + 1 == vchip->cmd.len) {
+				vchip_reset(vchip);
 			}
 		}
-
-		if(vchip->n < vchip->cmd.len) {
-			vchip->txd = vchip->dat + vchip->n;
-		}
+		else
+			vchip_reset(vchip);
 		break;
 	default:
 		vchip_reset(vchip);
@@ -189,10 +188,11 @@ int vchip_outl(const vchip_slave_t *slave, unsigned addr, unsigned value)
 		__wdat(slave, &value, 4);
 		__rdat(slave, &ecode, 1);
 	}
+	ecode = (ecode == 0) ? 1 : ecode;
 	return (ecode == ECODE_OK) ? 0 : ecode;
 }
 
-int vchip_inl(const vchip_slave_t *slave, unsigned addr, unsigned *value)
+int vchip_inl(const vchip_slave_t *slave, unsigned addr, void *value)
 {
 	char ecode;
 	__wcmd(slave, VCHIP_AR);
@@ -202,5 +202,6 @@ int vchip_inl(const vchip_slave_t *slave, unsigned addr, unsigned *value)
 		__wcmd(slave, VCHIP_RL);
 		__rdat(slave, value, 4);
 	}
+	ecode = (ecode == 0) ? 1 : ecode;
 	return (ecode == ECODE_OK) ? 0 : ecode;
 }
