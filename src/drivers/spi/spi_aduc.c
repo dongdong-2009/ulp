@@ -6,6 +6,8 @@
 #include "aduc706x.h"
 #include "spi.h"
 
+//#define CONFIG_SPI_DEBUG
+
 typedef union {
 	struct spi_config_s {
 		unsigned SPIEN : 1; /*spi enable*/
@@ -56,6 +58,11 @@ static struct {
 #include "common/vchip.h"
 static vchip_t vchip;
 
+#ifdef CONFIG_SPI_DEBUG
+#include "common/circbuf.h"
+circbuf_t fifo;
+#endif
+
 void SPI_IRQHandler(void)
 {
 	char byte;
@@ -65,9 +72,12 @@ void SPI_IRQHandler(void)
 	if(status.SPIRXIRQ) {
 		while(status.SPIRXFSTA > 0) {
 			byte = SPIRX;
+#ifdef CONFIG_SPI_DEBUG
+			buf_push(&fifo, &byte, 1);
+#endif
 			vchip.rxd = &byte;
 			vchip_update(&vchip);
-			if((vchip.flag_soh == 1) && (vchip.flag_cmd == 0)) {
+			if(0){//(vchip.flag_soh == 1) && (vchip.flag_cmd == 0)) {
 				//FLUSH TX
 				SPICON |= (1 << 13);
 				SPICON &= ~(1 << 13);
@@ -75,8 +85,8 @@ void SPI_IRQHandler(void)
 			if(vchip.txd != NULL) {
 				byte = *vchip.txd;
 				SPITX = byte;
+				vchip.txd = NULL;
 			}
-
 			status.value = SPISTA;
 		}
 	}
@@ -85,6 +95,7 @@ void SPI_IRQHandler(void)
 
 static int spi_Init(const spi_cfg_t *spi_cfg)
 {
+	SPICON = 0; //disable 1st to avoid garbage
 #ifdef CONFIG_SPI_CS_SOFT
 	spi_flag.csel = spi_cfg -> csel;
 #endif
@@ -138,7 +149,7 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 		.SPIMDE = 0,
 	};
 
-	spi_config.SPICPH = !spi_cfg->cpha;
+	spi_config.SPICPH = spi_cfg->cpha;
 	spi_config.SPICPO = spi_cfg->cpol;
 	spi_config.SPILF = !spi_cfg->bseq;
 	SPICON = spi_config.value;
@@ -151,8 +162,10 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 		} while((hz > spi_cfg -> freq) && (div < 256));
                 SPIDIV = (char) div;
 	}
-
 #ifdef CONFIG_SPI_VCHIP
+	#ifdef CONFIG_SPI_DEBUG
+	buf_init(&fifo, 32);
+	#endif
 	vchip_reset(&vchip);
 	IRQEN |= IRQ_SPI;
 #endif
