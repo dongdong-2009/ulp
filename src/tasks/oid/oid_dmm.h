@@ -36,10 +36,10 @@ struct dmm_reg_s {
 		int value;
 	} mode;
 
-	#define DMM_REG_DATA	1
+	#define DMM_REG_DATA	4
 	int value; /*R/W*/
 
-	#define DMM_REG_ADC	2
+	#define DMM_REG_ADC	8
 	union {
 		struct dmm_adc_s {
 			int iexc_uA: 16; /*0-1000*/
