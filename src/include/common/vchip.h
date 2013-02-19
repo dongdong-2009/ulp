@@ -18,11 +18,6 @@
 #define __VCHIP_H_
 
 enum {
-	VCHIP_OK = 0x01, /*note: 0x00 is the spi default output value*/
-	VCHIP_FAIL,
-};
-
-enum {
 	VCHIP_AA, /*+4 bytes absolute address*/
 	VCHIP_AR, /*+2 bytes relative address*/
 	VCHIP_W,
@@ -51,17 +46,18 @@ typedef struct {
 	char flag_soh : 1; /*SOH byte is received*/
 	char flag_cmd : 1; /*CMD byte is received*/
 	char flag_esc : 1;
+	char flag_abs : 1; /*absolute addr mode*/
 	char n : 4; /*dat length*/
 	char dat[15];
 	char ecode;
-	char *adr; /*current access pointer*/
+	unsigned ofs; /*current access pointer*/
 
 	/*public*/
 	char *rxd; /*!!! byte newly received, or NULL if none*/
 	char *txd; /*!!! byte to be send, or NULL if none*/
 } vchip_t;
 
-void vchip_init(void *mmr);
+void vchip_init(void *ri, const void *ro, const void *az, int n);
 void vchip_reset(vchip_t *vchip);
 void vchip_update(vchip_t *vchip);
 

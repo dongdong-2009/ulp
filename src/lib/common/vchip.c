@@ -11,10 +11,17 @@ enum {
 	ECODE_FAIL,
 };
 
-static unsigned vchip_base;
-void vchip_init(void *mmr)
+static char *vchip_ri;
+static const char *vchip_ro;
+static const char *vchip_az;
+unsigned vchip_n = 0;
+
+void vchip_init(void *ri, const void *ro, const void *az, int n)
 {
-	vchip_base = (unsigned) mmr;
+	vchip_ri = ri;
+	vchip_ro = ro;
+	vchip_az = az;
+	vchip_n = n;
 }
 
 void vchip_reset(vchip_t *vchip)
@@ -34,7 +41,7 @@ static inline void vchip_soh(vchip_t *vchip)
 
 void vchip_update(vchip_t *vchip)
 {
-	char byte;
+	char byte, x, y, s;
 	if(vchip->rxd != NULL) {
 		byte = *(vchip->rxd);
 		if((byte == VCHIP_SOH) && (vchip->flag_esc == 0)) {
@@ -69,7 +76,8 @@ void vchip_update(vchip_t *vchip)
 		if(vchip->n == 2) {
 			unsigned short ofs = 0;
 			memcpy(&ofs, vchip->dat, 2);
-			vchip->adr = (char *) (vchip_base + ofs);
+			vchip->ofs = ofs;
+			vchip->flag_abs = 0;
 			vchip_reset(vchip);
 			vchip->ecode = ECODE_OK;
 			vchip->txd = &vchip->ecode;
@@ -79,7 +87,8 @@ void vchip_update(vchip_t *vchip)
 		if(vchip->n == 4) {
 			unsigned adr;
 			memcpy(&adr, vchip->dat, 4);
-			vchip->adr = (char *) adr;
+			vchip->ofs = adr;
+			vchip->flag_abs = 1;
 			vchip_reset(vchip);
 			vchip->ecode = ECODE_OK;
 			vchip->txd = &vchip->ecode;
@@ -87,15 +96,45 @@ void vchip_update(vchip_t *vchip)
 		break;
 	case VCHIP_W:
 		if(vchip->n == vchip->cmd.len) { //do write here
-			memcpy(vchip->adr, vchip->dat, vchip->cmd.len);
-			vchip_reset(vchip);
 			vchip->ecode = ECODE_OK;
+			if(vchip->flag_abs) {
+				memcpy((char *) vchip->ofs, vchip->dat, vchip->cmd.len);
+			}
+			else {
+				if(vchip->ofs + vchip->n < vchip_n) {
+					for(int i = 0; i < vchip->n; i ++) {
+						x = vchip->dat[i];
+						y = vchip_ri[vchip->ofs + i];
+						s = vchip_az[vchip->ofs + i];
+						byte = ((x ^ y) & s) | (x & (~ s));
+						vchip_ri[vchip->ofs + i] = byte;
+					}
+				}
+				else vchip->ecode = ECODE_FAIL;
+			}
+			vchip_reset(vchip);
 			vchip->txd = &vchip->ecode;
 		}
 		break;
 	case VCHIP_R:
 		if(vchip->n == 0) {
-			memcpy(vchip->dat, vchip->adr , vchip->cmd.len);
+			if(vchip->flag_abs) {
+				memcpy(vchip->dat, (char *) vchip->ofs, vchip->cmd.len);
+			}
+			else {
+				if(vchip->ofs + vchip->cmd.len < vchip_n) {
+					for(int i = 0; i < vchip->cmd.len; i ++) {
+						x = vchip_ro[vchip->ofs + i];
+						y = vchip_ri[vchip->ofs + i];
+						s = vchip_az[vchip->ofs + i];
+						byte = ((x ^ y) & s) | (x & (~ s));
+						vchip->dat[i] = byte;
+					}
+				}
+				else {
+					memset(vchip->dat, 0xff, vchip->cmd.len);
+				}
+			}
 		}
 
 		if(vchip->n < vchip->cmd.len) {
