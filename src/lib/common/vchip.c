@@ -188,8 +188,14 @@ int vchip_outl(const vchip_slave_t *slave, unsigned addr, unsigned value)
 		__wdat(slave, &value, 4);
 		__rdat(slave, &ecode, 1);
 	}
-	ecode = (ecode == 0) ? 1 : ecode;
-	return (ecode == ECODE_OK) ? 0 : ecode;
+
+	if(ecode == 0) {
+		ecode = 1;
+	}
+	else {
+		ecode = (ecode == ECODE_OK) ? 0 : ecode;
+	}
+	return  ecode;
 }
 
 int vchip_inl(const vchip_slave_t *slave, unsigned addr, void *value)
@@ -202,6 +208,12 @@ int vchip_inl(const vchip_slave_t *slave, unsigned addr, void *value)
 		__wcmd(slave, VCHIP_RL);
 		__rdat(slave, value, 4);
 	}
-	ecode = (ecode == 0) ? 1 : ecode;
-	return (ecode == ECODE_OK) ? 0 : ecode;
+
+	if(ecode == 0) {
+		ecode = 1;
+	}
+	else {
+		ecode = (ecode == ECODE_OK) ? 0 : ecode;
+	}
+	return  ecode;
 }
