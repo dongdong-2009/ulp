@@ -109,7 +109,6 @@ void vchip_update(vchip_t *vchip)
 						vchip_ri[vchip->ofs + i] = byte;
 					}
 				}
-				else vchip->ecode = ECODE_FAIL;
 			}
 			vchip_reset(vchip);
 			vchip->txd = &vchip->ecode;

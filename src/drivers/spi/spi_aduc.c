@@ -60,7 +60,8 @@ static vchip_t vchip;
 
 #ifdef CONFIG_SPI_DEBUG
 #include "common/circbuf.h"
-circbuf_t fifo;
+circbuf_t rxfifo;
+circbuf_t txfifo;
 #endif
 
 void SPI_IRQHandler(void)
@@ -73,7 +74,7 @@ void SPI_IRQHandler(void)
 		while(status.SPIRXFSTA > 0) {
 			byte = SPIRX;
 #ifdef CONFIG_SPI_DEBUG
-			buf_push(&fifo, &byte, 1);
+			buf_push(&rxfifo, &byte, 1);
 #endif
 			vchip.rxd = &byte;
 			vchip_update(&vchip);
@@ -86,6 +87,9 @@ void SPI_IRQHandler(void)
 				byte = *vchip.txd;
 				SPITX = byte;
 				vchip.txd = NULL;
+#ifdef CONFIG_SPI_DEBUG
+				buf_push(&txfifo, &byte, 1);
+#endif
 			}
 			status.value = SPISTA;
 		}
@@ -137,7 +141,7 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 		.SPIWOM = 0,
 		.SPILF = 0,
 		.SPITMDE = 0, /*always in receive mode!!!*/
-		.SPIZEN = 1,
+		.SPIZEN = 0,
 
 		.SPIROW = 1,
 		.SPIOEN = 1,
@@ -164,7 +168,8 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	}
 #ifdef CONFIG_SPI_VCHIP
 	#ifdef CONFIG_SPI_DEBUG
-	buf_init(&fifo, 32);
+	buf_init(&rxfifo, 16);
+	buf_init(&txfifo, 16);
 	#endif
 	vchip_reset(&vchip);
 	IRQEN |= IRQ_SPI;
