@@ -20,19 +20,22 @@
 
 #define vth_max	((1 << 23) * 0.6)
 #define vth_min ((1 << 23) * 0.4)
+#define RELAY_V_MODE() do {GP2SET = 1 << (16 + 0);} while(0)
+#define RELAY_R_MODE() do {GP2CLR = 1 << (16 + 0);} while(0)
 
 static struct dmm_reg_s dmm_ri, dmm_ro;
 /*mask all the auto clear bit, special operation will be done inside vchip.c*/
 static const struct dmm_reg_s dmm_az = {
 	.mode.cal = 1,
 	.mode.clr = 1,
+	.mode.dac = 1,
 };
 
 void reg_init(void)
 {
 	memset(&dmm_ri, 0x00, sizeof(dmm_ri));
 	memset(&dmm_ro, 0x00, sizeof(dmm_ro));
-	dmm_ri.mode.bank = DMM_R_SHORT;
+	dmm_ri.mode.bank = DMM_R_AUTO;
 	vchip_init(&dmm_ri, &dmm_ro, &dmm_az, sizeof(dmm_ro));
 
 	/*copy from mbi5025, both of them use the same spi bus except signal cs*/
@@ -60,7 +63,6 @@ int reg_update(void)
 #endif
 
 	if(dmm_ri.mode.bank != dmm_ro.mode.bank) {
-		dmm_ro.mode.bank = dmm_ri.mode.bank;
 		dmm_ro.mode.ready = 0;
 		exit = 1;
 	}
@@ -75,6 +77,12 @@ int reg_update(void)
 		dmm_ro.mode.ready = 0;
 	}
 
+	if(dmm_ri.mode.dac != dmm_ro.mode.dac) {
+		DACDAT = DMM_UV_TO_D(dmm_ri.value); //default 1V
+		dmm_ro.mode.dac = dmm_ri.mode.dac;
+		dmm_ro.mode.ready = 0;
+	}
+
 	return exit;
 }
 
@@ -83,6 +91,9 @@ int dmm_measure(unsigned adc, int *value)
 	int ecode = 0;
 	do {
 		ecode = aduc_adc_get(adc, value);
+		#ifdef CONFIG_POLAR_SWAP
+		*value = -(*value);
+		#endif
 		sys_update();
 		if(reg_update()) {
 			//forced quit, ecode > 0
@@ -91,9 +102,6 @@ int dmm_measure(unsigned adc, int *value)
 		}
 	} while(ecode > 0);
 
-	#ifdef CONFIG_POLAR_SWAP
-	*value = -(*value);
-	#endif
 	/*0->OK, 1->QUIT, -1->OVERRANGE*/
 	return ecode;
 }
@@ -264,6 +272,10 @@ char dmm_cal(char bank, int value)
 
 void dmm_init(void)
 {
+	//p2.0 voltage<1>/resistor<0> mode switch
+	GP2DAT |= 1 << (24 + 0); //DIR = OUT
+	DACCON = (1 << 4); //12bit mode, 0~1V2
+	DACDAT = DMM_UV_TO_D(1000*1000); //default 1V
 }
 
 void dmm_update(void)
@@ -274,18 +286,27 @@ void dmm_update(void)
 		dmm_ro.mode.ready = 1;
 	};
 
+	if(dmm_ri.mode.bank != dmm_ro.mode.bank) {
+		dmm_ro.mode.bank = dmm_ri.mode.bank;
+		dmm_ro.mode.ready = 0;
+	}
+
 	char bank = dmm_ro.mode.bank;
 	switch(bank) {
 	case DMM_V_AUTO:
+		RELAY_V_MODE();
 		dmm_measure_v_auto();
 		break;
 	case DMM_R_AUTO:
+		RELAY_R_MODE();
 		dmm_measure_r_auto();
 		break;
 	case DMM_R_SHORT:
+		RELAY_R_MODE();
 		dmm_measure_r_short();
 		break;
 	case DMM_R_OPEN:
+		RELAY_R_MODE();
 		dmm_measure_r_open();
 		break;
 	default:

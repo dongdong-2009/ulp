@@ -1,5 +1,7 @@
 /*
  * 	miaofng@2013 initial version
+ *	risk note:
+ *	- bank switch need an settling time dueto relay factor & auto range search
  */
 
 #ifndef __OID_H__
@@ -35,6 +37,7 @@ struct dmm_reg_s {
 			char ready : 1; /*R, new data ready to use*/
 			char clr : 1; /*W, clear ready flag*/
 			char over : 1; /*R, over-range*/
+			char dac : 1; /*W, adjust dac output*/
 		};
 		int value;
 	} mode;
@@ -42,5 +45,7 @@ struct dmm_reg_s {
 	#define DMM_REG_DATA	4
 	int value; /*R/W*/
 };
+
+#define DMM_UV_TO_D(d) ((d) * (int)((4096.0 * 65536) / 1000 / 1200))
 
 #endif
