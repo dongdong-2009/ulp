@@ -53,12 +53,19 @@ int reg_update(void)
 	int exit = 0;
 
 #ifdef CONFIG_SPI_DEBUG
-	extern circbuf_t fifo;
-	if(buf_size(&fifo) > 0) {
-		mdelay(100);
+	extern circbuf_t rxfifo;
+	extern circbuf_t txfifo;
+	if(buf_size(&rxfifo) > 0) {
+		mdelay(50);
 		char byte;
-		buf_pop(&fifo, &byte, 1);
+		buf_pop(&rxfifo, &byte, 1);
 		printf("0x%02x ", ((unsigned)byte) & 0xff);
+	}
+	if(buf_size(&txfifo) > 0) {
+		mdelay(50);
+		char byte;
+		buf_pop(&txfifo, &byte, 1);
+		printf("[0x%02x] ", ((unsigned)byte) & 0xff);
 	}
 #endif
 
