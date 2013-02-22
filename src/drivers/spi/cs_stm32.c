@@ -86,6 +86,18 @@ int spi_cs_init(void)
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 #endif
 
+#ifdef CONFIG_SPI_CS_PB6
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+#endif
+
+#ifdef CONFIG_SPI_CS_PB7
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+#endif
+
 #ifdef CONFIG_SPI_CS_PD12
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
@@ -141,6 +153,18 @@ int spi_cs_set(int addr, int level)
 #ifdef CONFIG_SPI_CS_PB1
 	if(addr == SPI_CS_PB1) {
 		GPIO_WriteBit(GPIOB, GPIO_Pin_1, ba);
+	}
+#endif
+
+#ifdef CONFIG_SPI_CS_PB6
+	if(addr == SPI_CS_PB6) {
+		GPIO_WriteBit(GPIOB, GPIO_Pin_6, ba);
+	}
+#endif
+
+#ifdef CONFIG_SPI_CS_PB7
+	if(addr == SPI_CS_PB7) {
+		GPIO_WriteBit(GPIOB, GPIO_Pin_7, ba);
 	}
 #endif
 
