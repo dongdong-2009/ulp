@@ -70,8 +70,10 @@ int reg_update(void)
 #endif
 
 	if(dmm_ri.mode.bank != dmm_ro.mode.bank) {
-		dmm_ro.mode.ready = 0;
-		exit = 1;
+		if(dmm_ri.mode.bank != DMM_KEEP) {
+			dmm_ro.mode.ready = 0;
+			exit = 1;
+		}
 	}
 
 	if(dmm_ri.mode.cal != dmm_ro.mode.cal) {
@@ -80,7 +82,7 @@ int reg_update(void)
 	}
 
 	if(dmm_ri.mode.clr != dmm_ro.mode.clr) {
-		dmm_ro.mode.clr = dmm_ro.mode.clr;
+		dmm_ro.mode.clr = dmm_ri.mode.clr;
 		dmm_ro.mode.ready = 0;
 	}
 
@@ -203,6 +205,7 @@ void dmm_measure_r_auto(void)
 		mohm <<= now.pga1;
 		mohm /= v1;
 		mohm >>= now.pga0;
+		mohm = (mohm < 0) ? - mohm : mohm;
 		dmm_ro.mode.ready = 1;
 		dmm_ro.mode.over = (ov0 || ((mohm >> 32) != 0)) ? 1 : 0;
 		dmm_ro.value = (dmm_ro.mode.over) ? 0x7fffffff : mohm;
@@ -233,6 +236,7 @@ void dmm_measure_r_short(void)
 		mohm <<= cfg.pga1;
 		mohm /= v1;
 		mohm >>= cfg.pga0;
+		mohm = (mohm < 0) ? - mohm : mohm;
 		dmm_ro.mode.ready = 1;
 		dmm_ro.mode.over = (ov0 || ((mohm >> 32) != 0)) ? 1 : 0;
 		dmm_ro.value = (dmm_ro.mode.over) ? 0x7fffffff : mohm;
@@ -266,6 +270,7 @@ void dmm_measure_r_open(void)
 		mohm <<= cfg1.pga0;
 		mohm /= v1;
 		mohm >>= cfg0.pga0;
+		mohm = (mohm < 0) ? - mohm : mohm;
 		dmm_ro.mode.ready = 1;
 		dmm_ro.mode.over = (ov0 || ((mohm >> 32) != 0)) ? 1 : 0;
 		dmm_ro.value = (dmm_ro.mode.over) ? 0x7fffffff : mohm;
@@ -294,8 +299,10 @@ void dmm_update(void)
 	};
 
 	if(dmm_ri.mode.bank != dmm_ro.mode.bank) {
-		dmm_ro.mode.bank = dmm_ri.mode.bank;
-		dmm_ro.mode.ready = 0;
+		if(dmm_ri.mode.bank != DMM_KEEP) {
+			dmm_ro.mode.bank = dmm_ri.mode.bank;
+			dmm_ro.mode.ready = 0;
+		}
 	}
 
 	char bank = dmm_ro.mode.bank;

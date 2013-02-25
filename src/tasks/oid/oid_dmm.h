@@ -20,6 +20,7 @@ enum {
 	DMM_R_OPEN, /*rough&fast, range: 0~120Kohm (I=10uA, G=1)*/
 	/*pls add more mode here to keep history compatibility*/
 	DMM_OFF = 0x30,
+	DMM_KEEP = 0x00,
 };
 
 /* calibration procedure:
