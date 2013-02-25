@@ -40,7 +40,7 @@ static inline void vchip_soh(vchip_t *vchip)
 
 void vchip_update(vchip_t *vchip)
 {
-	char byte, x, y, s;
+	unsigned char byte, x, y, s;
 	if(vchip->rxd != NULL) {
 		byte = *(vchip->rxd);
 		if((byte == VCHIP_SOH) && (vchip->flag_esc == 0)) {
@@ -154,9 +154,9 @@ static int __wcmd(const vchip_slave_t *slave, char cmd)
 
 static int __wdat(const vchip_slave_t *slave, const void *buf, int n)
 {
-	const char *p = buf;
+	const unsigned char *p = buf;
 	for(int i = 0; i < n; i ++) {
-		char byte = p[i];
+		unsigned char byte = p[i];
 		if((byte == VCHIP_SOH) || (byte == VCHIP_ESC)) {
 			slave->wb(VCHIP_ESC);
 		}
