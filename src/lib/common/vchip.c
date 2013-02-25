@@ -40,7 +40,7 @@ static inline void vchip_soh(vchip_t *vchip)
 
 void vchip_update(vchip_t *vchip)
 {
-	char byte, x, y, s;
+	unsigned char byte, x, y, s;
 	if(vchip->rxd != NULL) {
 		byte = *(vchip->rxd);
 		if((byte == VCHIP_SOH) && (vchip->flag_esc == 0)) {
@@ -154,9 +154,9 @@ static int __wcmd(const vchip_slave_t *slave, char cmd)
 
 static int __wdat(const vchip_slave_t *slave, const void *buf, int n)
 {
-	const char *p = buf;
+	const unsigned char *p = buf;
 	for(int i = 0; i < n; i ++) {
-		char byte = p[i];
+		unsigned char byte = p[i];
 		if((byte == VCHIP_SOH) || (byte == VCHIP_ESC)) {
 			slave->wb(VCHIP_ESC);
 		}
@@ -187,8 +187,14 @@ int vchip_outl(const vchip_slave_t *slave, unsigned addr, unsigned value)
 		__wdat(slave, &value, 4);
 		__rdat(slave, &ecode, 1);
 	}
-	ecode = (ecode == 0) ? 1 : ecode;
-	return (ecode == ECODE_OK) ? 0 : ecode;
+
+	if(ecode == 0) {
+		ecode = 1;
+	}
+	else {
+		ecode = (ecode == ECODE_OK) ? 0 : ecode;
+	}
+	return  ecode;
 }
 
 int vchip_inl(const vchip_slave_t *slave, unsigned addr, void *value)
@@ -201,6 +207,12 @@ int vchip_inl(const vchip_slave_t *slave, unsigned addr, void *value)
 		__wcmd(slave, VCHIP_RL);
 		__rdat(slave, value, 4);
 	}
-	ecode = (ecode == 0) ? 1 : ecode;
-	return (ecode == ECODE_OK) ? 0 : ecode;
+
+	if(ecode == 0) {
+		ecode = 1;
+	}
+	else {
+		ecode = (ecode == ECODE_OK) ? 0 : ecode;
+	}
+	return  ecode;
 }

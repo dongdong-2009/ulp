@@ -15,3 +15,4 @@ obj-$(CONFIG_COMMON_PID) += pid.o
 
 obj-y += debounce.o
 obj-$(CONFIG_COMMON_VCHIP) += vchip.o
+obj-$(CONFIG_COMMON_TSTEP) += tstep.o
