@@ -4,8 +4,12 @@
 
 #include "gui/gui.h"
 #include <stdio.h>
-#include "oid_gui.h"
+#include "oid.h"
 #include "string.h"
+#include "ulp/sys.h"
+
+struct oid_gui_s gui;
+static char str[16]; /*str buffer for snprintf*/
 
 static gwidget *main_window;
 static gwidget *fixed;
@@ -22,63 +26,57 @@ static gwidget *button_ecode2;
 
 static unsigned cmap_ecode[] = GUI_COLORMAP_NEW(RED, WHITE);
 static unsigned cmap_tcode[] = GUI_COLORMAP_NEW(GREEN, WHITE);
-static unsigned cmap_kcode[] = GUI_COLORMAP_NEW(RGB(0xf0, 0xf0, 0xf0), WHITE);
+static unsigned cmap_kcode[] = GUI_COLORMAP_NEW(RGB(0xe0, 0xe0, 0xe0), WHITE);
 
 static int main_identify_on_event(gwidget *widget, gevent *event)
 {
 	static char str[5];
 	if(event->type == GUI_TOUCH_BEGIN) {
-		printf("x = %d, y = %d\n", event->ts.x, event->ts.y);
+		//printf("x = %d, y = %d\n", event->ts.x, event->ts.y);
 		if(gui_widget_touched(widget, event)) {
 			if(widget == button_lines) {
-				if(oid_stm == IDLE) {
-					oid_config.lines = (oid_config.lines < 4) ? (oid_config.lines + 1) : 1;
-					sprintf(str, "%d", oid_config.lines);
+				if(oid.lock == 0) {
+					oid.lines = (oid.lines < 4) ? (oid.lines + 1) : 1;
+					sprintf(str, "%d", oid.lines);
 					gui_widget_set_text(widget, str);
 				}
 			}
 			else if(widget == button_ground) {
-				if(oid_stm == IDLE) {
-					switch(oid_config.ground[0]) {
+				if(oid.lock == 0) {
+					char *p;
+					switch(gui.gnd) {
 					case '?':
-						oid_config.ground = "N";
+						gui.gnd = 0;
+						p = "N";
 						break;
-					case 'N':
-						oid_config.ground = "Y";
+					case 0:
+						gui.gnd = 1;
+						p = "Y";
 						break;
 					default:
-						oid_config.ground = "?";
+						gui.gnd = '?';
+						p = "?";
 						break;
 					}
-					gui_widget_set_text(widget, oid_config.ground);
+					gui_widget_set_text(widget, p);
 				}
 			}
 			else if(widget == button_mode_dg) {
-				if(oid_stm == IDLE) {
-					oid_config.mode = 'd';
+				if(oid.lock == 0) {
+					oid.mode = 'd';
 					gui_widget_set_text(button_mode_id, " ");
 					gui_widget_set_text(button_mode_dg, "<");
 				}
-				else {
-					if(oid_config.mode == 'd') {
-						oid_config.pause = !oid_config.pause;
-					}
-				}
 			}
 			else if(widget == button_mode_id) {
-				if(oid_stm == IDLE) {
-					oid_config.mode = 'i';
+				if(oid.lock == 0) {
+					oid.mode = 'i';
 					gui_widget_set_text(button_mode_id, "<");
 					gui_widget_set_text(button_mode_dg, " ");
 				}
-				else {
-					if(oid_config.mode == 'i') {
-						oid_config.pause = !oid_config.pause;
-					}
-				}
 			}
 			else if(widget == button_start) {
-				oid_config.start = 1;
+				oid.start = 1;
 			}
 			else {
 			/*
@@ -105,11 +103,11 @@ static void main_window_init(void)
 	button_mode_id = gui_button_new_with_label("<");
 	button_mode_dg = gui_button_new_with_label(" ");
 	button_start = gui_button_new();
-	button_keycode = gui_button_new_with_label("--");
-	button_typecode = gui_button_new_with_label("--");
-	button_ecode0 = gui_button_new_with_label("--");
-	button_ecode1 = gui_button_new_with_label("--");
-	button_ecode2 = gui_button_new_with_label("--");
+	button_keycode = gui_button_new_with_label(" -- ");
+	button_typecode = gui_button_new_with_label(" -- ");
+	button_ecode0 = gui_button_new_with_label(" -- ");
+	button_ecode1 = gui_button_new_with_label(" -- ");
+	button_ecode2 = gui_button_new_with_label(" -- ");
 
 	gui_widget_set_colormap(button_keycode, cmap_kcode);
 	gui_widget_set_colormap(button_typecode, cmap_tcode);
@@ -150,71 +148,46 @@ static void main_window_init(void)
 	gui_window_show(main_window);
 }
 
-void oid_gui_init(void)
+void gui_progress_update(void)
 {
-	gui_init(NULL);
-	main_window_init();
-	gui_update(); //to disp the main window asap
-}
-
-void oid_show_progress(int value)
-{
-	char buf[4];
-	char *str;
-	static char wait = 0;
-	gwidget *widget = (oid_config.mode == 'i') ? button_mode_id : button_mode_dg;
-	switch(value) {
-	case PROGRESS_START:
-		wait = 0;
-	case PROGRESS_BUSY:
-		switch(wait) {
-		case 0:
-			str = ">";
-			wait = 1;
-			break;
-
-		case 1:
-			str = ">>";
-			wait = 2;
-			break;
-
-		default:
-			str = ">>>";
-			wait = 0;
+	gwidget *widget = (oid.mode == 'i') ? button_mode_id : button_mode_dg;
+	if(oid.lock != gui.lock) {
+		gui.lock = oid.lock;
+		if(gui.lock == 0) { //resume '<'
+			char *p = "<";
+			gui_widget_set_text(widget, p);
+			return;
 		}
-		break;
-
-	case PROGRESS_STOP:
-		str = "<";
-		break;
-
-	default:
-		sprintf(buf, "%d", value);
-		str = buf;
-		break;
 	}
 
-	gui_widget_set_text(widget, str);
+	if(oid.lock == 0) { //controlled by event loop
+		return;
+	}
+
+	if(oid.scnt != gui.scnt) { //display digit
+		gui.scnt = oid.scnt;
+		sprintf(str, "%d", gui.scnt);
+		gui_widget_set_text(widget, str);
+		return;
+	}
+
+	if(oid.scnt == 0) {
+		if(time_left(gui.timer) < 0) {
+			gui.timer = time_get(1000);
+			gui.pbar ++;
+			gui.pbar = (gui.pbar < 3) ? gui.pbar : 0;
+			
+			char *p = ">";
+			p = (gui.pbar == 0) ? ">  " : p;
+			p = (gui.pbar == 1) ? ">> " : p;
+			p = (gui.pbar == 2) ? ">>>" : p;
+			gui_widget_set_text(widget, p);
+		}
+	}
 }
 
-void oid_show_result(int tcode, int kcode)
+static void gui_error_update(int show)
 {
-	char buf[7];
-	char *str;
-	snprintf(buf, 7, "%04x", (kcode >> 8) &0xffff);
-	str = (kcode == 0) ? "--" : buf;
-	gui_widget_set_text(button_keycode, str);
-	snprintf(buf, 7, "%04d", tcode%10000);
-	str = (tcode == 0) ? "--" : buf;
-	gui_widget_set_text(button_typecode, str);
-}
-
-/*error handling*/
-static int oid_ecode[3];
-static void oid_error_show(int enable)
-{
-	char str[7];
-	int ecode;
 	gwidget *widget[] = {
 		button_ecode0,
 		button_ecode1,
@@ -222,68 +195,74 @@ static void oid_error_show(int enable)
 	};
 
 	for(int i = 0; i < 3; i ++) {
-		ecode = oid_ecode[i];
-		switch(ecode) {
-		case E_OK:
-			snprintf(str, 7, "--");
-			break;
-
-		case E_UNDEF:
-			snprintf(str, 7, "UNDF%02d", ecode%100);
-			break;
-
-		case E_DMM_INIT:
-			snprintf(str, 7, "DMMI%02d", ecode%100);
-			break;
-
-		case E_MATRIX_INIT:
-			snprintf(str, 7, "MATI%02d", ecode%100);
-			break;
-
-		case E_RES_CAL:
-			snprintf(str, 7, "RCAL%02d", ecode%100);
-			break;
-
-		case E_VOL_CAL:
-			snprintf(str, 7, "VCAL%02d", ecode%100);
-			break;
-
-		default:
-			snprintf(str, 7, "%06d", ecode%1000000);
-		}
-
-		if(!enable) strcpy(str, "      ");
-		gui_widget_set_text(widget[i], str);
-	}
-}
-
-void oid_error_init(void)
-{
-	oid_ecode[0] = E_OK;
-	oid_ecode[1] = E_OK;
-	oid_ecode[2] = E_OK;
-	oid_error_show(1);
-}
-
-void oid_error(int ecode)
-{
-	if(ecode != E_OK) {
-		for(int i = 0; i < 3; i ++) {
-			if(oid_ecode[i] == E_OK) {
-				oid_ecode[i] = ecode;
+		if(oid.ecode[i] != gui.ecode[i]) {
+			int ecode = oid.ecode[i];
+			gui.ecode[i] = ecode;
+			switch(ecode) {
+			case E_OK:
+				snprintf(str, 7, "--");
 				break;
+
+			default:
+				if(ecode & 0xff000000) {
+					ecode -= 0x01000000;
+					snprintf(str, 7, "?%05d", ecode);
+				}
+				else {
+					snprintf(str, 7, "%06x", ecode);
+				}
 			}
+
+			if(show == 0) strcpy(str, "      ");
+			gui_widget_set_text(widget[i], str);
 		}
-		oid_error_show(1);
 	}
 }
 
-void oid_error_flash(void)
+void gui_error_flash(void)
 {
 	for(int i = 0; i < 3; i ++) {
-		oid_error_show(0);
-		oid_mdelay(200);
-		oid_error_show(1);
-		oid_mdelay(100);
+		gui_error_update(0);
+		sys_mdelay(200);
+		gui_error_update(1);
+		sys_mdelay(100);
+	}
+}
+
+void oid_gui_init(void)
+{
+	memset(&gui, 0xff, sizeof(gui));
+	gui.gnd = '?';
+	gui_init(NULL);
+	main_window_init();
+	gui_update(); //to disp the main window asap
+}
+
+void oid_gui_update(void)
+{
+	gui_update();
+	gui_error_update(1);
+	gui_progress_update();
+
+	if(oid.kcode != gui.kcode) {
+		gui.kcode = oid.kcode;
+		sprintf(str, "%04x", gui.kcode);
+		char *p = (gui.kcode == 0) ? " -- " : str;
+		gui_widget_set_text(button_keycode, p);
+	}
+	
+	if(oid.tcode != gui.tcode) {
+		gui.tcode = oid.tcode;
+		sprintf(str, "%04x", gui.tcode);
+		char *p = (gui.tcode == 0) ? " -- " : str;
+		gui_widget_set_text(button_typecode, p);
+	}
+	
+	if(oid.scnt != 0) {
+		if(oid.mv != gui.mv) {
+			gui.mv = oid.mv;
+			sprintf(str, "%04d", gui.mv);
+			gui_widget_set_text(button_keycode, str);
+		}
 	}
 }

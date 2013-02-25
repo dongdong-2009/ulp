@@ -4,8 +4,16 @@
  *	- bank switch need an settling time dueto relay factor & auto range search
  */
 
-#ifndef __OID_H__
-#define __OID_H__
+#ifndef __OID_DMM_H__
+#define __OID_DMM_H__
+
+#define _mohm(x) (x)
+#define _ohm(x) (_mohm(x) * 1000)
+#define _kohm(x) (_ohm(x) * 1000)
+
+#define _uv(x) ((x) * 1000)
+#define _mv(x) (_uv(x) * 1000)
+#define _v(x) (_mv(x) * 1000)
 
 /*dmm bank select, for oid, we'll do open test at first,
 then do r_auto for detail in case it's not open*/
