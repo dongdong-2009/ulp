@@ -125,7 +125,12 @@ PARSER = tkparse.exe
 
 export PARSER
 
-xconfig: $(PARSER)
+config_help:
+	@echo "#auto generated, please do not edit me!!!" > config.help
+	@echo "generationg file config.help, please wait ...";
+	@cat `find src/ -name config.help` >>  config.help
+
+xconfig: $(PARSER) config_help
 	@$(TKSCRIPTS_DIR)/$(PARSER) src/Kconfig > main.tk
 	@cat $(TKSCRIPTS_DIR)/header.tk main.tk $(TKSCRIPTS_DIR)/tail.tk > lconfig.tk
 	@chmod a+x lconfig.tk
@@ -142,6 +147,7 @@ xconfig: $(PARSER)
 			make icf_cfg; \
 		fi \
 	fi
+	@rm -rf config.help
 
 iar_script:
 	@cp $(ULP_DIR)/ulp.ewd $(PRJ_DIR)/bldc.ewd
