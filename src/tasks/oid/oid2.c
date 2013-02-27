@@ -205,6 +205,12 @@ static int oid_identify(void)
 		n_error_events += n_wire - 1;
 		oid_error(E_WIRE_MORE + n_wire);
 	}
+	else if(n_wire < 1) {
+		if(oid.lines > 2) {
+			n_error_events ++;
+			oid_error(E_OPEN_WHITE_WHITE);
+		}
+	}
 	else {
 		if(oid.lines < 3) {
 			n_error_events ++;
