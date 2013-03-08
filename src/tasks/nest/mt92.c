@@ -10,6 +10,7 @@
 #include "chips/difo.h"
 
 #define CND_PERIOD	15 //unit: miniutes
+#undef MT92_HALF_TEST
 
 #define VECTOR_SW_VERSION	0x80170000
 #define VECTOR_FLASH_WRITE	0x80170004
@@ -385,8 +386,11 @@ static void CyclingTest(void)
 	int fail, min, deadline;
 	if(nest_fail())
 		return;
+
+#ifdef MT92_HALF_TEST
 	if((mfg_data.sn[3]) & 0x01) //do half of dut
 		return;
+#endif
 
 	//cyc ign, necessary???
 	if(0) { //!nest_ignore(RLY)) {
@@ -509,6 +513,14 @@ static void CyclingTest(void)
 		//save test result to mfg_data.fb
 		ntoh_array(mailbox.bytes, POLDAT_BYTES);
 		memcpy(mfg_data.fb, mailbox.bytes, sizeof(mfg_data.fb));
+
+		//phdp diag en1/2 on
+		memset(mailbox.bytes, 0, sizeof(mailbox));
+		mailbox.inbox.d4 = htonl(0x03);
+		mcamos_dnload_ex(D4_ADDR, &mailbox.inbox.d4, 4);
+		nest_mdelay(300);
+		mcamos_execute_ex(VECTOR_PHDP_DIAG_EN);
+		nest_mdelay(300);
 
 		if (fail) {
 			nest_error_set(FB_FAIL, "Cycling");
