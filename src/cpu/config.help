@@ -1,0 +1,2 @@
+CONFIG_CPU_CMSIS
+  pls do not enable me if your are using IAR version higher than v6.0
