@@ -17,8 +17,8 @@
 //#define CONFIG_SPI_DEBUG
 #define CONFIG_R_REF 100000 //unit: mohm
 
-#define vth_max	((1 << 23) * 0.6)
-#define vth_min ((1 << 23) * 0.4)
+#define vth_max	((1 << 23) * 0.7)
+#define vth_min ((1 << 23) * 0.3)
 #define RELAY_V_MODE() do {GP2SET = 1 << (16 + 0);} while(0)
 #define RELAY_R_MODE() do {GP2CLR = 1 << (16 + 0);} while(0)
 
