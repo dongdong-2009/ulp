@@ -15,7 +15,6 @@
 #include "aduc_adc.h"
 
 //#define CONFIG_SPI_DEBUG
-#define CONFIG_POLAR_SWAP 1
 #define CONFIG_R_REF 100000 //unit: mohm
 
 #define vth_max	((1 << 23) * 0.6)
@@ -35,7 +34,7 @@ void reg_init(void)
 {
 	memset(&dmm_ri, 0x00, sizeof(dmm_ri));
 	memset(&dmm_ro, 0x00, sizeof(dmm_ro));
-	dmm_ri.mode.bank = DMM_R_AUTO;
+	dmm_ri.mode.bank = DMM_V_AUTO;
 	vchip_init(&dmm_ri, &dmm_ro, &dmm_az, sizeof(dmm_ro));
 
 	/*copy from mbi5025, both of them use the same spi bus except signal cs*/
@@ -100,9 +99,6 @@ int dmm_measure(unsigned adc, int *value)
 	int ecode = 0;
 	do {
 		ecode = aduc_adc_get(adc, value);
-		#ifdef CONFIG_POLAR_SWAP
-		*value = -(*value);
-		#endif
 		sys_update();
 		if(reg_update()) {
 			//forced quit, ecode > 0

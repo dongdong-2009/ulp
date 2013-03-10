@@ -51,14 +51,14 @@ int aduc_adc_get(int adc, int *result)
 	if(adc == 0) {
 		if(status.ADC0RDY) {
 			ecode = - status.ADC0CERR;
-			*result = - ADC0DAT;
+			*result = ADC0DAT;
 		}
 	}
 	else {
 		if(status.ADC1RDY) {
 			ecode = - status.ADC1CERR;
 			ADC0DAT; /*dummy*/
-			*result = - ADC1DAT;
+			*result = ADC1DAT;
 		}
 	}
 
