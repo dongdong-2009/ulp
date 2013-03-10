@@ -20,20 +20,8 @@ void aduc_adc_init(const aduc_adc_cfg_t *cfg)
 	//ADCFLT = 0xc000 | (1 << 7) | 52;//Fadc = 50.3Hz, chop on
 	ADCCFG = 0;
 
-	/*self calibration*/
-	ADC0CON = (1 << 15);
-	ADC1CON = (1 << 15);
-	ADCMDE = (1 << 7) | ADUC_ADC_MODE_ZCAL_SELF;
-	while((ADCSTA & 0x0001) == 0);
-	ADCMDE = (1 << 7) | ADUC_ADC_MODE_GCAL_SELF;
-	while((ADCSTA & 0x0001) == 0);
-
-	//ADC0CON = 0x00;
-	//ADC1CON = 0x00;
-	//sys_mdelay(10);
-
 	if(cfg->adc0) {
-		unsigned v = (1 << 15) | (cfg->mux0 << 6) | cfg->pga0;
+		unsigned v = (1 << 15) | (1 << 11) | (cfg->mux0 << 6) | cfg->pga0;
 		ADC0CON = v; /*enable ADC0*/
 	}
 	if(cfg->adc1) {
@@ -41,12 +29,15 @@ void aduc_adc_init(const aduc_adc_cfg_t *cfg)
 		ADC1CON = v;
 	}
 
-	/*cal*/
-	ADCMDE = (1 << 7) | 4; //self offset calibration
-	//ADCMDE = (1 << 7) | 6; //system offset calibration
+	/*zcal*/
+	ADCMDE = (1 << 7) | ADUC_ADC_MODE_ZCAL_SELF; //self offset calibration
 	while((ADCSTA & 0x8000) == 0);
-	//ADCMDE = (1 << 7) | 5; //self gain calibration
-	//while((ADCSTA & 0x8000) == 0);
+
+	#if 0 /*gain self calibration only valid when PGA=0*/
+	ADCMDE = (1 << 7) | ADUC_ADC_MODE_GCAL_SELF; //self gain calibration
+	while((ADCSTA & 0x8000) == 0);
+	printf("PGA = %d: ADC0OF = %d, ADC0GN = %d\n", cfg->pga0, ADC0OF, ADC0GN);
+	#endif
 
 	ADCMDE = (1 << 7) | ADUC_ADC_MODE_AUTO;
 }
