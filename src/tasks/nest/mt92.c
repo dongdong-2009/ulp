@@ -482,14 +482,6 @@ static void CyclingTest(void)
 	for(min = 0; min < CND_PERIOD; min ++) {
 		//clear faults
 		mcamos_execute_ex(VECTOR_FAULTS_CLEAR);
-		nest_mdelay(300);
-		//phdp diag en1/2 ctrl
-		memset(mailbox.bytes, 0, sizeof(mailbox));
-		mailbox.inbox.d4 = htonl(0x02);
-		mcamos_dnload_ex(D4_ADDR, &mailbox.inbox.d4, 4);
-		nest_mdelay(300);
-		mcamos_execute_ex(VECTOR_PHDP_DIAG_EN);
-		nest_mdelay(300);
 
 		//delay 1 min
 		deadline = nest_time_get(1000 * 60);
@@ -497,6 +489,14 @@ static void CyclingTest(void)
 			nest_update();
 			nest_light(ALL_TOGGLE);
 		}
+
+		//phdp diag en1/2 ctrl
+		memset(mailbox.bytes, 0, sizeof(mailbox));
+		mailbox.inbox.d4 = htonl(0x02);
+		mcamos_dnload_ex(D4_ADDR, &mailbox.inbox.d4, 4);
+		nest_mdelay(300);
+		mcamos_execute_ex(VECTOR_PHDP_DIAG_EN);
+		nest_mdelay(1000);
 
 		nest_message("T = %02d min\n", min);
 		fail = Read_Memory(POLDAT_ADDR, mailbox.bytes, POLDAT_BYTES);
