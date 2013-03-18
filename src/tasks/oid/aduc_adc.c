@@ -20,7 +20,20 @@ void aduc_adc_init(const aduc_adc_cfg_t *cfg)
 	IEXCON = (1 << 6) | (cfg->iexc << 1) | cfg->ua10;
 	ADCFLT = (1 << 7) | 127; //Fadc = 50Hz, chop off
 	//ADCFLT = 0xc000 | (1 << 7) | 52;//Fadc = 50.3Hz, chop on
+	//ADCFLT = 0xc000 | (6 << 8) | (1 << 7) | 60;//AF=8, SF=60, Fadc = 11.9Hz, chop on
 	ADCCFG = 0;
+
+	int mv = cfg->vofs;
+	if(mv >= 1000) {
+		DACCON = (1 << 4) | 0x03; //12bit mode, vref=AVDD=2V5
+		mv = mv * 4095 / 2500;
+		DACDAT = mv << 16;
+	}
+	else if(mv > 0) {
+		DACCON = (1 << 4) | 0x00; //12bit mode, vref=1.2v
+		mv = mv * 4095 / 1200;
+		DACDAT = mv << 16;
+	}
 
 	if(cfg->adc0) {
 		unsigned v = (1 << 15) | (1 << 11) | (cfg->mux0 << 6) | cfg->pga0;

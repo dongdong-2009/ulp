@@ -55,6 +55,7 @@ typedef union {
 		unsigned pga1: 2; //2^N, N=0..3
 		unsigned mux0: 4; //ADC0/ADC1@0, ADC2/ADC3@5
 		unsigned mux1: 4; //ADC2/ADC3@0, TSENSOR@B
+		unsigned vofs: 12; //offset common mode voltage, unit: mv, 0-2500mV
 	};
 	unsigned value;
 } aduc_adc_cfg_t;
