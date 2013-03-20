@@ -115,11 +115,11 @@ void dmm_measure_v_auto(void)
 {
 	aduc_adc_cfg_t new, now = {.adc0 = 1, .adc1 = 0, .iexc = 0, .ua10 = 0, .pga0 = 0, .mux0 = ADUC_MUX0_DCH01};
 	new.value = now.value;
-	aduc_adc_init(&new);
+	aduc_adc_init(&new, ADUC_CAL_NONE);
 
 	while(1) {
 		if(now.value != new.value) {
-			aduc_adc_init(&new);
+			aduc_adc_init(&new, ADUC_CAL_NONE);
 			now.value = new.value;
 		}
 
@@ -149,11 +149,11 @@ void dmm_measure_r_auto(void)
 {
 	aduc_adc_cfg_t new, now = {.adc0 = 1, .adc1 = 1, .iexc = 5, .ua10 = 0, .pga0 = 0, .pga1 = 0, .mux0 = ADUC_MUX0_DCH01, .mux1 = ADUC_MUX1_DCH23};
 	new.value = now.value;
-	aduc_adc_init(&new);
+	aduc_adc_init(&new, ADUC_CAL_NONE);
 
 	while(1) {
 		if(now.value != new.value) {
-			aduc_adc_init(&new);
+			aduc_adc_init(&new, ADUC_CAL_NONE);
 			now.value = new.value;
 		}
 
@@ -212,7 +212,7 @@ void dmm_measure_r_short(void)
 {
 	/*iexc = 1mA, pga0 = 512, pga1 = 8 => VR = 100mV*8 = 800mV */
 	static const aduc_adc_cfg_t cfg = {.adc0 = 1, .adc1 = 1, .iexc = 5, .ua10 = 0, .pga0 = 9, .pga1 = 3, .mux0 = ADUC_MUX0_DCH01, .mux1 = ADUC_MUX1_DCH23};
-	aduc_adc_init(&cfg);
+	aduc_adc_init(&cfg, ADUC_CAL_NONE);
 
 	while(1) {
 		int v0, ov0 = dmm_measure(ADUC_ADC0, &v0);
@@ -247,14 +247,14 @@ void dmm_measure_r_open(void)
 	static const aduc_adc_cfg_t cfg1 = {.adc0 = 1, .adc1 = 0, .iexc = 0, .ua10 = 1, .pga0 = 9, .mux0 = ADUC_MUX0_DCH23};
 
 	while(1) {
-		aduc_adc_init(&cfg0);
+		aduc_adc_init(&cfg0, ADUC_CAL_NONE);
 		int v0, ov0 = dmm_measure(ADUC_ADC0, &v0);
 		if(ov0 > 0) {
 			//forced quit
 			break;
 		}
 
-		aduc_adc_init(&cfg1);
+		aduc_adc_init(&cfg1, ADUC_CAL_NONE);
 		int v1, ov1 = dmm_measure(ADUC_ADC0, &v1);
 		if(ov1 > 0) {
 			//forced quit
@@ -284,6 +284,23 @@ void dmm_init(void)
 	GP2DAT |= 1 << (24 + 0); //DIR = OUT
 	DACCON = (1 << 4); //12bit mode, 0~1V2
 	DACDAT = DMM_UV_TO_D(1000*1000); //default 1V
+	aduc_adc_cfg_t cfg = {.adc0 = 1, .adc1 = 1, .pga0 = 0, .pga1 = 0};
+	aduc_adc_init(&cfg, ADUC_CAL_FULL);
+	#if 0
+	printf("ADC0OF = %d, ADC0GN = %d, ADC1OF = %d, ADC1GN = %d\n", ADC0OF, ADC0GN, ADC1OF, ADC1GN);
+	cfg.adc0 = 0;
+	cfg.adc1 = 0;
+	aduc_adc_init(&cfg, ADUC_CAL_NONE);
+	printf("ADC0OF = %d, ADC0GN = %d, ADC1OF = %d, ADC1GN = %d\n", ADC0OF, ADC0GN, ADC1OF, ADC1GN);
+	cfg.adc0 = 1;
+	cfg.adc1 = 1;
+	aduc_adc_init(&cfg, ADUC_CAL_NONE);
+	printf("ADC0OF = %d, ADC0GN = %d, ADC1OF = %d, ADC1GN = %d\n", ADC0OF, ADC0GN, ADC1OF, ADC1GN);
+	for(int i = 0; i < 10; i ++) {
+		aduc_adc_init(&cfg, ADUC_CAL_FULL);
+		printf("ADC0OF = %d, ADC0GN = %d, ADC1OF = %d, ADC1GN = %d\n", ADC0OF, ADC0GN, ADC1OF, ADC1GN);
+	}
+	#endif
 }
 
 void dmm_update(void)

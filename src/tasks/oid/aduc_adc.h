@@ -60,7 +60,14 @@ typedef union {
 	unsigned value;
 } aduc_adc_cfg_t;
 
-void aduc_adc_init(const aduc_adc_cfg_t *cfg);
+enum {
+	ADUC_CAL_NONE,
+	ADUC_CAL_FULL,
+	ADUC_CAL_ZERO,
+	ADUC_CAL_GAIN,
+};
+
+void aduc_adc_init(const aduc_adc_cfg_t *cfg, int cal);
 /*!!! adc0 must be read before adc1 if it's useful*/
 int aduc_adc_get(int adc, int *value); //0->ok, 1->busy, -1->overrange
 

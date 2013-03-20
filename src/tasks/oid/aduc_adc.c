@@ -14,13 +14,22 @@
 
 #define CONFIG_AVERAGE_FACTOR 0 /*1 << 3, 8 times*/
 
-void aduc_adc_init(const aduc_adc_cfg_t *cfg)
+void aduc_adc_init(const aduc_adc_cfg_t *cfg, int cal)
 {
 	ADCMDE = (1 << 7) | ADUC_ADC_MODE_IDLE; //force adc to idle mode
 	IEXCON = (1 << 6) | (cfg->iexc << 1) | cfg->ua10;
+#if CONFIG_ADUC_50HZ
 	ADCFLT = (1 << 7) | 127; //Fadc = 50Hz, chop off
-	//ADCFLT = 0xc000 | (1 << 7) | 52;//Fadc = 50.3Hz, chop on
-	//ADCFLT = 0xc000 | (6 << 8) | (1 << 7) | 60;//AF=8, SF=60, Fadc = 11.9Hz, chop on
+#endif
+#if CONFIG_ADUC_50HZ_CHOP
+	ADCFLT = 0xc000 | (1 << 7) | 52;//Fadc = 50.3Hz, chop on
+#endif
+#if CONFIG_ADUC_10HZ_CHOP
+	ADCFLT = 0xc000 | (6 << 8) | (1 << 7) | 60;//AF=8, SF=60, Fadc = 11.9Hz, chop on
+#endif
+
+	ADC0CON = 0x00; //disable both adc first
+	ADC1CON = 0x00;
 	ADCCFG = 0;
 
 	int mv = cfg->vofs;
@@ -45,14 +54,16 @@ void aduc_adc_init(const aduc_adc_cfg_t *cfg)
 	}
 
 	/*zcal*/
-	ADCMDE = (1 << 7) | ADUC_ADC_MODE_ZCAL_SELF; //self offset calibration
-	while((ADCSTA & 0x01) == 0);
+	if((cal == ADUC_CAL_ZERO) || (cal == ADUC_CAL_FULL)) {
+		ADCMDE = (1 << 7) | ADUC_ADC_MODE_ZCAL_SELF; //self offset calibration
+		while((ADCSTA & 0x01) == 0);
+	}
 
-	#if 0 /*gain self calibration only valid when PGA=0*/
-	ADCMDE = (1 << 7) | ADUC_ADC_MODE_GCAL_SELF; //self gain calibration
-	while((ADCSTA & 0x01) == 0);
-	printf("PGA = %d: ADC0OF = %d, ADC0GN = %d\n", cfg->pga0, ADC0OF, ADC0GN);
-	#endif
+	/*note: gain self calibration only valid when PGA=0!!!*/
+	if((cal == ADUC_CAL_GAIN) || (cal == ADUC_CAL_FULL)) {
+		ADCMDE = (1 << 7) | ADUC_ADC_MODE_GCAL_SELF; //self gain calibration
+		while((ADCSTA & 0x01) == 0);
+	}
 
 	ADCMDE = (1 << 7) | ADUC_ADC_MODE_AUTO;
 #if CONFIG_AVERAGE_FACTOR
@@ -89,8 +100,8 @@ int aduc_adc_get(int adc, int *result)
 	else {
 		if(status.ADC1RDY) {
 			ecode = - status.ADC1CERR;
-			ADC0DAT; /*dummy*/
 			*result = ADC1DAT;
+                        ADC0DAT; /*dummy*/
 		}
 	}
 
