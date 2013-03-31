@@ -16,3 +16,11 @@ if [ "$CONFIG_OID_MAIN" = "y" -o "$CONFIG_OID_DMM" = "y" ]; then
 		V2.0		CONFIG_OID_HWV2 \
 	" V2.0
 fi
+
+if [ "$CONFIG_OID_DMM" = "y" -o "$CONFIG_OID_YBS" = "y" ]; then
+	choice 'aduc adc sinc3 filter setting'	" \
+		50HZ			CONFIG_ADUC_50HZ \
+		50HZ_CHOP		CONFIG_ADUC_50HZ_CHOP \
+		10HZ_CHOP		CONFIG_ADUC_10HZ_CHOP \
+	" 10HZ_CHOP
+fi
