@@ -8,7 +8,13 @@ choice 'application select'	" \
 	DMM		CONFIG_OID_DMM \
 	OID		CONFIG_OID_MAIN \
 	YBS		CONFIG_OID_YBS \
+	CAL		CONFIG_YBS_CAL \
+	ICT		CONFIG_YBS_ICT \
 " OID
+
+if [ "$CONFIG_YBS_CAL" = "y" -o "$CONFIG_YBS_ICT" = "y" ]; then
+	define_bool CONFIG_YBS_MON Y
+fi
 
 if [ "$CONFIG_OID_MAIN" = "y" -o "$CONFIG_OID_DMM" = "y" ]; then
 	choice 'hardware version'	" \
@@ -24,3 +30,4 @@ if [ "$CONFIG_OID_DMM" = "y" -o "$CONFIG_OID_YBS" = "y" ]; then
 		10HZ_CHOP		CONFIG_ADUC_10HZ_CHOP \
 	" 10HZ_CHOP
 fi
+
