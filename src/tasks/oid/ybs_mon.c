@@ -3,6 +3,12 @@
  *	drivers for ybs monitor v1.0(aduc7061 based)
  *	board designed by xiaoming.xu&mingjing.ding
  *
+ *	the most difficult problem is movement control.
+ *	according to experiment, fast move needs about
+ *	15s time to settle down. move_f's performance
+ *	is better. which is more reliable? sliding bench
+ *	or stain gauge meter?
+ *
  */
 
 #include "ulp/sys.h"
@@ -19,11 +25,14 @@
 #include "shell/shell.h"
 #include "nvm.h"
 #include "ybs_mon.h"
+#include "ybs_dio.h"
 
-#define CONFIG_MOV_FAST 1
-#define ybs_motor_pusle 3000
-static int ybs_mgf_max __nvm;
-static int ybs_steps = -1;
+#define ybs_motor_pusle 5000
+static float ybs_gf_max = 0;
+
+static int ybs_steps_max = -1;
+static int ybs_steps_min = -1;
+static int ybs_steps = -1; /*note: ybs_steps_min <= ybs_steps <= ybs_steps_max, and 0 is the rough touch point*/
 
 int monitor_init(void)
 {
@@ -110,19 +119,19 @@ static int __sgm_simple_cmd(char *cmd)
 	return 0;
 }
 
-int sgm_init(void)
+static int sgm_init(void)
 {
 	int e0 = __sgm_simple_cmd("T\r"); //change to track mode
 	int e1 = __sgm_simple_cmd("K\r"); //change the unit to kgf(gf)
 	return (e0 || e1) ? -1 : 0;
 }
 
-int sgm_reset_to_zero(void)
+static int sgm_reset_to_zero(void)
 {
 	return __sgm_simple_cmd("Z\r");
 }
 
-static int sgm_read(int *mgf)
+static int sgm_read(float *gf)
 {
 	__sgm_init();
 	uart_puts(&uart2, "D\r");
@@ -146,46 +155,38 @@ static int sgm_read(int *mgf)
 	}
 	echo[i] = 0;
 
-	//convert the data from float string to int
-	float gf;
-	int n = sscanf(echo, "%f", &gf);
+	int n = sscanf(echo, "%f", gf);
 	if(n != 1) {
 		sys_error("sgm read response error");
 		return -1;
 	}
-
-	gf = (gf > 0) ? gf : -gf;
-	*mgf = (int) (gf * 1000);
 	return 0;
 }
 
-int sgm_read_until_stable(int *mgf, int ms)
+/*ms: stable time, function will not return until sgm display
+keep its value more than ms*/
+int sgm_read_until_stable(float *gf, int ms)
 {
-	#define SGM_N 5
-	int m[SGM_N];
-	time_t deadline = time_get(ms);
+	#define SGM_N 50
+	float m[SGM_N];
 
 	int i = 0, n = 0;
 	while(1) {
-		if(time_left(deadline) < 0) {
-			sys_error("SGM display unstable, stable time too long(> %dmS)", ms);
-			return -1;
-		}
-
 		if(sgm_read(m + i)) return -1;
-		sys_mdelay(20);
+		sys_mdelay((ms + ms)/ SGM_N );
 
 		i ++;
 		i = (i == SGM_N) ? 0 : i;
 
 		n ++;
 		if(n >= SGM_N) {
-			int j, v = m[0];
-			for(j = 0; j < SGM_N; j ++) {
-				if(v != m[j]) break;
+			int eq, j;
+			float v = m[SGM_N-1];
+			for(eq = j = 0; j < SGM_N; j ++) {
+				if(v == m[j]) eq ++;
 			}
-			if(j == SGM_N) {
-				*mgf = v;
+			if(eq >= (int)(SGM_N * 0.5)) {
+				*gf = v;
 				return 0;
 			}
 		}
@@ -250,7 +251,8 @@ static int cmd_sgm_func(int argc, char *argv[])
 		"sgm -g		enable sgm debug console, type 'Q' to break\n"
 	};
 
-	int mgf, e = 1;
+	float gf;
+	int e = 1;
 	if(argc > 1) {
 		e = 0;
 		for(int i = 1; i < argc; i ++) {
@@ -260,8 +262,8 @@ static int cmd_sgm_func(int argc, char *argv[])
 				sgm_console();
 				break;
 			case 'r':
-				sgm_read(&mgf);
-				printf("%d\n", mgf);
+				sgm_read(&gf);
+				printf("%f gf\n", gf);
 				break;
 
 			default:
@@ -279,221 +281,420 @@ static int cmd_sgm_func(int argc, char *argv[])
 const cmd_t cmd_sgm = {"sgm", cmd_sgm_func, "ybs monitor strain gauge meter ctrl"};
 DECLARE_SHELL_CMD(cmd_sgm)
 
-static int change_direction(int forward)
+/*for initially positioning purpose, this routine must be called first*/
+int mov_i(int distance, float gf_max)
 {
-	if(ybs_steps < 0) {
-		sys_error("motor system not init, pls do 'mov -i' first");
-		return -1;
+	sys_assert((distance > 0) && (gf_max > 0.1) && (gf_max < 51.0));
+	ybs_gf_max = gf_max;
+
+	if(sgm_init()) return -1;
+
+	/*it's dangerous!!! be careful ..*/
+	ybs_steps = 0;
+	ybs_steps_min = -50000;
+	ybs_steps_max = 50000;
+
+	//to find a rough touch point
+	float gf, gf0;
+	if(sgm_read(&gf0)) goto MOV_I_FAIL;
+	while(1) {
+		if(mov_n(20)) goto MOV_I_FAIL;
+		if(sgm_read(&gf)) goto MOV_I_FAIL;
+		if(gf - gf0 > 0.5) {
+			ybs_steps = 0;
+			break;
+		}
 	}
 
-	GPIO_WriteBit(GPIOA, GPIO_Pin_1, (forward > 0) ? Bit_SET : Bit_RESET);
-	for(int pw = ybs_motor_pusle; pw > 0; pw --);
+	//reset sgm
+	if(mov_n(-1000)) goto MOV_I_FAIL;
+	sys_mdelay(3000);
+	if(sgm_reset_to_zero()) goto MOV_I_FAIL;
+	if(mov_n(1000)) goto MOV_I_FAIL;
+
+	//find a more precise zero point
+	if(mov_f(0, 100)) goto MOV_I_FAIL;
+	ybs_steps = 0;
+	ybs_steps_min = -distance;
+
+	if(mov_f(gf_max, 100)) goto MOV_I_FAIL;
+	ybs_steps_max = ybs_steps;
+
+	if(mov_p(-500)) goto MOV_I_FAIL;
+	//if(mov_p(ybs_steps_min)) goto MOV_I_FAIL;
 	return 0;
+
+MOV_I_FAIL:
+	ybs_steps = -1;
+	ybs_steps_min = -1;
+	ybs_steps_max = -1;
+	return -1;
 }
 
-static int move_steps(int n)
+/*fast move forwrd/backward steps, with each step ms*/
+int mov_n(int steps)
 {
-	if(ybs_steps < 0) {
-		sys_error("motor system not init, pls do 'mov -i' first");
+	if((ybs_steps_min == -1) || (ybs_steps_max == -1)) {
+		sys_error("please try 'mov -i' first");
 		return -1;
 	}
 
-	n = (n > 0) ? n : - n;
-	while(n > 0) {
+	int target_pos = ybs_steps + steps;
+	if((target_pos > ybs_steps_max) || (target_pos < ybs_steps_min)) {
+		sys_error("target position over-range(%d ? [%d, %d])", target_pos, ybs_steps_min, ybs_steps_max);
+		return -1;
+	}
+
+	//change direction?
+	static int ybs_mov_dir = 0;
+	int dir = (steps > 0) ? 1 : -1;
+	if(dir != ybs_mov_dir) {
+		ybs_mov_dir = dir;
+		GPIO_WriteBit(GPIOA, GPIO_Pin_1, (ybs_mov_dir > 0) ? Bit_SET : Bit_RESET);
+		for(int pw = ybs_motor_pusle; pw > 0; pw --);
+	}
+
+	//mov
+	while(steps != 0) {
 		GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_SET);
 		for(int pw = ybs_motor_pusle; pw > 0; pw --);
 		GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_RESET);
 		for(int pw = ybs_motor_pusle; pw > 0; pw --);
-		n --;
+		steps -= ybs_mov_dir;
+		ybs_steps += ybs_mov_dir;
 	}
 	return 0;
-}
-
-/*fast movement, until steps reached or mgf bigger than mgf_max*/
-int mov_n(int steps, int mgf_max)
-{
-	int mgf;
-
-	//change direction
-	int n = (steps > 0) ? steps : - steps;
-	int d = (steps > 0) ? 1 : -1;
-	mgf_max = (mgf_max == 0) ? 1000 : mgf_max;
-
-	if(change_direction(d)) return -1;
-	if(sgm_read(&mgf)) return -1;
-	if((mgf >= mgf_max) && (d == 1)) {
-		printf("INFO: %s mgf limit reached(%d > %d)\n", __FUNCTION__, mgf, mgf_max);
-		return 0;
-	}
-
-	for(int i = 0; i < n; i ++) {
-		if(d < 0) { //backward, position limit reached?
-			if(ybs_steps + d < 0) {
-				printf("INFO: %s backward to position limit(ybs_steps = %d)\n", __FUNCTION__, ybs_steps);
-				return 0;
-			}
-		}
-		else { //forward to mgf limit?
-			if(i % 100 == 0) {
-				if(sgm_read(&mgf)) return -1;
-				else if(mgf > mgf_max) {
-					printf("INFO: %s forward to mgf limit(%d > %d)\n", __FUNCTION__, mgf, mgf_max);
-					return 0;
-				}
-			}
-		}
-
-		/*move a step*/
-		if(move_steps(1)) return -1;
-		ybs_steps += d;
-	}
-	return 0;
-}
-
-/* measure sgm between each step(about 20ms), algo be used to find sgm-ybs contact point(relative zero point):
-1, mov -n 50000 //to ensure sgm-ybs in contacting state
-2, mov -f 1000 //mov to rough 1gf position
-3, mov -f 0 //move back step-by-step to find the zero point precisely.
-*/
-int mov_f(int target, int ms_per_step)
-{
-	int d, mgf, delta;
-	sys_assert((target >= 0) && (target < ybs_mgf_max));
-
-	printf("INFO: %s(%d) ...\n", __FUNCTION__, target);
-	if(sgm_read(&mgf)) return -1;
-	if(mgf == 0) { //fast move to touch point
-		if(mov_n(50000, 0)) return -1;
-	}
-
-	int micro_steps = 0;
-	while(1) {
-		if(sgm_read(&mgf)) return -1;
-		sys_mdelay(ms_per_step);
-
-		delta = mgf - target;
-		delta = (delta > 0) ? delta : -delta;
-		if(delta < 800) {
-#if CONFIG_MOV_FAST
-			if(sgm_read_until_stable(&mgf, 1000)) return -1;
-#else
-			//precise measurement mode
-			int ms = (ms_per_step == 0) ? 1000 : ms_per_step;
-			sys_mdelay(ms);
-
-			int mgf0, mgf1, mgf2;
-			if(sgm_read(&mgf0)) return -1;
-			sys_mdelay(10);
-			if(sgm_read(&mgf1)) return -1;
-			sys_mdelay(10);
-			if(sgm_read(&mgf2)) return -1;
-			sys_mdelay(10);
-			mgf = (mgf0 + mgf1 + mgf2) / 3;
-#endif
-			delta = mgf - target;
-			delta = (delta > 0) ? delta : - delta;
-			printf("mgf = %d\n", mgf);
-			if(delta == 0) {
-				printf("mov success, ybs_steps = %d\n", ybs_steps);
-				return 0;
-			}
-
-			micro_steps ++;
-			if(micro_steps > 30) {
-				sys_error("motor adjust time too long, pls check fixture");
-				return -1;
-			}
-		}
-
-		//change direction
-		d = (target < mgf) ? -1 : 1;
-		if(change_direction(d)) return -1;
-
-		/*move a step*/
-		if(move_steps(1)) return -1;
-		ybs_steps += d;
-	}
 }
 
 int mov_p(int pos)
 {
-	printf("INFO: %s(%d) ...\n", __FUNCTION__, pos);
+	//printf("INFO: %s(%d) ...\n", __FUNCTION__, pos);
 	int steps = pos - ybs_steps;
-	return mov_n(steps, 0);
+	return mov_n(steps);
 }
 
-/*for initially positioning purpose*/
-void mov_i(int distance)
+int mov_p_measure(int pos, float *gf_sgm, float *gf_ybs)
 {
-	distance = (distance > 0) ? distance : 5000;
-	ybs_steps = 20000;
+	int i, N = 4;
+	float gf, sgm_l, ybs_l, sgm_r, ybs_r;
+	for(int i = 0; i < N; i ++) {
+		//dir = left
+		if(mov_p(pos - 50)) return -1;
+		sys_mdelay(20);
+		if(mov_p(pos + 1)) return -1;
+		sys_mdelay(50);
+		if(mov_p(pos)) return -1;
 
-	//find relative zero point
-	mov_f(0, 0);
+		//sys_mdelay(500);
+		//if(sgm_read(&gf)) return -1;
+		if(sgm_read_until_stable(&gf, 200)) return -1;
+		sgm_l = (sgm_l * i + gf) / (i + 1);
+		if(ybs_read(&gf)) return -1;
+		ybs_l = (ybs_l * i + gf) / (i + 1);
 
-	//backward distance steps as start point(abs zero point)
-	mov_n(- distance, 0);
-	ybs_steps = 0;
+		//dir = right
+		if(mov_p(pos + 50)) return -1;
+		sys_mdelay(20);
+		if(mov_p(pos - 1)) return -1;
+		sys_mdelay(50);
+		if(mov_p(pos)) return -1;
+
+		//sys_mdelay(500);
+		//if(sgm_read(&gf)) return -1;
+		if(sgm_read_until_stable(&gf, 200)) return -1;
+		sgm_r = (sgm_r * i + gf) / (i + 1);
+		if(ybs_read(&gf)) return -1;
+		ybs_r = (ybs_r * i + gf) / (i + 1);
+	}
+
+	if(gf_sgm != NULL) *gf_sgm = (sgm_l + sgm_r) / 2;
+	if(gf_ybs != NULL) *gf_ybs = (ybs_l + ybs_r) / 2;
+	return 0;
+}
+
+int mov_f(float target_gf, int gf_settling_ms)
+{
+	//printf("INFO: %s(%.3fgf, %dms) ...\n", __FUNCTION__, target_gf, gf_settling_ms);
+	gf_settling_ms = (gf_settling_ms == 0) ? 1000 : gf_settling_ms;
+	if((target_gf < 0) || (target_gf > ybs_gf_max)) {
+		sys_error("target %fgf over-range[0, %f]", target_gf, ybs_gf_max);
+		return -1;
+	}
+
+	float gf;
+	if(sgm_read(&gf)) return -1;
+	if(gf <= 0) { //fast move to nearby zero point first
+		if(mov_p(100)) return -1;
+		if(sgm_read_until_stable(&gf, 100)) return -1;
+		if(gf <= 0) {
+			sys_error("slidling bench zero point error\n");
+			return -1;
+		}
+	}
+
+	for(int micro_steps = 0; micro_steps < 15; ) {
+		if(sgm_read(&gf)) return -1;
+
+		float delta = target_gf - gf;
+		delta = (delta > 0) ? delta : -delta;
+		if(delta < 0.5) { //slow down the move speed
+			micro_steps ++;
+			if(sgm_read_until_stable(&gf, gf_settling_ms)) return -1;
+			printf("gf = %.1f\n", gf);
+
+			delta = target_gf - gf;
+			delta = (delta > 0) ? delta : - delta;
+			if(delta < 0.1) {
+				printf("mov success, ybs_steps = %d\n", ybs_steps);
+				return 0;
+			}
+		}
+
+		int steps = (target_gf > gf) ? 1 : -1;
+		if(mov_n(steps)) return -1;
+	}
+
+	sys_error("motor adjust time too long, pls check fixture");
+	return -1;
+}
+
+static int mov_d(void)
+{
+	static const int p[] = {100, 200, 300, 400, 500, 600, 700, 800};
+	float gf;
+	#define method 0
+#if method == 0
+	for(int n = 0; n < 5; n ++) {
+		for(int i = 0; i < 8; i ++) {
+			mov_p(p[i]);
+			sgm_read_until_stable(&gf, 1000);
+			printf("%d steps => %.3f gf\n", p[i], gf);
+		}
+		mov_n(100);
+		for(int i = 7; i >= 0; i --) {
+			mov_p(p[i]);
+			sgm_read_until_stable(&gf, 1000);
+			printf("%d steps => %.3f gf\n", p[i], gf);
+		}
+		mov_n(-100);
+	}
+#endif
+#if method == 1
+	for(int n = 0; n < 5; n ++) {
+		for(int i = 0; i < 8; i ++) {
+			mov_p(0);
+			mov_p(p[i]);
+			sgm_read_until_stable(&gf, 1000);
+			printf("%d steps => %.3f gf\n", p[i], gf);
+		}
+	}
+#endif
+#if method == 2
+	for(int n = 0; n < 5; n ++) {
+		for(int i = 0; i < 8; i ++) {
+			mov_p(850);
+			mov_p(p[i]);
+			sgm_read_until_stable(&gf, 1000);
+			printf("%d steps => %.3f gf\n", p[i], gf);
+		}
+	}
+#endif
+#if method == 3
+	for(int n = 0; n < 5; n ++) {
+		for(int i = 0; i < 8; i ++) {
+			mov_p(p[i]);
+			mov_p(450);
+			sgm_read_until_stable(&gf, 1000);
+			printf("%d steps => %.3f gf\n", p[i], gf);
+		}
+	}
+#endif
+#if method == 4
+	for(int n = 0; n < 5; n ++) {
+		for(int i = 0; i < 8; i ++) {
+			mov_p(p[i]);
+			mov_p(450);
+			sys_mdelay(3000);
+			gf = 0;
+			for(int k = 0; k < 5; k ++) {
+				float v = 0;
+				ybs_read(&v);
+				gf = (gf * k + v)/ (k + 1);
+				sys_mdelay(100);
+			}
+			printf("%d steps => %.3f gf\n", p[i], gf);
+		}
+	}
+#endif
+#if method == 5
+	for(int n = 0; n < 7; n ++) {
+		for(int i = 0; i < 8; i ++) {
+			mov_p(p[i]);
+			mov_p(p[n] + 50);
+			float sgm;
+			sgm_read_until_stable(&sgm, 1000);
+			gf = 0;
+			for(int k = 0; k < 5; k ++) {
+				float v = 0;
+				ybs_read(&v);
+				gf = (gf * k + v)/ (k + 1);
+				sys_mdelay(100);
+			}
+			printf("%d steps: sgm = %.3f ybs = %.3f\n", p[i], sgm, gf);
+		}
+	}
+#endif
+#if method == 6
+	for(int i = 0; i < 5; i ++) {
+	if(mov_p(0)) return -1;
+	for(int pos = 50; pos < 800; pos += 50) {
+		mov_p(pos);
+		float sgm;
+		sgm_read_until_stable(&sgm, 1000);
+		gf = 0;
+		for(int k = 0; k < 100; k ++) {
+			float v = 0;
+			ybs_read(&v);
+			gf = (gf * k + v)/ (k + 1);
+			sys_mdelay(20);
+		}
+		printf("%d steps: sgm = %.3f ybs = %.3f\n", pos, sgm, gf);
+	}
+	}
+#endif
+#if method == 7
+	int pmax = 350, step = 10;
+	int i, j, n, N = pmax / step;
+	float *sgm = sys_malloc(N * sizeof(float));
+	float *ybs = sys_malloc(N * sizeof(float));
+
+	memset(sgm, 0x00, N*sizeof(float));
+	memset(ybs, 0x00, N*sizeof(float));
+
+	for(i = 0; i < 6; i ++) {
+		mov_p(0);
+
+		//forward
+		for(n = 0; n < N; n ++) {
+			int p = step * (n + 1);
+			mov_p(p);
+			float gf, v;
+
+			//measure sgm value
+			sgm_read_until_stable(&gf, 1000);
+			printf("%d steps: sgm = %.3f ", p, gf);
+			sgm[n] = (sgm[n] * i + gf) / (i + 1);
+
+			//measure ybs value
+			for(gf = 0, j = 0; j < 100; j ++) {
+				ybs_read(&v);
+				gf = (gf * j + v) / (j + 1);
+				sys_mdelay(20);
+			}
+			printf("ybs = %.3f \n", gf);
+			ybs[n] = (ybs[n] * i + gf) / (i + 1);
+		}
+
+		i ++;
+		mov_n(50);
+		mov_n(-50);
+		//backward
+		for(n = N - 1; n >= 0; n --) {
+			int p = step * (n + 1);
+			mov_p(p);
+			float gf, v;
+
+			//measure sgm value
+			sgm_read_until_stable(&gf, 100);
+			printf("%d steps: sgm = %.3f ", p, gf);
+			sgm[n] = (sgm[n] * i + gf) / (i + 1);
+
+			//measure ybs value
+			for(gf = 0, j = 0; j < 100; j ++) {
+				ybs_read(&v);
+				gf = (gf * j + v) / (j + 1);
+				sys_mdelay(20);
+			}
+			printf("ybs = %.3f \n", gf);
+			ybs[n] = (ybs[n] * i + gf) / (i + 1);
+		}
+	}
+	for(n = 0; n < N; n ++) {
+		int p = step * (n + 1);
+		printf("%d steps: sgm = %.3f ybs = %.3f\n", p, sgm[n], ybs[n]);
+	}
+#endif
+	return 0;
 }
 
 static int cmd_mov_func(int argc, char *argv[])
 {
 	const char *usage = {
-		"usage: (note: return cur pos or -1 when error)\n"
-		"mov -n	steps [mgf_max]	fast forward/back, Tstep = ms, default mgf_max = 1000\n"
-		"mov -f	mgf [ms]	precise movement until force = mgf, Tstep = ms\n"
-		"mov -p			to fetch ybs_steps\n"
-		"mov -l [mgf_max]	set/get limit of mgf_max\n"
-		"mov -i	[steps]		to do initially positioning\n"
+		"usage:\n"
+		"mov -n steps			fast move forward/backward\n"
+		"mov -f gf [ms]			precise movement until force = gf, settling time = ms\n"
+		"mov -p [pos]			to move to and fetch current ybs_steps\n"
+		"mov -i [steps] [gf_max]	to do initially positioning\n"
+		"mov -d				sliding bench self test\n"
+		"mov -m [pos]			to move to and fetch current gf\n"
 	};
 
-	int mgf, ms, steps, pos, e = 1;
+	int steps, ms, e = -1;
+	float gf;
+
 	if(argc > 1) {
 		e = 0;
 		for(int i = 1; i < argc; i ++) {
 			e += (argv[i][0] != '-');
 			switch(argv[i][1]) {
 			case 'n':
-				steps = 1; mgf = 0;
+				e = -1;
 				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &steps) == 1)) {
+					mov_n(steps);
 					i ++;
+					e = 0;
 				}
-				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &mgf) == 1)) {
-					i ++;
-				}
-				mov_n(steps, mgf);
 				break;
-			case 'f':
-				mgf = 1; ms = 0;
-				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &mgf) == 1)) {
+			case 'f': //mov -f gf [ms]
+				e = -1; ms = 1000;
+				if((i + 1 < argc) && (sscanf(argv[i + 1], "%f", &gf) == 1)) {
 					i ++;
+					e = 0;
 				}
 				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &ms) == 1)) {
 					i ++;
 				}
-				mov_f(mgf, ms);
+				if(e == 0) {
+					mov_f(gf, ms);
+				}
 				break;
-			case 'i':
-				steps = 0;
+			case 'i': //mov -i steps gf_max
+				steps = 8000; gf = 45.0;
 				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &steps) == 1)) {
 					i ++;
 				}
-				mov_i(steps);
-				break;
-			case 'p':
-				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &pos) == 1)) {
+				if((i + 1 < argc) && (sscanf(argv[i + 1], "%f", &gf) == 1)) {
 					i ++;
-					mov_p(pos);
 				}
-				printf("current position: %d\n", ybs_steps);
+				mov_i(steps, gf);
 				break;
-			case 'l':
-				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &mgf) == 1)) {
+			case 'm':
+			case 'p': //mov -p [pos]
+				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &steps) == 1)) {
+					if(argv[i][1] == 'p') {
+						mov_p(steps);
+						printf("current position: %d\n", ybs_steps);
+					}
+					else {
+						float sgm, ybs;
+						mov_p_measure(steps, &sgm, &ybs);
+						printf("sgm,ybs= %.1f %.1f gf\n", sgm, ybs);
+					}
 					i ++;
-					ybs_mgf_max = mgf;
-					nvm_save();
 				}
-				printf("%d\n", ybs_mgf_max);
+				break;
+			case 'd':
+				mov_d();
 				break;
 			case 'h':
 				printf("%s", usage);

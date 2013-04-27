@@ -30,17 +30,44 @@
 #include "common/tstep.h"
 #include "common/debounce.h"
 #include "common/polyfit.h"
+#include <math.h>
 
-#define YBS_NONLINEARITY_MAX	10000
-static const float mgf_f[] = {0, 40000, 5000, 35000, 10000, 30000, 15000, 25000, 20000};
 time_t test_timer = 0;
 
 static struct {
 	struct ybs_info_s ybs;
-	int mv_det;
-	int mv_asig;
-	float *mgf_i; //final test result, will report to database
-	float *mgf_o;
+	float vdet; //ybs present or not?
+	float vasig;
+	float gf_per_step;
+
+	struct {
+		#define DAC_N 10
+		float gfi[DAC_N];
+		float gfo[DAC_N];
+		float C0;
+		float C1;
+		float gfe; //average error: unit: gf
+	} dac;
+
+	struct {
+		#define ADC_N 16
+		float pos[ADC_N]; //it is used to verify sgm's accurateness
+		float gfi[ADC_N]; //measured by sgm
+		float gfd[ADC_N]; //measured by ybs
+		float C0;
+		float C1;
+		float gfe; //average error, unit: gf
+	} adc;
+
+	struct {
+		#define YBS_N 16
+		float pos[YBS_N]; //it is used to verify sgm's accurateness
+		float gfi[YBS_N]; //measured by sgm
+		float gfd[YBS_N]; //ybs digital output
+		float gfa[YBS_N]; //ybs analog output
+		float gfe_d; //average ditial output error
+		float gfe_a; //average anglog output error
+	};
 } test_result;
 
 static int test_start(void)
@@ -69,34 +96,6 @@ static int ybs_pre_check(void)
 {
 	int e, mv;
 
-	e = mov_p(0);
-	if(e) return -1;
-
-	e = sgm_init();
-	if(e) return -1;
-
-	e = sgm_reset_to_zero();
-	if(e) return -1;
-
-	e = mcd_xread(MCD_CH_DET, &mv);
-	if(e) return -1;
-
-	test_result.mv_det = mv;
-	printf("mv_det = %d\n", mv);
-	if(OV_RANGE(mv, 8000, 9000)) {
-		sys_error("ybs DET pin level over-range [%d, %d)", 8000, 9000);
-		return -1;
-	}
-
-	e = mcd_xread(MCD_CH_ASIG, &mv);
-	if(e) return -1;
-	test_result.mv_asig = mv;
-	printf("mv_asig = %d\n", mv);
-	if(OV_RANGE(mv, 1500, 2500)) {
-		sys_error("ybs ASIG pin level over-range [%d, %d)", 1500, 2500);
-		return -1;
-	}
-
 	printf("try to read ybs info ...\n");
 	e = ybs_init(&test_result.ybs);
 	if(e) return -1;
@@ -109,33 +108,68 @@ static int ybs_pre_check(void)
 	printf("SW: %s\n", test_result.ybs.sw);
 	printf("SN: %s\n", test_result.ybs.sn);
 	printf("Gi: %04x(%f)\n", (unsigned) G2Y(Gi) & 0xffff, Gi);
-	printf("Di: %04x(%3.0f mgf)\n", (unsigned) D2Y(Di) & 0xffff, Di);
+	printf("Di: %04x(%.3f gf)\n", (unsigned) D2Y(Di) & 0xffff, Di);
 	printf("Go: %04x(%f)\n", (unsigned) G2Y(Go) & 0xffff, Go);
-	printf("Do: %04x(%3.0f mgf)\n", (unsigned) D2Y(Do) & 0xffff, Do);
-	return 0;
+	printf("Do: %04x(%.3f gf)\n", (unsigned) D2Y(Do) & 0xffff, Do);
+
+	//initial positioning
+	e = mov_i(5000, 50.0);
+	if(e) return -1;
+
+	e = mcd_xread(MCD_CH_DET, &mv);
+	if(e) return -1;
+
+	test_result.vdet = mv / 1000.0;
+	printf("vdet = %.3f\n", test_result.vdet);
+	if(OV_RANGE(test_result.vdet, 8.0, 9.0)) {
+		sys_error("ybs DET pin level over-range [%.1fv, %.1fv)", 8.0, 9.0);
+		return -1;
+	}
+
+	e = mcd_xread(MCD_CH_ASIG, &mv);
+	if(e) return -1;
+	test_result.vasig = mv / 1000.0;
+	printf("vasig = %.3f\n", test_result.vasig);
+	if(OV_RANGE(test_result.vasig, 1.5, 2.5)) {
+		sys_error("ybs ASIG pin level over-range [%.1fv, %.1fv)", 1.5, 2.5);
+		return -1;
+	}
+
+	float gf100, gf200;
+	if(mov_p_measure(100, &gf100, NULL)) return -1;
+	if(mov_p_measure(200, &gf200, NULL)) return -1;
+	if((gf100 > 0) && (gf200 > gf100)) {
+		test_result.gf_per_step = (gf200 - gf100) / 100;
+		printf("gf_per_step = %.3f\n", test_result.gf_per_step);
+		mov_p(-500);
+		return 0;
+	}
+	sys_error("spring leaf abnormal(gf100=%.1f, gf200=%.1f)", gf100, gf200);
+	return -1;
 }
 
 static int ybs_cal_dac(void)
 {
-	int e, mv, i, n = sizeof(mgf_f)/sizeof(int);
-	float *mgf_o = sys_malloc(sizeof(mgf_f));
-	sys_assert(mgf_o != NULL);
+	int mv, N = DAC_N;
+	float c0, c1, sumsq;
 
-	for(i = 0; i < n; i ++) {
-		ybs_cal_write((int) mgf_f[i]);
+	float *x = test_result.dac.gfi;
+	float *y = test_result.dac.gfo;
+
+	for(int i = 0; i < N; i ++) {
+		x[i] = 40.0 * i / N;
+		if(ybs_cal_write(x[i])) return -1;
 		sys_mdelay(500);
-		e = mcd_xread(MCD_CH_ASIG, &mv);
-		if(e) {
-			sys_free(mgf_o);
-			return -1;
-		}
-		mgf_o[i] = MV2MGF(mv);
-		printf("%5.0f mgf => %d mv(%5.0f mgf)\n", mgf_f[i], mv, mgf_o[i]);
+		if(mcd_xread(MCD_CH_ASIG, &mv)) return -1;
+		y[i] = MV2GF(mv);
+		printf("%.1f gf => %.3f gf(%04d mv)\n", x[i], y[i], mv);
 	}
 
-	float c0, c1, sumsq;
-	gsl_fit_linear(mgf_f, mgf_o, n, &c0, &c1, &sumsq);
-	printf("DAC: y = %.4f*x + %.0f (mgf), sumsq = %.0f\n", c1, c0, sumsq);
+	gsl_fit_linear(x, y, N, &c0, &c1, &sumsq);
+	test_result.dac.C0 = c0;
+	test_result.dac.C1 = c1;
+	test_result.dac.gfe = powf(sumsq / N, 0.5);
+	printf("DAC: y = %.3f*x + %.3f gf, gfe = %.3f\n", test_result.dac.C1, test_result.dac.C0, test_result.dac.gfe);
 
 	/* calculation cal para
 	y = (x * C1 + C0) * c1 + c0 = x * C1 * c1 + C0 * c1 + c0 = x
@@ -144,101 +178,101 @@ static int ybs_cal_dac(void)
 	*/
 	float C0 = - c0 / c1;
 	float C1 = 1 / c1;
-	printf("CAL: y = %.4f*x + %.0f (mgf)\n", C1, C0);
 
-	test_result.ybs.Go = C1;
 	test_result.ybs.Do = C0;
+	test_result.ybs.Go = C1;
+	printf("CAL: y = %.4f*x + %.3f gf\n", C1, C0);
+	return 0;
+}
 
-	float Go = C1;
-	float Do = C0;
-	printf("CAL: Go = %04x(%f), Do = %04x(%.0f)\n", (unsigned) G2Y(Go) & 0xffff, Go, (unsigned) D2Y(Do) & 0xffff, Do);
+//ezplot('(-(x-0.25)*0.8*exp(-((x-0.25)^4)*5)+x)*40', [0,1]); grid on; zoom on;
+float mspread_func(float x, float x_vip)
+{
+	float xx = x - x_vip;
+	float y = - powf(xx,4) * 5;
+	y = expf(y);
+	y *= -xx * 0.8;
+	y += x;
+	return y;
+}
 
-	if(OV_RANGE(c1, 0.5, 1.5)) {
-		sys_error("ybs output stage gain(%.0f) over range[%f, %f)", c1, 0.5, 1.5);
-		//sys_free(mgf_o);
-		//return -1;
+int mspread(float *gf, int N, float gf_min, float gf_max, float gf_vip)
+{
+	float gf_delta = (gf_max - gf_min) / (N - 1);
+	for(int i = 0; i < N; i ++) {
+		float x = gf_min + gf_delta * i;
+		gf[i] = mspread_func(x/gf_max, gf_vip/gf_max) * gf_max;
+		//printf("%.1f ", gf[i]);
 	}
-	if(OV_RANGE(c0, 100, 300)) {
-		sys_error("ybs output stage offset(%.0f) over range[%d, %d)", c0, 100, 300);
-		//sys_free(mgf_o);
-		//return -1;
-	}
-	if(sumsq > YBS_NONLINEARITY_MAX) {
-		sys_error("ybs output stage linearity(%.0f) is too bad(> %d)", sumsq, YBS_NONLINEARITY_MAX);
-		//sys_free(mgf_o);
-		//return -1;
-	}
-	sys_free(mgf_o);
 	return 0;
 }
 
 static int ybs_cal_adc(void)
 {
-	int e, mgf, i, n = sizeof(mgf_f)/sizeof(int);
-	float *mgf_i = sys_malloc(sizeof(mgf_f));
-	sys_assert(mgf_i != NULL);
+	int i, k, N = ADC_N;
 
-	//disable ybs input stage calibration function
-	e = ybs_cal_config(1, 0, test_result.ybs.Go, test_result.ybs.Do);
-	if(e) return -1;
+	//sample point position estimate
+	float gf20_p = 20.0 / test_result.gf_per_step;
+	float gf05_p = 05.0 / test_result.gf_per_step;
+	mspread(test_result.adc.pos, N, 0, gf20_p, gf05_p);
 
-	for(i = 0; i < n; i ++) {
-		if(mov_f((int) mgf_f[i], 0)) {
-			sys_free(mgf_i);
-			return -1;
-		}
-		e = ybs_read(&mgf);
-		if(e) {
-			sys_free(mgf_i);
-			return -1;
-		}
-		mgf_i[i] = mgf;
-		printf("%5.0f mgf => %5.0f mgf\n", mgf_f[i], mgf_i[i]);
+	//change ybs to calibration mode
+	if(ybs_cal_config(1.0, 0, 0, 0)) return -1;
+
+	//measure
+	for(i = 0; i < N; i ++) {
+		float gfi, gfd;
+		int steps = (int) test_result.adc.pos[i];
+		if(mov_p_measure(steps, &gfi, &gfd)) return -1;
+		test_result.adc.gfi[i] = gfi;
+		test_result.adc.gfd[i] = gfd;
+		printf("ADC: pos,sgm,ybs= %d %.1f %.1f\n", steps, gfi, gfd);
 	}
 
-	printf("input stage performance data:\n");
-	for(i = 0; i < n; i ++) {
-		printf("%5.0f mgf => %5.0f mgf\n", mgf_f[i], mgf_i[i]);
+	//sgm linearity identify
+	float c0, c1, sumsq, gfe;
+	gsl_fit_linear(test_result.adc.pos, test_result.adc.gfi, N, &c0, &c1, &sumsq);
+	gfe = powf(sumsq / N, 0.5);
+
+	float *p = test_result.adc.pos;
+	float *x = sys_malloc(sizeof(float) * N);
+	float *y = sys_malloc(sizeof(float) * N);
+	sys_assert((x != NULL) && (y != NULL));
+
+	gfe *= 2;
+	printf("filtering good samples:\n");
+	for(i = 0, k = 0; i < N; i ++) {
+		float e = test_result.adc.gfi[i] - (p[i] * c1 + c0);
+		e = (e > 0) ? e : 0;
+		if(e < gfe) {
+			x[k] = test_result.adc.gfi[k];
+			y[k] = test_result.adc.gfd[k];
+			printf("ADC: pos,sgm,ybs= %.0f %.1f %.1f\n", p[i], x[k], y[k]);
+			k ++;
+		}
 	}
 
-	float c0, c1, sumsq;
-	gsl_fit_linear(mgf_f, mgf_i, n, &c0, &c1, &sumsq);
-	printf("ADC: y = %.4f*x + %.0f (mgf), sumsq = %.0f\n", c1, c0, sumsq);
+	//now we found k good samples
+	gsl_fit_linear(x, y, k, &c0, &c1, &sumsq);
+	sys_free(x);
+	sys_free(y);
+
+	test_result.adc.C0 = c0;
+	test_result.adc.C1 = c1;
+	test_result.adc.gfe = powf(sumsq / k, 0.5);
+	printf("ADC: y = %.3f*x + %.3f gf, gfe = %.3f\n", test_result.adc.C1, test_result.adc.C0, test_result.adc.gfe);
 
 	/* calculation cal para
-	y = (x * C1 + C0) * c1 + c0 = x * C1 * c1 + C0 * c1 + c0 = x
-	=> C1 * c1 = 1; C0 * c1 + c0 = 0;
-	=> C1 = 1/c1; C0 = -c0/c1;
+	y = (x * c1 + c0) * C1 + C0 = x
+	=> x * c1 * C1 = x; => C1 = 1/c1;
+	=> c0 * C1 + C0 = 0; => C0 = - c0 * C1 = - c0 * 1/c1 = -c0/c1
 	*/
 	float C0 = - c0 / c1;
 	float C1 = 1 / c1;
-	printf("CAL: y = %.4f*x + %.0f (mgf)\n", C1, C0);
 
-	test_result.ybs.Gi = C1;
 	test_result.ybs.Di = C0;
-
-	float Gi = C1;
-	float Di = C0;
-	printf("CAL: Gi = %04x(%f), Di = %04x(%.0f)\n", (unsigned) G2Y(Gi) & 0xffff, Gi, (unsigned) D2Y(Di) & 0xffff, Di);
-
-	if(OV_RANGE(c1, 0.5, 1.5)) {
-		sys_error("ybs input stage gain(%.0f) over range[%f, %f)", c1, 0.5, 1.5);
-		//sys_free(mgf_i);
-		//return -1;
-	}
-	if(OV_RANGE(c0, -5000, 5000)) {
-		sys_error("ybs input stage offset(%.0f mgf) over range[%d, %d)", c0, -5000, 5000);
-		//sys_free(mgf_i);
-		//return -1;
-	}
-	/*
-	if(sumsq > YBS_NONLINEARITY_MAX) {
-		sys_error("ybs input stage linearity(%.0f) is too bad(> %d)", sumsq, YBS_NONLINEARITY_MAX);
-		sys_free(mgf_i);
-		return -1;
-	}
-	*/
-	sys_free(mgf_i);
+	test_result.ybs.Gi = C1;
+	printf("CAL: y = %.4f*x + %.3f gf\n", C1, C0);
 	return 0;
 }
 
@@ -252,7 +286,7 @@ static int ybs_cal_cfg(void)
 	if(e) return -1;
 
 	e = ybs_save();
-	//if(e) return -1;
+	if(e) return -1;
 
 	//e = ybs_reset();
 	sys_mdelay(300);
@@ -261,81 +295,39 @@ static int ybs_cal_cfg(void)
 
 static int ybs_measure(void)
 {
-	int e, mv, mgf, i, n = sizeof(mgf_f)/sizeof(int);
-	float *mgf_i = sys_malloc(sizeof(mgf_f));
-	float *mgf_o = sys_malloc(sizeof(mgf_f));
-	sys_assert((mgf_i != NULL) && (mgf_o != NULL));
+	int N = YBS_N;
 
-	test_result.mgf_i = NULL;
-	test_result.mgf_o = NULL;
+	//sample point position estimate
+	float gf20_p = 20.0 / test_result.gf_per_step;
+	float gf05_p = 05.0 / test_result.gf_per_step;
+	mspread(test_result.pos, N, 0, gf20_p, gf05_p);
 
-	for(i = 0; i < n; i ++) {
-		mov_f((int) mgf_f[i], 0);
-		e = ybs_read(&mgf);
-		if(e) {
-			sys_free(mgf_i);
-			sys_free(mgf_o);
-			return -1;
-		}
-		mgf_i[i] = mgf;
+	//measure
+	for(int i = 0; i < N; i ++) {
+		int mv;
+		float gfi, gfd, gfa;
+		int steps = (int) test_result.pos[i];
+		if(mov_p_measure(steps, &gfi, &gfd)) return -1;
+		test_result.gfi[i] = gfi;
+		test_result.gfd[i] = gfd;
 
-		e = mcd_xread(MCD_CH_ASIG, &mv);
-		if(e) {
-			sys_free(mgf_i);
-			sys_free(mgf_o);
-			return -1;
-		}
-		mgf_o[i] = MV2MGF(mv);
-		printf("%5.0f mgf => %5.0f mgf => %5.0f mgf(%d mv)\n", mgf_f[i], mgf_i[i], mgf_o[i], mv);
+		if(mcd_xread(MCD_CH_ASIG, &mv)) return -1;
+		gfa = MV2GF(mv);
+		test_result.gfa[i] = gfa;
+		printf("YBS: pos,sgm,gfd,gfa= %d %.1f %.1f %.1f\n", steps, gfi, gfd, gfa);
 	}
+
+	float *x = test_result.gfi;
+	float *y = test_result.gfd;
 
 	float c0, c1, sumsq;
-	gsl_fit_linear(mgf_f, mgf_i, n, &c0, &c1, &sumsq);
-	printf("YBS_DIGITAL: y = %.4f*x + %.0f (mgf), sumsq = %.0f\n", c1, c0, sumsq);
-	if(0){//sumsq > YBS_NONLINEARITY_MAX) {
-		sys_error("ybs digital output linearity(%.0f) is too bad(> %d)", sumsq, YBS_NONLINEARITY_MAX);
-		sys_free(mgf_i);
-		sys_free(mgf_o);
-		return -1;
-	}
+	gsl_fit_linear(x, y, N, &c0, &c1, &sumsq);
+	test_result.gfe_d = powf(sumsq / N, 0.5);
 
-	gsl_fit_linear(mgf_f, mgf_o, n, &c0, &c1, &sumsq);
-	printf("YBS_ANALOG: y = %.4f*x + %.0f (mgf), sumsq = %.0f\n", c1, c0, sumsq);
-	if(0) {//sumsq > YBS_NONLINEARITY_MAX) {
-		sys_error("ybs analog output linearity(%.0f) is too bad(> %d)", sumsq, YBS_NONLINEARITY_MAX);
-		sys_free(mgf_i);
-		sys_free(mgf_o);
-		return -1;
-	}
-
-	test_result.mgf_i = mgf_i;
-	test_result.mgf_o = mgf_o;
-	return 0;
-}
-
-static int ybs_report(void)
-{
-	float Gi = test_result.ybs.Gi;
-	float Di = test_result.ybs.Di;
-	float Go = test_result.ybs.Go;
-	float Do = test_result.ybs.Do;
-
-	printf("Test Result:\n");
-	printf("SW: %s\n", test_result.ybs.sw);
-	printf("SN: %s\n", test_result.ybs.sn);
-	printf("Gi: %04x(%f)\n", (unsigned) G2Y(Gi) & 0xffff, Gi);
-	printf("Di: %04x(%3.0f mgf)\n", (unsigned) D2Y(Di) & 0xffff, Di);
-	printf("Go: %04x(%f)\n", (unsigned) G2Y(Go) & 0xffff, Go);
-	printf("Do: %04x(%3.0f mgf)\n", (unsigned) D2Y(Do) & 0xffff, Do);
-
-	int n = sizeof(mgf_f)/sizeof(int);
-	printf("Performance Curve:\n");
-	for(int i = 0; i < n; i ++) {
-		printf("%5.0f mgf => %5.0f mgf => %5.0f mgf\n", mgf_f[i], test_result.mgf_i[i], test_result.mgf_o[i]);
-	}
-
-	sys_free(test_result.mgf_i);
-	sys_free(test_result.mgf_o);
+	y = test_result.gfa;
+	gsl_fit_linear(x, y, N, &c0, &c1, &sumsq);
+	test_result.gfe_a = powf(sumsq / N, 0.5);
+	printf("ybs average measurement error: Digital %.1f Analog %.1f\n", test_result.gfe_d, test_result.gfe_a);
 	return 0;
 }
 
@@ -344,16 +336,15 @@ static int test_stop(void)
 	int e, mv;
 	struct debounce_s power;
 
+	mov_p(-5000);
+
 	//reset ybs
 	//ybs_reset();
-
-	//mov back origin point
-	mov_p(0);
 
 	//
 	int ms = -time_left(test_timer);
 	float sec = ms / 1000;
-	printf("Test finished in %.3f S\n", sec);
+	printf("Test finished in %.0f S\n", sec);
 
 	//monitor ybs detection pin signal level - 8.62v
 	debounce_init(&power, 3, 1);
@@ -376,7 +367,7 @@ const struct tstep_s steps[] = {
 	{.test = ybs_cal_adc, .desc = "ybs input stage calibration"},
 	{.test = ybs_cal_cfg, .desc = "ybs cal para writeback & restart"},
 	{.test = ybs_measure, .desc = "ybs finally performance test"},
-	{.test = ybs_report, .desc = "ybs test result upload to database"},
+	//{.test = ybs_report, .desc = "ybs test result upload to database"},
 	{.test = test_stop, .desc = "test stop, wait for dut be removed"},
 };
 
@@ -394,6 +385,9 @@ void main(void)
 		}
 	}
 	mcd_mode(DMM_V_AUTO);
+	while(0) {
+		sys_update();
+	}
 	tstep_execute(steps, sizeof(steps)/sizeof(struct tstep_s));
 }
 
@@ -418,6 +412,9 @@ static int cmd_cal_func(int argc, char *argv[])
 			case 'o':
 				ecode = ybs_cal_dac();
 				printf("reset %s(%d)\n", (ecode) ? "FAIL" : "PASS", ecode);
+				break;
+			case 'i':
+				ecode = ybs_cal_adc();
 				break;
 			default:
 				e ++;

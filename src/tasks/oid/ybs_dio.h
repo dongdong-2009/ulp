@@ -7,9 +7,9 @@
 
 /*float Devation/Gain <=> ybs para conversion*/
 #define G2Y(x) ((unsigned short)(x * 0x8000))
-#define D2Y(x) ((short)(x / 10))
+#define D2Y(x) ((short)(x * 100.0))
 #define Y2G(x) ((float) x / 0x8000)
-#define Y2D(x) ((float)(short)x * 10)
+#define Y2D(x) ((short) x / 100.0)
 
 /*
  * Fmax = 50gf(standard, convert to yarn force is 100gf)
@@ -21,8 +21,11 @@
  * DAC_PER_BITmin = 69.7847 mgf(real)
  */
 
-#define MV2MGF(mv)  ((mv - 2000) * 1000 / 160)
-#define MGF2MV(mgf) (2000 + (mgf * 160) / 1000)
+//#define MV2MGF(mv)  (((mv) - 2000) * 1000 / 160)
+//#define MGF2MV(mgf) (2000 + ((mgf) * 160) / 1000)
+
+#define MV2GF(mv) (((mv) - 2000) / 160.0)
+#define GF2MV(gf) (2000 + (int)((gf) * 160))
 
 struct ybs_info_s {
 	char sw[32]; //compile date, NULL terminated
@@ -35,9 +38,9 @@ struct ybs_info_s {
 
 int ybs_init(struct ybs_info_s *);
 int ybs_reset(void);
-int ybs_read(int *mgf);
-int ybs_cal_read(int *mgf);
-int ybs_cal_write(int mgf);
+int ybs_read(float *gf);
+int ybs_cal_read(float *gf);
+int ybs_cal_write(float gf);
 int ybs_cal_config(float Gi, float Di, float Go, float Do);
 int ybs_save(void);
 

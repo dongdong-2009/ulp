@@ -40,14 +40,13 @@ enum {
 };
 
 int monitor_init(void);
+int sgm_read(float *gf);
+int sgm_read_until_stable(float *gf, int ms);
 
-int sgm_init(void);
-int sgm_reset_to_zero(void);
-int sgm_read(int *mgf);
-
-void mov_i(int distance); /*for initially positioning purpose*/
-int mov_f(int target_mgf, int ms_per_step);
-int mov_n(int steps, int mgf_max);
+int mov_i(int distance, float gf_max); /*for initially positioning purpose*/
+int mov_n(int steps);
 int mov_p(int pos); //mov to absolute position
+int mov_f(float target_gf, int gf_settling_ms);
+int mov_p_measure(int pos, float *gf_sgm, float *gf_ybs);
 
 #endif

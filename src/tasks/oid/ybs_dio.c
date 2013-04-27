@@ -114,7 +114,7 @@ int ybs_reset(void)
 	return ecode;
 }
 
-int ybs_read(int *mgf)
+int ybs_read(float *gf)
 {
 	__ybs_init();
 	ybs_uart.putchar('f');
@@ -137,25 +137,25 @@ int ybs_read(int *mgf)
 			ecode = 0;
 			short mgfx10;
 			memcpy(&mgfx10, p, 2);
-			*mgf = (int) mgfx10 * 10;
+			*gf = mgfx10 / 100.0;
 			break;
 		}
 	}
 	return ecode;
 }
 
-int ybs_cal_read(int *mgf)
+int ybs_cal_read(float *gf)
 {
 	int ecode = ybs_cal_config(1.0, 0, 0, 0);
 	if(ecode == 0) {
-		ecode = ybs_read(mgf);
+		ecode = ybs_read(gf);
 	}
 	return ecode;
 }
 
-int ybs_cal_write(int mgf)
+int ybs_cal_write(float gf)
 {
-	int ecode = ybs_cal_config(0, 0, 0, mgf);
+	int ecode = ybs_cal_config(0, 0, 0, gf);
 	return ecode;
 }
 
@@ -225,15 +225,16 @@ static int cmd_ybs_func(int argc, char *argv[])
 		"usage:\n"
 		"ybs -i			ybs info read\n"
 		"ybs -k			emulate reset key be pressed\n"
-		"ybs -f			read mgf10\n"
-		"ybs -r			read raw mgf10 from ADC for calibration\n"
-		"ybs -w mgf10		write raw mgf10 to DAC for calibration\n"
+		"ybs -f [ms]		read gf(multiple read, ms per sample)\n"
+		"ybs -r			read raw gf from ADC for calibration\n"
+		"ybs -w gf		write raw gf to DAC for calibration\n"
 		"ybs -S			command ybs to save current settings\n"
-		"ybs -c	Gi Di Go Do	config ybs with calbration parameters\n"
+		"ybs -c	Gi Di Go Do	config ybs with calbration parameters(float)\n"
 	};
 
 	struct ybs_info_s info;
-	int mgf, e = 1, ecode;
+	int ms, e = 1, ecode;
+	float gf;
 	if(argc > 1) {
 		e = 0;
 		for(int i = 1; i < argc; i ++) {
@@ -242,35 +243,38 @@ static int cmd_ybs_func(int argc, char *argv[])
 			case 'i':
 				ecode = ybs_init(&info);
 				if(ecode == 0) {
-					float Gi = info.Gi;
-					float Di = info.Di;
-					float Go = info.Go;
-					float Do = info.Do;
 					printf("SW: %s\n", info.sw);
 					printf("SN: %s\n", info.sn);
-					printf("Gi: %04x(%f)\n", (unsigned) G2Y(Gi) & 0xffff, Gi);
-					printf("Di: %04x(%3.0f mgf)\n", (unsigned) D2Y(Di) & 0xffff, Di);
-					printf("Go: %04x(%f)\n", (unsigned) G2Y(Go) & 0xffff, Go);
-					printf("Do: %04x(%3.0f mgf)\n", (unsigned) D2Y(Do) & 0xffff, Do);
+					printf("Gi: %f\n", info.Gi);
+					printf("Di: %f gf)\n", info.Di);
+					printf("Go: %f\n", info.Go);
+					printf("Do: %f gf)\n", info.Do);
 				}
-				else printf("YBS FAIL\n");
+				else sys_error("ybs init fail");
 				break;
 			case 'k':
 				ecode = ybs_reset();
 				printf("reset %s(%d)\n", (ecode) ? "FAIL" : "PASS", ecode);
 				break;
 			case 'f':
-				ecode = ybs_read(&mgf);
-				printf("%d mgf ... %s(%d)\n", mgf, (ecode) ? "FAIL" : "PASS", ecode);
+				ms = -1;
+				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &ms) == 1)) {
+					i ++;
+				}
+				do {
+					ecode = ybs_read(&gf);
+					printf("%f gf ... %s(%d)\n", gf, (ecode) ? "FAIL" : "PASS", ecode);
+					sys_mdelay(ms);
+				} while(ms > 0);
 				break;
 			case 'r':
-				ecode = ybs_cal_read(&mgf);
-				printf("%d mgf ... %s(%d)\n", mgf, (ecode) ? "FAIL" : "PASS", ecode);
+				ecode = ybs_cal_read(&gf);
+				printf("%f gf ... %s(%d)\n", gf, (ecode) ? "FAIL" : "PASS", ecode);
 				break;
 			case 'w':
-				mgf = atoi(argv[++ i]);
-				ecode = ybs_cal_write(mgf);
-				printf("write %d mgf ... %s(%d)\n", mgf, (ecode) ? "FAIL" : "PASS", ecode);
+				gf = atof(argv[++ i]);
+				ecode = ybs_cal_write(gf);
+				printf("write %f gf ... %s(%d)\n", gf, (ecode) ? "FAIL" : "PASS", ecode);
 				break;
 			case 'c':
 				ecode = -1;
