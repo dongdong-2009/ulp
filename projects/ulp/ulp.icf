@@ -11,6 +11,3 @@ keep { section .driver };
 /*nvm support*/
 place in RAM_region   { section .nvm.ram };
 keep { section .nvm.ram };
-define block .nvm.rom      with alignment = 0x800, size = __ICFEDIT_size_nvm__ * 2     { };
-keep { block .nvm.rom };
-place in ROM_region   { block .nvm.rom };

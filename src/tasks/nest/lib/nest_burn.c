@@ -171,9 +171,10 @@ static void burn_disp(const struct burn_data_s *burn_data)
 	nest_message("%d %d %d	", avg, min, max);
 
 	int wp = burn_data->wp;
+	int tp = burn_data->tp;
 	int fire = burn_data->fire;
 	int lost = burn_data->lost;
-	nest_message("%d %d %d\n", wp, fire, lost);
+	nest_message("%d %d %d %d\n", wp, tp, fire, lost);
 }
 
 static int burn_calibrate(void)

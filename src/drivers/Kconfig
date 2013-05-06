@@ -11,6 +11,7 @@ choice 'default console select'	" \
 	UART2	CONFIG_CONSOLE_UART2 \
 " UART2
 int 'console baudrate' CONFIG_CONSOLE_BAUD 115200
+bool 'rtc driver' CONFIG_DRIVER_RTC
 
 mainmenu_option next_comment
 	comment 'uart config'
@@ -35,6 +36,11 @@ endmenu
 mainmenu_option next_comment
 	comment 'can config'
 	source src/drivers/can/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'lin config'
+	source src/drivers/lin/Kconfig
 endmenu
 
 mainmenu_option next_comment
@@ -65,6 +71,11 @@ endmenu
 mainmenu_option next_comment
 	comment 'pwm config'
 	source src/drivers/pwm/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'pwmin config'
+	source src/drivers/pwmin/Kconfig
 endmenu
 
 mainmenu_option next_comment
@@ -106,4 +117,9 @@ endmenu
 mainmenu_option next_comment
 	comment 'dac config'
 	source src/drivers/dac/Kconfig
+endmenu
+
+mainmenu_option next_comment
+	comment 'pmsmd config'
+	source src/drivers/pmsmd/Kconfig
 endmenu

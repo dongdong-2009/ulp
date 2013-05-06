@@ -1,0 +1,16 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+choice 'target file type'	" \
+	bin	CONFIG_TARGET_BIN \
+	lib	CONFIG_TARGET_LIB \
+" bin
+
+hex "stack size(hex)" CONFIG_STACK_SIZE 800
+if [ "$CONFIG_CPU_ADUC706X" = "y" ]; then
+hex "irq stack size(hex)" CONFIG_IRQSTACK_SIZE 80
+fi
+hex "heap size(hex)" CONFIG_HEAP_SIZE 1000

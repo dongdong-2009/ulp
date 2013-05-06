@@ -53,10 +53,11 @@ int buf_free (circbuf_t * buf)
 	return 0;
 }
 
-int buf_pop (circbuf_t * buf, char *dest, int len)
+int buf_pop (circbuf_t * buf, void *vpdest, int len)
 {
 	unsigned int i;
 	char *p = buf->top;
+	char *dest = vpdest;
 
 	assert (buf != NULL);
 	assert (dest != NULL);
@@ -81,11 +82,12 @@ int buf_pop (circbuf_t * buf, char *dest, int len)
 	return len;
 }
 
-int buf_push (circbuf_t * buf, const char *src, int len)
+int buf_push (circbuf_t * buf, const void *vpsrc, int len)
 {
 	/* NOTE:  this function allows push to overwrite old data. */
 	unsigned int i;
 	char *p = buf->tail;
+	const char *src = vpsrc;
 
 	assert (buf != NULL);
 	assert (src != NULL);

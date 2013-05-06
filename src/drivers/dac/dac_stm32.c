@@ -26,6 +26,12 @@ static int dac_ch1_init(const dac_cfg_t * cfg)
 
 	/* DAC channel1 Configuration */
 	DAC_StructInit(&DAC_InitStructure);
+        
+        //DAC_InitStructure.DAC_Trigger=DAC_Trigger_Software;//由软件触发
+        //DAC_InitStructure.DAC_WaveGeneration=DAC_WaveGeneration_None;//关闭波形生成
+        //DAC_InitStructure.DAC_LFSRUnmask_TriangleAmplitude=DAC_TriangleAmplitude_4095;
+        //DAC_InitStructure.DAC_OutputBuffer=DAC_OutputBuffer_Enable;//使能DAC通道缓存
+        
 	DAC_Init(DAC_Channel_1, &DAC_InitStructure);
 
 	/* Enable DAC Channel1: Once the DAC channel1 is enabled, PA.04 is
@@ -61,7 +67,6 @@ static int dac_ch2_init(const dac_cfg_t * cfg)
 	/* DAC channel1 Configuration */
 	DAC_StructInit(&DAC_InitStructure);
 	DAC_Init(DAC_Channel_2, &DAC_InitStructure);
-
 	/* Enable DAC Channel1: Once the DAC channel1 is enabled, PA.04 is
 	automatically connected to the DAC converter. */
 	DAC_Cmd(DAC_Channel_2, ENABLE);

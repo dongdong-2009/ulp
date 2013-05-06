@@ -11,7 +11,7 @@
 	miaofng@2010 revised for bldc platform
 */
 
-#include "driver.h"
+#include "ulp/driver.h"
 #include "lcd.h"
 #include "lpt.h"
 
@@ -20,39 +20,21 @@
 #define STA 0
 #define DAT 1
 
-static lpt_bus_t *ssd_bus;
-
-/*write index register*/
-static void ssd_WriteIndex(int idx)
-{
-	ssd_bus -> write(IDX, idx);
-}
-
-/*write data register*/
-static void ssd_WriteData(int data)
-{
-	ssd_bus -> write(DAT, data);
-}
-
-/*read data register*/
-static int ssd_ReadData(void)
-{
-	return ssd_bus -> read(DAT);
-}
+static const lpt_bus_t *ssd_bus;
 
 /*write indexed register*/
 static int ssd_WriteRegister(int index, int dat)
 {
-	ssd_WriteIndex(index);
-	ssd_WriteData(dat);
+	ssd_bus->write(IDX, index);;
+	ssd_bus->write(DAT, dat);
 	return 0;
 }
 
 /*read indexed register*/
 static int ssd_ReadRegister(int index)
 {
-	ssd_WriteIndex(index);
-	return ssd_ReadData();
+	ssd_bus->write(IDX,  index);;
+	return ssd_bus->read(DAT);
 }
 
 static int ssd_SetWindow(int x0, int y0, int x1, int y1)
@@ -63,6 +45,7 @@ static int ssd_SetWindow(int x0, int y0, int x1, int y1)
 	ssd_WriteRegister(0x4e, x0); //x: 0~239
 	ssd_WriteRegister(0x4f, y0); //y: 0~319
 
+	#if 0
 	//sort
 	if(x1 < x0) {
 		tmp = x1;
@@ -75,6 +58,7 @@ static int ssd_SetWindow(int x0, int y0, int x1, int y1)
 		y1 = y0;
 		y0 = tmp;
 	}
+	#endif
 
 	//set window
 	ssd_WriteRegister(0x44, (x1 << 8) | x0); //HEA|HSA
@@ -82,31 +66,27 @@ static int ssd_SetWindow(int x0, int y0, int x1, int y1)
 	ssd_WriteRegister(0x46, y1); //VEA
 
 	//set index
-	ssd_WriteIndex( 0x22 );
+	ssd_bus->write(IDX, 0X22);
 	return 0;
 }
 
-static int ssd_wgram(const void *src, int n)
+static int ssd_wgram(const void *src, int n, int color)
 {
-	const short *p = src;
-	while(n > 0) {
-		ssd_WriteData(*p);
-		p ++;
-		n --;
+	const unsigned short *p = src;
+	if(src == NULL) {
+		return ssd_bus ->writen(DAT, color, n);
 	}
 
-	return 0;
+	return ssd_bus ->writeb(DAT, src, n);
 }
 
 static int ssd_rgram(void *dest, int n)
 {
-	short *p = dest;
-	while(n > 0) {
-		*p = ssd_ReadData();
-		p ++;
+	unsigned short *p = dest;
+	while (n > 0) {
+		*p ++ = ssd_bus->read(DAT);
 		n --;
 	}
-
 	return 0;
 }
 
@@ -119,8 +99,8 @@ static int ssd_Initializtion(const struct lcd_cfg_s *cfg)
 	lpt_cfg.mode = LPT_MODE_I80;
 	lpt_cfg.t = 0;
 	lpt_cfg.tp = 0;
-	ssd_bus = cfg -> bus;
-	ssd_bus -> init(&lpt_cfg);
+	ssd_bus = cfg->bus;
+	ssd_bus->init(&lpt_cfg);
 
 	//read dev code and verify
 	id = ssd_ReadRegister(0x00);
@@ -151,19 +131,7 @@ static int ssd_Initializtion(const struct lcd_cfg_s *cfg)
 	ssd_WriteRegister(0x10,0x0000);
 
 	//lcd display direction setting
-	switch (cfg -> rot) {
-	case LCD_ROT_090:
-		ssd_WriteRegister(0x11,0x6018);
-		break;
-	case LCD_ROT_180:
-		ssd_WriteRegister(0x11,0x6000);
-		break;
-	case LCD_ROT_270:
-		ssd_WriteRegister(0x11,0x6028);
-		break;
-	default:
-		ssd_WriteRegister(0x11,0x6030);
-	}
+	ssd_WriteRegister(0x11,0x6030);
 
 	ssd_WriteRegister(0x05,0x0000);
 	ssd_WriteRegister(0x06,0x0000);

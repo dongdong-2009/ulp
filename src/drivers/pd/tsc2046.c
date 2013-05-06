@@ -50,6 +50,7 @@ int tsc2046_init(const tsc2046_t *chip)
 	cfg.bseq = 1;
 	cfg.freq = 2000000;
 	spi -> init(&cfg);
+        spi_cs_set(chip->idx, 0);
 	spi -> wbuf(obuf, ibuf, N);
 
 	//save chip config for later usage

@@ -20,6 +20,7 @@ choice 'task select'	" \
 	VVT		CONFIG_TASK_VVT \
 	YBS		CONFIG_TASK_YBS \
 	YBSREPEATER	CONFIG_TASK_YBSREPEATER \
+	OID		CONFIG_TASK_OID \
 " NONE
 
 if [ "$CONFIG_TASK_APT" = "y" ]; then
@@ -96,5 +97,12 @@ if [ "$CONFIG_TASK_YBSREPEATER" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'ybs_repeater'
 		source src/tasks/ybs_repeater/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_OID" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'oid'
+		source src/tasks/oid/Kconfig
 	endmenu
 fi

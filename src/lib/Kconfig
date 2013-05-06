@@ -12,6 +12,7 @@ choice 'stm32 toolchain select'	" \
 source src/main/Kconfig
 bool "shell - uart console" CONFIG_TASK_SHELL
 bool "osd - simple gui console" CONFIG_TASK_OSD
+bool "gui - simple gui console" CONFIG_TASK_GUI
 bool "lwip -tcp/ip protocol stack" CONFIG_LIB_LWIP
 bool "fatfs - vfat file system" CONFIG_LIB_FATFS
 bool "common - common routine library" CONFIG_LIB_COMMON
@@ -20,6 +21,8 @@ bool "mass storage - virtual usb disk" CONFIG_LIB_UDISK
 bool "priv - copyright related library" CONFIG_LIB_PRIV
 bool "lua - lua script language" CONFIG_LIB_LUA
 bool "zbar - barcode scanner library" CONFIG_LIB_ZBAR
+bool "instr - instrument support routines" CONFIG_LIB_INSTR
+bool "pmsm - pmsm motor" CONFIG_LIB_PMSM
 
 mainmenu_option next_comment
 	comment 'library detail configuration'

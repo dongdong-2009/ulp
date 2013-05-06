@@ -35,7 +35,10 @@ static int cmd_lcd_func(int argc, char *argv[])
 
 	if(argc >= 2) {
 		if(argv[1][0] == 'i') { //lcd init
-			lcd_init(lcd);
+			if(lcd_init(lcd)) {
+				printf("lcd module cann't be identified\n");
+				return 0;
+			}
 			lcd_get_res(lcd, &row, &col);
 			printf("lcd init: xres = %d, yres = %d\n", row, col);
 			lcd_get_font(lcd, &row, &col);

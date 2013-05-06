@@ -6,6 +6,7 @@
 
 void sys_Init(void);
 void sys_Update(void);
+void bsp_init(void);
 
 /*normally this routine will be provided by cpu/xxx/cmsis/system_xxx.c*/
 extern void SystemInit (void);

@@ -5,7 +5,6 @@
 #define __SPI_H_
 
 #include <stddef.h>
-#include "ulp/device.h"
 #include "config.h"
 
 enum {
@@ -18,6 +17,8 @@ enum {
 
 	SPI_CS_PB0,
 	SPI_CS_PB1,
+	SPI_CS_PB6,
+	SPI_CS_PB7,
 	SPI_CS_PB10,
 	SPI_CS_PB12, /*SPI2_NSS*/
 	SPI_2_NSS = SPI_CS_PB12,
@@ -44,7 +45,7 @@ typedef struct {
 	unsigned cpha : 1; /*clock phase, 0-> first edge active*/
 	unsigned bits : 6; /*bits of a frame, 1~32*/
 	unsigned bseq : 1; /*bit sequency, 0->lsb*/
-	unsigned csel : 1; /*csel on/off, 1 -> cs signal will be manually controlled by csel() method */
+	unsigned csel : 1; /*customized select control through by csel() method */
 	unsigned freq;
 } spi_cfg_t;
 
@@ -63,6 +64,7 @@ typedef struct {
 	int (*poll)(void); //0 indicates tranfser finished
 } spi_bus_t;
 
+extern const spi_bus_t spi;
 extern const spi_bus_t spi1;
 extern const spi_bus_t spi2;
 extern const spi_bus_t spi3;

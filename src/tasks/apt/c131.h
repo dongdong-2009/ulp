@@ -61,7 +61,8 @@ int apt_SelectSDMTest(int keytype);
 
 int apt_GetDTCInfo(void);
 int apt_SelectSDMDTC(int keytype);
-
+int c131_GetCurrentLoadIndex(void);
+int c131_GetLoad(apt_load_t ** pload, int index_load);
 //for can send
 int c131_ClearHistoryDTC(void);
 int c131_GetDTC(c131_dtc_t *pc131_dtc);

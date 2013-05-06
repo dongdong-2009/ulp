@@ -26,7 +26,11 @@ int pd_Init(void)
 
 #if CONFIG_PD_BUS_SPI1 == 1
 	const spi_bus_t *spi = &spi1;
+	#ifdef CONFIG_BOARD_HY_SMART
+	int idx = SPI_CS_PD12;
+	#else
 	int idx = SPI_1_NSS;
+	#endif
 #elif CONFIG_PD_BUS_SPI2 == 1
 	const spi_bus_t *spi = &spi2;
 	int idx = SPI_2_NSS;
@@ -75,4 +79,52 @@ int pd_GetEvent(dot_t *p)
 }
 
 
+#include "gui/gui_event.h"
+
+static time_t pd_timer = 0;
+static signed char pd_counter = 0;
+static signed char pd_pressed = 0;
+
+/*for gui module usage*/
+int pd_get_event(int *x, int *y, int *z)
+{
+	int ret, et = GUI_NOTHING;
+	struct pd_sample sa;
+
+	if(time_left(pd_timer) > 0)
+		return et;
+
+	pd_timer = time_get(5);
+	ret = pdd_get( &sa );
+	if( !ret ) {
+		ret = pdl_process( &pd_pdl, &sa);
+		if( !ret ) {
+			pd_counter += 1;
+			if(pd_counter > 5) {
+				pd_counter = 5;
+				et = GUI_TOUCH_UPDATE;
+				if(pd_pressed == 0) {
+					pd_pressed = 1;
+					et = GUI_TOUCH_BEGIN;
+				}
+
+				*x = sa.x;
+				*y = sa.y;
+				*z = sa.z;
+			}
+		}
+	}
+	else {
+		pd_counter --;
+		if(pd_counter < 0) {
+			pd_counter = 0;
+			if(pd_pressed == 1) {
+				pd_pressed = 0;
+				et = GUI_TOUCH_END;
+			}
+		}
+	}
+
+	return et;
+}
 

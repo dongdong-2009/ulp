@@ -6,7 +6,7 @@
 #include "lcd.h"
 #include <stdlib.h>
 #include <string.h>
-#include "sys/sys.h"
+#include "ulp/sys.h"
 #include "common/bitops.h"
 #include "lpt.h"
 
@@ -46,7 +46,10 @@ int lcd_add(const struct lcd_dev_s *dev, const char *name, int type)
 	}
 
 	//get real resolution
-	lcd_get_res(lcd, &lcd -> xres, &lcd -> yres);
+	int xres, yres;
+	lcd_get_res(lcd, &xres, &yres);
+	lcd->xres = xres;
+	lcd->yres = yres;
 	return 0;
 }
 
@@ -106,18 +109,6 @@ int lcd_get_res(struct lcd_s *lcd, int *x, int *y)
 	return 0;
 }
 
-int lcd_set_fgcolor(struct lcd_s *lcd, int cr)
-{
-	lcd -> fgcolor = cr;
-	return 0;
-}
-
-int lcd_set_bgcolor(struct lcd_s *lcd, int cr)
-{
-	lcd -> bgcolor = cr;
-	return 0;
-}
-
 int lcd_init(struct lcd_s *lcd)
 {
 	struct lcd_cfg_s cfg;
@@ -132,35 +123,45 @@ int lcd_init(struct lcd_s *lcd)
 	return ret;
 }
 
-/*coordinate transformation, virtual -> real*/
-static void lcd_transform(struct lcd_s *lcd, int *px, int *py)
+/*coordinate transformation, virtual -> real, rotate angle is centered top&left of lcd, clockwise direction*/
+static int __lcd_transform(int angle, int x, int y, int w, int h, int *px, int *py)
 {
-	int x, y, w, h;
+	int lcd_x, lcd_y, lcd_i;
 
-	w = lcd -> dev -> xres;
-	h = lcd -> dev -> yres;
-
-	switch (lcd -> rot) {
-	case LCD_ROT_090:
-		x = (*py);
-		y = h - (*px) - 1;
+	switch (angle) {
+	case 90:
+		lcd_x = y;
+		lcd_y = w - x - 1;
+		lcd_i = lcd_y * h + lcd_x;
 		break;
-	case LCD_ROT_180:
-		x = w - (*px) - 1;
-		y = h - (*py) - 1;
+	case 180:
+		lcd_x = w - x - 1;
+		lcd_y = h - y - 1;
+		lcd_i = lcd_y * w + lcd_x;
 		break;
-	case LCD_ROT_270:
-		x = w - (*py) - 1;
-		y = (*px);
+	case 270:
+		lcd_x = h - y - 1;
+		lcd_y = x;
+		lcd_i = lcd_y * h + lcd_x;
 		break;
 	default:
-		x = *px;
-		y = *py;
+		lcd_x = x;
+		lcd_y = y;
+		lcd_i = lcd_y * w + lcd_x;
 	}
 
-	//write back
-	*px = x;
-	*py = y;
+	*px = lcd_x;
+	*py = lcd_y;
+
+	return lcd_i;
+}
+
+static int lcd_transform(struct lcd_s *lcd, int *x, int *y)
+{
+	int w, h;
+	w = lcd->xres;
+	h = lcd->yres;
+	return __lcd_transform(lcd->rot * 90, *x, *y, w, h, x, y);
 }
 
 static int lcd_set_window(struct lcd_s *lcd, int x, int y, int w, int h)
@@ -178,20 +179,34 @@ static int lcd_set_window(struct lcd_s *lcd, int x, int y, int w, int h)
 	//virtual -> real
 	lcd_transform( lcd, &x0, &y0 );
 	lcd_transform( lcd, &x1, &y1 );
+	if(x0 > x1) {
+		w = x0;
+		x0 = x1;
+		x1 = w;
+	}
+	if(y0 > y1) {
+		w = y0;
+		y0 = y1;
+		y1 = w;
+	}
 	return lcd -> dev -> setwindow( x0, y0, x1, y1 );
 }
 
 int lcd_bitblt(struct lcd_s *lcd, const void *bits, int x, int y, int w, int h)
 {
 	short i, v, n = w * h;
-	int ret = lcd_set_window(lcd, x, y, w, h);
+	int _x, _y, ret = lcd_set_window(lcd, x, y, w, h);
 	static short gram[32*16];
 
 	if(n <= 32 * 16) {
-		for(i = 0; i < n; i ++) {
-			v = bit_get(i, bits);
-			v = (v != 0) ? lcd -> fgcolor : lcd -> bgcolor;
-			gram[i] = v;
+		for(y = 0; y < h; y ++) {
+			for(x = 0; x < w; x ++) {
+				i = y * w + x;
+				v = bit_get(i, bits);
+				v = (v != 0) ? lcd -> fgcolor : lcd -> bgcolor;
+				i = __lcd_transform(lcd->rot * 90U, x, y, w, h, &_x, &_y);
+				gram[i] = v;
+			}
 		}
 
 		ret = lcd ->dev ->wgram(gram, n, 0);
@@ -321,4 +336,34 @@ int lcd_puts(struct lcd_s *lcd, int x, int y, const char *str)
 	}
 
 	return ret;
+}
+
+int lcd_line(struct lcd_s *lcd, int x, int y, int dx, int dy)
+{
+	/*slash is not supported yet*/
+	assert((dx == 0) || (dy == 0));
+
+	if(dx < 0) {
+		dx = 0 - dx;
+		x += dx;
+	}
+	if(dy < 0) {
+		dy = 0 - dy;
+		y += dy;
+	}
+
+	dx += (dx == 0) ? lcd->line_width: 0;
+	dy += (dy == 0) ? lcd->line_width: 0;
+	lcd_set_window(lcd, x, y, dx, dy);
+	lcd->dev->wgram(NULL, dx * dy, lcd->fgcolor);
+	return 0;
+}
+
+int lcd_rect(struct lcd_s *lcd, int x, int y, int w, int h)
+{
+	lcd_line(lcd, x, y, w, 0);
+	lcd_line(lcd, x, y, 0, h);
+	lcd_line(lcd, x, y + h - 1, w, 0);
+	lcd_line(lcd, x + w - 1, y, 0, h);
+	return 0;
 }

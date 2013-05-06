@@ -7,10 +7,17 @@
 #include "led.h"
 #include "ulp_time.h"
 
+#define CONFIG_LED_ECODE 1
+
 static time_t led_timer;
 static char flag_status; /*0->off/flash, 1->on*/
 static char flag_flash; /*1->flash*/
 static char flag_hwstatus; /*owned by led_update thread only*/
+
+#ifdef CONFIG_LED_ECODE
+static char led_ecode;
+static char led_estep; /*0/1: idle, other->counting ..*/
+#endif
 
 void led_Init(void)
 {
@@ -18,8 +25,12 @@ void led_Init(void)
 	flag_status = 0;
 	flag_flash = 0;
 	flag_hwstatus = 0;
+#ifdef CONFIG_LED_ECODE
+	led_ecode = 0;
+#endif
 
 	led_hwInit();
+	led_flash(LED_GREEN);
 }
 
 void led_Update(void)
@@ -32,6 +43,19 @@ void led_Update(void)
 		return;
 
 	led_timer = time_get(LED_FLASH_PERIOD);
+
+#ifdef CONFIG_LED_ECODE
+	if(led_ecode != 0) { //ecode=2: 1110 10 10
+		if(led_estep < LED_IDLE_PERIOD) {
+			led_on(LED_RED);
+		}
+		else {
+			led_inv(LED_RED);
+		}
+		led_estep ++;
+		led_estep = (led_estep > (LED_IDLE_PERIOD + 1 + 2 * led_ecode)) ? 0 : led_estep;
+	}
+#endif
 
 	/*calcu the new status of leds*/
 	status = flag_hwstatus;
@@ -87,6 +111,7 @@ void led_on(led_t led)
 
 	flag_status |= 1 << i;
 	flag_flash &= ~(1 << i);
+	led_hwSetStatus(led, LED_ON);
 }
 
 void led_off(led_t led)
@@ -95,6 +120,7 @@ void led_off(led_t led)
 
 	flag_status &= ~(1 << i);
 	flag_flash &= ~(1 << i);
+	led_hwSetStatus(led, LED_OFF);
 }
 
 void led_inv(led_t led)
@@ -103,6 +129,7 @@ void led_inv(led_t led)
 
 	flag_status ^= 1 << i;
 	flag_flash &= ~(1 << i);
+	led_hwSetStatus(led, (flag_status & (1 << i)) ? LED_ON : LED_OFF);
 }
 
 void led_flash(led_t led)
@@ -111,4 +138,12 @@ void led_flash(led_t led)
 
 	flag_status &= ~(1 << i);
 	flag_flash |= 1 << i;
+}
+
+void led_error(char ecode)
+{
+	if((ecode == 0) || (led_ecode == 0)) {
+		led_ecode = ecode;
+		led_estep = 0;
+	}
 }

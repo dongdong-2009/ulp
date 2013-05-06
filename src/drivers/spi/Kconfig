@@ -3,40 +3,19 @@
 #
 # Written by miaofng@2010
 #
-bool "spi bus 1?" CONFIG_DRIVER_SPI1
-if [ "$CONFIG_DRIVER_SPI1" = "y" ]; then
-	bool "enable dma support" CONFIG_SPI1_DMA
-	choice 'cs control method'	" \
-		NONE	CONFIG_SPI1_CS_NONE \
-		HARD	CONFIG_SPI1_CS_HARD \
-		SOFT	CONFIG_SPI1_CS_SOFT \
-	" SOFT
+if [ "$CONFIG_CPU_STM32" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'stm32 spi config'
+		source src/drivers/spi/Kconfig.stm32
+	endmenu
 fi
-bool "spi bus 2?" CONFIG_DRIVER_SPI2
-if [ "$CONFIG_DRIVER_SPI2" = "y" ]; then
-	bool "enable dma support" CONFIG_SPI2_DMA
-	choice 'cs control method'	" \
-		NONE	CONFIG_SPI2_CS_NONE \
-		HARD	CONFIG_SPI2_CS_HARD \
-		SOFT	CONFIG_SPI2_CS_SOFT \
-	" SOFT
+if [ "$CONFIG_CPU_ADUC706X" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'aduc706x spi config'
+		source src/drivers/spi/Kconfig.aduc
+	endmenu
 fi
-bool "spi bus 3?" CONFIG_DRIVER_SPI3
-if [ "$CONFIG_DRIVER_SPI3" = "y" ]; then
-	bool "enable dma support" CONFIG_SPI3_DMA
-	bool "remap to PC10..12" CONFIG_SPI3_REMAP
-	choice 'cs control method'	" \
-		NONE	CONFIG_SPI3_CS_NONE \
-		HARD	CONFIG_SPI3_CS_HARD \
-		SOFT	CONFIG_SPI3_CS_SOFT \
-	" SOFT
-fi
-
-mainmenu_option next_comment
-	comment 'soft cs config'
-	source src/drivers/spi/Kconfig.cs
-endmenu
-
+bool "chip virtual(vchip)" CONFIG_DRIVER_VCHIP
 bool "chip ad9833(dds)" CONFIG_DRIVER_AD9833
 bool "chip mcp41x(digi pot)" CONFIG_DRIVER_MCP41X
 bool "chip dac1x8s(8x10bit dac)" CONFIG_DRIVER_DAC1X8S

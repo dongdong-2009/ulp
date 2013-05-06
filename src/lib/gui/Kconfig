@@ -1,0 +1,10 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2012
+#
+
+int "widgets pool size, < 256" CONFIG_GUI_WPSZ 64
+int "events pool size, < 256" CONFIG_GUI_EPSZ 64
+bool "gui demo app" CONFIG_GUI_DEMO
+

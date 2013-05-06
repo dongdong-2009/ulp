@@ -37,12 +37,12 @@ typedef struct {
 	.baud = BAUD_115200, \
 }
 
-typedef struct {
+typedef const struct {
 	int (*init)(const uart_cfg_t *cfg);
 	int (*putchar)(int data);
 	int (*getchar)(void);
 	int (*poll)(void); //return how many chars left in the rx buffer
-	
+
 #ifdef CONFIG_UART_KWP_SUPPORT
 	int (*wake)(int op);
 #endif
@@ -53,5 +53,15 @@ extern uart_bus_t uart0;
 extern uart_bus_t uart1;
 extern uart_bus_t uart2;
 extern uart_bus_t uart3;
+
+static inline void uart_puts(uart_bus_t *uart, char *str)
+{
+	while(*str) uart->putchar(*str ++);
+}
+
+static inline void uart_flush(uart_bus_t *uart)
+{
+	while(uart->poll()) uart->getchar();
+}
 
 #endif /* __UART_H_ */

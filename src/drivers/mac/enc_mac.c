@@ -19,68 +19,83 @@
 #include "stm32f10x.h"
 #include <string.h>
 
-/*================ Private functions =============================*/
+#define CS_LOW() spi_cs_set(enc24j.idx, 0)
+#define CS_HIGH() spi_cs_set(enc24j.idx, 1)
 
-#define CS_LOW() spi_cs_set(chip->idx, 0)
-#define CS_HIGH() spi_cs_set(chip->idx, 1)
-
-#define GP_WINDOW		(0x2)
-#define RX_WINDOW		(0x4)
-
-#define RXSTART 0x1000u
-#define TXSTART 0x0000u
+const struct {
+	const spi_bus_t *bus;
+	int idx;
+} enc24j = { .bus = &spi1, .idx = SPI_1_NSS };
 
 // Internal MAC level variables and flags.
 unsigned char vCurrentBank=0xff;
-int rCurrentPacketPointer;
-int rNextPacketPointer;
-
-enc_t chip = {
-	.bus = &spi1,
-	.idx = SPI_1_NSS,
-};
+unsigned short wCurrentPacketPointer;
+unsigned short wNextPacketPointer;
 
 void low_level_init(struct netif *netif)
 {
 	int w;
-	enc_Init(&chip);
+	enc_Init();
 	/* set MAC hardware address length */
 	netif->hwaddr_len = ETHARP_HWADDR_LEN;
 	/* set MAC hardware address */
 	((unsigned char*)&w)[0] = netif->hwaddr[0];
 	((unsigned char*)&w)[1] = netif->hwaddr[1];
-	WriteReg(&chip,MAADR1, w);
+	WriteReg(MAADR1, w);
 	((unsigned char*)&w)[0] = netif->hwaddr[2];
 	((unsigned char*)&w)[1] = netif->hwaddr[3];
-	WriteReg(&chip,MAADR2, w);
+	WriteReg(MAADR2, w);
 	((unsigned char*)&w)[0] = netif->hwaddr[4];
 	((unsigned char*)&w)[1] = netif->hwaddr[5];
-	WriteReg(&chip,MAADR3,w);
+	WriteReg(MAADR3,w);
 	/* maximum transfer unit */
 	netif->mtu = 1500;
 	/* device capabilities */
 	/* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
 	netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
+}
 
-	GPIO_InitTypeDef  GPIO_InitStructure;
-	EXTI_InitTypeDef EXTI_InitStructure;
-	NVIC_InitTypeDef NVIC_InitStructure;
-	GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_4;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode= GPIO_Mode_IN_FLOATING ;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	EXTI_InitStructure.EXTI_Line = EXTI_Line4;
-	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
-	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
-	EXTI_Init(&EXTI_InitStructure);
-	GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource4);
+void MACFlush(void)
+{
+	unsigned short w;
 
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_0);
-	NVIC_InitStructure.NVIC_IRQChannel = EXTI4_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure);
+	// Check to see if the duplex status has changed.  This can
+	// change if the user unplugs the cable and plugs it into a
+	// different node.  Auto-negotiation will automatically set
+	// the duplex in the PHY, but we must also update the MAC
+	// inter-packet gap timing and duplex state to match.
+	if(ReadReg(EIR) & EIR_LINKIF)
+	{
+		BFCReg(EIR, EIR_LINKIF);
+
+		// Update MAC duplex settings to match PHY duplex setting
+		w = ReadReg(MACON2);
+		if(ReadReg(ESTAT) & ESTAT_PHYDPX)
+		{
+			// Switching to full duplex
+			WriteReg(MABBIPG, 0x15);
+			w |= MACON2_FULDPX;
+		}
+		else
+		{
+			// Switching to half duplex
+			WriteReg(MABBIPG, 0x12);
+			w &= ~MACON2_FULDPX;
+		}
+		WriteReg(MACON2, w);
+	}
+
+
+	// Start the transmission, but only if we are linked.  Supressing
+	// transmissing when unlinked is necessary to avoid stalling the TX engine
+	// if we are in PHY energy detect power down mode and no link is present.
+	// A stalled TX engine won't do any harm in itself, but will cause the
+	// ENCX24J600_MACIsTXReady() function to continuously return false, which will
+	// ultimately stall the Microchip TCP/IP stack since there is blocking code
+	// elsewhere in other files that expect the TX engine to always self-free
+	// itself very quickly.
+	if(ReadReg(ESTAT) & ESTAT_PHYLNK)
+		BFSReg(ECON1, ECON1_TXRTS);
 }
 
 /*
@@ -100,28 +115,59 @@ void low_level_init(struct netif *netif)
  */
 err_t low_level_output(struct netif *netif, struct pbuf *p)
 {
-	int addr, busy;
+	int addr, busy = 0, n = 0;
 	struct pbuf *q;
-	addr = ReadReg(&chip, ETXST);
-	if(ReadReg(&chip, ECON1) & ECON1_TXRTS) {
-		addr = (addr == 0x800) ? 0 : 0x800;
+
+	addr = ReadReg(ETXST);
+	if(ReadReg(ECON1) & ECON1_TXRTS) {
+		addr = (addr == 1518) ? 0 : 1518;
 		busy = 1;
 	}
 	//write payload to buffer
-	WriteReg(&chip, EGPWRPT, addr);
+	WriteReg(EGPWRPT, addr);
 	for (q = p; q != NULL; q = q->next) {
-		WriteMemoryWindow(&chip,GP_WINDOW, q->payload, q->len);
+		if(q->len > 0) {
+			WriteMemoryWindow(GP_WINDOW, q->payload, q->len);
+			n += q->len;
+		}
 	}
-	if(!(ReadReg(&chip,ESTAT) & ESTAT_PHYLNK))
+	if(!(ReadReg(ESTAT) & ESTAT_PHYLNK))
 		return ERR_CONN;
 	//wait old packet sent
-	while(busy && (ReadReg(&chip, ECON1) & ECON1_TXRTS));
-	
+	while(busy && (ReadReg(ECON1) & ECON1_TXRTS));
+
 	//send current packet
-	WriteReg(&chip, ETXST, addr);
-	WriteReg(&chip, ETXLEN, p -> len);
-	BFSReg(&chip,ECON1, ECON1_TXRTS);
+	WriteReg(ETXST, addr);
+	WriteReg(ETXLEN, n);
+	#ifdef __DEBUG_PING
+	struct eth_hdr * ethhdr = (struct eth_hdr *)p->payload;
+	struct ip_hdr *iphdr = (struct ip_hdr *)((u8_t*)ethhdr + 14);
+	if((ethhdr->type == 0x0008)&&(iphdr->_proto == 0x01)) {
+		printf("ping packet reply to 192.168.2.%d\n\n", (iphdr->dest.addr) >> 24);
+	}
+	#endif
+	MACFlush();
 	return ERR_OK;
+}
+
+void MACDiscardRx(void)
+{
+	unsigned short wNewRXTail;
+
+	// Decrement the next packet pointer before writing it into
+	// the ERXRDPT registers. RX buffer wrapping must be taken into account if the
+	// NextPacketLocation is precisely RXSTART.
+	wNewRXTail = wNextPacketPointer - 2;
+	if(wNextPacketPointer == RXSTART)
+		wNewRXTail = ENC100_RAM_SIZE - 2;
+
+	// Decrement the RX packet counter register, EPKTCNT
+	BFSReg(ECON1, ECON1_PKTDEC);
+
+	// Move the receive read pointer to unwrite-protect the memory used by the
+	// last packet.  The writing order is important: set the low byte first,
+	// high byte last (handled automatically in WriteReg()).
+	WriteReg(ERXTAIL, wNewRXTail);
 }
 
 /*
@@ -134,33 +180,49 @@ err_t low_level_output(struct netif *netif, struct pbuf *p)
  */
 struct pbuf * low_level_input(struct netif *netif)
 {
-	struct pbuf *p, *q;
+	struct pbuf *p = NULL, *q;
 	int length;
-	struct enc_head_s header;
+	ENC100_PREAMBLE header;
+
 	// Test if at least one packet has been received and is waiting
-	if(!(ReadReg(&chip,EIR) & EIR_PKTIF)) {
+	if(!(ReadReg(EIR) & EIR_PKTIF)) {
 		return(NULL);
 	}
 
 	// Set the RX Read Pointer to the beginning of the next unprocessed packet
-	rCurrentPacketPointer = rNextPacketPointer;
-	WriteReg(&chip,ERXRDPT, rCurrentPacketPointer);
-	ReadMemoryWindow(&chip,RX_WINDOW, (unsigned char *) &header, sizeof(header));
-	rNextPacketPointer = header.next; 
-	length = header.n; 
+	wCurrentPacketPointer = wNextPacketPointer;
+	WriteReg(ERXRDPT, wCurrentPacketPointer);
+	ReadMemoryWindow(RX_WINDOW, (unsigned char *) &header, sizeof(header));
+	if(header.NextPacketPointer > RXSTOP || ((TCPIP_UINT8_VAL*)(&header.NextPacketPointer))->bits.b0 ||
+		header.StatusVector.bits.Zero || header.StatusVector.bits.ZeroH ||
+		header.StatusVector.bits.CRCError ||
+		header.StatusVector.bits.ByteCount > 1522u) {
+		MACDiscardRx();
+		return NULL;
+	}
+
+	wNextPacketPointer = header.NextPacketPointer;
+	length = header.StatusVector.bits.ByteCount;
 	p = pbuf_alloc(PBUF_RAW, length, PBUF_POOL);
 	if (p != NULL) {
-		for (q = p; q != NULL; q = q -> next) {
-			ReadMemoryWindow(&chip, RX_WINDOW, q -> payload, q -> len);
-			
+		for (q = p; (q != NULL) && (length > 0); q = q -> next) {
+			int n = (length > q->len) ? q->len : length;
+			ReadMemoryWindow(RX_WINDOW, q -> payload, n);
+			length -= n;
 		}
 	}
-	WriteReg(&chip,ERXTAIL, rNextPacketPointer-2);
-	BFSReg(&chip,ECON1, ECON1_PKTDEC);
+	#if __DEBUG_PING
+	struct eth_hdr * ethhdr = (struct eth_hdr *)p->payload;
+	struct ip_hdr *iphdr = (struct ip_hdr *)((u8_t*)ethhdr + 14);
+	if((ethhdr->type == 0x0008)&&(iphdr->_proto == 0x01)) {
+		printf("ping packet received from 192.168.2.%d\n", (iphdr->src.addr) >> 24);
+	}
+	#endif
+	MACDiscardRx();
 	return p;
 }
 
-void enc_Init(enc_t *chip)
+void enc_Init(void)
 {
 	spi_cfg_t cfg = {
 		.cpol = 0,
@@ -170,62 +232,67 @@ void enc_Init(enc_t *chip)
 		.csel = 1,
 		.freq = 9000000,
 	};
-	chip->bus->init(&cfg);
-	SendSystemReset(*chip);
-	rNextPacketPointer = RXSTART;
-	rCurrentPacketPointer = 0x0000;
+	enc24j.bus->init(&cfg);
+	SendSystemReset();
+
+	// Initialize RX tracking variables and other control state flags
+	wNextPacketPointer = RXSTART;
 
 	// Set up TX/RX/UDA buffer addresses
-	WriteReg(chip,ETXST, TXSTART);
-	WriteReg(chip,ERXST, RXSTART);
-	WriteReg(chip,ERXTAIL, ENC100_RAM_SIZE-2);
-	WriteReg(chip,EUDAST, ENC100_RAM_SIZE);
-	WriteReg(chip,EUDAND, ENC100_RAM_SIZE+1);
-	WritePHYReg(*chip,PHANA, PHANA_ADPAUS0 | PHANA_AD10FD | PHANA_AD10 | PHANA_AD100FD | PHANA_AD100 | PHANA_ADIEEE0);
-	WritePHYReg(*chip,PHCON1, PHCON1_SPD100 | PHCON1_PFULDPX);
+	WriteReg(ETXST, TXSTART);
+	WriteReg(ERXST, RXSTART);
+	WriteReg(ERXTAIL, ENC100_RAM_SIZE-2);
+	WriteReg(EUDAST, ENC100_RAM_SIZE);
+	WriteReg(EUDAND, ENC100_RAM_SIZE+1);
+
+	WritePHYReg(PHANA, PHANA_ADPAUS0 | PHANA_AD10FD | PHANA_AD10 | PHANA_AD100FD | PHANA_AD100 | PHANA_ADIEEE0);
+	WritePHYReg(PHCON1, PHCON1_SPD100 | PHCON1_PFULDPX);
+	//enable ethernet CRC
+
+	WriteReg(MACON2, MACON2_PADCFG2 | MACON2_PADCFG1 | MACON2_PADCFG0 | MACON2_TXCRCEN);
 
 	//Enable interupt
-	BFSReg(chip,EIE, EIE_INTIE);
-	BFSReg(chip,EIE, EIE_PKTIE);
+	BFSReg(EIE, EIE_INTIE);
+	BFSReg(EIE, EIE_PKTIE);
 
 	// Enable RX packet reception
-	BFSReg(chip,ECON1, ECON1_RXEN);
+	BFSReg(ECON1, ECON1_RXEN);
 }
 
-void SendSystemReset(enc_t chip)
+void SendSystemReset(void)
 {
 	do {
 		do {
-			WriteReg(&chip,EUDAST, 0x1234);
-		} while(ReadReg(&chip,EUDAST) != 0x1234u);
+			WriteReg(EUDAST, 0x1234);
+		} while(ReadReg(EUDAST) != 0x1234u);
 		// Issue a reset and wait for it to complete
-		BFSReg(&chip,ECON2, ECON2_ETHRST);
+		BFSReg(ECON2, ECON2_ETHRST);
 		vCurrentBank = 0;
-		while((ReadReg(&chip,ESTAT) & (ESTAT_CLKRDY | ESTAT_RSTDONE | ESTAT_PHYRDY)) != (ESTAT_CLKRDY | ESTAT_RSTDONE | ESTAT_PHYRDY));
+		while((ReadReg(ESTAT) & (ESTAT_CLKRDY | ESTAT_RSTDONE | ESTAT_PHYRDY)) != (ESTAT_CLKRDY | ESTAT_RSTDONE | ESTAT_PHYRDY));
 		udelay(30);
 
 	 // Check to see if the reset operation was successful by
 	 // checking if EUDAST went back to its reset default.  This test
 	// should always pass, but certain special conditions might make
 	// this test fail, such as a PSP pin shorted to logic high.
-	} while(ReadReg(&chip,EUDAST) != 0x0000u);
+	} while(ReadReg(EUDAST) != 0x0000u);
 	// Really ensure reset is done and give some time for power to be stable
 	mdelay(1);
 }
 
-void WritePHYReg(enc_t chip,unsigned char Register, int Data)
+void WritePHYReg(unsigned char Register, int Data)
 {
 	// Write the register address
-	WriteReg(&chip,MIREGADR,  0x0100 | Register);
+	WriteReg(MIREGADR,  0x0100 | Register);
 
 	// Write the data
-	WriteReg(&chip,MIWR, Data);
+	WriteReg(MIWR, Data);
 
 	// Wait until the PHY register has been written
-	while(ReadReg(&chip,MISTAT) & MISTAT_BUSY);
+	while(ReadReg(MISTAT) & MISTAT_BUSY);
 }
 
-void BFSReg(enc_t *chip,int wAddress, int wValue)
+void BFSReg(int wAddress, int wValue)
 {
 	unsigned char vBank;
 	vBank = ((unsigned char)wAddress) & 0xE0;
@@ -234,28 +301,28 @@ void BFSReg(enc_t *chip,int wAddress, int wValue)
 		if(vBank != vCurrentBank) {
 			if(vBank == (0x0u<<5))
 				//Execute0(B0SEL);
-				chip->bus->wreg(chip->idx, B0SEL);
+				enc24j.bus->wreg(enc24j.idx, B0SEL);
 			else if(vBank == (0x1u<<5))
 				//Execute0(B1SEL);
-				chip->bus->wreg(chip->idx, B1SEL);
+				enc24j.bus->wreg(enc24j.idx, B1SEL);
 			else if(vBank == (0x2u<<5))
 				//Execute0(B2SEL);
-				chip->bus->wreg(chip->idx, B2SEL);
+				enc24j.bus->wreg(enc24j.idx, B2SEL);
 			else if(vBank == (0x3u<<5))
 				//Execute0(B3SEL);
-				chip->bus->wreg(chip->idx, B3SEL);
+				enc24j.bus->wreg(enc24j.idx, B3SEL);
 			vCurrentBank = vBank;
 		}
 
 		//Execute2(WCR | (wAddress & 0x1F), wValue);
-		chip->bus->wreg(chip->idx, BFS | (wAddress & 0x1F));
-		chip->bus->wreg(chip->idx, ((unsigned char*)&wValue)[0]);
-		chip->bus->wreg(chip->idx, ((unsigned char*)&wValue)[1]);
+		enc24j.bus->wreg(enc24j.idx, BFS | (wAddress & 0x1F));
+		enc24j.bus->wreg(enc24j.idx, ((unsigned char*)&wValue)[0]);
+		enc24j.bus->wreg(enc24j.idx, ((unsigned char*)&wValue)[1]);
 	}
 	CS_HIGH();
 }
 
-void BFCReg(enc_t *chip,int wAddress, int wValue)
+void BFCReg(int wAddress, int wValue)
 {
 	unsigned char vBank;
 	vBank = ((unsigned char)wAddress) & 0xE0;
@@ -264,29 +331,29 @@ void BFCReg(enc_t *chip,int wAddress, int wValue)
 		if(vBank != vCurrentBank) {
 			if(vBank == (0x0u<<5))
 				//Execute0(B0SEL);
-				chip->bus->wreg(chip->idx, B0SEL);
+				enc24j.bus->wreg(enc24j.idx, B0SEL);
 			else if(vBank == (0x1u<<5))
 				//Execute0(B1SEL);
-				chip->bus->wreg(chip->idx, B1SEL);
+				enc24j.bus->wreg(enc24j.idx, B1SEL);
 			else if(vBank == (0x2u<<5))
 				//Execute0(B2SEL);
-				chip->bus->wreg(chip->idx, B2SEL);
+				enc24j.bus->wreg(enc24j.idx, B2SEL);
 			else if(vBank == (0x3u<<5))
 				//Execute0(B3SEL);
-				chip->bus->wreg(chip->idx, B3SEL);
+				enc24j.bus->wreg(enc24j.idx, B3SEL);
 			vCurrentBank = vBank;
 		}
 
 		//Execute2(WCR | (wAddress & 0x1F), wValue);
-		chip->bus->wreg(chip->idx, BFC | (wAddress & 0x1F));
-		chip->bus->wreg(chip->idx, ((unsigned char*)&wValue)[0]);
-		chip->bus->wreg(chip->idx, ((unsigned char*)&wValue)[1]);
+		enc24j.bus->wreg(enc24j.idx, BFC | (wAddress & 0x1F));
+		enc24j.bus->wreg(enc24j.idx, ((unsigned char*)&wValue)[0]);
+		enc24j.bus->wreg(enc24j.idx, ((unsigned char*)&wValue)[1]);
 	}
 	CS_HIGH();
 
 }
 
-void WriteReg(enc_t *chip,int wAddress, int wValue)
+void WriteReg(int wAddress, int wValue)
 {
 	unsigned char vBank;
 	vBank = ((unsigned char)wAddress) & 0xE0;
@@ -295,36 +362,36 @@ void WriteReg(enc_t *chip,int wAddress, int wValue)
 		if(vBank != vCurrentBank) {
 			if(vBank == (0x0u<<5))
 				//Execute0(B0SEL);
-				chip->bus->wreg(chip->idx, B0SEL);
+				enc24j.bus->wreg(enc24j.idx, B0SEL);
 			else if(vBank == (0x1u<<5))
 				//Execute0(B1SEL);
-				chip->bus->wreg(chip->idx, B1SEL);
+				enc24j.bus->wreg(enc24j.idx, B1SEL);
 			else if(vBank == (0x2u<<5))
 				//Execute0(B2SEL);
-				chip->bus->wreg(chip->idx, B2SEL);
+				enc24j.bus->wreg(enc24j.idx, B2SEL);
 			else if(vBank == (0x3u<<5))
 				//Execute0(B3SEL);
-				chip->bus->wreg(chip->idx, B3SEL);
+				enc24j.bus->wreg(enc24j.idx, B3SEL);
 			vCurrentBank = vBank;
 		}
 
 		//Execute2(WCR | (wAddress & 0x1F), wValue);
-		chip->bus->wreg(chip->idx, WCR | (wAddress & 0x1F));
-		chip->bus->wreg(chip->idx, ((unsigned char*)&wValue)[0]);
-		chip->bus->wreg(chip->idx, ((unsigned char*)&wValue)[1]);
+		enc24j.bus->wreg(enc24j.idx, WCR | (wAddress & 0x1F));
+		enc24j.bus->wreg(enc24j.idx, ((unsigned char*)&wValue)[0]);
+		enc24j.bus->wreg(enc24j.idx, ((unsigned char*)&wValue)[1]);
 	}
 	else
 	{
-		chip->bus->wreg(chip->idx, WCRU);
-		chip->bus->wreg(chip->idx, (unsigned char)wAddress);
-		chip->bus->wreg(chip->idx, ((unsigned char*)&wValue)[0]);
-		chip->bus->wreg(chip->idx, ((unsigned char*)&wValue)[1]);
+		enc24j.bus->wreg(enc24j.idx, WCRU);
+		enc24j.bus->wreg(enc24j.idx, (unsigned char)wAddress);
+		enc24j.bus->wreg(enc24j.idx, ((unsigned char*)&wValue)[0]);
+		enc24j.bus->wreg(enc24j.idx, ((unsigned char*)&wValue)[1]);
 		//Execute3(WCRU, dw);
 	}
 	CS_HIGH();
 }
 
-int ReadReg(enc_t *chip,int wAddress)
+int ReadReg(int wAddress)
 {
 	unsigned int w;
 	unsigned char vBank;
@@ -335,57 +402,57 @@ int ReadReg(enc_t *chip,int wAddress)
 		 if(vBank != vCurrentBank) {
 			if(vBank == (0x0u<<5))
 				//Execute0(B0SEL);
-				chip->bus->wreg(chip->idx, B0SEL);
+				enc24j.bus->wreg(enc24j.idx, B0SEL);
 			else if(vBank == (0x1u<<5))
 				//Execute0(B1SEL);
-				chip->bus->wreg(chip->idx, B1SEL);
+				enc24j.bus->wreg(enc24j.idx, B1SEL);
 			else if(vBank == (0x2u<<5))
 				//Execute0(B2SEL);
-				chip->bus->wreg(chip->idx, B2SEL);
+				enc24j.bus->wreg(enc24j.idx, B2SEL);
 			else if(vBank == (0x3u<<5))
 				//Execute0(B3SEL);
-				chip->bus->wreg(chip->idx, B3SEL);
+				enc24j.bus->wreg(enc24j.idx, B3SEL);
 			vCurrentBank = vBank;
 		}
 
 		//w = Execute2(RCR1 | (wAddress & 0x1F), 0x0000);
-		chip->bus->wreg(chip->idx, RCR1 | (wAddress & 0x1F));
-		((unsigned char*)&w)[0]=chip->bus->rreg(chip->idx);
-		((unsigned char*)&w)[1]=chip->bus->rreg(chip->idx);
+		enc24j.bus->wreg(enc24j.idx, RCR1 | (wAddress & 0x1F));
+		((unsigned char*)&w)[0]=enc24j.bus->rreg(enc24j.idx);
+		((unsigned char*)&w)[1]=enc24j.bus->rreg(enc24j.idx);
 	}
 	else {
 		//long dw = Execute3(RCR1U, (long)wAddress);
-		chip->bus->wreg(chip->idx, RCRU);
-		chip->bus->rreg(chip->idx);
-		((unsigned char*)&w)[0]=chip->bus->rreg(chip->idx);
-		((unsigned char*)&w)[1]=chip->bus->rreg(chip->idx);
+		enc24j.bus->wreg(enc24j.idx, RCRU);
+		enc24j.bus->rreg(enc24j.idx);
+		((unsigned char*)&w)[0]=enc24j.bus->rreg(enc24j.idx);
+		((unsigned char*)&w)[1]=enc24j.bus->rreg(enc24j.idx);
 	}
 	CS_HIGH();
 	return w;
 }
 
-void ReadN(enc_t *chip,unsigned char vOpcode, unsigned char* vData, int wDataLen)
+void ReadN(unsigned char vOpcode, unsigned char* vData, int wDataLen)
 {
 	CS_LOW();
-	chip->bus->wreg(chip->idx,vOpcode);
+	enc24j.bus->wreg(enc24j.idx,vOpcode);
 	while(wDataLen--)
 	{
-		*vData++=chip->bus->rreg(chip->idx);
+		*vData++=enc24j.bus->rreg(enc24j.idx);
 	}
 	CS_HIGH();
 }
-void WriteN(enc_t *chip,unsigned char vOpcode, unsigned char* vData, int wDataLen)
+void WriteN(unsigned char vOpcode, unsigned char* vData, int wDataLen)
 {
 	CS_LOW();
-	chip->bus->wreg(chip->idx,vOpcode);
+	enc24j.bus->wreg(enc24j.idx,vOpcode);
 	while(wDataLen--)
 	{
-		chip->bus->wreg(chip->idx,*vData++);
+		enc24j.bus->wreg(enc24j.idx,*vData++);
 	}
 	CS_HIGH();
 }
 
-void WriteMemoryWindow(enc_t *chip,unsigned char vWindow, unsigned char *vData, int wLength)
+void WriteMemoryWindow(unsigned char vWindow, unsigned char *vData, int wLength)
 {
 	unsigned char vOpcode;
 	vOpcode = WBMUDA;
@@ -393,10 +460,10 @@ void WriteMemoryWindow(enc_t *chip,unsigned char vWindow, unsigned char *vData, 
 		vOpcode = WBMGP;
 	if(vWindow & RX_WINDOW)
 		vOpcode = WBMRX;
-	WriteN(chip,vOpcode, vData, wLength);
+	WriteN(vOpcode, vData, wLength);
 }
 
-void ReadMemoryWindow(enc_t *chip,unsigned char vWindow, unsigned char *vData,int wLength)
+void ReadMemoryWindow(unsigned char vWindow, unsigned char *vData,int wLength)
 {
 	unsigned char vOpcode;
 	vOpcode = RBMUDA;
@@ -404,5 +471,5 @@ void ReadMemoryWindow(enc_t *chip,unsigned char vWindow, unsigned char *vData,in
 		vOpcode = RBMGP;
 	if(vWindow & RX_WINDOW)
 		vOpcode = RBMRX;
-	ReadN(chip,vOpcode, vData, wLength);
+	ReadN(vOpcode, vData, wLength);
 }

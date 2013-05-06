@@ -73,9 +73,10 @@ struct lcd_s {
 	const char *font;
 	int fgcolor;
 	int bgcolor;
-	int xres;
-	int yres;
-	int rot;
+	unsigned xres : 12;
+	unsigned yres : 12;
+	unsigned rot : 3;
+	unsigned line_width : 5;
 	struct list_head list;
 };
 
@@ -91,8 +92,15 @@ struct lcd_s *lcd_get(const char *name); //pass NULL to get default lcd
 //lcd para op
 int lcd_get_res(struct lcd_s *lcd, int *x, int *y);
 const char *lcd_get_font(struct lcd_s *lcd, int *w, int *h);
-int lcd_set_fgcolor(struct lcd_s *lcd, int cr);
-int lcd_set_bgcolor(struct lcd_s *lcd, int cr);
+static inline void lcd_set_fgcolor(struct lcd_s *lcd, int cr) {
+	lcd->fgcolor = cr;
+}
+static inline void lcd_set_bgcolor(struct lcd_s *lcd, int cr) {
+	lcd->bgcolor = cr;
+}
+static inline void lcd_set_line_width(struct lcd_s *lcd, unsigned line_width) {
+	lcd->line_width = line_width;
+}
 
 //lcd ops, all routines are use pixel based coordinate system
 int lcd_init(struct lcd_s *lcd);
@@ -101,5 +109,7 @@ int lcd_imageblt(struct lcd_s *lcd, const void *image, int x, int y, int w, int 
 int lcd_clear(struct lcd_s *lcd, int x, int y, int w, int h);
 int lcd_clear_all(struct lcd_s *lcd);
 int lcd_puts(struct lcd_s *lcd, int x, int y, const char *str);
+int lcd_line(struct lcd_s *lcd, int x0, int y0, int x1, int y1);
+int lcd_rect(struct lcd_s *lcd, int x, int y, int w, int h);
 
 #endif /*__LCD_H_*/

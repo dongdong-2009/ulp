@@ -33,27 +33,46 @@ int flash_Erase(const void *dest, size_t n)
 	return i;
 }
 
-int flash_Write(const void *dest, const void *src, size_t n)
+/*
+    00 01 02 03
+00: AA BB CC DD
+01: XX AA BB CC
+02: XX XX AA BB
+03: XX XX XX AA
+*/
+int flash_Write(const void *pdest, const void *src, size_t bytes)
 {
-	const int *psrc;
-	int i, idest;
+	const char *psrc;
+	int i, n, x, dest, word;
 
 	psrc = src;
-	idest = (int)dest;
-
-	/*data align check*/
-	if(idest & 0x03)
-		return 0;
+	dest = (int) pdest;
 
 	FLASH_Unlock();
 	FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
 
-	for(i = 0; n - i >= 4; i += 4) {
-		if(FLASH_ProgramWord(idest, *psrc) != FLASH_COMPLETE)
+	for(i = 0; i < bytes; i += n) {
+		#if 0
+		word = 0xffffffff;
+		n = bytes - i;
+		n = (n > 4) ? 4 : n;
+		x = dest & 0x03;
+		if(x != 0) { //read-before-write
+			n = (n > 4 - x) ? (4 - x) : n;
+			dest -= x;
+			word = *(int *) dest;
+		}
+		#else
+		x = 0;
+		n = 4;
+		#endif
+		memcpy((char *)&word + x, psrc, n);
+		if(FLASH_ProgramWord(dest, word) != FLASH_COMPLETE) {
 			break;
+		}
 
-		psrc ++;
-		idest += 4;
+		psrc += n;
+		dest += 4;
 	}
 
 	FLASH_Lock();

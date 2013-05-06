@@ -25,7 +25,7 @@ static inline int bit_get(int n, const void *addr)
 	unsigned char mask = BIT_MASK(n);
 	unsigned char *p = ((unsigned char *)addr) + BIT_WORD(n);
 
-	return (*p & mask);
+	return (*p & mask) ? 1 : 0;
 }
 
 #endif

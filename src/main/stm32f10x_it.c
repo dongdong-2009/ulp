@@ -21,7 +21,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
-#include "motor/motor.h"
 #include "sys/system.h"
 #include "sys/task.h"
 #include <stdio.h>
@@ -265,15 +264,9 @@ void EXTI3_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-extern void lwip_lib_isr(void);
-void EXTI4_IRQHandler(void)
+__weak void EXTI4_IRQHandler(void)
 {
-#if (CONFIG_LIB_LWIP == 1) 
-#if (CONFIG_MAC_ENC28J60 == 1) || (CONFIG_MAC_ENC424J600 == 1)
-	lwip_lib_isr();
 	EXTI_ClearFlag(EXTI_Line4);
-#endif
-#endif
 }
 
 /*******************************************************************************
@@ -463,7 +456,7 @@ void TIM1_TRG_COM_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void TIM1_CC_IRQHandler(void)
+__weak void TIM1_CC_IRQHandler(void)
 {
 }
 
@@ -578,7 +571,7 @@ void SPI2_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void USART1_IRQHandler(void)
+__weak void USART1_IRQHandler(void)
 {
 }
 

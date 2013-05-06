@@ -27,7 +27,6 @@ miaofng@2012	spark period adaptive fit (0 - 65mS)
 #define CONFIG_IGBT_CRC 1
 #define HARDWARE_VERSION	0x0104 //v1.4
 
-
 #if HARDWARE_VERSION == 0x0104
 //R = 0.01Ohm, G = 20V/V, Vref = 3V3, 16bit unsigned ADC => ratio = 1/3971.88= 256/1016801
 #define ipm_ratio_def 1016
@@ -197,7 +196,7 @@ enum {
 	FLAG_DEBUG_IP, //disp triangle waveform data
 	FLAG_DEBUG_VI, //disp V(v)&I(mA)
 	FLAG_DEBUG_CAN,
-} burn_flag_debug;
+} burn_flag_debug = FLAG_DEBUG_NONE;
 
 int cmd_igbt_func(int argc, char *argv[])
 {
@@ -471,8 +470,8 @@ void vpm_Update(int ops)
 			vp_max = (vp > vp_max) ? vp : vp_max;
 		}
 
-		burn_data.vp = vp_max;
 		vp = filt(&burn_filter_vp, vp_max);
+		burn_data.vp = (vp_max << 8) / vpm_ratio;
 		burn_data.vp_avg = (vp << 8) / vpm_ratio;
 
 		if(- time_left(burn_tick ) > BURN_FILTER_DELAY) {
@@ -628,8 +627,8 @@ void ipm_Update(int ops)
 			ip_max = (ip > ip_max) ? ip : ip_max;
 		}
 
-		burn_data.ip = ip_max;
 		ip = filt(&burn_filter_ip, ip_max);
+		burn_data.ip = (ip_max << 8) / ipm_ratio;
 		burn_data.ip_avg = (ip << 8) / ipm_ratio;
 		if(- time_left(burn_tick ) > BURN_FILTER_DELAY) {
 			burn_data.ip_max = (burn_data.ip_avg > burn_data.ip_max) ? burn_data.ip_avg : burn_data.ip_max;
@@ -709,73 +708,52 @@ void pmm_Init(void)
 	TIM_ClearFlag(TIM4, TIM_FLAG_CC1 | TIM_FLAG_CC2 | TIM_FLAG_Update);
 }
 
-static int pmm_t1;
-static int pmm_t2;
-
 //para ignore is used to avoid error trig signal in some duration
 int pmm_Update(int ops, int ignore)
 {
-	int f, v, det, t1, t2;
+	int f, t1, t2, wp, tp, ms;
+	static int pmm_t1;
+	static time_t pmm_t1_ms;
 
 	f = TIM4->SR;
-	TIM4->SR = ~f;
-
-	t1 = 0; //count to current period, these two paras are added to solve issue:  "bldc# 142543    -45.-522mS"
-	t2 = 0; //count to next period
-	if(f & TIM_FLAG_CC2)
-		v = TIM4->CCR2;
-
-	if(f & TIM_FLAG_CC1) {
-		//measure vpeak pulse width
-		int us = TIM4 -> CCR1;
-		us -= TIM4 -> CCR2;
-		us += (us > 0) ? 0 : 0x10000;
-		burn_data.wp = us * 1000;
+	if(ignore) { //to clr err trig isr flag
+		TIM4->SR = ~f;
+		return 0;
 	}
 
-	if(f & TIM_FLAG_Update) { //time over 65.535 mS
-		t2 = pmm_T; //update after capture
-		if(f & TIM_FLAG_CC2) {
-			if(v < 10000) { //update before capture
-				t1 = pmm_T;
-				t2 = 0;
-			}
-		}
-	}
+	if((f & TIM_FLAG_CC1) && (f & TIM_FLAG_CC2)) {
+		t1 = TIM4->CCR2; /*upgoing edge of firepulse*/
+		t2 = TIM4->CCR1; /*dngoing edge of firepulse*/
+		TIM4->SR = ~f;
 
-	if(f & TIM_FLAG_CC2) {
-		if((ops == UPDATE) && ignore) {
-			//printf("_");
-			pmm_t2 += t1 + t2;
-			return 0;
-		}
+		//fire pulse width, rational range: 1-200uS
+		wp = t2 - t1;
+		wp += (wp < 0) ? pmm_T : 0;
+
+		//fire pulse period, rational range: 10-500mS
+		ms = - time_left(pmm_t1_ms); /*tp measured by sys tick*/
+		pmm_t1_ms = time_get(0); /*!!!update burn_tick*/
+		tp = t1 - pmm_t1;
+		tp += (tp < 0) ? pmm_T : 0;
+		pmm_t1 = t1; /*!!!update pmm_t1*/
 
 		if(ops == START) {
-			pmm_t1 = v;
-			pmm_t2 = t2;
-			burn_tick = time_get(0);
+			burn_tick = pmm_t1_ms;
+			return 1;
 		}
-		else {
-			pmm_t2 += v + t1;
-			det = pmm_t2 - pmm_t1;
-			pmm_t1 = v;
-			pmm_t2 = t2;
 
-			burn_data.tp = det;
-			//det process
-			//burn_data.tp_max = (burn_data.tp_max > det) ? burn_data.tp_max : det;
-			//burn_data.tp_min = (burn_data.tp_max < det) ? burn_data.tp_min : det;
-			//burn_data.tp_avg = (burn_data.tp_avg + det) >> 1;
-
-			//debug
-			if((burn_ms != 0) && ((det > burn_ms*1000 + 1000) || (det < burn_ms*1000 - 1000))) {
-				printf("T=%dmS	: tp=%03d.%03dmS\n", -time_left(burn_tick), det/1000, det%1000);
-			}
+		//tp measured by hw timer, timer overflow??? insert n*pmm_T
+		ms += 10; /*sys tick jitter err = +/-10mS*/
+		#define __ms(us) ((us)/1000)
+		while(__ms(tp + pmm_T) < ms) {
+			tp += pmm_T;
 		}
+
+		//update burn_data
+		burn_data.wp = wp * 1000;
+		burn_data.tp = __ms(tp);
 		return 1;
 	}
-
-	pmm_t2 += t2;
 	return 0;
 }
 
@@ -799,30 +777,28 @@ void com_Update(void)
 	char ret = 0;
 	char *inbox = burn_server.inbox;
 	char *outbox = burn_server.outbox + 2;
-	unsigned short value;
+	struct burn_cfg_s *pcfg;
 
 	mcamos_srv_update(&burn_server);
 	switch(inbox[0]) {
 	case BURN_CMD_CONFIG:
-		memcpy(&value, inbox + 2, sizeof(short));
-		vpm_ratio_cal = value;
-		memcpy(&value, inbox + 4, sizeof(short));
-		ipm_ratio_cal = value;
+		pcfg = (struct burn_cfg_s *) inbox;
+		if(pcfg->vcal != 0) vpm_ratio_cal = pcfg->vcal;
+		if(pcfg->ical != 0) ipm_ratio_cal = pcfg->ical;
+		if(pcfg->tp != 0) burn_ms = pcfg->tp;
+		if(pcfg->wp != 0) {
+			int nclk = pcfg->wp * 36 / 1000;
+			int delay_clks = nclk + 25; /*25 * 1000 / 36 = 0.694 uS, trig delay*/
+			int total = delay_clks + mos_close_clks;
+			int close_clks = (total > 0xfff0) ? (0xfff0 - delay_clks) : mos_close_clks;
 
-		//init glvar
-		filter_init(&burn_filter_vp);
-		filter_init(&burn_filter_ip);
-		burn_state = BURN_INIT;
-		memset(&burn_data, 0, sizeof(burn_data));
-		burn_data.ip_min = 0xffff;
-		burn_data.vp_min = 0xffff;
-		vpm_ratio = (vpm_ratio_def * vpm_ratio_cal) >> 12;
-		ipm_ratio = (ipm_ratio_def * ipm_ratio_cal) >> 12;
-
-		//save?
-		if(inbox[1] == 's') {
-			nvm_save();
+			mos_delay_clks = (short) delay_clks;
+			mos_close_clks = (short) close_clks;
 		}
+
+		void burn_Init();
+		burn_Init();
+		if(inbox[1] == 's') nvm_save();
 		break;
 
 	case BURN_CMD_READ:
@@ -855,9 +831,9 @@ void burn_Init()
 	memset(&burn_data, 0, sizeof(burn_data));
 	burn_data.ip_min = 0xffff;
 	burn_data.vp_min = 0xffff;
-	burn_flag_debug = FLAG_DEBUG_NONE;
 
-	if(nvm_is_null()) { //set default value
+	static int prst = 1; //flag of power-on-reset
+	if(nvm_is_null() && prst) { //set default value
 		mos_delay_clks  = (unsigned short) (mos_delay_us_def * 36); //unit: 1/36 us
 		mos_close_clks  = (unsigned short) (mos_close_us_def * 36); //unit: 1/36 us
 		burn_ms = T;
@@ -875,9 +851,10 @@ void burn_Init()
 
 	pmm_Init();
 	mos_Init();
-	com_Init();
+	if(prst) com_Init();
 	ipm_Init();
 	vpm_Init();
+	prst = 0;
 }
 
 void Analysis(void)
@@ -903,8 +880,8 @@ void Analysis(void)
 	}
 }
 
-static unsigned short burn_us_temp;
-static unsigned short burn_us_times;
+static unsigned short burn_ms_temp;
+static unsigned short burn_ms_times;
 
 void burn_Update()
 {
@@ -916,23 +893,20 @@ void burn_Update()
 		case BURN_MEAT: //spark period measurement
 			flag = pmm_Update(UPDATE, 0);
 			if(flag) {
-				if(burn_us_times == 0) {
-					burn_us_temp = burn_data.tp;
-					burn_us_times ++;
+				if(burn_ms_times == 0) {
+					burn_ms_temp = burn_data.tp;
+					burn_ms_times ++;
 				}
 				else {
 					delta = burn_data.tp;
-					delta -= burn_us_temp;
-					if((delta < 3000) && (delta > -3000)) { // <3mS, the same one
+					delta -= burn_ms_temp;
+					if((delta < 3) && (delta > -3)) { // <3mS, the same one
 						delta /= 2; //to got average value
-						delta += burn_us_temp;
-						burn_us_temp = delta;
-						burn_us_times ++;
-						if(burn_us_times > 5) { //enough ...
-							delta = burn_us_temp % 1000;
-							delta = (delta > 500) ? 1 : 0;
-							burn_ms = burn_us_temp / 1000;
-							burn_ms += delta;
+						delta += burn_ms_temp;
+						burn_ms_temp = delta;
+						burn_ms_times ++;
+						if(burn_ms_times > 5) { //enough ...
+							burn_ms = burn_ms_temp;
 							burn_state = BURN_INIT;
 						}
 					}
@@ -945,7 +919,7 @@ void burn_Update()
 			break;
 
 		case BURN_INIT:
-			flag = pmm_Update(START, 1);
+			flag = pmm_Update(START, 0);
 			if(flag) {
 				if(burn_ms != 0) {
 					burn_state = BURN_IDLE;
@@ -953,8 +927,8 @@ void burn_Update()
 				}
 				else {
 					burn_state = BURN_MEAT;
-					burn_us_temp = 0;
-					burn_us_times = 0;
+					burn_ms_temp = 0;
+					burn_ms_times = 0;
 				}
 			}
 			break;

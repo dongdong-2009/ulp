@@ -34,8 +34,8 @@ typedef struct circbuf {
 
 int buf_init (circbuf_t * buf, int size);
 int buf_free (circbuf_t * buf);
-int buf_pop (circbuf_t * buf, char *dest, int len);
-int buf_push (circbuf_t * buf, const char *src, int len);
+int buf_pop (circbuf_t * buf, void *vpdest, int len);
+int buf_push (circbuf_t * buf, const void *vpsrc, int len);
 
 #define buf_size(buf) ((buf) -> size)
 #define buf_left(buf) ((buf) -> totalsize - (buf) -> size)

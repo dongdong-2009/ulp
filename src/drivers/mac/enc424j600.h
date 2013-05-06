@@ -4,21 +4,64 @@
 #ifndef __enc424j600_H_
 #define __enc424j600_H_
 
-#include "device.h"
+#include "ulp/device.h"
 #include "spi.h"
-typedef struct {
-	const spi_bus_t *bus;
-	int idx; //index of chip in the specified bus
-} enc_t;
 
-struct enc_head_s {
-	short next;
-	short n; /*len of packet, includes tar/src addr, type/len, data, padding, CRC*/
-	char error; /*rx error*/
-	char status;
-	char match;
-	char reserved;
-};
+typedef union
+{
+    unsigned char Val;
+    struct //__attribute__((packed))
+    {
+         unsigned char b0:1;
+         unsigned char b1:1;
+         unsigned char b2:1;
+         unsigned char b3:1;
+         unsigned char b4:1;
+         unsigned char b5:1;
+         unsigned char b6:1;
+         unsigned char b7:1;
+    } bits;
+} TCPIP_UINT8_VAL, TCPIP_UINT8_BITS;
+
+typedef union {
+	unsigned char v[6];
+	struct {
+		unsigned short	ByteCount;
+
+		unsigned char	PreviouslyIgnored:1;
+		unsigned char	RXDCPreviouslySeen:1;
+		unsigned char	CarrierPreviouslySeen:1;
+		unsigned char	CodeViolation:1;
+		unsigned char	CRCError:1;
+		unsigned char	LengthCheckError:1;
+		unsigned char	LengthOutOfRange:1;
+		unsigned char	ReceiveOk:1;
+		unsigned char	Multicast:1;
+		unsigned char	Broadcast:1;
+		unsigned char	DribbleNibble:1;
+		unsigned char	ControlFrame:1;
+		unsigned char	PauseControlFrame:1;
+		unsigned char	UnsupportedOpcode:1;
+		unsigned char	VLANType:1;
+		unsigned char	RuntMatch:1;
+
+		unsigned char	filler:1;
+		unsigned char	HashMatch:1;
+		unsigned char	MagicPacketMatch:1;
+		unsigned char	PatternMatch:1;
+		unsigned char	UnicastMatch:1;
+		unsigned char	BroadcastMatch:1;
+		unsigned char	MulticastMatch:1;
+		unsigned char	ZeroH:1;
+		unsigned char	Zero:8;
+	} bits;
+} ENC600_RXSTATUS;
+
+typedef struct
+{
+	unsigned short	NextPacketPointer;
+	ENC600_RXSTATUS	StatusVector;
+} ENC100_PREAMBLE;
 
 // Define macro for 8-bit PSP SFR address translation to SPI addresses
 #if (ENC100_INTERFACE_MODE == 0)	// SPI
@@ -32,8 +75,8 @@ struct enc_head_s {
 
 #define ENC100_RAM_SIZE			(24*1024u)
 
-// Crypto memory addresses.  These are accessible by the DMA only and therefore 
-// have the same addresses no matter what MCU interface is being used (SPI, 
+// Crypto memory addresses.  These are accessible by the DMA only and therefore
+// have the same addresses no matter what MCU interface is being used (SPI,
 // 8-bit PSP, or 16-bit PSP)
 #define ENC100_MODEX_Y			(0x7880u)
 #define ENC100_MODEX_E			(0x7800u)
@@ -55,7 +98,7 @@ struct enc_head_s {
 #if (ENC100_INTERFACE_MODE >= 1)	// Parallel mode
 	#define SET_OFFSET			ENC100_TRANSLATE_TO_PIN_ADDR(0x0100u)
 	#define CLR_OFFSET			ENC100_TRANSLATE_TO_PIN_ADDR(0x0180u)
-	
+
 #else	// SPI mode
 	////////////////////////////////////////////////////
 	// ENC424J600/624J600 SPI Opcodes				  //
@@ -704,16 +747,29 @@ struct enc_head_s {
 #define PHSTAT3_r1		(1<<1)
 #define PHSTAT3_r0		(1)
 
-void enc_Init(enc_t *chip);
-void WriteReg(enc_t *chip,int wAddress, int wValue);
-int ReadReg(enc_t *chip,int wAddress);
-void BFSReg(enc_t *chip,int wAddress, int wValue);
-void BFCReg(enc_t *chip,int wAddress, int wValue);
-void SendSystemReset(enc_t chip);
-void WritePHYReg(enc_t chip,unsigned char Register, int Data);
-void ReadN(enc_t *chip,unsigned char vOpcode, unsigned char* vData, int wDataLen);
-void WriteN(enc_t *chip,unsigned char vOpcode, unsigned char* vData, int wDataLen);
-void WriteMemoryWindow(enc_t *chip,unsigned char vWindow, unsigned char *vData, int wLength);
-void ReadMemoryWindow(enc_t *chip,unsigned char vWindow, unsigned char *vData,int wLength);
+// Binary constant identifiers for ReadMemoryWindow() and WriteMemoryWindow()
+// functions
+#define UDA_WINDOW		(0x1)
+#define GP_WINDOW		(0x2)
+#define RX_WINDOW		(0x4)
+
+// MAC RAM definitions
+#define RAMSIZE 			(24*1024ul)
+#define TXSTART 			(0x0000ul)
+#define RXSTART 			((TXSTART + 1518ul*2 + 8ul) & 0xFFFE)
+#define RXSTOP				(RAMSIZE-1ul)
+#define RXSIZE				(RXSTOP-RXSTART+1ul)
+
+void enc_Init(void);
+void WriteReg(int wAddress, int wValue);
+int ReadReg(int wAddress);
+void BFSReg(int wAddress, int wValue);
+void BFCReg(int wAddress, int wValue);
+void SendSystemReset(void);
+void WritePHYReg(unsigned char Register, int Data);
+void ReadN(unsigned char vOpcode, unsigned char* vData, int wDataLen);
+void WriteN(unsigned char vOpcode, unsigned char* vData, int wDataLen);
+void WriteMemoryWindow(unsigned char vWindow, unsigned char *vData, int wLength);
+void ReadMemoryWindow(unsigned char vWindow, unsigned char *vData,int wLength);
 
 #endif /*__enc424j600_H_*/

@@ -21,12 +21,14 @@ static int cmd_apt_func(int argc, char *argv[])
 {
 	int temp, i, data_len, msg_len, * pdata, * pflag;
 	can_msg_t msg_req;
+	apt_load_t *pload;
 
 	const char * usage = { \
 		" usage:\n" \
 		" apt pwr on/off sdm,  config sdm power on/off \n" \
 		" apt add load_name b0 b1 ... b7,  add new config \n" \
 		" apt set load_name b0 b1 ... b7,  set current config \n" \
+		" apt get cfg , get current config \n" \
 		" apt clr/read dtc, clear the product DTC information \n" \
 		" apt diag loop/switch, get diagnose data \n" \
 		" apt req id b0..b7, send diag request\n" \
@@ -34,7 +36,24 @@ static int cmd_apt_func(int argc, char *argv[])
 	};
 
 	if (argc > 1) {
-		//add new load for apt
+		//get current load for apt
+		if(strcmp(argv[1], "get") == 0) {
+			if (argc > 3 || strcmp(argv[2], "cfg") != 0) {
+				printf("##ERROR##\n");
+				return 0;
+			}
+			int index_load = c131_GetCurrentLoadIndex();
+			if( c131_GetLoad(&pload,index_load) ==0){
+				int i =0;
+				while(i<8)
+				printf("%x ",pload->load_ram[i++]);
+				printf("\n");
+			}
+			else
+				printf("No cfg\n");
+		}
+
+				//add new load for apt
 		if(strcmp(argv[1], "add") == 0) {
 			if (argc < 11) {
 				printf("##ERROR##\n");
@@ -78,7 +97,7 @@ static int cmd_apt_func(int argc, char *argv[])
 		//for power off/on
 		if (strcmp(argv[1], "pwr") == 0) {
 			if (strcmp(argv[3], "sdm") == 0) {
-				if (strcmp(argv[2], "on") == 0) {
+				if (!Get_SDMStatus() && (strcmp(argv[2], "on") == 0)) {
 					Enable_SDMPWR();
 					Enable_LEDPWR();
 					printf("##OK##\n");
@@ -242,6 +261,18 @@ static int cmd_apt_func(int argc, char *argv[])
 				for (i = 0; i < msg_len; i++)
 					can_msg_print(apt_msg_buf + i, "\n");
 			}
+		}
+
+		//for power off/on
+		if (strcmp(argv[1], "can") == 0) {
+			if (strcmp(argv[2], "on") == 0) {
+                                TIM_Cmd(TIM2, ENABLE);
+                                printf("##OK##\n");
+			} else if (strcmp(argv[2], "off") == 0) {
+				TIM_Cmd(TIM2, DISABLE);
+                                printf("##OK##\n");
+			}
+		return 0;
 		}
 	}
 
