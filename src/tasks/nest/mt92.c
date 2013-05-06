@@ -584,8 +584,10 @@ void TestStart(void)
 	}
 
 	//check base model nr
+	char c = mfg_data.rsv1[0];
 	mfg_data.rsv1[0] = 0;
 	nest_message("DUT S/N: %s\n", mfg_data.bmr);
+	mfg_data.rsv1[0] = c;
 	if(!nest_ignore(BMR)) {
 		bmr = nest_map(bmr_map, mfg_data.bmr);
 		if(bmr < 0) {
@@ -715,7 +717,11 @@ static int cmd_dut_func(int argc, char *argv[])
 		strncpy(mfg_data.bmr, argv[2], sizeof(mfg_data.bmr));
 		addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> bmr;
 		fail = Write_Memory(addr, mfg_data.bmr, sizeof(mfg_data.bmr));
+
+		char c = mfg_data.rsv1[0];
+		mfg_data.rsv1[0] = 0;
 		printf("setting bmr = %s ", mfg_data.bmr);
+		mfg_data.rsv1[0] = c;
 		printf("..%s!!!\n", (fail) ? result[1] : result[0]);
 
 		if(argc > 3) {
