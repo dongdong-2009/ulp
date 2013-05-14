@@ -75,9 +75,34 @@ static int test_start(void)
 	int e, mv;
 	struct debounce_s power;
 
+	printf("\033]@IDLE\007");
+	if(mcd_init()) {
+		sys_error("mcd init error");
+		sys_update();
+		return -1;
+	}
+	mcd_mode(DMM_V_AUTO);
+
+	//glvar init
+	memset(&test_result, 0, sizeof(test_result));
+	strcpy(test_result.ybs.sn, "20130000000");
+	strcpy(test_result.ybs.sw, "ybs version ???");
+
 	//monitor ybs detection pin signal level - 8.62v
+	int points = 0;
+	time_t timer = time_get(0);
 	debounce_init(&power, 5, 0);
+	char *str = "IDLE";
 	while(1) {
+		if(time_left(timer) < 0) {
+			printf("\033]@");
+			for(int i = 0; i < points; i ++) printf("%c", str[i]);
+			printf("\007");
+			points ++;
+			points = (points > 4) ? 0 : points;
+			timer = time_get(500);
+		}
+
 		e = mcd_xread(MCD_CH_DET, &mv);
 		if(e) return -1;
 
@@ -87,6 +112,7 @@ static int test_start(void)
 		sys_update();
 	}
 
+	printf("\033]@BUSY\007");
 	printf("ybs sensor is detected!!!\n");
 	test_timer = time_get(0);
 	return 0;
@@ -113,7 +139,7 @@ static int ybs_pre_check(void)
 	printf("Do: %04x(%.3f gf)\n", (unsigned) D2Y(Do) & 0xffff, Do);
 
 	//initial positioning
-	e = mov_i(5000, 50.0);
+	e = mov_i(5000, 40.0);
 	if(e) return -1;
 
 	e = mcd_xread(MCD_CH_DET, &mv);
@@ -331,6 +357,48 @@ static int ybs_measure(void)
 	return 0;
 }
 
+static void ybs_report_array(float *p, int n)
+{
+	printf("array(%.3f", p[0]);
+	for(int i = 1; i < n; i ++) {
+		printf(", %.3f", p[i]);
+	}
+	printf(")");
+}
+
+static int ybs_report(void)
+{
+	//escape seq start
+	printf("\033]\007");
+	printf("\033]#");
+
+	printf("RECORD||");
+	printf("%s||", test_result.ybs.sn);
+	printf("CAL||");
+	printf("%s||", (tstep_fail()) ? "FAIL" : "PASS");
+
+	//test result detail start ===>
+	struct ybs_info_s *ybs = &test_result.ybs;
+	printf("\"sw\"=>\"%s\", \"Gi\"=>%f, \"Di\"=>%.3f, \"Go\"=>%f, \"Do\"=>%.3f", ybs->sw, ybs->Gi, ybs->Di, ybs->Go, ybs->Do);
+	printf(", \"vdet\"=>%.3f", test_result.vdet);
+	printf(", \"asig\"=>%.3f", test_result.vasig);
+	printf(", \"gf_per_step\"=>%f", test_result.gf_per_step);
+	printf(", \"gfe_d\"=>%.3f", test_result.gfe_d);
+	printf(", \"gfe_a\"=>%.3f", test_result.gfe_a);
+
+	printf(", \"pos\"=>"); ybs_report_array(test_result.pos, YBS_N);
+	printf(", \"gfi\"=>"); ybs_report_array(test_result.gfi, YBS_N);
+	printf(", \"gfd\"=>"); ybs_report_array(test_result.gfd, YBS_N);
+	printf(", \"gfa\"=>"); ybs_report_array(test_result.gfa, YBS_N);
+	//test result detail <=== end
+
+	printf("||0");
+
+	//escape seq end
+	printf("\007");
+	return 0;
+}
+
 static int test_stop(void)
 {
 	int e, mv;
@@ -346,9 +414,16 @@ static int test_stop(void)
 	float sec = ms / 1000;
 	printf("Test finished in %.0f S\n", sec);
 
+	time_t timer = time_get(0);
 	//monitor ybs detection pin signal level - 8.62v
 	debounce_init(&power, 3, 1);
 	while(1) {
+		if(time_left(timer) <= 0) {
+			timer = time_get(30 * 1000); //30s
+			if(tstep_fail()) printf("\033]@FAIL\007");
+			else printf("\033]@PASS\007");
+		}
+
 		e = mcd_xread(MCD_CH_DET, &mv);
 		if(e) return -E_MCD_READ;
 
@@ -367,7 +442,7 @@ const struct tstep_s steps[] = {
 	{.test = ybs_cal_adc, .desc = "ybs input stage calibration"},
 	{.test = ybs_cal_cfg, .desc = "ybs cal para writeback & restart"},
 	{.test = ybs_measure, .desc = "ybs finally performance test"},
-	//{.test = ybs_report, .desc = "ybs test result upload to database"},
+	{.test = ybs_report, .desc = "ybs test result upload to database"},
 	{.test = test_stop, .desc = "test stop, wait for dut be removed"},
 };
 
@@ -376,15 +451,7 @@ void main(void)
 	sys_init();
 	led_flash(LED_RED);
 	led_flash(LED_GREEN);
-
 	monitor_init();
-	if(mcd_init()) {
-		sys_error("mcd init error");
-		while(1) {
-			sys_update();
-		}
-	}
-	mcd_mode(DMM_V_AUTO);
 	while(0) {
 		sys_update();
 	}
@@ -401,6 +468,7 @@ static int cmd_cal_func(int argc, char *argv[])
 		"usage:\n"
 		"cal -o			to cal DAC stage\n"
 		"cal -i			to cal ADC stage\n"
+		"cal -r			to report result\n"
 	};
 
 	int e = 1, ecode;
@@ -415,6 +483,9 @@ static int cmd_cal_func(int argc, char *argv[])
 				break;
 			case 'i':
 				ecode = ybs_cal_adc();
+				break;
+			case 'r':
+				ybs_report();
 				break;
 			default:
 				e ++;
