@@ -10,6 +10,7 @@
 #include "chips/difo.h"
 
 #define CND_PERIOD	15 //unit: miniutes
+#undef MT92_HALF_TEST
 
 #define VECTOR_SW_VERSION	0x80170000
 #define VECTOR_FLASH_WRITE	0x80170004
@@ -385,8 +386,11 @@ static void CyclingTest(void)
 	int fail, min, deadline;
 	if(nest_fail())
 		return;
+
+#ifdef MT92_HALF_TEST
 	if((mfg_data.sn[3]) & 0x01) //do half of dut
 		return;
+#endif
 
 	//cyc ign, necessary???
 	if(0) { //!nest_ignore(RLY)) {
@@ -478,14 +482,6 @@ static void CyclingTest(void)
 	for(min = 0; min < CND_PERIOD; min ++) {
 		//clear faults
 		mcamos_execute_ex(VECTOR_FAULTS_CLEAR);
-		nest_mdelay(300);
-		//phdp diag en1/2 ctrl
-		memset(mailbox.bytes, 0, sizeof(mailbox));
-		mailbox.inbox.d4 = htonl(0x02);
-		mcamos_dnload_ex(D4_ADDR, &mailbox.inbox.d4, 4);
-		nest_mdelay(300);
-		mcamos_execute_ex(VECTOR_PHDP_DIAG_EN);
-		nest_mdelay(300);
 
 		//delay 1 min
 		deadline = nest_time_get(1000 * 60);
@@ -493,6 +489,14 @@ static void CyclingTest(void)
 			nest_update();
 			nest_light(ALL_TOGGLE);
 		}
+
+		//phdp diag en1/2 ctrl
+		memset(mailbox.bytes, 0, sizeof(mailbox));
+		mailbox.inbox.d4 = htonl(0x02);
+		mcamos_dnload_ex(D4_ADDR, &mailbox.inbox.d4, 4);
+		nest_mdelay(300);
+		mcamos_execute_ex(VECTOR_PHDP_DIAG_EN);
+		nest_mdelay(1000);
 
 		nest_message("T = %02d min\n", min);
 		fail = Read_Memory(POLDAT_ADDR, mailbox.bytes, POLDAT_BYTES);
@@ -509,6 +513,14 @@ static void CyclingTest(void)
 		//save test result to mfg_data.fb
 		ntoh_array(mailbox.bytes, POLDAT_BYTES);
 		memcpy(mfg_data.fb, mailbox.bytes, sizeof(mfg_data.fb));
+
+		//phdp diag en1/2 on
+		memset(mailbox.bytes, 0, sizeof(mailbox));
+		mailbox.inbox.d4 = htonl(0x03);
+		mcamos_dnload_ex(D4_ADDR, &mailbox.inbox.d4, 4);
+		nest_mdelay(300);
+		mcamos_execute_ex(VECTOR_PHDP_DIAG_EN);
+		nest_mdelay(300);
 
 		if (fail) {
 			nest_error_set(FB_FAIL, "Cycling");
@@ -572,8 +584,10 @@ void TestStart(void)
 	}
 
 	//check base model nr
+	char c = mfg_data.rsv1[0];
 	mfg_data.rsv1[0] = 0;
 	nest_message("DUT S/N: %s\n", mfg_data.bmr);
+	mfg_data.rsv1[0] = c;
 	if(!nest_ignore(BMR)) {
 		bmr = nest_map(bmr_map, mfg_data.bmr);
 		if(bmr < 0) {
@@ -703,7 +717,11 @@ static int cmd_dut_func(int argc, char *argv[])
 		strncpy(mfg_data.bmr, argv[2], sizeof(mfg_data.bmr));
 		addr = MFGDAT_ADDR + (int) &((struct mfg_data_s *)0) -> bmr;
 		fail = Write_Memory(addr, mfg_data.bmr, sizeof(mfg_data.bmr));
+
+		char c = mfg_data.rsv1[0];
+		mfg_data.rsv1[0] = 0;
 		printf("setting bmr = %s ", mfg_data.bmr);
+		mfg_data.rsv1[0] = c;
 		printf("..%s!!!\n", (fail) ? result[1] : result[0]);
 
 		if(argc > 3) {
