@@ -58,5 +58,6 @@ void SystemInit (void)
 	IRQBASE = ((unsigned) vectors_irq) >> 7;
 	IRQCONN = 1;
 #endif
+	IRQCLR = 0xFFF8;
 	__enable_interrupt();
 }

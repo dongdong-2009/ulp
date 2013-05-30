@@ -29,6 +29,13 @@ static void generic_swap(void *pa, void *pb, int size)
 	} while (--size > 0);
 }
 
+int i32_compare(const void *p1, const void *p2)
+{
+	int v1 = *(int *) p1;
+	int v2 = *(int *) p2;
+	return (v1 - v2);
+}
+
 /**
  * sort - sort an array of elements
  * @base: pointer to data to sort
@@ -56,6 +63,8 @@ void sort(void *pbase, size_t num, size_t size,
 
 	if (!swap_func)
 		swap_func = (size == 4 ? u32_swap : generic_swap);
+	if(!cmp_func)
+		cmp_func = i32_compare;
 
 	/* heapify */
 	for ( ; i >= 0; i -= size) {

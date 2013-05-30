@@ -1,0 +1,4 @@
+CONFIG_USE_STDPERIPH_DRIVER
+  st peri lib version select
+    - v1.0, pls choose me for max history compatibility 
+    - v3.5, pls choose me for your new project
