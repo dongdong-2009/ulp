@@ -10,12 +10,12 @@
 static struct pmsmd_priv_s pmsmd;
 
 	/*
-	 * 	TIMER3
+	 * 	TIMER4
+	 * 	AFIO
+	 * 	PD12:	CH1	ENCODE_A
+	 * 	PD13:	CH2	ENCODE_B
 	 *
-	 * 	PC6:	CH1	ENCODE_A
-	 * 	PC7:	CH2	ENCODE_B
-	 *
-	 * 	PC8:	CH3	ENCODE_I(Reserved)
+	 * 	PD14:	CH3	ENCODE_I(Reserved)
 	 */
 
 static int encoder_init(int crp)
@@ -23,86 +23,69 @@ static int encoder_init(int crp)
 	crp *= pmsmd.crp_multi;
 	/* 	enable clock	 */
 
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
-	GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, ENABLE);
-
-	/*
-	 * 	initialize TIMER3 GPIO
-	 *
-	 * 	PC6:	CH1	ENCODE_A
-	 * 	PC7:	CH2	ENCODE_B
-	 *
-	 * 	PC8:	CH3	ENCODE_I(Reserved)
-	 */
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD | RCC_APB2Periph_AFIO, ENABLE);
+	GPIO_PinRemapConfig(GPIO_Remap_TIM4, ENABLE);
 
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;// | GPIO_Pin_8;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12 | GPIO_Pin_13;// | GPIO_Pin_8;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
 
-	/* 	config TIMER3	 */
+	/* 	config TIMER4	 */
 
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
 	TIM_ICInitTypeDef TIM_ICInitStructure;
 
 	/* Timer configuration in Encoder mode */
-	TIM_DeInit(TIM3);
+	TIM_DeInit(TIM4);
 	TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
 
 	TIM_TimeBaseStructure.TIM_Period = crp - 1;
 	TIM_TimeBaseStructure.TIM_Prescaler = 0x0;
 	TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseInit(TIM3, &TIM_TimeBaseStructure);
+	TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
 
-	TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
+	TIM_EncoderInterfaceConfig(TIM4, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
 	TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;
 	TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
 	TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
 	TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
 	TIM_ICInitStructure.TIM_ICFilter = 0x00;
-	TIM_ICInit(TIM3, &TIM_ICInitStructure);
+	TIM_ICInit(TIM4, &TIM_ICInitStructure);
 
-	TIM_SetCounter(TIM3, 0);
-	TIM_Cmd(TIM3, DISABLE);
+	TIM_SetCounter(TIM4, 0);
+	TIM_Cmd(TIM4, DISABLE);
 	return crp;
 }
 
 static void encoder_set(int counter)
 {
-	TIM_SetCounter(TIM3, (unsigned short)counter);
+	TIM_SetCounter(TIM4, (unsigned short)counter);
 }
 
 static int encoder_get(void)
 {
-	return (int)TIM3->CNT;
+	return (int)TIM4->CNT;
 }
 
 static void encoder_ctl(int enable)
 {
 	if(enable) {
-		TIM_Cmd(TIM3, ENABLE);
+		TIM_Cmd(TIM4, ENABLE);
 	}
 	else {
-		TIM_Cmd(TIM3, DISABLE);
+		TIM_Cmd(TIM4, DISABLE);
 	}
 }
 
 static int svpwm_init(int frq)
 {
 	int tpwm;
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE ,ENABLE);
-
 	GPIO_InitTypeDef GPIO_InitStructure;
-
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
-	GPIO_Init(GPIOE, &GPIO_InitStructure);
-	GPIO_WriteBit(GPIOE, GPIO_Pin_1, Bit_SET);
 
 	/* 	enable clock	 */
 
@@ -118,18 +101,11 @@ static int svpwm_init(int frq)
 	 * 	PE8:	CH1N
 	 * 	PE10:	CH2N
 	 * 	PE12:	CH3N
-	 * 	PE15:	BREAK
-	 *
-	 * 	PE14:	CH4
 	 */
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOE, &GPIO_InitStructure);
-
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
 	/* 	config NVIC	 */
@@ -196,7 +172,7 @@ static int svpwm_init(int frq)
 	TIM_BDTRInitStructure.TIM_OSSIState = TIM_OSSIState_Enable;
 	TIM_BDTRInitStructure.TIM_LOCKLevel = TIM_LOCKLevel_1;
 	TIM_BDTRInitStructure.TIM_DeadTime = pmsmd.deadtime;
-	TIM_BDTRInitStructure.TIM_Break = TIM_Break_Enable;
+	TIM_BDTRInitStructure.TIM_Break = TIM_Break_Disable;
 	TIM_BDTRInitStructure.TIM_BreakPolarity = TIM_BreakPolarity_High;
 	TIM_BDTRInitStructure.TIM_AutomaticOutput = TIM_AutomaticOutput_Enable;
 	TIM_BDTRConfig(TIM1, &TIM_BDTRInitStructure);
@@ -219,12 +195,10 @@ static void time_set(int utime, int vtime, int wtime)
 static void svpwm_crl(int enable)
 {
 	if(enable) {
-		GPIO_WriteBit(GPIOE, GPIO_Pin_1, Bit_RESET);
 		TIM_Cmd(TIM1, ENABLE);
 		TIM_CtrlPWMOutputs(TIM1, ENABLE);
 	}
 	else {
-		GPIO_WriteBit(GPIOE, GPIO_Pin_1, Bit_SET);
 		TIM_Cmd(TIM1, DISABLE);
 		TIM_CtrlPWMOutputs(TIM1, DISABLE);
 	}
@@ -251,9 +225,7 @@ static void I_init()
 	 *	initialize ADC1 GPIO
 	 *	PC0:	ADC_IN10	Ia
 	 *	PC1:	ADC_IN11	Ib
-	 *	PC2:	ADC_IN12	Ic
-	 *	PC3:	ADC_IN13	Motor Supply
-	  *	PC4:	ADC_IN14	Itotal
+	 *	PC2:	ADC_IN12	Motor Supply
 	 */
 
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -276,11 +248,9 @@ static void I_init()
 	ADC_InitStructure.ADC_NbrOfChannel = 0;
 	ADC_Init(ADC1, &ADC_InitStructure);
 
-	ADC_InjectedSequencerLengthConfig(ADC1, 4);
+	ADC_InjectedSequencerLengthConfig(ADC1, 2);
 	ADC_InjectedChannelConfig(ADC1, ADC_Channel_10, 1, ADC_SampleTime_7Cycles5);
 	ADC_InjectedChannelConfig(ADC1, ADC_Channel_11, 2, ADC_SampleTime_7Cycles5);
-	ADC_InjectedChannelConfig(ADC1, ADC_Channel_12, 3, ADC_SampleTime_7Cycles5);
-	ADC_InjectedChannelConfig(ADC1, ADC_Channel_14, 4, ADC_SampleTime_7Cycles5);
 
 	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_T1_CC4);
 	ADC_ExternalTrigInjectedConvCmd(ADC1, ENABLE);
@@ -296,20 +266,40 @@ static void I_init()
 
 }
 
-static void I_get(int *pIa, int *pIb, int *pIc, int *pItotal)
+static void I_get(int *pIu, int *pIv)
 {
-	// while(!(ADC1->SR & 0x00000004)); //wait for the end of conversion
+	while(!(ADC1->SR & 0x00000004)); //wait for the end of conversion
 
-	// *pIa = ADC1->JDR1 - dev.current.bias_a;
-	// *pIb = ADC1->JDR2 - dev.current.bias_b;
-	// *pIc = ADC1->JDR3 - dev.current.bias_c;
-	// *pItotal = ADC1->JDR4 - dev.current.bias_total;
+	*pIu = ADC1->JDR1;
+	*pIv = ADC1->JDR2;
 
-	// ADC1->SR |= 0xfffffffb;
+	ADC1->SR |= 0xfffffffb;
 }
 
 static void pmsmd_init(int crp, int frq, int *tpwm, int *crp_elec)
 {
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE ,ENABLE);
+
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_14;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+
+	GPIO_WriteBit(GPIOE, GPIO_Pin_3, Bit_RESET);//M_PWM
+	GPIO_WriteBit(GPIOE, GPIO_Pin_4, Bit_RESET);//M_OC
+	GPIO_WriteBit(GPIOE, GPIO_Pin_5, Bit_SET);//GAIN
+	GPIO_WriteBit(GPIOE, GPIO_Pin_7, Bit_RESET);//DC_CAL
+	GPIO_WriteBit(GPIOE, GPIO_Pin_14, Bit_SET);//EN_GATE
+
+
+
 	memset(&pmsmd, 0, sizeof(struct pmsmd_priv_s));
 	pmsmd.deadtime = 100;
 	pmsmd.crp_multi = 4;
