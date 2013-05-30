@@ -11,6 +11,48 @@
 
 #include <string.h>
 
+#include "config.h"
+#include "ulp/sys.h"
+#include "stm32f10x.h"
+
+extern void lwip_lib_isr(void);
+void EXTI4_IRQHandler(void)
+{
+	lwip_lib_isr();
+	EXTI_ClearFlag(EXTI_Line4);
+}
+
+int main(void)
+{
+	sys_init();
+	matrix_init();
+
+	/*enable ethernet irq*/
+	GPIO_InitTypeDef  GPIO_InitStructure;
+	EXTI_InitTypeDef EXTI_InitStructure;
+	NVIC_InitTypeDef NVIC_InitStructure;
+	GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_4;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode= GPIO_Mode_IN_FLOATING ;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	EXTI_InitStructure.EXTI_Line = EXTI_Line4;
+	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
+	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+	EXTI_Init(&EXTI_InitStructure);
+	GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource4);
+
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_0);
+	NVIC_InitStructure.NVIC_IRQChannel = EXTI4_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+
+	while(1) {
+		sys_update();
+	}
+}
+
 #define GREETING "welcome to Matrix Board tcp server! \r\n"
 
 static err_t tcpserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err);
@@ -32,8 +74,6 @@ void lwip_app_Init(void)
 
 	/* Specify the function to be called when a connection is established */
 	tcp_accept(pcb, tcpserver_accept);
-
-	matrix_init();
 }
 
 static err_t tcpserver_accept(void *arg, struct tcp_pcb *pcb, err_t err)

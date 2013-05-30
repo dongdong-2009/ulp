@@ -4,9 +4,6 @@
 
 #include "ulp/sys.h"
 #include "gui/gui.h"
-#include "instr/instr.h"
-#include "instr/matrix.h"
-#include "instr/dmm.h"
 #include <string.h>
 
 static gwidget *main_window;
@@ -117,9 +114,9 @@ static int main_identify_on_event(gwidget *widget, gevent *event)
 
 void main_window_init(void)
 {
-	extern const unsigned char image_main_window[];
+	extern const unsigned char gui_demo_bmp_bin[];
 	main_window = gui_window_new(GUI_WINDOW_TOPLEVEL);
-	gui_widget_set_image(main_window, image_main_window);
+	gui_widget_set_image(main_window, gui_demo_bmp_bin);
 	fixed = gui_fixed_new();
 	gui_widget_add(main_window, fixed);
 
@@ -331,7 +328,6 @@ int oid_wait(void)
 		time_t deadline = time_get(1000);
 		while((time_left(deadline) > 0) || (oid_config.pause == 1)) {
 			sys_update();
-			instr_update();
 			gui_update();
 			if(oid_config.start == 1) { //start key is pressed again, give up the test ...
 				return 1;
@@ -351,8 +347,6 @@ void oid_init(void)
 	oid_stm = IDLE;
 }
 
-#include "oid.h"
-
 void oid_update(void)
 {
 	if(oid_config.start == 0)
@@ -368,11 +362,11 @@ void oid_update(void)
 		oid_stm ++;
 		switch(oid_stm) {
 		case CAL:
-			giveup = oid_instr_cal();
+			//giveup = oid_instr_cal();
 			break;
 
 		case COLD:
-			giveup = oid_cold_test(&oid_config);
+			//giveup = oid_cold_test(&oid_config);
 			break;
 
 		case WAIT:
@@ -380,7 +374,7 @@ void oid_update(void)
 			break;
 
 		case HOT:
-			giveup = oid_hot_test(&oid_config);
+			//giveup = oid_hot_test(&oid_config);
 			break;
 
 		default:
@@ -401,14 +395,12 @@ void oid_update(void)
 void main(void)
 {
 	sys_init();
-	instr_init();
 	oid_init();
 	gui_init(NULL);
 	main_window_init();
 	gui_update(); //to disp the main window asap
 	while(1) {
 		sys_update();
-		instr_update();
 		oid_update();
 		gui_update();
 	}

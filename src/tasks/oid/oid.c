@@ -2,10 +2,6 @@
  * 	miaofng@2012 initial version
  */
 
-#ifndef __OID_H__
-#define __OID_H__
-
-
 /*matrix bus connection*/
 enum {
 	VBUS_VIP, /*BUS 0*/
@@ -283,4 +279,3 @@ int oid_hot_test(struct oid_config_s *cfg)
 	return e;
 }
 
-#endif

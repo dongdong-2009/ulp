@@ -7,3 +7,5 @@ obj-y += gui_widget_fixed.o
 obj-y += gui_widget_button.o
 
 obj-$(CONFIG_GUI_DEMO) += gui_demo.o
+bin-$(CONFIG_GUI_DEMO) += gui_demo.bmp.bin
+bin-$(CONFIG_MISC_OID) += gui_demo.bmp.bin

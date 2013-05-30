@@ -1,0 +1,18 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2013
+#
+
+choice 'application select'	" \
+	DMM		CONFIG_OID_DMM \
+	OID		CONFIG_OID_MAIN \
+	YBS		CONFIG_OID_YBS \
+" OID
+
+if [ "$CONFIG_OID_MAIN" = "y" -o "$CONFIG_OID_DMM" = "y" ]; then
+	choice 'hardware version'	" \
+		V1.0		CONFIG_OID_HWV1 \
+		V2.0		CONFIG_OID_HWV2 \
+	" V2.0
+fi

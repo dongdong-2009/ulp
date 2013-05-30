@@ -18,8 +18,16 @@ EXPORT_INC_DIR = $(EXE_DIR)/inc
 -include $(M)Makefile
 -include $(ENV_FILE)
 
-iar: iar_script detect_config iar_clr iar_cfg iar_inc iar_add
+iar: iar_script detect_config iar_clr iar_cfg iar_inc iar_add icf_cfg
 	@echo "projects/bldc/bldc.ewp has been created!"
+
+icf_cfg:
+	@if test -r $(PRJ_ICF); then \
+		echo "apply settings to $(PRJ_ICF) ..."; \
+		sed -i -r 's/\<symbol __ICFEDIT_size_cstack__.*;/symbol __ICFEDIT_size_cstack__ = 0x$(CONFIG_STACK_SIZE);/' $(PRJ_ICF); \
+		sed -i -r 's/\<symbol __ICFEDIT_size_heap__.*;/symbol __ICFEDIT_size_heap__   = 0x$(CONFIG_HEAP_SIZE);/' $(PRJ_ICF); \
+		sed -i -e "s/$$/\r/" $(PRJ_ICF) #change LF to windows CRLF; \
+	fi
 
 iar_help:
 	$(IAR_TOOL)
@@ -27,7 +35,7 @@ iar_clr:
 	$(IAR_TOOL) clr $(IAR_FILE)
 iar_cfg:
 ifeq ($(CONFIG_CPU_STM32),y)
-	$(IAR_TOOL) cfg $(IAR_FILE) 'STM32F10xxB	ST STM32F10xxB' 'ulp.icf'
+	$(IAR_TOOL) cfg $(IAR_FILE) 'STM32F10xxE	ST STM32F10xxE' 'ulp.icf'
 endif
 ifeq ($(CONFIG_CPU_LM3S),y)
 	$(IAR_TOOL) cfg $(IAR_FILE) 'LM3Sx9xx	Luminary LM3Sx9xx' 'ulp.icf'
@@ -58,7 +66,7 @@ ifeq ($(CONFIG_TARGET_LIB),y)
 endif
 
 iar_add:
-	@echo target=$@ M=$(M): obj-y = $(obj-y) inc-y = $(inc-y) icf-y = $(icf-y)
+	@echo target=$@ M=$(M): obj-y = $(obj-y) inc-y = $(inc-y) icf-y = $(icf-y) bin-y = $(bin-y)
 	@for dir in $(inc-y); do\
 		if [ -d $(M)$$dir ];\
 		then \
@@ -76,6 +84,14 @@ iar_add:
 		echo "found new icf file" $(M)$$icf ...; \
 		cp -f $(M)$$icf $(PRJ_ICF); \
 		cat $(ULP_ICF) >> $(PRJ_ICF); \
+	done
+	@for bin in $(bin-y); do \
+		if test -r "$(M)$$bin";\
+		then \
+			name=`echo $$bin | sed -e "s/\./_/g"`; \
+			$(IAR_TOOL) ldf $(IAR_FILE) --image_input "$$"PROJ_DIR"$$""/../.."/$(M)$$bin,$$name,.text,4; \
+			$(IAR_TOOL) ldf $(IAR_FILE) --keep $$name; \
+		fi \
 	done
 ifeq ($(CONFIG_TARGET_LIB),y)
 	@-for dir in $(inc-y); do\
@@ -118,6 +134,7 @@ xconfig: $(PARSER)
 		if test $(AUTOCONFIG_PROJ_FILE) != "" ; then	\
 			echo saving file .config to file $(AUTOCONFIG_PROJ_FILE);	\
 			cp .config $(AUTOCONFIG_PROJ_FILE);	\
+			make icf_cfg; \
 		fi \
 	fi
 

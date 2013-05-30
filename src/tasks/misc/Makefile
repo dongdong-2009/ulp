@@ -10,4 +10,3 @@ obj-$(CONFIG_MISC_MUX) += mux.o
 obj-$(CONFIG_MISC_MATRIX) += ybs_matrix.o
 obj-$(CONFIG_MISC_GSM) += gsm.o
 obj-$(CONFIG_MISC_PMSM) += pmsm.o
-obj-$(CONFIG_MISC_OID2) += oid2.o

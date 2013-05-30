@@ -5,15 +5,18 @@
 #
 
 #gpio emulate
-choice 'phy bus select'	" \
+choice 'lpt bus hardware select'	" \
 	GPIO	CONFIG_LPT_GPIO \
 	FSMC	CONFIG_LPT_FSMC \
-" GPIO
-#bus period
-int "default bus period, unit: ns" CONFIG_LPT_T 400
-#bus access time
-int "default bus access time, unit: ns" CONFIG_LPT_TP 200
-bool "enable lpt debug command?" CONFIG_LPT_CMD
+	NONE	CONFIG_LPT_NONE \
+" NONE
+if [ "$CONFIG_LPT_NONE" != "y" ]; then
+	#bus period
+	int "default bus period, unit: ns" CONFIG_LPT_T 400
+	#bus access time
+	int "default bus access time, unit: ns" CONFIG_LPT_TP 200
+	bool "enable lpt debug command?" CONFIG_LPT_CMD
+fi
 if [ "$CONFIG_LPT_FSMC" = "y" ]; then
 	choice 'LCD RS pin select(such as: BANK1/A16, ADDR 0x01->0x60020000)'	" \
 		PD11/A16	CONFIG_LPT_A16 \

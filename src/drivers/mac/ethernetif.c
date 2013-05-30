@@ -60,6 +60,30 @@
 #define IFNAME0 'e'
 #define IFNAME1 'n'
 
+int lock = 0;
+static int eth_trylock(struct netif *netif)
+{
+	if(lock) {
+		//printf("lock = %d\n", lock);
+		return -1;
+	}
+	return 0;
+}
+
+static void eth_lock(struct netif *netif)
+{
+	lock ++;
+}
+
+/*note: exti must be configured as edge trigged*/
+static void eth_unlock(struct netif *netif)
+{
+	if(lock > 1) { // isr occurs during lock
+		ethernetif_input(netif);
+	}
+	lock = 0;
+}
+
 /**
  * This function should be called when a packet is ready to be read
  * from the interface. It uses the function low_level_input() that
@@ -71,12 +95,24 @@
  */
 void ethernetif_input(struct netif *netif)
 {
+	if(eth_trylock(netif)) { //fail
+		return;
+	}
+	eth_lock(netif);
 	struct pbuf *p = low_level_input(netif);
-
 	while( p != NULL ) {
 		netif -> input(p, netif);
 		p = low_level_input(netif);
 	}
+	eth_unlock(netif);
+}
+
+err_t ethernetif_output(struct netif *netif, struct pbuf *p)
+{
+	eth_lock(netif);
+	err_t ret = low_level_output(netif, p);
+	eth_unlock(netif);
+	return ret;
 }
 
 /**
@@ -124,7 +160,7 @@ ethernetif_init(struct netif *netif)
    * from it if you have to do some checks before sending (e.g. if link
    * is available...) */
   netif->output = etharp_output;
-  netif->linkoutput = low_level_output;
+  netif->linkoutput = ethernetif_output;
   
   netif->hwaddr[0] =  MAC_ADDR_BYTE0;
   netif->hwaddr[1] =  MAC_ADDR_BYTE1;
@@ -136,6 +172,6 @@ ethernetif_init(struct netif *netif)
   
   /* initialize the hardware */
   low_level_init(netif);
-
+  lock = 0;
   return ERR_OK;
 }

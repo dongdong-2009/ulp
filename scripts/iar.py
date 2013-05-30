@@ -17,6 +17,7 @@ def usage():
 	print "iar cfg test.ewp cpu icf"
 	print "iar inc test.ewp src/include/"
 	print "iar add test.ewp src/lib/ iar/ motor/ shell/ sys/ ..."
+	print "iar ldf test.ewp --image_file $PROJ_DIR$\oid_ps.bmp.bin,image_main_window,.text,4"
 
 def path_win(path):
 	ret = "";
@@ -64,6 +65,17 @@ def iar_clr():
 		for j in range(nr_stats):
 			stat = stats[j];
 			print 'Asm Include Path', stat.text, 'is removed!'
+			opt.remove(stat)
+	#remove link options
+	opts = root.xpath("//option/name[text()='IlinkExtraOptions']/..");
+	nr_opts = len(opts);
+	for i in range(nr_opts):
+		opt = opts[i];
+		stats = opt.xpath("state");
+		nr_stats = len(stats);
+		for j in range(nr_stats):
+			stat = stats[j];
+			print 'LD_FLAGS -=', stat.text
 			opt.remove(stat)
 	#write to original file
 	iar.write(fname)
@@ -127,6 +139,28 @@ def iar_include():
 		print 'Asm Include Path', dname, 'is added!'
 		state = etree.SubElement(opt, "state");
 		state.text = path_win(dname);
+	#write to original file
+	iar.write(fname)
+
+#iar ldf test.ewp --image_file $PROJ_DIR$\oid_ps.bmp.bin,image_main_window,.text,4
+def iar_ld_flag():
+	#print 'iar_include()'
+	if(nr_para < 4):
+		usage();
+		quit();
+	fname = argv[2];
+	option = argv[3];
+	if(nr_para > 4):
+		option = option + " " + argv[4];
+	iar = etree.parse(fname);
+	root = iar.getroot();
+	opts = root.xpath("//option/name[text()='IlinkExtraOptions']/..");
+	nr_opts = len(opts);
+	for i in range(nr_opts):
+		opt = opts[i];
+		print 'LD_FLAGS +=', option
+		state = etree.SubElement(opt, "state");
+		state.text = path_win(option);
 	#write to original file
 	iar.write(fname)
 
@@ -217,6 +251,8 @@ elif (argv[1] == 'add'):
 	iar_add()
 elif (argv[1] == 'inc'):
 	iar_include()
+elif (argv[1] == 'ldf'):
+	iar_ld_flag();
 
 
 
