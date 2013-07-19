@@ -11,7 +11,10 @@ int "max paras of a shell command?" CONFIG_SHELL_NR_PARA_MAX 16
 int "max bytes of command history?" CONFIG_SHELL_LEN_HIS_MAX 256
 bool "multiple console support" CONFIG_SHELL_MULTI
 bool "cmd pattern like 0,2-5,8 support" CONFIG_CMD_PATTERN
-bool "cmd background run(like cmdxxx&100) support" CONFIG_CMD_BKG
+bool "cmd repeatedly run support" CONFIG_CMD_REPEAT
+if [ "$CONFIG_CMD_REPEAT" = "y" ]; then
+	bool "enhanced cmd background run(like cmdxxx&100) support" CONFIG_CMD_BKG
+fi
 bool "cmd para function mode, like fun(x, y) support" CONFIG_CMD_FUNCTION
 bool "shell autorun support" CONFIG_SHELL_AUTORUN
 if [ "$CONFIG_SHELL_AUTORUN" = "y" ]; then
