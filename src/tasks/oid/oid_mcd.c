@@ -79,7 +79,7 @@ int mcd_mode(char bank)
 
 int mcd_read(int *uv_or_mohm)
 {
-	#define RMN 9
+	#define RMN 5
 	int j = 0, ecode = 0, array[RMN], value;
 	struct dmm_mode_s *mode = (struct dmm_mode_s *) &value;
 	for(int i = 0; i < RMN;) {
@@ -93,7 +93,7 @@ int mcd_read(int *uv_or_mohm)
 				//mode->clr = 1;
 				//vchip_outl(&aduc, DMM_REG_MODE, value); /*clr ready bit*/
 				ecode = vchip_inl(&aduc, DMM_REG_DATA, &value);
-				printf("v = %d .. %s\n", value, (ecode == 0) ? "pass" : "fail");
+				//printf("v = %d .. %s\n", value, (ecode == 0) ? "pass" : "fail");
 				break;
 			}
 		}
@@ -127,7 +127,7 @@ void mcd_relay(int image)
 		spi2.wreg(SPI_CS_DUMMY, byte); //lsb
 		spi_cs_set(SPI_CS_PB6, 1);
 		spi_cs_set(SPI_CS_PB6, 0);
-		sys_mdelay(500);
+		sys_mdelay(1000);
 	}
 }
 
@@ -146,9 +146,14 @@ void mcd_pick(int pin0, int pin1)
 	mcd_relay(image);
 }
 
-int mcd_xread(int ch, int *value)
+int mcd_xread(int ch, int *mv)
 {
-	return 0;
+	if(ch > 0) mcd_relay(1 << ch);
+	int uv = 0, e = mcd_read(&uv);
+	uv = - uv; //hw bug
+	uv *= 25;
+	*mv = uv / 1000; //unit: mV
+	return e;
 }
 
 static int cmd_mcd_func(int argc, char *argv[])
@@ -160,11 +165,12 @@ static int cmd_mcd_func(int argc, char *argv[])
 		"mcd -y	0..15		turn on relay s0..15 before read\n"
 		"mcd -p 01		pick(pin0, pin1) before read\n"
 		"mcd -r [100]		read [100] times\n"
+		"mcd -x			unit: mv, gain=25 for ybs monitor use only\n"
 	};
 
 	if(argc > 0) {
 		char mode = DMM_R_AUTO;
-		int r = 0, v, e = 0;
+		int r = 0, v, ch, e = 0;
 		for(int j, i = 1; i < argc; i ++) {
 			e += (argv[i][0] != '-');
 			switch(argv[i][1]) {
@@ -212,6 +218,17 @@ static int cmd_mcd_func(int argc, char *argv[])
 				if((j < argc) && (argv[j][0] != '-')) {
 					r = atoi(argv[++ i]);
 				}
+				break;
+
+			case 'x':
+				ch = -1;
+				j = i + 1;
+				if((j < argc) && (argv[j][0] != '-')) {
+					ch = atoi(argv[++ i]);
+				}
+				e = mcd_xread(ch, &v);
+				if(!e) printf("%d mV\n", v);
+				else printf("ecode = %d\n", e);
 				break;
 
 			default:

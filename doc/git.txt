@@ -1,16 +1,32 @@
-windows develop platform setup: <s:\share\soft\EDA\Tools\git\>
-1, install msysgit
-2, install msys
-3, install python 2.7
-4, install lxml
-5, copy all files in C:\MinGW\msys\1.0\bin to C:\Program Files\Git\bin folder to avoid some strange fault
-6, to do step 6-1(do not need reboot) or step 6-2(need reboot)
-6-1: modify line 18-22 of C:\Program Files\Git\etc\profile to following:
-if [ $MSYSTEM == MINGW32 ]; then
-  export PATH=".:/c/MinGW/bin:/usr/local/bin:/mingw/bin:/bin:$PATH:/c/Python27/"
-else
-  export PATH=".:/c/MinGW/bin:/usr/local/bin:/bin:/mingw/bin:$PATH:/c/Python27/"
-fi
+ULP windows platform setup: (s:\soft\share\git)
 
-6-2: setup environment variables as following, btw do not have space in contents of $PATH:
-====> C:\Program Files\Git\cmd;C:\Python27;C:\MinGW\bin;C:\MinGW\msys\1.0\bin;
+1, install python 2.7
+2, install python-lxml
+3, install msys, note: (optionally you can simply decompress my preinstalled mingw package at s:\soft\share\git\MinGW.rar)
+	a, SourceForge is blocked by GFW, please set IE's proxy(ref to GAE) for mingw-get
+	b, install msys-here which provide right key menu "Msys Here", steps:
+		- mingw-get update
+		- mingw-get install mingw-utils
+		- msys-here-config -i -a
+		- cp /mingw/bin/msys-here* /mingw/msys/1.0/ (if you cann't have your msys-here run after last step)
+		- modify the search PATH of /mingw/msys/1.0/profile to: (!!please do not have space in PATH setting!!) {
+			if [ $MSYSTEM == MINGW32 ]; then
+			  PATH=".:/C/MinGW/bin:/usr/local/bin:/mingw/bin:/bin:$PATH:/C/Python27:/C/MinGW/msys/1.0/bin:/d/adt/ndk:/d/adt/sdk/tools:/d/adt/sdk/platform-tools:/d/adt/miaofng-android-toolchain/bin:/c/MinGW/share"
+			else
+			  export PATH=".:/usr/local/bin:/bin:/mingw/bin:$PATH"
+			fi
+		}
+
+4, install msysgit, during setup please choose:
+	a, Run Git and included Unix tools from the Windows Command Prompt(RED one)
+	b, Checkout Windows-style, commit Unix-style line endings
+
+5, you also need to apply an digital certificates from linktronsys
+	a, copy the keyfile you received to folder ~/.ssh and rename it to "id_rsa"
+	b, everything is ok now
+
+6, basic ulp operation, for example:
+	a, locate any folder, then select right key menu: "Msys Here"
+	b# git clone your_name@git.linktronsys.com:ulp nest
+	c# make nest_config
+	d# make
