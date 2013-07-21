@@ -1,354 +1,241 @@
 /*
+*	v2.0
 *	dmm program based on aduc processor
 *	1, do adc convert continuously
 *	2, serv for spi communication
+*
+*	v2.1@2013.7
+*	1, spi -> uart communication
+*	2, p2.0 for open load detection
 *
 */
 #include "config.h"
 #include "ulp/sys.h"
 #include "oid_dmm.h"
 #include "spi.h"
-#include "common/vchip.h"
-#include "common/circbuf.h"
 #include "aduc706x.h"
 #include <string.h>
 #include "aduc_adc.h"
+#include "aduc_matrix.h"
+#include "led.h"
+#include "aduc706x.h"
+#include "shell/cmd.h"
+#include "shell/shell.h"
+#include "uart.h"
 
-//#define CONFIG_SPI_DEBUG
-#define CONFIG_R_REF 100000 //unit: mohm
+#define __DEBUG(X) if(debug_mode == 'D') {X}
 
-#define vth_max	((1 << 23) * 0.7)
-#define vth_min ((1 << 23) * 0.3)
-#define RELAY_V_MODE() do {GP2SET = 1 << (16 + 0);} while(0)
-#define RELAY_R_MODE() do {GP2CLR = 1 << (16 + 0);} while(0)
+#define CONFIG_RZ_OHM 10.0 //RZ, unit: ohm
+#define dmm_uart_cnsl ((struct console_s *) &uart0)
 
-static struct dmm_reg_s dmm_ri, dmm_ro;
-/*mask all the auto clear bit, special operation will be done inside vchip.c*/
-static const struct dmm_reg_s dmm_az = {
-	.mode.cal = 1,
-	.mode.clr = 1,
-	.mode.dac = 1,
+static char debug_mode = 'A'; //Auto/Manual/Detail mode
+
+static const aduc_adc_cfg_t cfg_mohm = {
+	.adc0 = 1,
+	.adc1 = 1,
+	.pga0 = 0,
+	.pga1 = 0,
+	.mux0 = ADUC_MUX0_DCH01,
+	.mux1 = ADUC_MUX1_DCH23,
 };
 
-void reg_init(void)
-{
-	memset(&dmm_ri, 0x00, sizeof(dmm_ri));
-	memset(&dmm_ro, 0x00, sizeof(dmm_ro));
-	dmm_ri.mode.bank = DMM_V_AUTO;
-	vchip_init(&dmm_ri, &dmm_ro, &dmm_az, sizeof(dmm_ro));
+static const aduc_adc_cfg_t cfg_o2mv = {
+	.adc0 = 1,
+	.adc1 = 0,
+	.pga0 = 0,
+	.mux0 = ADUC_MUX0_DCH01,
+	.vofs = 1000,
+};
 
-	/*copy from mbi5025, both of them use the same spi bus except signal cs*/
-	spi_cfg_t cfg = {
-		.cpol = 0,
-		.cpha = 0,
-		.bits = 8,
-		.bseq = 1,
+static dmm_data_t dmm_data; /*current configuration & test result*/
+
+/*force is used to ignore old setting*/
+static int dmm_switch(const dmm_data_t *new, int force)
+{
+	int switched = 0;
+
+	//to do run mode or channel switch?
+	if(force || (new->pinA != dmm_data.pinA) || (new->pinK != dmm_data.pinK)) {
+		matrix_pick(new->pinA, new->pinK);
+		dmm_data.pinA = new->pinA;
+		dmm_data.pinK = new->pinK;
+		switched = 1;
+	}
+
+	if(force || (new->mohm != dmm_data.mohm)) {
+		const aduc_adc_cfg_t *cfg = (new->mohm) ? &cfg_mohm : &cfg_o2mv;
+		aduc_adc_init(cfg, ADUC_CAL_NONE);
+		if(new->mohm) RELAY_R_MODE();
+		else RELAY_V_MODE();
+		dmm_data.mohm = new->mohm;
+		switched = 1;
+	}
+
+	return switched;
+}
+
+static void dmm_init(void)
+{
+	dmm_data.value = 0;
+
+	//console work mode
+	shell_mute_set(dmm_uart_cnsl, (debug_mode == 'A') ? 1 : 0);
+
+	//configure p2.0 as gpio input
+	int m, v;
+	v = GP2CON;
+	m = 0x03;
+	v &= ~m;
+	v |= 0x0000;
+	GP2CON = v;
+
+	v = GP2DAT;
+	m = 1 << 24;
+	v &= ~m;
+	GP2DAT = v; /*P20 = input*/
+
+	//setting voltage condition for aduc adc calibration
+	//aduc's bug?
+	static const dmm_data_t dmm_data_cal = { .mohm = 1, .pinA = 3, .pinK = 4};
+	dmm_switch(&dmm_data_cal, 1);
+	sys_mdelay(500);
+
+	static const aduc_adc_cfg_t cfg_cal = {
+		.adc0 = 1,
+		.adc1 = 1,
+		.pga0 = 0,
+		.pga1 = 0,
+		.mux0 = ADUC_MUX0_DCH01,
+		.mux1 = ADUC_MUX1_DCH23,
 	};
-	spi.init(&cfg);
+	aduc_adc_init(&cfg_cal, ADUC_CAL_FULL);
 }
 
-int reg_update(void)
+static void dmm_update(void)
 {
-	int exit = 0;
-
-#ifdef CONFIG_SPI_DEBUG
-	extern circbuf_t rxfifo;
-	extern circbuf_t txfifo;
-	if(buf_size(&rxfifo) > 0) {
-		mdelay(50);
-		char byte;
-		buf_pop(&rxfifo, &byte, 1);
-		printf("0x%02x ", ((unsigned)byte) & 0xff);
-	}
-	if(buf_size(&txfifo) > 0) {
-		mdelay(50);
-		char byte;
-		buf_pop(&txfifo, &byte, 1);
-		printf("[0x%02x] ", ((unsigned)byte) & 0xff);
-	}
-#endif
-
-	if(dmm_ri.mode.bank != dmm_ro.mode.bank) {
-		if(dmm_ri.mode.bank != DMM_KEEP) {
-			dmm_ro.mode.ready = 0;
-			exit = 1;
-		}
-	}
-
-	if(dmm_ri.mode.cal != dmm_ro.mode.cal) {
-		dmm_ro.mode.ready = 0;
-		exit = 1;
-	}
-
-	if(dmm_ri.mode.clr != dmm_ro.mode.clr) {
-		dmm_ro.mode.clr = dmm_ri.mode.clr;
-		dmm_ro.mode.ready = 0;
-	}
-
-	if(dmm_ri.mode.dac != dmm_ro.mode.dac) {
-		DACDAT = DMM_UV_TO_D(dmm_ri.value); //default 1V
-		dmm_ro.mode.dac = dmm_ri.mode.dac;
-		dmm_ro.mode.ready = 0;
-	}
-
-	return exit;
-}
-
-int dmm_measure(unsigned adc, int *value)
-{
-	int ecode = 0;
-	do {
-		ecode = aduc_adc_get(adc, value);
-		sys_update();
-		if(reg_update()) {
-			//forced quit, ecode > 0
-			ecode = 1;
-			break;
-		}
-	} while(ecode > 0);
-
-	/*0->OK, 1->QUIT, -1->OVERRANGE*/
-	return ecode;
-}
-
-void dmm_measure_v_auto(void)
-{
-	aduc_adc_cfg_t new, now = {.adc0 = 1, .adc1 = 0, .iexc = 0, .ua10 = 0, .pga0 = 0, .mux0 = ADUC_MUX0_DCH01};
-	new.value = now.value;
-	aduc_adc_init(&new, ADUC_CAL_NONE);
-
-	while(1) {
-		if(now.value != new.value) {
-			aduc_adc_init(&new, ADUC_CAL_NONE);
-			now.value = new.value;
-		}
-
-		int v0, ov0 = dmm_measure(ADUC_ADC0, &v0);
-		if(ov0 > 0) {
-			//forced quit
-			break;
-		}
-
-		int d = (v0 > 0) ? v0 : -v0;
-		if(d < vth_min) { //increase gain
-			new.pga0 += (new.pga0 == 9) ? 0 : 1;
-		}
-		else if(d > vth_max) { //decrease gain
-			new.pga0 -= (new.pga0 == 0) ? 0 : 1;
-		}
-
-		long long uv = ((long long) v0 * 1200 * 1000);
-                uv >>= (23 + now.pga0);
-		dmm_ro.value = (int) uv;
-		dmm_ro.mode.ready = 1;
-		dmm_ro.mode.over = (ov0) ? 1 : 0;
-	}
-}
-
-void dmm_measure_r_auto(void)
-{
-	aduc_adc_cfg_t new, now = {.adc0 = 1, .adc1 = 1, .iexc = 5, .ua10 = 0, .pga0 = 0, .pga1 = 0, .mux0 = ADUC_MUX0_DCH01, .mux1 = ADUC_MUX1_DCH23};
-	new.value = now.value;
-	aduc_adc_init(&new, ADUC_CAL_NONE);
-
-	while(1) {
-		if(now.value != new.value) {
-			aduc_adc_init(&new, ADUC_CAL_NONE);
-			now.value = new.value;
-		}
-
-		int v0, ov0 = dmm_measure(ADUC_ADC0, &v0);
-		if(ov0 > 0) {
-			//forced quit
-			break;
-		}
-
-		int d = (v0 > 0) ? v0 : -v0;
-		if(d < vth_min) { //increase gain
-			if(new.iexc == 5) {
-				new.pga0 += (new.pga0 == 9) ? 0 : 1;
-			}
-			else {
-				new.iexc ++;
-			}
-		}
-		else if(d > vth_max) { //decrease gain
-			if(new.pga0 == 0)  {
-				new.iexc -= (new.iexc == 1) ? 0 : 1;
-			}
-			else {
-				new.pga0 --;
-			}
-		}
-
-
-		int v1, ov1 = dmm_measure(ADUC_ADC1, &v1);
-		if(ov1 > 0) {
-			//forced quit
-			break;
-		}
-
-		d = (v1 > 0) ? v1 : -v1;
-		if(d < vth_min) { //increase gain
-			new.pga1 += (new.pga1 == 3) ? 0 : 1;
-		}
-		else if(d > vth_max) { //decrease gain
-			new.pga1 -= (new.pga1 == 0) ? 0 : 1;
-		}
-
-		v1 = (v1 == 0) ? 1 : v1; /*to avoid div0 error*/
-		long long mohm = (long long) v0 * CONFIG_R_REF;
-		mohm <<= now.pga1;
-		mohm /= v1;
-		mohm >>= now.pga0;
-		mohm = (mohm < 0) ? - mohm : mohm;
-		dmm_ro.mode.ready = 1;
-		dmm_ro.mode.over = (ov0 || ((mohm >> 32) != 0)) ? 1 : 0;
-		dmm_ro.value = (dmm_ro.mode.over) ? 0x7fffffff : mohm;
-	}
-}
-
-void dmm_measure_r_short(void)
-{
-	/*iexc = 1mA, pga0 = 512, pga1 = 8 => VR = 100mV*8 = 800mV */
-	static const aduc_adc_cfg_t cfg = {.adc0 = 1, .adc1 = 1, .iexc = 5, .ua10 = 0, .pga0 = 9, .pga1 = 3, .mux0 = ADUC_MUX0_DCH01, .mux1 = ADUC_MUX1_DCH23};
-	aduc_adc_init(&cfg, ADUC_CAL_NONE);
-
-	while(1) {
-		int v0, ov0 = dmm_measure(ADUC_ADC0, &v0);
-		if(ov0 > 0) {
-			//forced quit
-			break;
-		}
-
-		int v1, ov1 = dmm_measure(ADUC_ADC1, &v1);
-		if(ov1 > 0) {
-			//forced quit
-			break;
-		}
-
-		v1 = (v1 == 0) ? 1 : v1; /*to avoid div0 error*/
-		long long mohm = (long long) v0 * CONFIG_R_REF;
-		mohm <<= cfg.pga1;
-		mohm /= v1;
-		mohm >>= cfg.pga0;
-		mohm = (mohm < 0) ? - mohm : mohm;
-		dmm_ro.mode.ready = 1;
-		dmm_ro.mode.over = (ov0 || ((mohm >> 32) != 0)) ? 1 : 0;
-		dmm_ro.value = (dmm_ro.mode.over) ? 0x7fffffff : mohm;
-	}
-}
-
-void dmm_measure_r_open(void)
-{
-	/*measure vx with adc0: iexc = 10uA, r=???very big, pga = min*/
-	static const aduc_adc_cfg_t cfg0 = {.adc0 = 1, .adc1 = 0, .iexc = 0, .ua10 = 1, .pga0 = 0, .mux0 = ADUC_MUX0_DCH01};
-	/*measure vr with adc0: iexc = 10uA, r=100ohm, pga0 = 512 => 512mV */
-	static const aduc_adc_cfg_t cfg1 = {.adc0 = 1, .adc1 = 0, .iexc = 0, .ua10 = 1, .pga0 = 9, .mux0 = ADUC_MUX0_DCH23};
-
-	while(1) {
-		aduc_adc_init(&cfg0, ADUC_CAL_NONE);
-		int v0, ov0 = dmm_measure(ADUC_ADC0, &v0);
-		if(ov0 > 0) {
-			//forced quit
-			break;
-		}
-
-		aduc_adc_init(&cfg1, ADUC_CAL_NONE);
-		int v1, ov1 = dmm_measure(ADUC_ADC0, &v1);
-		if(ov1 > 0) {
-			//forced quit
-			break;
-		}
-
-		v1 = (v1 == 0) ? 1 : v1; /*to avoid div0 error*/
-		long long mohm = (long long) v0 * CONFIG_R_REF;
-		mohm <<= cfg1.pga0;
-		mohm /= v1;
-		mohm >>= cfg0.pga0;
-		mohm = (mohm < 0) ? - mohm : mohm;
-		dmm_ro.mode.ready = 1;
-		dmm_ro.mode.over = (ov0 || ((mohm >> 32) != 0)) ? 1 : 0;
-		dmm_ro.value = (dmm_ro.mode.over) ? 0x7fffffff : mohm;
-	}
-}
-
-char dmm_cal(char bank, int value)
-{
-	return 0;
-}
-
-void dmm_init(void)
-{
-	//p2.0 voltage<1>/resistor<0> mode switch
-	GP2DAT |= 1 << (24 + 0); //DIR = OUT
-	DACCON = (1 << 4); //12bit mode, 0~1V2
-	DACDAT = DMM_UV_TO_D(1000*1000); //default 1V
-	aduc_adc_cfg_t cfg = {.adc0 = 1, .adc1 = 1, .pga0 = 0, .pga1 = 0};
-	aduc_adc_init(&cfg, ADUC_CAL_FULL);
-	#if 0
-	printf("ADC0OF = %d, ADC0GN = %d, ADC1OF = %d, ADC1GN = %d\n", ADC0OF, ADC0GN, ADC1OF, ADC1GN);
-	cfg.adc0 = 0;
-	cfg.adc1 = 0;
-	aduc_adc_init(&cfg, ADUC_CAL_NONE);
-	printf("ADC0OF = %d, ADC0GN = %d, ADC1OF = %d, ADC1GN = %d\n", ADC0OF, ADC0GN, ADC1OF, ADC1GN);
-	cfg.adc0 = 1;
-	cfg.adc1 = 1;
-	aduc_adc_init(&cfg, ADUC_CAL_NONE);
-	printf("ADC0OF = %d, ADC0GN = %d, ADC1OF = %d, ADC1GN = %d\n", ADC0OF, ADC0GN, ADC1OF, ADC1GN);
-	for(int i = 0; i < 10; i ++) {
-		aduc_adc_init(&cfg, ADUC_CAL_FULL);
-		printf("ADC0OF = %d, ADC0GN = %d, ADC1OF = %d, ADC1GN = %d\n", ADC0OF, ADC0GN, ADC1OF, ADC1GN);
-	}
-	#endif
-}
-
-void dmm_update(void)
-{
-	if(dmm_ro.mode.cal != dmm_ri.mode.cal) {
-		dmm_ro.mode.ecode = dmm_cal(dmm_ro.mode.bank, dmm_ro.value);
-		dmm_ro.mode.cal = dmm_ri.mode.cal;
-		dmm_ro.mode.ready = 1;
-	};
-
-	if(dmm_ri.mode.bank != dmm_ro.mode.bank) {
-		if(dmm_ri.mode.bank != DMM_KEEP) {
-			dmm_ro.mode.bank = dmm_ri.mode.bank;
-			dmm_ro.mode.ready = 0;
-		}
-	}
-
-	char bank = dmm_ro.mode.bank;
-	switch(bank) {
-	case DMM_V_AUTO:
-		RELAY_V_MODE();
-		dmm_measure_v_auto();
-		break;
-	case DMM_R_AUTO:
-		RELAY_R_MODE();
-		dmm_measure_r_auto();
-		break;
-	case DMM_R_SHORT:
-		RELAY_R_MODE();
-		dmm_measure_r_short();
-		break;
-	case DMM_R_OPEN:
-		RELAY_R_MODE();
-		dmm_measure_r_open();
-		break;
-	default:
+	if(!aduc_adc_is_ready(0))
 		return;
+
+	dmm_data.pass = 1;
+
+	int e, d0, d1;
+	e = aduc_adc_get(&d0, &d1);
+	if(e) {
+		__DEBUG(printf("\rerror                    ");)
+		dmm_data.result = DMM_DATA_INVALID;
+		if(dmm_data.mohm) {
+			if((GP2DAT & 0x01) == 0x00)
+				dmm_data.result = DMM_DATA_UNKNOWN;
+		}
+		return;
+	}
+
+	float mv0 = d0 * 1200.0 / (1 << 23);
+	float mv1 = d1 * 1200.0 / (1 << 23);
+	if(dmm_data.mohm) {
+		float ohm = mv0 * CONFIG_RZ_OHM / mv1;
+		__DEBUG(printf("mv0 = %.4f mv1 = %.4f ohm = %.4f\n", mv0, mv1, ohm);)
+		dmm_data.result = (int) (ohm * 1000);
+	}
+	else {
+		__DEBUG(printf("mv = %.3f\n", mv0);)
+		dmm_data.result = (int) mv0;
 	}
 }
 
 int main(void)
 {
 	sys_init();
-	reg_init();
+        led_flash(LED_RED);
+        led_flash(LED_GREEN);
+
+	matrix_init();
 	dmm_init();
 	while(1) {
 		sys_update();
-		reg_update();
 		dmm_update();
 	}
 }
+
+static int cmd_dmm_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"dmm -A/M/D			dmm debug mode switch: Auto/Manual/Detailed\n"
+		"dmm -p pinA pinK		switch dmm matrix to specified pin\n"
+		"dmm -V				switch to voltage mode\n"
+		"dmm -R				switch to resistor mode\n"
+		"dmm -r				read current test result\n"
+	};
+
+	int e = 0, x, y, read = 0;
+	dmm_data_t new;
+	new.value = dmm_data.value;
+
+	for(int j, i = 1; (i < argc) && (e == 0); i ++) {
+		e += (argv[i][0] != '-');
+		switch(argv[i][1]) {
+		case 'A':
+		case 'M':
+		case 'D':
+			debug_mode = argv[i][1];
+			shell_mute_set(dmm_uart_cnsl, (debug_mode == 'A') ? 1 : 0);
+			break;
+
+		case 'p':
+			e = 2;
+			if(((j = i + 1) < argc) && (argv[j][0] != '-')) {
+				x = atoi(argv[++ i]);
+				e --;
+			}
+			if(((j = i + 1) < argc) && (argv[j][0] != '-')) {
+				y = atoi(argv[++ i]);
+				e --;
+			}
+
+			if(!e) {
+				new.pinA = x;
+				new.pinK = y;
+			}
+			break;
+
+		case 'V':
+			new.mohm = 0;
+			break;
+		case 'R':
+			new.mohm = 1;
+			break;
+
+		case 'r':
+			read = 1;
+			break;
+
+		default:
+			e ++;
+			break;
+		}
+	}
+
+	if(!e) {
+		if(dmm_switch(&new, 0)) {
+			dmm_data.pass = 0;
+		}
+		if(read) {
+			if(debug_mode == 'A') printf("%08x", dmm_data.value);
+			else printf("%s%d%d = %d %s\n", \
+				(dmm_data.mohm) ? "R" : "V", dmm_data.pinA, dmm_data.pinK, \
+				dmm_data.result, (dmm_data.mohm) ? "mohm" : "mv", \
+				(dmm_data.pass) ? "" : "(error???)");
+		}
+	}
+
+	if(e && (debug_mode != 'A')) {
+		printf("%s", usage);
+	}
+
+	printf("\n");
+	return 0;
+}
+
+const cmd_t cmd_dmm = {"dmm", cmd_dmm_func, "dmm debug cmds"};
+DECLARE_SHELL_CMD(cmd_dmm)
