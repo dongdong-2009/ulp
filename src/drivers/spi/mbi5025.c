@@ -58,10 +58,9 @@ void mbi5025_write_and_latch(const mbi5025_t *chip, const void *p, int n)
 {
 	const char *pbyte = p;
 	spi_cs_set(chip->load_pin, 0);
-	while(n > 0) {
-		char byte = *pbyte ++;
+	for(int i = n - 1; i >= 0; i --) {
+		char byte = pbyte[i];
 		chip->bus->wreg(0, byte);
-		n --;
 	}
 	spi_cs_set(chip->load_pin, 1);
 	spi_cs_set(chip->load_pin, 0);
