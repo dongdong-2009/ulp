@@ -11,10 +11,18 @@
 #include "ulp/sys.h"
 #include "aduc706x.h"
 #include "aduc_adc.h"
+#include "common/ansi.h"
 
-#define CONFIG_AVERAGE_FACTOR 0 /*1 << 3, 8 times*/
+#define __DEBUG(X) X
+#define CONFIG_AVERAGE_FACTOR 0 /*1 << N times*/
 
-void aduc_adc_init(const aduc_adc_cfg_t *cfg, int cal)
+#define ADC0OF_DEF 0x0000
+#define ADC1OF_DEF 0x0000
+#define ADC1OF_DEF 0x0000
+#define ADC0GN_DEF 0x5552
+#define ADC1GN_DEF 0x554B
+
+static int __aduc_adc_init(const aduc_adc_cfg_t *cfg)
 {
 	ADCMDE = (1 << 7) | ADUC_ADC_MODE_IDLE; //force adc to idle mode
 	IEXCON = (1 << 6) | (cfg->iexc << 1) | cfg->ua10;
@@ -49,60 +57,129 @@ void aduc_adc_init(const aduc_adc_cfg_t *cfg, int cal)
 		ADC0CON = v; /*enable ADC0*/
 	}
 	if(cfg->adc1) {
-		unsigned v = (1 << 15) | (cfg->mux1 << 7) | cfg->pga1; /*enable ADC1*/
+		unsigned v = (1 << 15) | (cfg->mux1 << 7) | (0x03 << 2) | cfg->pga1; /*enable ADC1*/
 		ADC1CON = v;
+	}
+
+	ADCMDE = (1 << 7) | ADUC_ADC_MODE_AUTO;
+	return 0;
+}
+
+int aduc_adc_init(const aduc_adc_cfg_t *cfg, int cal)
+{
+	int i, x, y, sum_x = 0, sum_y = 0, avg_x, avg_y;
+	static short adc0of = ADC0OF_DEF;
+	static short adc1of = ADC1OF_DEF;
+	static short adc0gn = ADC0GN_DEF;
+	static short adc1gn = ADC1GN_DEF;
+
+	if(cal != ADUC_CAL_NONE) {
+		__aduc_adc_init(cfg);
+		mdelay(1); //without this delay, cal may lead to random result
 	}
 
 	/*zcal*/
 	if((cal == ADUC_CAL_ZERO) || (cal == ADUC_CAL_FULL)) {
-		ADCMDE = (1 << 7) | ADUC_ADC_MODE_ZCAL_SELF; //self offset calibration
-		while((ADCSTA & 0x01) == 0);
+		for(i = 0; i < 5; i ++) {
+			ADCMDE = (1 << 7) | ADUC_ADC_MODE_ZCAL_SELF; //self offset calibration
+			while((ADCSTA & 0x01) == 0);
+			mdelay(1);
+
+			x = (cfg->adc0) ? ADC0OF : 0;
+			y = (cfg->adc1) ? ADC1OF : 0;
+			__DEBUG(printf("CAL: ADC0OF = 0x%08x ADC1OF = 0x%08x\n", x, y));
+
+			avg_x = (avg_x * i + x) / (i + 1);
+			avg_y = (avg_y * i + y) / (i + 1);
+			sum_x += (avg_x > x) ? (avg_x - x) : (x - avg_x);
+			sum_y += (avg_y > y) ? (avg_y - y) : (y - avg_y);
+		}
+
+		if(sum_x + sum_y < 10) { //success
+			adc0of = (short) avg_x;
+			adc1of = (short) avg_y;
+		}
+		else {
+			__DEBUG(printf(ANSI_FONT_RED));
+			__DEBUG(printf("CAL: FAIL(sum_x = %d, sum_y = %d)!!!\n", sum_x, sum_y));
+			__DEBUG(printf(ANSI_FONT_DEF));
+			goto EXIT_CAL;
+		}
 	}
 
 	/*note: gain self calibration only valid when PGA=0!!!*/
 	if((cal == ADUC_CAL_GAIN) || (cal == ADUC_CAL_FULL)) {
-		ADCMDE = (1 << 7) | ADUC_ADC_MODE_GCAL_SELF; //self gain calibration
-		while((ADCSTA & 0x01) == 0);
+		for(i = 0; i < 5; i ++) {
+			ADCMDE = (1 << 7) | ADUC_ADC_MODE_GCAL_SELF; //self gain calibration
+			while((ADCSTA & 0x01) == 0);
+			mdelay(1);
+
+			x = (cfg->adc0) ? ADC0GN : 0;
+			y = (cfg->adc1) ? ADC1GN : 0;
+			__DEBUG(printf("CAL: ADC0GN = 0x%08x ADC1GN = 0x%08x\n", x, y));
+
+			avg_x = (avg_x * i + x) / (i + 1);
+			avg_y = (avg_y * i + y) / (i + 1);
+			sum_x += (avg_x > x) ? (avg_x - x) : (x - avg_x);
+			sum_y += (avg_y > y) ? (avg_y - y) : (y - avg_y);
+		}
+
+		if(sum_x + sum_y < 10) { //success
+			adc0gn = (short) avg_x;
+			adc1gn = (short) avg_y;
+		}
+		else {
+			__DEBUG(printf(ANSI_FONT_RED));
+			__DEBUG(printf("CAL: FAIL(sum_x = %d, sum_y = %d)!!!\n", sum_x, sum_y));
+			__DEBUG(printf(ANSI_FONT_DEF));
+			goto EXIT_CAL;
+		}
 	}
 
-	ADCMDE = (1 << 7) | ADUC_ADC_MODE_AUTO;
-#if CONFIG_AVERAGE_FACTOR
-	for(int i = 0; i < 4; i ++) {
-		while((ADCSTA & 0x01) == 0);
-		printf("ADC0DAT = %d\n", ADC0DAT);
-	}
-	ADCORCR = (1 << CONFIG_AVERAGE_FACTOR);
-	ADCCFG |= (0x02 << 5) | 1; //ADC0ACCEN = 0b10, active without clamp & comparator
-#endif
+
+EXIT_CAL:
+	__aduc_adc_init(cfg);
+	ADC0OF = adc0of;
+	ADC1OF = adc1of;
+	ADC0GN = adc0gn;
+	ADC1GN = adc1gn;
+
+	__DEBUG(printf("CAL: ADC0OF = 0x%08x ADC1OF = 0x%08x\n", ADC0OF, ADC1OF));
+	__DEBUG(printf("CAL: ADC0GN = 0x%08x ADC1GN = 0x%08x\n", ADC0GN, ADC1GN));
+	return (sum_x + sum_y < 10) ? 0 : -1;
 }
 
-int aduc_adc_get(int adc, int *result)
+int aduc_adc_is_ready(int adc)
 {
-	int ecode = 1; //busy
+	aduc_adc_status_t status;
+	status.value = ADCSTA;
+	return (adc == 0) ? status.ADC0RDY : status.ADC1RDY;
+}
+
+int aduc_adc_get(int *adc0, int *adc1)
+{
+	if(adc0 != NULL) {
+		while(! aduc_adc_is_ready(0));
+	}
+
+	if(adc1 != NULL) {
+		while(! aduc_adc_is_ready(1));
+	}
+
 	aduc_adc_status_t status;
 	status.value = ADCSTA;
 
-	if(adc == 0) {
-		//printf("ADCORCV = %d\n", ADCORCV);
-		if(status.ADC0RDY) {
-			ecode = - status.ADC0CERR;
-#if CONFIG_AVERAGE_FACTOR
-			int v = ADCOACC;
-			printf("ADC0ACC = %d\n", v);
-			printf("ADCCFG = %d\n", ADCCFG);
-			v >>= CONFIG_AVERAGE_FACTOR;
-			*result = v;
-#else
-			*result = ADC0DAT;
-#endif
-		}
+	int v0, v1, ecode = 0;
+	v0 = ADC0DAT;
+	v1 = ADC1DAT;
+	if(adc0 != NULL) {
+		*adc0 = v0;
+		ecode += (status.ADC0CERR) ? -1 : 0;
 	}
-	else {
-		if(status.ADC1RDY) {
-			ecode = - status.ADC1CERR;
-			*result = ADC1DAT;
-                        ADC0DAT; /*dummy*/
-		}
+
+	if(adc1 != NULL) {
+		*adc1 = v1;
+		ecode += (status.ADC1CERR) ? -1 : 0;
 	}
 
 	return ecode;
