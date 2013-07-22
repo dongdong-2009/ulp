@@ -66,7 +66,7 @@ void mbi5025_write_and_latch(const mbi5025_t *chip, const void *p, int n)
 	spi_cs_set(chip->load_pin, 0);
 }
 
-#if 1
+#if CONFIG_DRIVER_SPI1
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
