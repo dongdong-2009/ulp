@@ -20,7 +20,7 @@ typedef union {
 		int result : 24; //test result
 
 		unsigned mohm : 1; //result's unit = mohm
-		unsigned pass : 1; //dmm measurement operation pass
+		unsigned ready : 1; //dmm new measurement data is ready
 		unsigned pinA : 3;
 		unsigned pinK : 3;
 	};
