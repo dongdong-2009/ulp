@@ -259,7 +259,7 @@ static int spi_Read(int addr)
 	return SPIRX;
 }
 
-const spi_bus_t spi = {
+const spi_bus_t spi0 = {
 	.init = spi_Init,
 	.wreg = spi_Write,
 	.rreg = spi_Read,

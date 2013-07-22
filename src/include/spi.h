@@ -71,6 +71,7 @@ typedef struct {
 	int (*poll)(void); //0 indicates tranfser finished
 } spi_bus_t;
 
+extern const spi_bus_t spi0;
 extern const spi_bus_t spi1;
 extern const spi_bus_t spi2;
 extern const spi_bus_t spi3;
