@@ -16,7 +16,7 @@
 #define RELAY_OFF 0x0000
 
 static const mbi5025_t matrix_mbi = {
-	.bus = &spi,
+	.bus = &spi0,
 	.load_pin = SPI_CS_P00,
 	.oe_pin = SPI_CS_NONE,
 };
@@ -43,36 +43,6 @@ void matrix_pick(int pin0, int pin1)
 	image |= 1 << (pin0 + 0);
 	image |= 1 << (pin1 + 1);
 	matrix_relay(image, MATRIX_ALL);
-}
-
-/* htoi:  convert hexdicimal string s to integer */
-int htoi(char s[])
-{
-    int i;
-    int c, n;
-
-    n = 0;
-    for (i = 0; (c = s[i]) != '\0'; ++i) {
-        n *= 16;
-        if (i == 0 && c == '0') {
-            /* Drop the 0x of 0X from the start of the string. */
-            c = s[++i];
-            if (c != 'x' && c != 'X')
-                --i;
-        } else if (c >= '0' && c <= '9')
-            /* c is a numerical digit. */
-            n += c - '0';
-        else if (c >= 'a' && c <= 'f')
-            /* c is a letter in the range 'a'-'f' */
-            n += 10 + (c - 'a');
-        else if (c >= 'A' && c <= 'F')
-            /* c is a letter in the range 'A'-'F' */
-            n += 10 + (c - 'A');
-        else
-            /* invalid input */
-            return n;
-    }
-    return n;
 }
 
 static int cmd_matrix_func(int argc, char *argv[])

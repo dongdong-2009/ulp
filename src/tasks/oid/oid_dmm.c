@@ -22,6 +22,7 @@
 #include "shell/cmd.h"
 #include "shell/shell.h"
 #include "uart.h"
+#include "common/ansi.h"
 
 #define __DEBUG(X) if(debug_mode == 'D') {X}
 
@@ -47,7 +48,7 @@ static const aduc_adc_cfg_t cfg_o2mv = {
 	.vofs = 1000,
 };
 
-static dmm_data_t dmm_data; /*current configuration & test result*/
+static dmm_data_t dmm_data, dmm_data_new; /*current configuration & test result*/
 
 /*force is used to ignore old setting*/
 static int dmm_switch(const dmm_data_t *new, int force)
@@ -77,6 +78,12 @@ static int dmm_switch(const dmm_data_t *new, int force)
 static void dmm_init(void)
 {
 	dmm_data.value = 0;
+
+	/*configuring dmm default powerup op: R34 = ?*/
+	dmm_data_new.value = 0;
+	dmm_data_new.mohm = 1;
+	dmm_data_new.pinA = 3;
+	dmm_data_new.pinK = 4;
 
 	//console work mode
 	shell_mute_set(dmm_uart_cnsl, (debug_mode == 'A') ? 1 : 0);
@@ -113,34 +120,48 @@ static void dmm_init(void)
 
 static void dmm_update(void)
 {
-	if(!aduc_adc_is_ready(0))
+	int e, d0, d1;
+	int switched = dmm_switch(&dmm_data_new, 0);
+	if(switched)
 		return;
 
-	dmm_data.pass = 1;
+	if(dmm_data.mohm) {
+		if(!aduc_adc_is_ready(0))
+			return;
+		if(!aduc_adc_is_ready(1))
+			return;
 
-	int e, d0, d1;
-	e = aduc_adc_get(&d0, &d1);
-	if(e) {
-		__DEBUG(printf("\rerror                    ");)
-		dmm_data.result = DMM_DATA_INVALID;
-		if(dmm_data.mohm) {
+		e = aduc_adc_get(&d0, &d1);
+		if(e) {
+			__DEBUG(printf("\rerror                    ");)
+			dmm_data.result = DMM_DATA_INVALID;
 			if((GP2DAT & 0x01) == 0x00)
 				dmm_data.result = DMM_DATA_UNKNOWN;
 		}
-		return;
-	}
-
-	float mv0 = d0 * 1200.0 / (1 << 23);
-	float mv1 = d1 * 1200.0 / (1 << 23);
-	if(dmm_data.mohm) {
-		float ohm = mv0 * CONFIG_RZ_OHM / mv1;
-		__DEBUG(printf("mv0 = %.4f mv1 = %.4f ohm = %.4f\n", mv0, mv1, ohm);)
-		dmm_data.result = (int) (ohm * 1000);
+		else {
+			float mv0 = d0 * 1200.0 / (1 << 23);
+			float mv1 = d1 * 1200.0 / (1 << 23);
+			float ohm = d0 * CONFIG_RZ_OHM / d1;
+			__DEBUG(printf("mv0 = %.4f mv1 = %.4f ohm = %.4f\n", mv0, mv1, ohm);)
+			dmm_data.result = (int) (ohm * 1000);
+		}
 	}
 	else {
-		__DEBUG(printf("mv = %.3f\n", mv0);)
-		dmm_data.result = (int) mv0;
+		if(!aduc_adc_is_ready(0))
+			return;
+		e = aduc_adc_get(&d0, NULL);
+		if(e) {
+			__DEBUG(printf("\rerror                    ");)
+			dmm_data.result = DMM_DATA_INVALID;
+		}
+		else {
+			float mv0 = d0 * 1200.0 / (1 << 23);
+			__DEBUG(printf("mv = %.3f\n", mv0);)
+			dmm_data.result = (int) mv0;
+		}
 	}
+
+	dmm_data.ready = 1;
 }
 
 int main(void)
@@ -168,7 +189,7 @@ static int cmd_dmm_func(int argc, char *argv[])
 		"dmm -r				read current test result\n"
 	};
 
-	int e = 0, x, y, read = 0;
+	int e = 0, read = 0;
 	dmm_data_t new;
 	new.value = dmm_data.value;
 
@@ -185,17 +206,12 @@ static int cmd_dmm_func(int argc, char *argv[])
 		case 'p':
 			e = 2;
 			if(((j = i + 1) < argc) && (argv[j][0] != '-')) {
-				x = atoi(argv[++ i]);
+				new.pinA = atoi(argv[++ i]);
 				e --;
 			}
 			if(((j = i + 1) < argc) && (argv[j][0] != '-')) {
-				y = atoi(argv[++ i]);
+				new.pinK = atoi(argv[++ i]);
 				e --;
-			}
-
-			if(!e) {
-				new.pinA = x;
-				new.pinK = y;
 			}
 			break;
 
@@ -216,24 +232,33 @@ static int cmd_dmm_func(int argc, char *argv[])
 		}
 	}
 
-	if(!e) {
-		if(dmm_switch(&new, 0)) {
-			dmm_data.pass = 0;
-		}
+	if(debug_mode == 'A') {
 		if(read) {
-			if(debug_mode == 'A') printf("%08x", dmm_data.value);
-			else printf("%s%d%d = %d %s\n", \
+			printf("%08x\n", dmm_data.value);
+		}
+		else
+			printf("%08x\n", e);
+	}
+	else {
+		if(read) {
+			printf("%s%d%d = %d %s\n", \
 				(dmm_data.mohm) ? "R" : "V", dmm_data.pinA, dmm_data.pinK, \
 				dmm_data.result, (dmm_data.mohm) ? "mohm" : "mv", \
-				(dmm_data.pass) ? "" : "(error???)");
+				(dmm_data.ready) ? "" : "(error???)"
+			);
+		}
+		else {
+			printf(ANSI_FONT_RED);
+			printf("operation fail(ecode = %d)\n", e);
+			printf(ANSI_FONT_DEF);
+			printf("%s", usage);
 		}
 	}
 
-	if(e && (debug_mode != 'A')) {
-		printf("%s", usage);
+	if(!e) {
+		dmm_data_new.value = new.value;
+		dmm_data.ready = 0;
 	}
-
-	printf("\n");
 	return 0;
 }
 

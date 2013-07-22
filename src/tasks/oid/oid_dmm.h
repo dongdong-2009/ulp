@@ -24,7 +24,7 @@ typedef union {
 		unsigned pinA : 3;
 		unsigned pinK : 3;
 	};
-	unsigned value;
+	int value;
 } dmm_data_t;
 
 #endif
