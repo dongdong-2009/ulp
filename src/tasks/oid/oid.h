@@ -7,18 +7,16 @@
 
 #include "oid_dmm.h"
 
+#define oid_rcal_mohm  10000
 #define oid_short_threshold 1000
-#define oid_hot_timeout_ms 10000
+#define oid_hot_timeout_ms 90000
 #define oid_hot_mv_th_ident 100
 #define oid_hot_mv_th_diag 900
-
-/**/
-#define oid_dmm_mohm_min_th 10
-#define oid_dmm_mohm_max_th 200000
 
 enum oid_error_type {
 	OID_E_OK,
 
+	OID_E_SYS_CAL,
 	OID_E_SYS_DMM,
 	OID_E_SYS_DMM_DATA,
 

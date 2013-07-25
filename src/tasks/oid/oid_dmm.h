@@ -18,6 +18,7 @@
 /*value outside this range indicates system failure*/
 #define DMM_MOHM_MIN 10
 #define DMM_MOHM_MAX 200000
+#define DMM_MOHM_OPEN DMM_DATA_INVALID
 
 typedef union {
 	struct {

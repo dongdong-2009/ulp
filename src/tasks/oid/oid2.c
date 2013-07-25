@@ -59,13 +59,13 @@ static void oid_error(int ecode)
 	__DEBUG(printf(ANSI_FONT_RED);)
 	switch(ecode) {
 	case OID_E_SYS_DMM:
-		__DEBUG(printf("ERROR: dmm system error(ecode = %d)\n", ecode);)
+		__DEBUG(printf("ERROR: dmm system error(ecode = %04x)\n", ecode);)
 		break;
 	case OID_E_SYS_DMM_DATA:
-		__DEBUG(printf("ERROR: dmm data error, pls check relay & cable(ecode = %d)\n", ecode);)
+		__DEBUG(printf("ERROR: dmm data error, pls check relay & cable(ecode = %04x)\n", ecode);)
 		break;
 	default:
-		__DEBUG(printf("ERROR: ecode = %d\n", ecode);)
+		__DEBUG(printf("ERROR: ecode = %04x\n", ecode);)
 		break;
 	}
 	__DEBUG(printf(ANSI_FONT_DEF);)
@@ -119,7 +119,8 @@ static int o2s_search(int lines, int mohm, char grounded)
 }
 
 #define is_short(mohm) (((mohm) > 0) && ((mohm) < oid_short_threshold))
-#define is_open(mohm)
+#define is_open(mohm) ((mohm) == DMM_MOHM_OPEN)
+
 static int is_heatwire(int mohm)
 {
 	const struct o2s_s *o2sp;
@@ -204,6 +205,10 @@ static int oid_hot_test(char pinA, char pinK)
 	int e = mcd_pick(pinA, pinK);
 	e += mcd_mode(DMM_MODE_V);
 
+	/*ignore halt commands before hot test to avoid mistake,
+	halt command is introduced to halt hot test operation*/
+	oid.halt = 0;
+
 	while(oid.timeout_ms + time_left(oid.timer) > 0) {
 		e += mcd_read(&mv);
 		if(e) {
@@ -218,6 +223,10 @@ static int oid_hot_test(char pinA, char pinK)
 			if(ov.on) {
 				return mv;
 			}
+		}
+
+		if(oid.halt) {
+			break;
 		}
 	}
 	oid_error(OID_E_O2S_VOLTAGE_LOST);
@@ -242,6 +251,8 @@ int oid_hot_get_mv(void)
 static void oid_1_ident(void)
 {
 	oid.grounded = 'X';
+	oid.mohm = 0;
+
 	oid.pin2func[PIN_1] = FUNC_BLACK;
 	oid.func2pin[FUNC_BLACK] = PIN_1;
 }
@@ -249,6 +260,8 @@ static void oid_1_ident(void)
 static void oid_2_ident(void)
 {
 	oid.grounded = '?';
+	oid.mohm = 0;
+
 	//to identify grounded or not
 	char pin, pin_black, pin_gray;
 	int mv, n = oid_search_gray(&pin);
@@ -293,6 +306,8 @@ static void oid_2_ident(void)
 static void oid_3_ident(void)
 {
 	oid.grounded = 'X';
+	oid.mohm = 0;
+
 	//to identify grounded or not
 	char pin_white0, pin_white1, pin_black;
 	int r, n = oid_search_white(&pin_white0, &pin_white1, &r);
@@ -322,6 +337,8 @@ static void oid_3_ident(void)
 static void oid_4_ident(void)
 {
 	oid.grounded = '?';
+	oid.mohm = 0;
+
 	//to identify grounded or not
 	char pin, pin_white0, pin_white1, pin_gray, pin_black;
 	int mv, r, n = oid_search_white(&pin_white0, &pin_white1, &r);
@@ -382,6 +399,37 @@ static void oid_4_ident(void)
 
 static void oid_identify(void)
 {
+	//measure resistors
+	int e = mcd_mode(DMM_MODE_R);
+	if(e) {
+		oid_error(OID_E_SYS_DMM);
+		return;
+	}
+
+	for(char pinA = PIN_0; pinA < oid_config.lines + 1; pinA ++) {
+		for(char pinK = pinA + 1; pinK < oid_config.lines + 1; pinK ++) {
+			int mohm = 0;
+			e = mcd_pick(pinA, pinK);
+			e += mcd_read(&mohm);
+			if(e) {
+				oid_error(OID_E_SYS_DMM);
+				return;
+			}
+
+			__DEBUG(printf("R[%d][%d] = %d mohm\n", pinA, pinK, mohm);)
+			if((mohm != DMM_DATA_UNKNOWN) && (mohm != DMM_DATA_INVALID)) {
+				e += (mohm < DMM_MOHM_MIN) ? 1 : 0;
+				e += (mohm > DMM_MOHM_MAX) ? 1 : 0;
+				if(e) {
+					//oid_error(OID_E_SYS_DMM_DATA);
+					//return;
+				}
+			}
+
+			oid.R[pinA][pinK] = mohm;
+		}
+	}
+
 	switch(oid_config.lines) {
 	case 1:
 		oid_1_ident();
@@ -408,24 +456,160 @@ static void oid_identify(void)
 	oid_result.tcode = tcode;
 }
 
+enum {SHORT = 1, OPEN = 2, HIGHR = 3, GRAY, HEATWIRE};
+int oid_ohm_test(char pin0, char pin1, int expect)
+{
+	//swap if needed
+	if(pin0 > pin1) {
+		int pin = pin0;
+		pin0 = pin1;
+		pin1 = pin;
+	}
+
+	int ret, mohm = oid.R[pin0][pin1];
+	int status = HIGHR;
+	status = (is_short(mohm)) ? SHORT : status;
+	status = (is_open(mohm)) ? OPEN : status;
+	int ecode = (pin0 << 12) | (pin1 << 8) | status;
+
+	switch(expect) {
+	case OPEN:
+	case SHORT:
+		if(expect != status) {
+			oid_error(ecode);
+		}
+		ret = status;
+		break;
+	case GRAY:
+		expect = (oid_config.grounded == 'Y') ? SHORT : expect;
+		expect = (oid_config.grounded == 'N') ? OPEN : expect;
+		if((status == HIGHR) || ((expect != GRAY) && (expect != status))) {
+			oid_error(ecode);
+		}
+		ret = (expect == GRAY) ? status : expect;
+		break;
+	case HEATWIRE:
+		mohm = is_heatwire(mohm);
+		if(mohm == 0) {
+			oid_error(ecode);
+		}
+		ret = mohm;
+		break;
+	default:
+		sys_assert(1 == 0);
+	}
+
+	return ret;
+}
+
+/*black*/
 static void oid_1_diag(void)
 {
+	oid_ohm_test(PIN_BLACK, PIN_SHELL, OPEN);
+	oid_hot_test(PIN_BLACK, PIN_SHELL);
+
+	oid.grounded = 'X';
+	oid.mohm = 0;
 }
 
+/*gray, black*/
 static void oid_2_diag(void)
 {
+	int status = oid_ohm_test(PIN_SHELL, PIN_GRAY, GRAY);
+	oid_ohm_test(PIN_SHELL, PIN_BLACK, OPEN);
+	oid_ohm_test(PIN_GRAY, PIN_BLACK, OPEN);
+	oid_hot_test(PIN_BLACK, PIN_GRAY);
+
+	oid.grounded = (status == SHORT) ? 'Y' : 'N';
+	oid.mohm = 0;
 }
 
+/*black, white, white*/
 static void oid_3_diag(void)
 {
+	oid_ohm_test(PIN_SHELL, PIN_BLACK, OPEN);
+	oid_ohm_test(PIN_SHELL, PIN_WHITE0, OPEN);
+	oid_ohm_test(PIN_SHELL, PIN_WHITE1, OPEN);
+	oid_ohm_test(PIN_BLACK, PIN_WHITE0, OPEN);
+	oid_ohm_test(PIN_BLACK, PIN_WHITE1, OPEN);
+	int mohm = oid_ohm_test(PIN_WHITE0, PIN_WHITE1, HEATWIRE);
+	oid_hot_test(PIN_BLACK, PIN_SHELL);
+
+	oid.grounded = 'X';
+	oid.mohm = mohm;
 }
 
+/*gray, black, white, white*/
 static void oid_4_diag(void)
 {
+	int status = oid_ohm_test(PIN_SHELL, PIN_GRAY, GRAY);
+	oid_ohm_test(PIN_SHELL, PIN_BLACK, OPEN);
+	oid_ohm_test(PIN_SHELL, PIN_WHITE0, OPEN);
+	oid_ohm_test(PIN_SHELL, PIN_WHITE1, OPEN);
+	oid_ohm_test(PIN_GRAY, PIN_BLACK, OPEN);
+	oid_ohm_test(PIN_GRAY, PIN_WHITE0, OPEN);
+	oid_ohm_test(PIN_GRAY, PIN_WHITE1, OPEN);
+	oid_ohm_test(PIN_BLACK, PIN_WHITE0, OPEN);
+	oid_ohm_test(PIN_BLACK, PIN_WHITE1, OPEN);
+	int mohm = oid_ohm_test(PIN_WHITE0, PIN_WHITE1, HEATWIRE);
+	oid_hot_test(PIN_BLACK, PIN_GRAY);
+
+	oid.grounded = (status == SHORT) ? 'Y' : 'N';
+	oid.mohm = mohm;
 }
 
 static void oid_diagnosis(void)
 {
+	memset(oid.R, 0x00, sizeof(oid.R));
+
+	//measure resistors
+	int e = mcd_mode(DMM_MODE_R);
+	if(e) {
+		oid_error(OID_E_SYS_DMM);
+		return;
+	}
+
+	const unsigned char pin_mask[NR_OF_PINS][NR_OF_PINS] = {
+		/*SHELL	GRAY	BLACK	WHITE0	WHITE1*/
+		{0,	0,	0,	0,	0},
+		{1,	0,	1,	0,	0}, //1 LINES
+		{1,	1,	1,	0,	0}, //2 LINES
+		{1,	0,	1,	1,	1}, //3 LINES
+		{1,	1,	1,	1,	1}, //4 LINES
+	};
+
+	for(char pinA = PIN_0; pinA < NR_OF_PINS; pinA ++) {
+		//skip not exist pins
+		if(pin_mask[oid_config.lines][pinA] == 0)
+			continue;
+
+		for(char pinK = pinA + 1; pinK < NR_OF_PINS; pinK ++) {
+			//skip not exist pins
+			if(pin_mask[oid_config.lines][pinK] == 0)
+				continue;
+
+			int mohm = 0;
+			e = mcd_pick(pinA, pinK);
+			e += mcd_read(&mohm);
+			if(e) {
+				oid_error(OID_E_SYS_DMM);
+				return;
+			}
+
+			__DEBUG(printf("R[%d][%d] = %d mohm\n", pinA, pinK, mohm);)
+			if((mohm != DMM_DATA_UNKNOWN) && (mohm != DMM_DATA_INVALID)) {
+				e += (mohm < DMM_MOHM_MIN) ? 1 : 0;
+				e += (mohm > DMM_MOHM_MAX) ? 1 : 0;
+				if(e) {
+					//oid_error(OID_E_SYS_DMM_DATA);
+					//return;
+				}
+			}
+
+			oid.R[pinA][pinK] = mohm;
+		}
+	}
+
 	switch(oid_config.lines) {
 	case 1:
 		oid_1_diag();
@@ -440,12 +624,32 @@ static void oid_diagnosis(void)
 		oid_4_diag();
 		break;
 	}
+
+	int kcode = 0;
+	if(oid.mohm) {
+		int mohm = oid.R[PIN_WHITE0][PIN_WHITE1];
+		kcode |= oid_config.lines;
+		kcode <<= 4;
+		kcode |= (oid.grounded == 'Y') ? 1 : 0;
+		kcode <<= 4;
+		kcode |= (mohm / 1000) % 10;
+		kcode <<= 4;
+		kcode |= (mohm / 100) % 10;
+	}
+
+	int tcode = o2s_search(oid_config.lines, oid.mohm, oid.grounded);
+	oid_result.kcode = kcode;
+	oid_result.tcode = tcode;
 }
 
 void oid_start(const struct oid_config_s *cfg)
 {
+	if(oid.test) {
+		oid.halt = 1;
+		return;
+	}
+
 	memcpy(&oid_config, cfg, sizeof(struct oid_config_s));
-	oid.halt = (oid.test) ? 1 : 0;  //auto clear by oid_update when test finish
 	oid.test = 1; //auto clear by oid_update when test finish
 }
 
@@ -463,38 +667,29 @@ static void oid_update(void)
 	oid.test = 1;
 
 	//mcd init&self cal
-	mcd_init();
-
-	//measure resistors
-	int e = mcd_mode(DMM_MODE_R);
+	int e = mcd_init();
 	if(e) {
 		oid_error(OID_E_SYS_DMM);
 		goto EXIT;
 	}
 
-	for(char pinA = PIN_0; pinA < NR_OF_PINS; pinA ++) {
-		for(char pinK = pinA + 1; pinK < NR_OF_PINS; pinK ++) {
-			int mohm = 0;
-			e = mcd_pick(pinA, pinK);
-			e += mcd_read(&mohm);
-			if(e) {
-				oid_error(OID_E_SYS_DMM);
-				goto EXIT;
-			}
-
-			__DEBUG(printf("R[%d][%d] = %d mohm\n", pinA, pinK, mohm);)
-			if((mohm != DMM_DATA_UNKNOWN) && (mohm != DMM_DATA_INVALID)) {
-				e += (mohm < DMM_MOHM_MIN) ? 1 : 0;
-				e += (mohm > DMM_MOHM_MAX) ? 1 : 0;
-				if(e) {
-					oid_error(OID_E_SYS_DMM_DATA);
-					goto EXIT;
-				}
-			}
-
-			oid.R[pinA][pinK] = mohm;
-		}
+	//self cal
+#if 0
+	int mohm = 0;
+	e += mcd_mode(DMM_MODE_R);
+	e += mcd_pick(PIN_4, PIN_5);
+	e += mcd_read(&mohm);
+	if(e) {
+		oid_error(OID_E_SYS_DMM);
+		goto EXIT;
 	}
+	mohm -= oid_rcal_mohm;
+	mohm = (mohm < 0) ? - mohm : mohm;
+	if(mohm > 300) {
+		oid_error(OID_E_SYS_CAL);
+		goto EXIT;
+	}
+#endif
 
 	if(oid_config.mode == 'I') oid_identify();
 	else oid_diagnosis();
@@ -538,7 +733,7 @@ static int cmd_oid_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"usage:\n"
-		"oid -i	4 i y		oid start: [lines] [I/D] [Y/N/?]\n"
+		"oid -i	4 I y		oid start or halt: [lines] [I/D] [Y/N/?]\n"
 		"oid -A/M/D		oid debug mode: Auto/Manual/Detailed\n"
 	};
 
