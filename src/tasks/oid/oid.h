@@ -5,96 +5,96 @@
 #ifndef __OID_H__
 #define __OID_H__
 
-#define oid_sec_threshold 90
-#define oid_mv_threshold 750
-#define mohm_open_threshold _kohm(10)
-#define mohm_short_threshold _ohm(1)
+#include "oid_dmm.h"
+
+#define oid_short_threshold 1000
+#define oid_hot_timeout_ms 10000
+#define oid_hot_mv_th_ident 100
+#define oid_hot_mv_th_diag 900
+
+/**/
+#define oid_dmm_mohm_min_th 10
+#define oid_dmm_mohm_max_th 200000
+
+enum oid_error_type {
+	OID_E_OK,
+
+	OID_E_SYS_DMM,
+	OID_E_SYS_DMM_DATA,
+
+	OID_E_GROUNDED_PIN_TOO_MUCH,
+	OID_E_GROUNDED_PIN_LOST,
+	OID_E_HEATWIRE_LOST,
+	OID_E_PIN_SHORT_TO_HEATWIRE,
+
+	OID_E_O2S_VOLTAGE_LOST,
+
+};
 
 enum {
-	PIN_SHELL,
-	PIN_GRAY,
-	PIN_BLACK,
-	PIN_WHITE0,
-	PIN_WHITE1,
+	PIN_0,
+	PIN_SHELL = PIN_0,
+
+	PIN_1,
+	PIN_GRAY = PIN_1,
+
+	PIN_2,
+	PIN_BLACK = PIN_2,
+
+	PIN_3,
+	PIN_WHITE0 = PIN_3,
+
+	PIN_4,
+	PIN_WHITE1 = PIN_4,
+
 	NR_OF_PINS,
 };
 
-struct oid_s {
-	char seconds;
-	char o2s[NR_OF_PINS]; /*o2 sensor pinmap*/
-	int mohms[NR_OF_PINS][NR_OF_PINS];
-	int mv; /*current o2 output voltage*/
-	int mohm; /*heat wire*/
-	int mohm_real;
-	int tcode;
-	int kcode;
-	int ecode[3];
-	unsigned start : 1;
-	unsigned lock : 1; /*config operation is locked*/
-	unsigned lines : 3;
-	unsigned scnt : 8; /*seconds counter*/
-	unsigned mode : 8; //'i', 'd'
-	unsigned gnd : 8; //0x00->ground, 0x01->unground, '?'->unknown
-};
-
-struct oid_gui_s {
-	time_t timer;
-	int ecode[3];
-	int tcode;
-	int kcode;
-	int mv;
-	unsigned lock : 1;
-	unsigned pbar : 3; /*progress bar*/
-	unsigned scnt : 8;
-	unsigned gnd : 8;
-	
-};
-
-/*progress bar operation*/
 enum {
-	PROGRESS_START,
-	PROGRESS_STOP,
-	PROGRESS_BUSY,
+	FUNC_SHELL,
+	FUNC_NONE = FUNC_SHELL,
+	FUNC_GRAY,
+	FUNC_BLACK,
+	FUNC_WHITE0,
+	FUNC_WHITE1,
 };
 
-extern int oid_stm;
-extern struct oid_config_s oid_config;
-extern void oid_mdelay(int ms);
-
-void oid_gui_init(void);
-void oid_show_result(int tcode, int kcode);
-void oid_show_progress(int value);
-
-/*error handling*/
-enum oid_error_type {
-	E_OK = 0,
-	E_SYSTEM = 0x000100, /*oid system self check error*/
-	E_STRANGE_RESISTOR = 0x01000000, /*strange resistance is found*/
-	E_SHORT_OTHER = 0x000300, /*some pins are shorten except shell pin*/
-	E_SHORT_SHELL_MORE = 0x000400, /*more than one pins are shorten to shell*/
-	E_WIRE_MORE = 0x000500, /*more than one heating wire is found*/
-	
-	/*trans provided error codes*/
-	E_SHORT_SHELL_GRAY = 0x020202,
-	E_SHORT_SHELL_BLACK = 0x010101,
-	E_SHORT_SHELL_WHITE = 0x030103,
-	
-	E_SHORT_GRAY_BLACK = 0x020101,
-	E_SHORT_GRAY_WHITE = 0x000, //MF ADDED
-	
-	E_SHORT_BLACK_WHITE = 0x030105, //MF ADDED
-	E_SHORT_WHITE_WHITE = 0x030106, //MF ADDED
-	E_STRANGE_WHITE_WHITE = 0x030107, //MF ADDED
-	
-	E_OPEN_SHELL_GRAY = 0x020102,
-	E_OPEN_WHITE_WHITE = 0x030102,
-	
-	E_LOSE_HIGH_VOLTAGE = 0x030104,
-	E_UNDEF,
+struct o2s_s {
+	int mohm;
+	int min; //mohm_min
+	int max; //mohm_max
+	int grounded : 8;
+	int lines : 8;
+	int tcode;
 };
 
-extern struct oid_s oid;
-extern struct oid_gui_s gui;
-void gui_error_flash(void);
+struct oid_config_s {
+	char lines; /*1..4*/
+	char mode; /*'d' => diag mode, 'i' => ident mode*/
+	char grounded; /*gray line is grounded? 'Y' or 'N' or '?'*/
+};
+
+/* note:
+diag mode: kcode = lines(msb) + gnd + mohm(35 = 3500mohm)
+idet mode: kcode = pin1->function(msb) + pin2->function + pin3->function + pin4->function
+*/
+struct oid_result_s {
+	int kcode; /*0x000000 indicates unknown*/
+	int tcode; /*0x000000 indicates unknown*/
+
+	/*will be managed by oid_error()*/
+	int ecode[3]; /*0x000000 indicates no error*/
+};
+
+/*
+when idle: start a new test
+when busy: halt test
+*/
+void oid_start(const struct oid_config_s *cfg);
+void oid_get_result(struct oid_result_s *result); /*get test result*/
+
+void oid_hot_set_ms(int ms);
+int oid_hot_get_ms(void); /*for hot test time left display*/
+int oid_hot_get_mv(void); /*for hot test get current o2s voltage output*/
 
 #endif
