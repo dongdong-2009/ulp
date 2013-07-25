@@ -15,6 +15,10 @@
 #define DMM_DATA_UNKNOWN ((1 << 23) - 2)	//result invalid dueto dmm's hardware limitation
 #define DMM_DATA_INVALID ((1 << 23) - 1)	//result invalid dueto over-range
 
+/*value outside this range indicates system failure*/
+#define DMM_MOHM_MIN 10
+#define DMM_MOHM_MAX 200000
+
 typedef union {
 	struct {
 		int result : 24; //test result
