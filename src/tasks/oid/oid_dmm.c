@@ -41,10 +41,11 @@ static const aduc_adc_cfg_t cfg_mohm = {
 };
 
 static const aduc_adc_cfg_t cfg_o2mv = {
-	.adc0 = 1,
-	.adc1 = 0,
+	.adc0 = 0,
+	.adc1 = 1,
 	.pga0 = 0,
-	.mux0 = ADUC_MUX0_DCH01,
+	.pga1 = 0,
+	.mux1 = ADUC_MUX1_DCH45,
 	.vofs = 1000,
 };
 
@@ -81,7 +82,7 @@ static void dmm_init(void)
 
 	/*configuring dmm default powerup op: R34 = ?*/
 	dmm_data_new.value = 0;
-	dmm_data_new.mohm = 1;
+	dmm_data_new.mohm = 0;
 	dmm_data_new.pinA = 3;
 	dmm_data_new.pinK = 4;
 
@@ -147,17 +148,17 @@ static void dmm_update(void)
 		}
 	}
 	else {
-		if(!aduc_adc_is_ready(0))
+		if(!aduc_adc_is_ready(1))
 			return;
-		e = aduc_adc_get(&d0, NULL);
+		e = aduc_adc_get(NULL, &d1);
 		if(e) {
 			__DEBUG(printf("\rerror                    ");)
 			dmm_data.result = DMM_DATA_INVALID;
 		}
 		else {
-			float mv0 = d0 * 1200.0 / (1 << 23);
-			__DEBUG(printf("mv = %.3f\n", mv0);)
-			dmm_data.result = (int) mv0;
+			float mv1 = d1 * 1200.0 / (1 << 23);
+			__DEBUG(printf("mv = %.3f\n", mv1);)
+			dmm_data.result = (int) mv1;
 		}
 	}
 
