@@ -5,15 +5,18 @@
 #ifndef __ADUC_MATRIX_H_
 #define __ADUC_MATRIX_H_
 
-#define RELAY_V_MODE() do {matrix_relay(1 << 15, 1 << 15);} while(0)
-#define RELAY_R_MODE() do {matrix_relay(0 << 15, 1 << 15);} while(0)
+#define DMM_MODE1 (1 << 15) //MBI5024_OUT15, VOLTAGE MEASUREMENT, ADC0/1 or ADC4/5(OPA)
+#define DMM_MODE0 (1 << 14) //MBI5024_OUT14, CURRENT SOURCE 0FF/ON
 
-/*
-RESISTANCE H BAND	current source = aduc iexc, 20uA ~ 2mA
-RESISTANCE L BAND	current source = fixed <> 29mA
-*/
-#define RELAY_H_BAND() do {matrix_relay(1 << 14, 1 << 14);} while(0)
-#define RELAY_L_BAND() do {matrix_relay(0 << 14, 1 << 14);} while(0)
+#define RELAY_V_MODE() do { \
+	matrix_relay(DMM_MODE0 & 0xFFFF, DMM_MODE0); \
+	matrix_relay(DMM_MODE1 & 0x0000, DMM_MODE1); \
+} while(0)
+
+#define RELAY_R_MODE() do { \
+	matrix_relay(DMM_MODE0 & 0x0000, DMM_MODE0); \
+	matrix_relay(DMM_MODE1 & 0xFFFF, DMM_MODE1); \
+} while(0)
 
 void matrix_init(void);
 void matrix_relay(int image, int mask);
