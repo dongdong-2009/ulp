@@ -16,16 +16,17 @@
 enum oid_error_type {
 	OID_E_OK,
 
-	OID_E_SYS_CAL,
+	OID_E_SYS_CAL = 0x090001,
 	OID_E_SYS_DMM,
 	OID_E_SYS_DMM_DATA,
 
-	OID_E_GROUNDED_PIN_TOO_MUCH,
+	OID_E_GROUNDED_PIN_TOO_MUCH = 0x020001,
 	OID_E_GROUNDED_PIN_LOST,
 	OID_E_HEATWIRE_LOST,
 	OID_E_PIN_SHORT_TO_HEATWIRE,
+	OID_E_SOME_PIN_RES_STRANGE,
 
-	OID_E_O2S_VOLTAGE_LOST,
+	OID_E_O2S_VOLTAGE_LOST = 0x030001,
 
 };
 
@@ -46,6 +47,8 @@ enum {
 	PIN_WHITE1 = PIN_4,
 
 	NR_OF_PINS,
+	PIN_5 = 5,
+	PIN_CAL = PIN_5,
 };
 
 enum {
@@ -88,11 +91,18 @@ struct oid_result_s {
 when idle: start a new test
 when busy: halt test
 */
-void oid_start(const struct oid_config_s *cfg);
+void oid_start(void);
+int oid_is_busy(void);
+void oid_set_config(const struct oid_config_s *cfg);
 void oid_get_result(struct oid_result_s *result); /*get test result*/
 
+int oid_is_hot(void); //warming up?
 void oid_hot_set_ms(int ms);
 int oid_hot_get_ms(void); /*for hot test time left display*/
 int oid_hot_get_mv(void); /*for hot test get current o2s voltage output*/
+
+//oid_gui
+void oid_gui_init(void);
+void oid_gui_update(void);
 
 #endif

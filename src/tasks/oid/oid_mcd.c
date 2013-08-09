@@ -25,7 +25,7 @@ enum {
 	MCD_E_OP_FAIL, /*op fail*/
 };
 
-static uart_bus_t *mcd_bus = &uart3;
+static uart_bus_t *mcd_bus = &uart2;
 
 static int __mcd_transceive(const char *msg, int *echo)
 {
@@ -103,7 +103,7 @@ int mcd_init(void)
 	static const uart_cfg_t cfg = {.baud = 9600};
 	mcd_bus->init(&cfg);
 	int ecode, err = mcd_transceive("dmm -A\n", &ecode);
-	return (err || ecode);
+	return (err);
 }
 
 int mcd_mode(char bank)
@@ -129,7 +129,12 @@ static int __mcd_read(int *value)
 	while(time_left(deadline) > 0) {
 		int err = mcd_transceive("dmm -r\n", &(echo.value));
 		if((!err) && echo.ready) {
-			*value = echo.result;
+			if(1) {/*dirty solution, iar's bug???*/
+				int x = echo.result;
+				x <<= 8;
+				x >>= 8;
+				*value = x;
+			}
 			return 0;
 		}
 	}

@@ -37,6 +37,7 @@ static struct oid_s {
 	unsigned test : 1; /*system is busy on test ...*/
 	unsigned halt : 1; /*command the test system to halt the operation*/
 	unsigned fail : 1; /*test abort dueto some failure, pls ref oid_error()*/
+	unsigned heat : 1; /*o2s is been heating*/
 
 	/*intermediate test result*/
 	int R[NR_OF_PINS][NR_OF_PINS]; //unit: mohm
@@ -59,13 +60,13 @@ static void oid_error(int ecode)
 	__DEBUG(printf(ANSI_FONT_RED);)
 	switch(ecode) {
 	case OID_E_SYS_DMM:
-		__DEBUG(printf("ERROR: dmm system error(ecode = %04x)\n", ecode);)
+		__DEBUG(printf("ERROR: dmm system error(ecode = %06x)\n", ecode);)
 		break;
 	case OID_E_SYS_DMM_DATA:
-		__DEBUG(printf("ERROR: dmm data error, pls check relay & cable(ecode = %04x)\n", ecode);)
+		__DEBUG(printf("ERROR: dmm data error, pls check relay & cable(ecode = %06x)\n", ecode);)
 		break;
 	default:
-		__DEBUG(printf("ERROR: ecode = %04x\n", ecode);)
+		__DEBUG(printf("ERROR: ecode = %06x\n", ecode);)
 		break;
 	}
 	__DEBUG(printf(ANSI_FONT_DEF);)
@@ -198,6 +199,7 @@ static int oid_hot_test(char pinA, char pinK)
 	int mv, mv_th = (oid_config.mode == 'I') ? oid_hot_mv_th_ident : oid_hot_mv_th_diag;
 	oid.timeout_ms = (oid.timeout_ms == 0)? oid_hot_timeout_ms : oid.timeout_ms;
 	oid.timer = time_get(0);
+	oid.heat = 1;
 
 	struct debounce_s ov; /*over voltage*/
 	debounce_init(&ov, 10, 0);
@@ -213,6 +215,7 @@ static int oid_hot_test(char pinA, char pinK)
 		e += mcd_read(&mv);
 		if(e) {
 			oid_error(OID_E_SYS_DMM);
+			oid.heat = 0;
 			return 0;
 		}
 
@@ -221,6 +224,7 @@ static int oid_hot_test(char pinA, char pinK)
 		oid.o2mv = (mv > 0) ? mv : -mv;
 		if(debounce(&ov, (oid.o2mv > mv_th) ? 1 : 0)) {
 			if(ov.on) {
+				oid.heat = 0;
 				return mv;
 			}
 		}
@@ -229,8 +233,15 @@ static int oid_hot_test(char pinA, char pinK)
 			break;
 		}
 	}
+
+	oid.heat = 0;
 	oid_error(OID_E_O2S_VOLTAGE_LOST);
 	return 0;
+}
+
+int oid_is_hot(void)
+{
+	return oid.heat;
 }
 
 void oid_hot_set_ms(int ms)
@@ -426,6 +437,15 @@ static void oid_identify(void)
 				}
 			}
 
+			e = 0;
+			e += is_short(mohm);
+			e += is_open(mohm);
+			e += is_heatwire(mohm);
+			if(e == 0) {
+				int ecode = (2 << 16)|(pinA << 12) | (pinK << 8) | 3;
+				oid_error(ecode);
+			}
+
 			oid.R[pinA][pinK] = mohm;
 		}
 	}
@@ -470,7 +490,7 @@ int oid_ohm_test(char pin0, char pin1, int expect)
 	int status = HIGHR;
 	status = (is_short(mohm)) ? SHORT : status;
 	status = (is_open(mohm)) ? OPEN : status;
-	int ecode = (pin0 << 12) | (pin1 << 8) | status;
+	int ecode = (1 << 16)|(pin0 << 12) | (pin1 << 8) | status;
 
 	switch(expect) {
 	case OPEN:
@@ -626,15 +646,18 @@ static void oid_diagnosis(void)
 	}
 
 	int kcode = 0;
+	kcode |= oid_config.lines;
+	kcode <<= 4;
+	kcode |= (oid.grounded == 'Y') ? 1 : 0;
+	kcode <<= 4;
+	kcode <<= 4;
+
 	if(oid.mohm) {
 		int mohm = oid.R[PIN_WHITE0][PIN_WHITE1];
-		kcode |= oid_config.lines;
-		kcode <<= 4;
-		kcode |= (oid.grounded == 'Y') ? 1 : 0;
-		kcode <<= 4;
-		kcode |= (mohm / 1000) % 10;
-		kcode <<= 4;
-		kcode |= (mohm / 100) % 10;
+		int _kcode = (mohm / 1000) % 10;
+		_kcode <<= 4;
+		_kcode |= (mohm / 100) % 10;
+		kcode |= _kcode;
 	}
 
 	int tcode = o2s_search(oid_config.lines, oid.mohm, oid.grounded);
@@ -642,15 +665,22 @@ static void oid_diagnosis(void)
 	oid_result.tcode = tcode;
 }
 
-void oid_start(const struct oid_config_s *cfg)
+void oid_start(void)
 {
-	if(oid.test) {
-		oid.halt = 1;
-		return;
-	}
+	if(oid.test) oid.halt = 1;
+	else oid.test = 1; //auto clear by oid_update when test finish
+}
 
-	memcpy(&oid_config, cfg, sizeof(struct oid_config_s));
-	oid.test = 1; //auto clear by oid_update when test finish
+int oid_is_busy(void)
+{
+	return oid.test;
+}
+
+void oid_set_config(const struct oid_config_s *cfg)
+{
+	if(oid.test == 0) {
+		memcpy(&oid_config, cfg, sizeof(struct oid_config_s));
+	}
 }
 
 void oid_get_result(struct oid_result_s *result)
@@ -674,7 +704,7 @@ static void oid_update(void)
 	}
 
 	//self cal
-#if 0
+#if 1
 	int mohm = 0;
 	e += mcd_mode(DMM_MODE_R);
 	e += mcd_pick(PIN_4, PIN_5);
@@ -715,9 +745,12 @@ void main(void)
 {
 	sys_init();
 	oid_init();
-	//oid_gui_init();
+#if CONFIG_TASK_GUI == 1
+	oid_gui_init();
+#endif
 	led_on(LED_GREEN);
 	led_flash(LED_RED);
+	sys_mdelay(1000); //wait for aduc stable
 	while(1) {
 		sys_update();
 		oid_update();
@@ -726,7 +759,9 @@ void main(void)
 
 void __sys_update(void)
 {
-	//oid_gui_update();
+#if CONFIG_TASK_GUI == 1
+	oid_gui_update();
+#endif
 }
 
 static int cmd_oid_func(int argc, char *argv[])
@@ -760,7 +795,7 @@ static int cmd_oid_func(int argc, char *argv[])
 			if(((j = i + 1) < argc) && (argv[j][0] != '-')) {
 				config.grounded = argv[++ i][0];
 			}
-			oid_start(&config);
+			oid_start();
 			break;
 		default:
 			e = -1;
