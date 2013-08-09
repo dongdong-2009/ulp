@@ -8,9 +8,10 @@
 #include "oid_dmm.h"
 
 #define oid_rcal_mohm  10000
+#define oid_rcal_mohm_delta_max 300
 #define oid_short_threshold 1000
 #define oid_hot_timeout_ms 90000
-#define oid_hot_mv_th_ident 100
+#define oid_hot_mv_th_ident 450   /*don't set this value too small to avoid error trig*/
 #define oid_hot_mv_th_diag 900
 
 enum oid_error_type {
@@ -27,7 +28,7 @@ enum oid_error_type {
 	OID_E_SOME_PIN_RES_STRANGE,
 
 	OID_E_O2S_VOLTAGE_LOST = 0x030001,
-
+	OID_E_O2S_VOLTAGE_POLAR = 0x030002, /*black&gray pin exchange?*/
 };
 
 enum {

@@ -37,7 +37,7 @@ static struct oid_s {
 	unsigned test : 1; /*system is busy on test ...*/
 	unsigned halt : 1; /*command the test system to halt the operation*/
 	unsigned fail : 1; /*test abort dueto some failure, pls ref oid_error()*/
-	unsigned heat : 1; /*o2s is been heating*/
+	unsigned heating : 1; /*o2s is been heating*/
 
 	/*intermediate test result*/
 	int R[NR_OF_PINS][NR_OF_PINS]; //unit: mohm
@@ -193,13 +193,15 @@ static int oid_search_white(char *pin0, char *pin1, int *mohm)
 1, start key been pressed again => cancel hot test operation
 2, timer will pressed => dynamic change max test duration
 3, voltage over threshold => auto test finished
+
+note: pinA must be black pin in case of diag mode
 */
 static int oid_hot_test(char pinA, char pinK)
 {
 	int mv, mv_th = (oid_config.mode == 'I') ? oid_hot_mv_th_ident : oid_hot_mv_th_diag;
 	oid.timeout_ms = (oid.timeout_ms == 0)? oid_hot_timeout_ms : oid.timeout_ms;
 	oid.timer = time_get(0);
-	oid.heat = 1;
+	oid.heating = 1;
 
 	struct debounce_s ov; /*over voltage*/
 	debounce_init(&ov, 10, 0);
@@ -215,7 +217,7 @@ static int oid_hot_test(char pinA, char pinK)
 		e += mcd_read(&mv);
 		if(e) {
 			oid_error(OID_E_SYS_DMM);
-			oid.heat = 0;
+			oid.heating = 0;
 			return 0;
 		}
 
@@ -224,7 +226,10 @@ static int oid_hot_test(char pinA, char pinK)
 		oid.o2mv = (mv > 0) ? mv : -mv;
 		if(debounce(&ov, (oid.o2mv > mv_th) ? 1 : 0)) {
 			if(ov.on) {
-				oid.heat = 0;
+				oid.heating = 0;
+				if((oid_config.mode == 'D') && (mv < 0)) {
+					oid_error(OID_E_O2S_VOLTAGE_POLAR);
+				}
 				return mv;
 			}
 		}
@@ -234,14 +239,14 @@ static int oid_hot_test(char pinA, char pinK)
 		}
 	}
 
-	oid.heat = 0;
+	oid.heating = 0;
 	oid_error(OID_E_O2S_VOLTAGE_LOST);
 	return 0;
 }
 
 int oid_is_hot(void)
 {
-	return oid.heat;
+	return oid.heating;
 }
 
 void oid_hot_set_ms(int ms)
@@ -715,7 +720,7 @@ static void oid_update(void)
 	}
 	mohm -= oid_rcal_mohm;
 	mohm = (mohm < 0) ? - mohm : mohm;
-	if(mohm > 300) {
+	if(mohm > oid_rcal_mohm_delta_max) {
 		oid_error(OID_E_SYS_CAL);
 		goto EXIT;
 	}
