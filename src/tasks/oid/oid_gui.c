@@ -21,6 +21,7 @@ static gwidget *button_typecode; //update manually when necessary
 static gwidget *button_ecode0; //update manually when necessary
 static gwidget *button_ecode1; //update manually when necessary
 static gwidget *button_ecode2; //update manually when necessary
+static gwidget *boot_timer;
 
 static unsigned cmap_ecode[] = GUI_COLORMAP_NEW(RED, WHITE);
 static unsigned cmap_tcode[] = GUI_COLORMAP_NEW(GREEN, WHITE);
@@ -116,6 +117,7 @@ static void main_window_init(void)
 	button_ecode0 = gui_button_new_with_label(" -- ");
 	button_ecode1 = gui_button_new_with_label(" -- ");
 	button_ecode2 = gui_button_new_with_label(" -- ");
+	boot_timer = gui_button_new_with_label("5");
 
 	gui_widget_set_colormap(button_keycode, cmap_kcode);
 	gui_widget_set_colormap(button_typecode, cmap_tcode);
@@ -127,7 +129,8 @@ static void main_window_init(void)
 	gui_widget_set_size_request(button_ground, 60, 40-4);
 	gui_widget_set_size_request(button_mode_id, 60, 40-4);
 	gui_widget_set_size_request(button_mode_dg, 60, 40-4);
-	gui_widget_set_size_request(button_start, 120, 40-4);
+	gui_widget_set_size_request(button_start, 120, 40-4);//
+	gui_widget_set_size_request(boot_timer, 20, 40-4);
 	gui_widget_set_size_request(button_keycode, 116, 40-4);
 	gui_widget_set_size_request(button_typecode, 116, 40-4);
 	gui_widget_set_size_request(button_ecode0, 116, 40-4);
@@ -138,6 +141,7 @@ static void main_window_init(void)
 	gui_fixed_put(fixed, button_mode_dg, 260, 40*3 + 2);
 	gui_fixed_put(fixed, button_mode_id, 260, 40*4 + 2);
 	gui_fixed_put(fixed, button_start, 200, 40*5 + 2);
+	gui_fixed_put(fixed, boot_timer, 295, 40*5 + 2);
 	gui_fixed_put(fixed, button_keycode, 80, 40*1 + 2);
 	gui_fixed_put(fixed, button_typecode, 80, 40*2 + 2);
 	gui_fixed_put(fixed, button_ecode0, 80, 40*3 + 2);
@@ -199,6 +203,14 @@ void oid_gui_init(void)
 	gui_init(NULL);
 	main_window_init();
 	gui_update(); //to disp the main window asap
+
+	//to display boot timer
+	for(int i = 26; i > 0; i --) {
+		const char *p[] = {"-", "/", "|", "\\"};
+		gui_widget_set_text(boot_timer, p[i&0x03]);
+		mdelay(200);
+	}
+	gui_widget_set_text(boot_timer, " ");
 }
 
 void oid_gui_update(void)

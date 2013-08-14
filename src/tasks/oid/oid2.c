@@ -59,7 +59,7 @@ static void oid_error(int ecode)
 {
 	__DEBUG(printf(ANSI_FONT_RED);)
 	switch(ecode) {
-	case OID_E_SYS_DMM:
+	case OID_E_SYS_DMM_COMM:
 		__DEBUG(printf("ERROR: dmm system error(ecode = %06x)\n", ecode);)
 		break;
 	case OID_E_SYS_DMM_DATA:
@@ -216,7 +216,7 @@ static int oid_hot_test(char pinA, char pinK)
 	while(oid.timeout_ms + time_left(oid.timer) > 0) {
 		e += mcd_read(&mv);
 		if(e) {
-			oid_error(OID_E_SYS_DMM);
+			oid_error(OID_E_SYS_DMM_COMM);
 			oid.heating = 0;
 			return 0;
 		}
@@ -334,7 +334,7 @@ static void oid_3_ident(void)
 	case 1:
 		break;
 	default:
-		oid_error(OID_E_PIN_SHORT_TO_HEATWIRE);
+		oid_error(OID_E_HEATWIRE_MANY);
 		return;
 	}
 
@@ -365,7 +365,7 @@ static void oid_4_ident(void)
 	case 1: //:)
 		break;
 	default:
-		oid_error(OID_E_PIN_SHORT_TO_HEATWIRE);
+		oid_error(OID_E_HEATWIRE_MANY);
 		return;
 	}
 
@@ -418,7 +418,7 @@ static void oid_identify(void)
 	//measure resistors
 	int e = mcd_mode(DMM_MODE_R);
 	if(e) {
-		oid_error(OID_E_SYS_DMM);
+		oid_error(OID_E_SYS_DMM_COMM);
 		return;
 	}
 
@@ -428,7 +428,7 @@ static void oid_identify(void)
 			e = mcd_pick(pinA, pinK);
 			e += mcd_read(&mohm);
 			if(e) {
-				oid_error(OID_E_SYS_DMM);
+				oid_error(OID_E_SYS_DMM_COMM);
 				return;
 			}
 
@@ -437,8 +437,8 @@ static void oid_identify(void)
 				e += (mohm < DMM_MOHM_MIN) ? 1 : 0;
 				e += (mohm > DMM_MOHM_MAX) ? 1 : 0;
 				if(e) {
-					//oid_error(OID_E_SYS_DMM_DATA);
-					//return;
+					oid_error(OID_E_SYS_DMM_DATA);
+					return;
 				}
 			}
 
@@ -590,7 +590,7 @@ static void oid_diagnosis(void)
 	//measure resistors
 	int e = mcd_mode(DMM_MODE_R);
 	if(e) {
-		oid_error(OID_E_SYS_DMM);
+		oid_error(OID_E_SYS_DMM_COMM);
 		return;
 	}
 
@@ -617,7 +617,7 @@ static void oid_diagnosis(void)
 			e = mcd_pick(pinA, pinK);
 			e += mcd_read(&mohm);
 			if(e) {
-				oid_error(OID_E_SYS_DMM);
+				oid_error(OID_E_SYS_DMM_COMM);
 				return;
 			}
 
@@ -626,8 +626,8 @@ static void oid_diagnosis(void)
 				e += (mohm < DMM_MOHM_MIN) ? 1 : 0;
 				e += (mohm > DMM_MOHM_MAX) ? 1 : 0;
 				if(e) {
-					//oid_error(OID_E_SYS_DMM_DATA);
-					//return;
+					oid_error(OID_E_SYS_DMM_DATA);
+					return;
 				}
 			}
 
@@ -704,7 +704,7 @@ static void oid_update(void)
 	//mcd init&self cal
 	int e = mcd_init();
 	if(e) {
-		oid_error(OID_E_SYS_DMM);
+		oid_error(OID_E_SYS_DMM_COMM);
 		goto EXIT;
 	}
 
@@ -715,7 +715,7 @@ static void oid_update(void)
 	e += mcd_pick(PIN_4, PIN_5);
 	e += mcd_read(&mohm);
 	if(e) {
-		oid_error(OID_E_SYS_DMM);
+		oid_error(OID_E_SYS_DMM_COMM);
 		goto EXIT;
 	}
 	mohm -= oid_rcal_mohm;
@@ -755,7 +755,6 @@ void main(void)
 #endif
 	led_on(LED_GREEN);
 	led_flash(LED_RED);
-	sys_mdelay(1000); //wait for aduc stable
 	while(1) {
 		sys_update();
 		oid_update();
