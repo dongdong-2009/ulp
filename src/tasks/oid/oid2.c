@@ -22,14 +22,20 @@
 #include "uart.h"
 #include "shell/shell.h"
 #include "common/ansi.h"
+#include "nvm.h"
 
 #define __DEBUG(X) if(debug_mode == 'D') {X}
 
-#define CONFIG_RZ_OHM 10.0 //RZ, unit: ohm
 #define oid_uart_cnsl ((struct console_s *) &uart1)
 static char debug_mode = 'D'; //Auto/Manual/Detail mode
 
-static struct oid_config_s oid_config;
+static struct oid_config_s ocfg __nvm;
+static struct {
+	int val;
+	int inv;
+} oid_mohm_cal __nvm;
+
+static struct o2s_config_s oid_config;
 static struct oid_result_s oid_result;
 
 static struct oid_s {
@@ -41,7 +47,6 @@ static struct oid_s {
 
 	/*intermediate test result*/
 	int R[NR_OF_PINS][NR_OF_PINS]; //unit: mohm
-
 
 	/*hot test*/
 	int timeout_ms;
@@ -81,29 +86,9 @@ static void oid_error(int ecode)
 
 static const struct o2s_s* o2s_get(int index)
 {
-	static const struct o2s_s o2s_list[] = {
-		{.tcode = 0x1901, .lines = 1, .grounded = 'X', .mohm = 0, .min = 0, .max = 0},
-		{.tcode = 0x2901, .lines = 2, .grounded = 'Y', .mohm = 0, .min = 0, .max = 0},
-		{.tcode = 0x2902, .lines = 2, .grounded = 'N', .mohm = 0, .min = 0, .max = 0},
-
-		{.tcode = 0x3901, .lines = 3, .grounded = 'X', .mohm = 2100, .min = 1100, .max = 2800},
-		{.tcode = 0x3902, .lines = 3, .grounded = 'X', .mohm = 3500, .min = 2800, .max = 4500},
-		{.tcode = 0x3903, .lines = 3, .grounded = 'X', .mohm = 6000, .min = 5000, .max = 7000},
-		{.tcode = 0x3904, .lines = 3, .grounded = 'X', .mohm = 9000, .min = 8000, .max = 10000}, //???
-
-		{.tcode = 0x4901, .lines = 4, .grounded = 'Y', .mohm = 2100, .min = 1100, .max = 2800},
-		{.tcode = 0x4902, .lines = 4, .grounded = 'Y', .mohm = 3500, .min = 2800, .max = 4500},
-		{.tcode = 0x4903, .lines = 4, .grounded = 'Y', .mohm = 6000, .min = 5000, .max = 7000},
-		{.tcode = 0x4907, .lines = 4, .grounded = 'Y', .mohm = 9000, .min = 8000, .max = 10000}, //???
-		{.tcode = 0x4904, .lines = 4, .grounded = 'N', .mohm = 2100, .min = 1100, .max = 2800},
-		{.tcode = 0x4905, .lines = 4, .grounded = 'N', .mohm = 3500, .min = 2800, .max = 4500},
-		{.tcode = 0x4906, .lines = 4, .grounded = 'N', .mohm = 6000, .min = 5000, .max = 7000},
-		{.tcode = 0x4908, .lines = 4, .grounded = 'N', .mohm = 9000, .min = 8000, .max = 10000}, //???
-	};
-
-	if(index > sizeof(o2s_list) / sizeof(struct o2s_s))
+	if(index >= ocfg.nr_of_sensors)
 		return NULL;
-	return o2s_list + index;
+	return &(ocfg.o2s_list[index]);
 }
 
 static int o2s_search(int lines, int mohm, char grounded)
@@ -451,6 +436,8 @@ static void oid_identify(void)
 				oid_error(ecode);
 			}
 
+			mohm -= oid_mohm_cal.val;
+			mohm = (mohm < 0) ? 0 : mohm;
 			oid.R[pinA][pinK] = mohm;
 		}
 	}
@@ -631,6 +618,8 @@ static void oid_diagnosis(void)
 				}
 			}
 
+			mohm -= oid_mohm_cal.val;
+			mohm = (mohm < 0) ? 0 : mohm;
 			oid.R[pinA][pinK] = mohm;
 		}
 	}
@@ -681,10 +670,10 @@ int oid_is_busy(void)
 	return oid.test;
 }
 
-void oid_set_config(const struct oid_config_s *cfg)
+void oid_set_config(const struct o2s_config_s *cfg)
 {
 	if(oid.test == 0) {
-		memcpy(&oid_config, cfg, sizeof(struct oid_config_s));
+		memcpy(&oid_config, cfg, sizeof(struct o2s_config_s));
 	}
 }
 
@@ -701,8 +690,20 @@ static void oid_update(void)
 	memset(&oid, 0x00, sizeof(oid));
 	oid.test = 1;
 
+	int e, mohm;
+
+	//ocfg is correct?
+	char sum, *p = (char *) &ocfg;
+	for(int i = 0; i < sizeof(ocfg); i ++) {
+		sum += p[i];
+	}
+	if((ocfg.nr_of_sensors <= 0) || (sum != 0)) {
+		oid_error(OID_E_SYS_CFG_ERROR);
+		goto EXIT;
+	}
+
 	//mcd init&self cal
-	int e = mcd_init();
+	e = mcd_init();
 	if(e) {
 		oid_error(OID_E_SYS_DMM_COMM);
 		goto EXIT;
@@ -710,7 +711,7 @@ static void oid_update(void)
 
 	//self cal
 #if 1
-	int mohm = 0;
+	mohm = 0;
 	e += mcd_mode(DMM_MODE_R);
 	e += mcd_pick(PIN_4, PIN_5);
 	e += mcd_read(&mohm);
@@ -737,6 +738,10 @@ EXIT:
 
 static void oid_init(void)
 {
+	if(oid_mohm_cal.val != (~ oid_mohm_cal.inv)) {
+		oid_mohm_cal.val = 0;
+	}
+
 	memset(&oid, 0x00, sizeof(oid));
 	oid_config.lines = 4;
 	oid_config.mode = 'I';
@@ -768,16 +773,131 @@ void __sys_update(void)
 #endif
 }
 
+/* procedure:
+1, pc send command "oid -A\n" to switch to auto mode
+2, pc send command "oid -d bytes\n" wait for target echo
+3, target enter into uart direct mode
+4, target wait for bytes no more than 1s
+5, target receive all bytes
+6, target do cksum check
+7, target echo "ACK" or "NAK"
+8, target save the data received to flash
+9, target goto normal mode
+*/
+int cmd_oid_config_dnload(int bytes)
+{
+	time_t deadline = time_get(3000);
+	struct oid_config_s *cfg = sys_malloc(bytes);
+	sys_assert(cfg != NULL);
+
+	int i;
+	char *p = (char *) cfg;
+	for(i = 0; i < bytes;) {
+		if(uart1.poll() > 0) {
+			*p ++ = uart1.getchar();
+			deadline = time_get(500);
+                        i ++;
+		}
+		if(time_left(deadline) < 0) {
+			break;
+		}
+	}
+
+	if(i != bytes) {
+		uart_puts(&uart1, "TIMEOUT");
+		sys_free(cfg);
+		return -1;
+	}
+
+	char sum = 0;
+	p = (char *) cfg;
+	for(i = 0; i < bytes; i ++) {
+		sum += p[i];
+	}
+	if(sum != 0) {
+		uart_puts(&uart1, "CKSUM");
+		sys_free(cfg);
+		return -2;
+	}
+
+	memset(&ocfg, 0x00, sizeof(ocfg));
+	memcpy(&ocfg, cfg, bytes);
+	sys_free(cfg);
+	uart_puts(&uart1, "ACK");
+	nvm_save();
+	return 0;
+}
+
+/* procedure:
+1, pc send command "oid -A\n" to switch to auto mode
+2, pc send command "oid -u\n" wait for target upload data
+3, target enter into uart direct mode
+4, target send config data to pc
+*/
+int cmd_oid_config_upload(void)
+{
+	//ocfg is correct?
+	char sum = 0, *p = (char *) &ocfg;
+	for(int i = 0; i < sizeof(ocfg); i ++) {
+		sum += p[i];
+	}
+	if((ocfg.nr_of_sensors <= 0) || (sum != 0)) {
+		printf("CFG DATA IS INVALID");
+		return -1;
+	}
+
+	printf("ACK");
+	int bytes = sizeof(ocfg) - (32 - ocfg.nr_of_sensors) * sizeof(struct o2s_s);
+	for(int i = 0; i < bytes; i ++) {
+		uart1.putchar(p[i]);
+	}
+	return 0;
+}
+
+int cmd_oid_config_cal(void)
+{
+	printf(" ");
+
+	int e, mohm;
+
+	//mcd init&self cal
+	e = mcd_init();
+	if(!e) {
+		mohm = 0;
+		e += mcd_mode(DMM_MODE_R);
+		e += mcd_pick(PIN_3, PIN_4);
+		e += mcd_read(&mohm);
+	}
+
+	if(e) {
+		printf("EMCD");
+		return -1;
+	}
+
+	if(mohm > 800) {
+		printf("EOPEN?");
+		return -2;
+	}
+
+	oid_mohm_cal.val = mohm;
+	oid_mohm_cal.inv = ~ mohm;
+	nvm_save();
+	printf("ACK%d", mohm);
+	return 0;
+}
+
 static int cmd_oid_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"usage:\n"
 		"oid -i	4 I y		oid start or halt: [lines] [I/D] [Y/N/?]\n"
 		"oid -A/M/D		oid debug mode: Auto/Manual/Detailed\n"
+		"oid -d bytes		oid config data dnload\n"
+		"oid -u			oid config data upload\n"
 	};
 
-	int e = 0;
-	struct oid_config_s config;
+	int n, e = 0;
+	struct o2s_config_s config;
 	memcpy(&config, &oid_config, sizeof(config));
 
 	for(int j, i = 1; (i < argc) && (e == 0); i ++) {
@@ -800,6 +920,23 @@ static int cmd_oid_func(int argc, char *argv[])
 				config.grounded = argv[++ i][0];
 			}
 			oid_start();
+			break;
+		case 'd':
+			if(((j = i + 1) < argc) && (argv[j][0] != '-')) {
+				n = atoi(argv[++ i]);
+				if((n > 0) && (n <= sizeof(ocfg))) {
+					printf("ACK");
+					cmd_oid_config_dnload(n);
+					break;
+				}
+			}
+			printf("NAK");
+			break;
+		case 'c':
+			cmd_oid_config_cal();
+			break;
+		case 'u':
+			cmd_oid_config_upload();
 			break;
 		default:
 			e = -1;

@@ -7,12 +7,12 @@
 
 #include "oid_dmm.h"
 
-#define oid_rcal_mohm  10000
-#define oid_rcal_mohm_delta_max 300
-#define oid_short_threshold 1000
-#define oid_hot_timeout_ms 90000
-#define oid_hot_mv_th_ident 450   /*don't set this value too small to avoid error trig*/
-#define oid_hot_mv_th_diag 900
+#define oid_rcal_mohm		ocfg.rcal
+#define oid_rcal_mohm_delta_max ocfg.rcal_delta
+#define oid_short_threshold	ocfg.short_max
+#define oid_hot_timeout_ms	ocfg.hot_time
+#define oid_hot_mv_th_ident	ocfg.hot_ident
+#define oid_hot_mv_th_diag	ocfg.hot_diag
 
 enum oid_error_type {
 	OID_E_OK,
@@ -21,6 +21,7 @@ enum oid_error_type {
 	OID_E_SYS_CAL = 0x090001,
 	OID_E_SYS_DMM_COMM,
 	OID_E_SYS_DMM_DATA,
+	OID_E_SYS_CFG_ERROR,
 
 	OID_E_GROUNDED_PIN_TOO_MUCH = 0x020001,
 	OID_E_GROUNDED_PIN_LOST,
@@ -66,11 +67,25 @@ struct o2s_s {
 	int min; //mohm_min
 	int max; //mohm_max
 	int grounded : 8;
-	int lines : 8;
-	int tcode;
+	int lines : 4;
+	int deleted : 1; //used by cvi only
+	int newbie : 1; //used by cvi only
+	int tcode : 16;
 };
 
 struct oid_config_s {
+	char cksum;
+	char nr_of_sensors;
+	int rcal;
+	int rcal_delta;
+	int short_max;
+	int hot_time;
+	int hot_ident;
+	int hot_diag;
+	struct o2s_s o2s_list[32];
+};
+
+struct o2s_config_s {
 	char lines; /*1..4*/
 	char mode; /*'d' => diag mode, 'i' => ident mode*/
 	char grounded; /*gray line is grounded? 'Y' or 'N' or '?'*/
@@ -94,7 +109,7 @@ when busy: halt test
 */
 void oid_start(void);
 int oid_is_busy(void);
-void oid_set_config(const struct oid_config_s *cfg);
+void oid_set_config(const struct o2s_config_s *cfg);
 void oid_get_result(struct oid_result_s *result); /*get test result*/
 
 int oid_is_hot(void); //warming up?

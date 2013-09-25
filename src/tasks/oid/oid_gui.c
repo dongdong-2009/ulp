@@ -28,7 +28,7 @@ static unsigned cmap_tcode[] = GUI_COLORMAP_NEW(GREEN, WHITE);
 static unsigned cmap_kcode[] = GUI_COLORMAP_NEW(RGB(0xe0, 0xe0, 0xe0), WHITE);
 
 static char str[16]; /*str buffer for snprintf*/
-static struct oid_config_s gui_config;
+static struct o2s_config_s gui_config;
 static struct oid_result_s gui_result;
 static time_t gui_timer;
 static char gui_counter;
