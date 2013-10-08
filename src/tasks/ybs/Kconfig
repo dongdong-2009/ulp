@@ -1,5 +1,7 @@
 #
-# Written by junjun@2011
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2013
 #
 
-bool "enable yarn break sensor application" CONFIG_TASK_YBS
+

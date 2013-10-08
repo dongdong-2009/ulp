@@ -8,7 +8,7 @@
 
 void led_hwInit(void)
 {
-#ifdef CONFIG_TASK_OID
+#if defined(CONFIG_TASK_OID) || defined(CONFIG_TASK_YBS)
 	//led_r p0.4 low->on
 	GP0DAT |= 1 << (24 + 4); //DIR = OUT
 	GP0SET = 1 << (16 + 4); //led off
@@ -28,7 +28,7 @@ void led_hwSetStatus(led_t led, led_status_t status)
 		case LED_GREEN:
 			break;
 		case LED_RED:
-#ifdef CONFIG_TASK_OID
+#if defined(CONFIG_TASK_OID) || defined(CONFIG_TASK_YBS)
 			GP0SET = (status == LED_ON) ? (1 << (16 + 4)) : 0;
 			GP0CLR = (status == LED_OFF) ? (1 << (16 + 4)) : 0;
 #else

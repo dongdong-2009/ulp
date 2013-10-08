@@ -1,34 +1,47 @@
 /*
- * authors:
- * 	junjun@2011 initial version
- * 	feng.ni@2012 the concentration is the essence
- */
+*
+* miaofng@2013-9-26
+*
+*/
 
-#ifndef __YBS_H_
-#define __YBS_H_
+#ifndef __YBS_H__
+#define __YBS_H__
 
-#define YBS_US 50 //unit: us
-#define YBS_VO_MIN 2 //unit: V
-#define YBS_VO_MAX 20 //unit: V
-
-#define d2uv(d) (d)
-#define uv2d(uv) ((int)(uv))
-
-#define d2mv(d) (d2uv(d)/1000)
-#define mv2d(mv) (uv2d(mv*1000))
-
-#define d2v(d) (d2mv(d)/1000)
-#define v2d(v) (mv2d(v*1000))
-
-void ybs_mdelay(int ms);
-void ybs_update(void);
-
-//digital filter
-struct filter_s {
-	int b0, b1, bn; //num
-	int a0, a1, an; //den
-	int xn_1, yn_1;
+enum {
+	YBS_E_OK,
+	YBS_E_CFG,
 };
 
-int filt(struct filter_s *f, int xn);
+enum {
+	YBS_CMD_RESET,
+	YBS_CMD_SAVE,
+	YBS_CMD_UNLOCK,
+};
+
+enum {
+	REG_CMD, //like 
+	REG_CAL = REG_CMD + 2,
+	REG_SYS = REG_CAL + 16,
+};
+
+
+/*
+note: 
+1, clip is a sub function of digital ybs sensor
+2, analog ybs sensor could be changed to digital ybs sensor by an special key sequece
+*/
+struct ybs_cfg_s {
+	char cksum;
+	char mode; //work mode, 'Digital' 'Analog' 'Undef'
+	char sn[10]; //format: 130328001, NULL terminated
+	float Zo; /*zero offset, unit: gf, set when reset button is clicked*/
+	float Gi;
+	float Di; //unit: gf
+	float Go;
+	float Do;
+};
+
+
+void ybs_isr(void);
+
 #endif
