@@ -43,6 +43,7 @@ if [ "$CONFIG_CPU_STM32" != "y" ]; then
 	bool "enable uart0" CONFIG_DRIVER_UART0
 	if [ "$CONFIG_DRIVER_UART0" = "y" ]; then
 		bool "enable uart0 as console" CONFIG_SHELL_UART0
+		int "rx fifo size" CONFIG_UART0_RF_SZ 0
 	fi
 fi
 

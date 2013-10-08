@@ -9,6 +9,7 @@
 
 enum {
 	SPI_CS_DUMMY = 0,
+
 	SPI_CS_PA2,
 	SPI_CS_PA3,
 	SPI_CS_PA4, /*SPI1_NSS*/
@@ -34,6 +35,12 @@ enum {
 	SPI_CS_PD12,
 
 	SPI_CS_PF11,
+
+#if CONFIG_CPU_ADUC706X == 1
+	SPI_CS_P00,
+#endif
+
+	SPI_CS_NONE,
 };
 
 //private
@@ -64,7 +71,7 @@ typedef struct {
 	int (*poll)(void); //0 indicates tranfser finished
 } spi_bus_t;
 
-extern const spi_bus_t spi;
+extern const spi_bus_t spi0;
 extern const spi_bus_t spi1;
 extern const spi_bus_t spi2;
 extern const spi_bus_t spi3;

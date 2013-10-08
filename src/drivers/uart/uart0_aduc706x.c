@@ -4,6 +4,19 @@
  */
 #include "uart.h"
 #include "aduc706x.h"
+#include "common/circbuf.h"
+
+#if CONFIG_UART0_RF_SZ > 0
+static circbuf_t uart_fifo_rx;
+
+void UART_IRQHandler(void)
+{
+	if(UrtSta()&1) {
+		int c = getchar();
+		buf_push(&uart_fifo_rx, &c, 1);
+	}
+}
+#endif
 
 static int uart_Init(const uart_cfg_t *cfg)
 {
@@ -40,6 +53,12 @@ static int uart_Init(const uart_cfg_t *cfg)
 	COMDIV2 = 0x8000 | (M << 11) | N;
 	COMCON0 = 0x03; /*DLAB = 0, WLS = 11(8bits)*/
 	GP1CON |= 0x11; // Select UART for P1.0/P1.1
+
+#if CONFIG_UART0_RF_SZ > 0
+	buf_init(&uart_fifo_rx, CONFIG_UART0_RF_SZ);
+	IRQEN |= IRQ_UART;
+	COMIEN0 |= 1; //Enable rx buf full irq
+#endif
 	return 0;
 }
 
@@ -52,7 +71,11 @@ static int uart_putchar(int data)
 static int uart_IsNotEmpty(void)
 {
 	int ret;
+#if CONFIG_UART0_RF_SZ > 0
+	ret = buf_size(&uart_fifo_rx);
+#else
 	ret = UrtSta()&1;
+#endif
 	return ret;
 }
 
@@ -60,7 +83,12 @@ static int uart_getch(void)
 {
 	int ret;
 	while(!uart_IsNotEmpty());
+#if CONFIG_UART0_RF_SZ > 0
+	ret = 0;
+	buf_pop(&uart_fifo_rx, &ret, 1);
+#else
 	ret = getchar();
+#endif
 	return ret;
 }
 

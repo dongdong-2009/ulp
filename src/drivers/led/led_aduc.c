@@ -19,7 +19,7 @@ void led_hwInit(void)
 	GP1SET = 1 << (16 + 6); //led off
 	GP1CLR = 1 << (16 + 6); //led on
 #endif
-	led_flash(LED_RED);
+	//led_flash(LED_RED);
 }
 
 void led_hwSetStatus(led_t led, led_status_t status)
@@ -29,11 +29,11 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			break;
 		case LED_RED:
 #if defined(CONFIG_TASK_OID) || defined(CONFIG_TASK_YBS)
-			GP0SET = (status == LED_ON) ? (1 << (16 + 4)) : 0;
-			GP0CLR = (status == LED_OFF) ? (1 << (16 + 4)) : 0;
+			GP0CLR = (status == LED_ON) ? (1 << (16 + 4)) : 0;
+			GP0SET = (status == LED_OFF) ? (1 << (16 + 4)) : 0;
 #else
-			GP1SET = (status == LED_ON) ? (1 << (16 + 6)) : 0;
-			GP1CLR = (status == LED_OFF) ? (1 << (16 + 6)) : 0;
+			GP1CLR = (status == LED_ON) ? (1 << (16 + 6)) : 0;
+			GP1SET = (status == LED_OFF) ? (1 << (16 + 6)) : 0;
 #endif
 			break;
 		case LED_YELLOW:

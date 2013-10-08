@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "ulp_time.h"
+#include "ulp/ulib.h"
 
 /* ulp api for task related ops, such as:
  * void main(void) {

@@ -316,7 +316,7 @@ int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 		|| (clst -> repeat)
 #endif
 	) {
-#ifdef CONFIG_CMD_BKG
+#ifdef CONFIG_CMD_REPEAT
 		//repeat, add to cmd queue
 		struct list_head *pos;
 		list_for_each(pos, &cq -> cmd_list) {
@@ -353,6 +353,7 @@ int cmd_help_func(int argc, char *argv[])
 const cmd_t cmd_help = {"help", cmd_help_func, "list all commands"};
 DECLARE_SHELL_CMD(cmd_help)
 
+#if CONFIG_CMD_REPEAT == 1
 static int cmd_ListBgTasks(void)
 {
 	struct list_head *pos;
@@ -476,6 +477,7 @@ static int cmd_kill_func(int argc, char *argv[])
 
 const cmd_t cmd_kill = {"kill", cmd_kill_func, "kill a background task"};
 DECLARE_SHELL_CMD(cmd_kill)
+#endif
 
 static int cmd_echo_func(int argc, char *argv[])
 {

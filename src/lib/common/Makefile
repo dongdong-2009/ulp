@@ -19,3 +19,4 @@ obj-$(CONFIG_COMMON_TSTEP) += tstep.o
 obj-$(CONFIG_COMMON_POLYFIT) += polyfit.o
 
 obj-y += ulp_error.o
+obj-y += ulib.o

@@ -1,0 +1,3 @@
+CONFIG_UART0_RF_SZ
+  to setup uart soft fifo size, either implemented by DMA or IRQ, set this value to 0 to disable soft fifo function
+

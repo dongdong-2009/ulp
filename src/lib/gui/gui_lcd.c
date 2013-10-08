@@ -34,6 +34,11 @@ void gui_lcd_line(int x, int y, int dx, int dy)
 	lcd_line(gui_lcd, x, y, dx, dy);
 }
 
+void gui_lcd_box(int x, int y, int w, int h)
+{
+	lcd_box(gui_lcd, x, y, w, h);
+}
+
 void gui_lcd_rectangle(int x, int y, int w, int h)
 {
 	lcd_rect(gui_lcd, x, y, w, h);

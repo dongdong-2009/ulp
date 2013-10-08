@@ -22,4 +22,6 @@ void mbi5025_DisableLoad(const mbi5025_t *chip);
 void mbi5025_EnableOE(const mbi5025_t *chip);
 void mbi5025_DisableOE(const mbi5025_t *chip);
 
+void mbi5025_write_and_latch(const mbi5025_t *chip, const void *p, int n);
+
 #endif /*__MBI5025_H_*/

@@ -359,6 +359,13 @@ int lcd_line(struct lcd_s *lcd, int x, int y, int dx, int dy)
 	return 0;
 }
 
+int lcd_box(struct lcd_s *lcd, int x, int y, int w, int h)
+{
+	lcd_set_window(lcd, x, y, w, h);
+	lcd->dev->wgram(NULL, w*h, lcd->fgcolor);
+	return 0;
+}
+
 int lcd_rect(struct lcd_s *lcd, int x, int y, int w, int h)
 {
 	lcd_line(lcd, x, y, w, 0);

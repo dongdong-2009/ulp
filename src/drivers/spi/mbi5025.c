@@ -14,6 +14,7 @@ void mbi5025_Init(const mbi5025_t *chip)
 		.cpha = 0,
 		.bits = 8,
 		.bseq = 1,
+		.csel = 1,
 		.freq = 1000000,
 	};
 	chip->bus->init(&cfg);
@@ -53,7 +54,19 @@ void mbi5025_DisableOE(const mbi5025_t *chip)
 	spi_cs_set(chip->oe_pin, 1);
 }
 
-#if 1
+void mbi5025_write_and_latch(const mbi5025_t *chip, const void *p, int n)
+{
+	const char *pbyte = p;
+	spi_cs_set(chip->load_pin, 0);
+	for(int i = n - 1; i >= 0; i --) {
+		char byte = pbyte[i];
+		chip->bus->wreg(0, byte);
+	}
+	spi_cs_set(chip->load_pin, 1);
+	spi_cs_set(chip->load_pin, 0);
+}
+
+#if CONFIG_DRIVER_SPI1
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -261,8 +261,8 @@ int shell_ReadLine(const char *prompt, char *str)
 			shell_print("%s", prompt);
 		}
 		memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
-#if CONFIG_SHELL_LEN_HIS_MAX > 0
 		shell -> cmd_idx ++;
+#if CONFIG_SHELL_LEN_HIS_MAX > 0
 		shell -> cmd_hrpos = shell -> cmd_hrail - 1;
 		if(shell -> cmd_hrpos < 0)
 			shell -> cmd_hrpos = shell -> cmd_hsz;

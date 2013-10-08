@@ -52,6 +52,41 @@ typedef union {
 static struct {
 	char csel : 1;
 } spi_flag;
+
+int spi_cs_init(void)
+{
+	unsigned v, m;
+#ifdef CONFIG_SPI_CS_P00
+	m = 0x0003;
+	v = GP0CON0;
+	v &= ~m;
+	v |= 0x0000;
+	GP0CON0 = v; /*P00->GPIO*/
+
+	m = 1 << 24;
+	v = GP0DAT;
+	v &= ~m;
+	v |= 1 << 24;
+	GP0DAT = v; /*P00->Out*/
+#endif
+	return 0;
+}
+
+int spi_cs_set(int addr, int level)
+{
+#ifdef CONFIG_SPI_CS_P00
+	if(addr == SPI_CS_P00) {
+		if(level) {
+			GP0SET |= 1 << (16 + 0);
+		}
+		else {
+			GP0CLR |= 1 << (16 + 0);
+		}
+	}
+#endif
+	return 0;
+}
+
 #endif
 
 #ifdef CONFIG_SPI_VCHIP
@@ -113,8 +148,17 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	unsigned mask = 0X0000FFFF;
 	unsigned value = 0X00001111;
 
-#ifdef CONFIG_SPI_CS_NONE
+#ifndef CONFIG_SPI_CS_HARD
 	mask = 0X0000FFF0; //NSS = ANY VALUE
+#endif
+
+	/////p0.1 sck, p0.3 mosi
+#if 0
+	GP0DAT = (1 << (24 + 1)) | ( 1 << (24 + 3));
+	GP0SET = (1 << (16 + 1)) | ( 1 << (16 + 3));
+	GP0CLR = (1 << (16 + 1)) | ( 1 << (16 + 3));
+	GP0SET = (1 << (16 + 1)) | ( 1 << (16 + 3));
+	GP0CLR = (1 << (16 + 1)) | ( 1 << (16 + 3));
 #endif
 
 	GP0CON0 &= ~ mask;
@@ -125,9 +169,6 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	GP0CON1 = 0X00;
 	GP0KEY2 = 0X13;
 
-#ifdef CONFIG_SPI_CS_SOFT
-	spi_cs_init();
-#endif
 	spi_config_t spi_config = {
 		.SPIEN = 1,
 		#ifdef CONFIG_SPI_MASTER
@@ -140,7 +181,11 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 
 		.SPIWOM = 0,
 		.SPILF = 0,
+		#ifdef CONFIG_SPI_MASTER
+		.SPITMDE = 1,
+		#else
 		.SPITMDE = 0, /*always in receive mode!!!*/
+		#endif
 		.SPIZEN = 0,
 
 		.SPIROW = 1,
@@ -173,6 +218,10 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	#endif
 	vchip_reset(&vchip);
 	IRQEN |= IRQ_SPI;
+#endif
+
+#ifdef CONFIG_SPI_CS_SOFT
+	spi_cs_init();
 #endif
 	return 0;
 }
@@ -210,7 +259,7 @@ static int spi_Read(int addr)
 	return SPIRX;
 }
 
-const spi_bus_t spi = {
+const spi_bus_t spi0 = {
 	.init = spi_Init,
 	.wreg = spi_Write,
 	.rreg = spi_Read,
