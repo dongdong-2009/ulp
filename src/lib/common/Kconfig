@@ -19,3 +19,7 @@ bool "mempool memory management algo" CONFIG_COMMON_MEMPOOL
 bool "pid algo" CONFIG_COMMON_PID
 bool "test step architecture support" CONFIG_COMMON_TSTEP
 bool "Polynomial fitting support" CONFIG_COMMON_POLYFIT
+bool "modbus protocol support" CONFIG_COMMON_MODBUS
+if [ "$CONFIG_COMMON_MODBUS" = "y" ]; then
+	int "max modbus frame length" CONFIG_MB_FRAME_BYTES 64
+fi
