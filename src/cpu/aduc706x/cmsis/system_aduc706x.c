@@ -48,8 +48,7 @@ void SysTick_Config(unsigned cd)
 	TCfg(0, T_D1, T_HCLK, 1); //TIM0 in auto reload mode
 	TMod(0, T_DOWN, T_BIN); //binary mode
 	TGo(0, cd - 1, T_RUN);
-	IRQP0 &= ~(0x07 << 12); //priority = 0, highest
-	IRQEN |= IRQ_TIM0;
+	FIQEN |= IRQ_TIM0;
 }
 
 void SystemInit (void)
@@ -58,10 +57,11 @@ void SystemInit (void)
 #ifdef CONFIG_ADUC706X_VECTOR
 	IRQBASE = ((unsigned) vectors_irq) >> 7;
 	IRQCONN = 3;
-	IRQP0 = 0xFFFFFFFF; //lowest priority
-	IRQP1 = 0xFFFFFFFF;
-	IRQP2 = 0xFFFFFFFF;
+	//IRQP0 = 0xFFFFFFFF; //lowest priority
+	//IRQP1 = 0xFFFFFFFF;
+	//IRQP2 = 0xFFFFFFFF;
 #endif
 	IRQCLR = 0xFFFF;
+	FIQCLR = 0xFFFF;
 	__enable_interrupt();
 }

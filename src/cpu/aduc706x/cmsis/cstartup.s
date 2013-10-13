@@ -8,6 +8,7 @@
 ;;
 ;; $Revision: 14520 $
 ;;
+#include "config.h"
 
         MODULE  ?cstartup
 
@@ -193,6 +194,8 @@ FIQVEC                         DEFINE       0xFFFF011C
 IRQVEC                         DEFINE       0xFFFF001C
 FIQSTAN                        DEFINE       0xFFFF013C
 IRQSTAN                        DEFINE       0xFFFF003C
+IRQSTA                         DEFINE       0xFFFF0000
+FIQSTA                         DEFINE       0xFFFF0100
 
 
         PUBWEAK FIQ_Handler
@@ -217,6 +220,7 @@ FIQ_Handler:
         MRS     R0      ,SPSR
         STMDB   SP!    ,{R0}
 
+#ifdef CONFIG_ADUC706X_VECTOR
         ; Retrieve handler for this interrupt
         LDR     R0      ,=FIQVEC
         LDR     R0      ,[R0]
@@ -227,6 +231,31 @@ FIQ_Handler:
         BIC     R0      ,R0     ,#F_Bit
         ORR     R1      ,R0     ,#Mode_SYS
         MSR     CPSR_c  ,R1 
+#else
+	LDR	R0,	=FIQSTA
+	LDR	R0,	[R0]
+
+	MOV	R1,	#1	; mask
+	MOV	R3,	#0	; counter 1..19
+FIQ_CNT_LOOP:
+	LSL	R1,	R1,	#1
+	ADD	R3,	R3,	#1
+	CMP	R3,	#20
+	BCS	FIQ_EXIT
+
+	TST	R1,	R0
+	BEQ	FIQ_CNT_LOOP
+
+	;found .. exec it now
+	EXTERN	vectors_irq
+	ADR	R2,	vectors_irq
+	LDR	R2,	[R2, +R3, LSL #2]
+
+        ; change to system mode & disable IRQ/FIQ
+        MRS     R0,	CPSR
+        ORR     R1,	R0,	#(Mode_SYS | I_Bit | F_Bit)
+        MSR     CPSR_c,	R1
+#endif
 
 
 ;======================== Interrupts enabled! =================================;
@@ -248,13 +277,14 @@ FIQ_Handler:
         MSR     CPSR_c  ,R0 
 ;======================== Interrupts disabled!=================================;
 ;========================     FIQ Mode!       =================================;
-
+#ifdef CONFIG_ADUC706X_VECTOR
         ; Clear the highest priority interrupt by writing 0xFF to FIQSTAN
         MOV      R0     ,#0xFF     
         LDR      R1     ,=FIQSTAN
         STR      R0     ,[R1]
+#endif
 
-
+FIQ_EXIT:
         ; Restore the SPSR
         LDMIA   SP!    ,{R0}
         MSR     SPSR_cxsf    ,R0
@@ -289,6 +319,7 @@ IRQ_Handler:
         MRS     R0      ,SPSR
         STMDB   SP!    ,{R0}
 
+#ifdef CONFIG_ADUC706X_VECTOR
         ; Retrieve handler for this interrupt
         LDR     R0      ,=IRQVEC
         LDR     R0      ,[R0]
@@ -299,6 +330,31 @@ IRQ_Handler:
         BIC     R0      ,R0     ,#I_Bit
         ORR     R1      ,R0     ,#Mode_SYS
         MSR     CPSR_c  ,R1 
+#else
+	LDR	R0,	=IRQSTA
+	LDR	R0,	[R0]
+
+	MOV	R1,	#1	; mask
+	MOV	R3,	#0	; counter 1..19
+IRQ_CNT_LOOP:
+	LSL	R1,	R1,	#1
+	ADD	R3,	R3,	#1
+	CMP	R3,	#20
+	BCS	IRQ_EXIT
+
+	TST	R1,	R0
+	BEQ	IRQ_CNT_LOOP
+
+	;found .. exec it now
+	EXTERN	vectors_irq
+	ADR	R2,	vectors_irq
+	LDR	R2,	[R2, +R3, LSL #2]
+
+        ; change to system mode & disable IRQ
+        MRS     R0,	CPSR
+        ORR     R1,	R0,	#(Mode_SYS | I_Bit)
+        MSR     CPSR_c,	R1
+#endif
 
 ;======================== Interrupts enabled! =================================;
 ;========================     SYS Mode!       =================================;
@@ -319,12 +375,14 @@ IRQ_Handler:
         MSR     CPSR_c  ,R0 
 ;======================== Interrupts disabled!=================================;
 ;========================     IRQ Mode!       =================================;
-
+#ifdef CONFIG_ADUC706X_VECTOR
         ; Clear the highest priority interrupt by writing 0xFF to IRQSTAN
         MOV      R0     ,#0xFF     
         LDR      R1     ,=IRQSTAN
         STR      R0     ,[R1]
+#endif
 
+IRQ_EXIT:
         ; Restore the SPSR
         LDMIA   SP!     ,{R0}
         MSR     SPSR_cxsf    ,R0
