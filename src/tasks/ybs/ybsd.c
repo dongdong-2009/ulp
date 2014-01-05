@@ -4,7 +4,7 @@
 * 2, ybs do continously adc and update analog output
 * 3, according to 485 command, do corresponding response
 *
-* 1, ybs command interface can only change 
+* 1, ybs command interface can only change
 *
 */
 #include "ulp/sys.h"
@@ -33,34 +33,39 @@ int ybsd_vi_init(void)
 	//ADC0 = ADUC_MUX0_DCH01 | PGA_512 | BIPOLAR
 	ADC0CON = (1 << 15) | (1 << 11) | 9;
 	//ADC1 = ADUC_MUX1_DCH23 | PGA_8 | BIPOLAR | FULL BUF ON
-	ADC1CON = (1 << 15) | 3;
+	//ADC1CON = (1 << 15) | 3;
 
 	/*zcal*/
 	ADCMDE = (1 << 7) | 0x04; //self offset calibration
 	while((ADCSTA & 0x01) == 0);
 
 	ADCMDE = (1 << 7) | 0x01;
+	ADCMSKI = 1 << 0;
 	return 0;
 }
 
-int ybsd_vo_init(int vref_mv)
+int ybsd_vo_init(void)
 {
-	//p2.0 voltage<1>/resistor<0> mode switch
-	GP2DAT |= 1 << (24 + 0); //DIR = OUT
-	DACCON = (1 << 4); //12bit mode, 0~1V2
-	//DACDAT = DMM_UV_TO_D(1000*1000); //default 1V
+	DACCON = (1 << 4) | (1 << 3) ; //16bit mode, 0~1V2
+	ADCCFG |= 1 << 7; //enable GND_SW
 }
 
-int ybsd_set_vo(int mv)
+int ybsd_set_vo(int data)
 {
-	if(mv >= 1000) {
-		DACCON = (1 << 4) | 0x03; //12bit mode, vref=AVDD=2V5
-		mv = mv * 4095 / 2500;
-		DACDAT = mv << 16;
-	}
-	else if(mv > 0) {
-		DACCON = (1 << 4) | 0x00; //12bit mode, vref=1.2v
-		mv = mv * 4095 / 1200;
-		DACDAT = mv << 16;
-	}
+	data &= 0xffff;
+	DACDAT = data << 12;
+}
+
+//p2.0
+void ybsd_rb_init(void)
+{
+	GP2CON &= ~0x03;
+	GP2DAT &= ~ (1 << 24);
+	GP2PAR &= ~ (1 << 0); //enable 2mA pull-up
+}
+
+/*pressed return 0*/
+int ybsd_rb_get(void)
+{
+	return GP2DAT & 0x01;
 }
