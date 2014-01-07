@@ -107,7 +107,7 @@ static void ybs_init(void)
 		ybs_cfg.GY = YGAIN;
 		ybs_cfg.DY = YVOFS;
 
-		ybs_cfg.hwgi = -0.4/100/512; //400mv/100g/512;
+		ybs_cfg.hwgi = 0.4/100/512; //400mv/100g/512;
 		input_offset_update();
 	}
 
@@ -163,7 +163,7 @@ static void ybs_a_update(void)
 {
 	float v = ybsd_vi_read();
 	ybs_gf = ybs_gi * v + ybs_di;
-	v = v * ybs_go + ybs_do;
+	v = ybs_gf * ybs_go + ybs_do;
 	ybsd_set_vo((int) v);
 }
 

@@ -52,7 +52,8 @@ int ybsd_vo_init(void)
 
 int ybsd_set_vo(int data)
 {
-	data &= 0xffff;
+	data = (data > 65535) ? 65535 : data;
+	data = (data < 0) ? 0 : data;
 	DACDAT = data << 12;
 }
 

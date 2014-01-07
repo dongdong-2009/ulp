@@ -29,7 +29,7 @@
 #define AVOFS  0.00 /*unit: V*/
 #define AGAIN  10.0 /*unit: v/v */
 #define YVOFS  2.00 /*unit: V*/
-#define YGAIN  0.16 /*unit: V/gf*/
+#define YGAIN  0.1 /*unit: V/gf*/
 
 #define MV2GF(mv) (((mv) - 2000) / 160.0)
 #define GF2MV(gf) (2000 + (int)((gf) * 160))
