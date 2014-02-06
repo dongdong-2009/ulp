@@ -4,4 +4,8 @@
 # Written by miaofng@2013
 #
 
+if [ "$CONFIG_COMMON_MODBUS" = "y"]; then
+bool "enable modbus support" CONFIG_YBS_MODBUS n
+fi
 
+bool "ybs for pctest project" CONFIG_YBS_FOR_PCTEST n

@@ -9,8 +9,15 @@
 */
 #include "ulp/sys.h"
 #include "aduc706x.h"
+#include "ybsd.h"
+#include "ybs.h"
 
 #define CONFIG_ADUC_50HZ_CHOP 1
+
+void ADC_IRQHandler(void)
+{
+	ybs_isr();
+}
 
 int ybsd_vi_init(void)
 {
@@ -48,6 +55,7 @@ int ybsd_vo_init(void)
 {
 	DACCON = (1 << 4) | (1 << 3) ; //16bit mode, 0~1V2
 	ADCCFG |= 1 << 7; //enable GND_SW
+	return 0;
 }
 
 int ybsd_set_vo(int data)
@@ -55,6 +63,7 @@ int ybsd_set_vo(int data)
 	data = (data > 65535) ? 65535 : data;
 	data = (data < 0) ? 0 : data;
 	DACDAT = data << 12;
+	return 0;
 }
 
 //p2.0

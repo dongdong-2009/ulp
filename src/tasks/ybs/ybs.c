@@ -9,25 +9,45 @@
 #include "ulp/sys.h"
 #include "ybs.h"
 #include "ybsd.h"
+#include "ybsmb.h"
 #include "nvm.h"
 #include "led.h"
 #include "common/debounce.h"
 #include <string.h>
+#include "uart.h"
 
-static struct debounce_s rb_pressed;
-static struct ybs_cfg_s ybs_cfg __nvm;
+#ifndef CONFIG_YBS_MODBUS
+#define CONFIG_YBS_MODBUS 0
+#endif
+
+static struct ybs_mfg_data_s mfg_data __nvm;
 static float ybs_gf;
+static float ybs_gi, ybs_di, ybs_go, ybs_do; /*cache for ybs fast algorithm*/
 static int ybs_ms;
+static time_t ybs_timer = 0;
+static struct debounce_s ybs_key;
 static struct {
 	int analog_vout : 1; /*continue analog voltage out*/
 	int digital_out	: 1; /*continue digital gf out*/
-	int digital_bin : 1; /*binary mode or text mode*/
-} ybs_mode;
+	int digital_bin : 1; /*binary mgf10 mode or text mode*/
+} ybs_cfg;
 
-/*cache for fast algorithm*/
-static float ybs_gi, ybs_di, ybs_go, ybs_do;
+static void ybs_reset_swdi(void)
+{
+	int v;
+	int status = IRQEN;
+	float avg = 0;
 
-static void algo_cache_update(void)
+	IRQCLR |= IRQ_ADC;
+	for(int i = 0; i < 256; i ++) {
+		while(ybsd_vi_read(&v) == 0);
+		avg = (avg * i + v) / (i + 1);
+	}
+        mfg_data.swdi = -avg;
+	IRQEN |= (status & IRQ_ADC);
+}
+
+static void ybs_reset_cache(void)
 {
 	float swgi, swgo, swdi, swdo;
 
@@ -35,8 +55,8 @@ static void algo_cache_update(void)
 	1, amp = amplifier = ybs_a
 	2, gdac = vout/din = vout_1v/din_1v = 1v/v2d(1v)
 	*/
-	swdo = (ybs_cfg.DY - ybs_cfg.DA) / ybs_cfg.GA * YBSD_DAC_V2D(1.00);
-	swgo = ybs_cfg.GY / ybs_cfg.GA * YBSD_DAC_V2D(1.00);
+	swdo = (mfg_data.DY - mfg_data.DA) / mfg_data.GA * YBSD_DAC_V2D(1.00);
+	swgo = mfg_data.GY / mfg_data.GA * YBSD_DAC_V2D(1.00);
 
 	/*HW: gf_rough = ((gf * gh + vh) * gadc + swdi) * swgi
 	= (gf * gh * gadc + (vh * gadc + swdi)) * swgi =>
@@ -44,20 +64,20 @@ static void algo_cache_update(void)
 	2) gf * gh * gadc * swgi = gf => swgi = 1 / gh / gadc
 	3) adc_gain = d_1 / vof(1) = 1 / YBSD_ADC_D2V(1)
 	*/
-	swdi = ybs_cfg.swdi;
-	swgi = YBSD_ADC_D2V(1) / ybs_cfg.hwgi;
+	swdi = mfg_data.swdi;
+	swgi = YBSD_ADC_D2V(1) / mfg_data.hwgi;
 
 	/*CAL: gf_rough = (adc_value + swdi) * swgi;
 	ybs_gf = gf_rough * Gi + Di = adc_value * (swgi * Gi) + (swdi * swgi * Gi + Di);
 	*/
-	ybs_gi = swgi * ybs_cfg.Gi;
-	ybs_di = swgi * ybs_cfg.Gi * swdi + ybs_cfg.Di;
+	ybs_gi = swgi * mfg_data.Gi;
+	ybs_di = swgi * mfg_data.Gi * swdi + mfg_data.Di;
 
 	/*CAL: dac_value = (gf * Go + Do) * swgo + swdo
 	= gf * (Go * swgo) + (Do * swgo + swdo)
 	*/
-	ybs_go = ybs_cfg.Go * swgo;
-	ybs_do = ybs_cfg.Do * swgo + swdo;
+	ybs_go = mfg_data.Go * swgo;
+	ybs_do = mfg_data.Do * swgo + swdo;
 }
 
 static char cksum(const void *data, int n)
@@ -71,72 +91,47 @@ static char cksum(const void *data, int n)
 
 static void config_save(void)
 {
-	ybs_cfg.cksum = 0;
-	ybs_cfg.cksum = cksum(&ybs_cfg, sizeof(ybs_cfg));
+	mfg_data.cksum = 0;
+	mfg_data.cksum = cksum(&mfg_data, sizeof(mfg_data));
 	nvm_save();
-}
-
-static void input_offset_update(void)
-{
-	float v, avg = 0;
-	int status = IRQEN;
-
-	IRQCLR |= IRQ_ADC;
-	for(int i = 0; i < 1000; i ++) {
-		v = ybsd_vi_read();
-		avg = (avg * i + v) / (i + 1);
-		sys_mdelay(1);
-	}
-        ybs_cfg.swdi = -avg;
-	IRQEN |= (status & IRQ_ADC);
 }
 
 static void ybs_init(void)
 {
 	led_flash(LED_RED);
-	if((ybs_cfg.sn[0] == 0) || (!strcmp(ybs_cfg.sn, "UNKNOWN")) || cksum(&ybs_cfg, sizeof(ybs_cfg))) {
+	if((mfg_data.date == 0) || cksum(&mfg_data, sizeof(mfg_data))) {
 		led_flash(LED_RED);
 
 		//try to use default parameters
-		sprintf(ybs_cfg.sn, "UNKNOWN");
-		ybs_cfg.Gi = ybs_cfg.Go = 1;
-		ybs_cfg.Di = ybs_cfg.Do = 0;
+		sprintf(mfg_data.sn, "default");
+		mfg_data.Gi = mfg_data.Go = 1;
+		mfg_data.Di = mfg_data.Do = 0;
 
-		ybs_cfg.GA = AGAIN;
-		ybs_cfg.DA = AVOFS;
-		ybs_cfg.GY = YGAIN;
-		ybs_cfg.DY = YVOFS;
+		mfg_data.GA = AGAIN;
+		mfg_data.DA = AVOFS;
+		mfg_data.GY = YGAIN;
+		mfg_data.DY = YVOFS;
 
-		ybs_cfg.hwgi = 0.4/100/512; //400mv/100g/512;
-		input_offset_update();
+		mfg_data.hwgi = 0.4/100/512; //400mv/100g/512;
+		ybs_reset_swdi();
 	}
 
-	debounce_init(&rb_pressed, 300, ybsd_rb_get());
-	algo_cache_update();
+	debounce_init(&ybs_key, 300, ybsd_rb_get());
+	ybs_reset_cache();
 }
 
-static void rb_update(void)
+static void ybs_update(void)
 {
-	if(debounce(&rb_pressed, ybsd_rb_get())) {
-		if(rb_pressed.on) {
-			input_offset_update();
-			algo_cache_update();
-			config_save();
-		}
+	if(debounce(&ybs_key, ybsd_rb_get()) && ybs_key.on) {
+		ybs_reset_swdi();
+		ybs_reset_cache();
+		config_save();
 	}
-}
 
-static void ybs_d_update(void)
-{
-	static time_t ybs_timer = 0;
-	if(ybs_mode.digital_out) {
-		if((ybs_ms == 0) || (time_left(ybs_timer) <= 0)) {
+	if(ybs_cfg.digital_out) {
+		if((ybs_ms > 0) && (time_left(ybs_timer) <= 0)) {
 			ybs_timer = time_get(ybs_ms);
-			if(ybs_mode.digital_bin) {
-			}
-			else {
-				printf("%.3f gf\n", ybs_gf);
-			}
+			printf("%.3f gf\n", ybs_gf);
 		}
 	}
 }
@@ -149,32 +144,32 @@ int main(void)
 	ybsd_vi_init();
 	ybsd_vo_init();
 	ybs_init();
-	//mb_init(MB_RTU, 0x00, 9600);
+#if CONFIG_YBS_MODBUS
+	mb_init(MB_RTU, 0x00, 9600);
+#endif
 	IRQEN |= IRQ_ADC;
 	while(1) {
 		sys_update();
-		//mb_update();
-		rb_update();
-		ybs_d_update();
+		ybs_update();
+#if CONFIG_YBS_MODBUS
+		mb_update();
+#endif
 	}
 }
 
-static void ybs_a_update(void)
+void ybs_isr(void)
 {
-	float v = ybsd_vi_read();
+	int v;
+
+	ybsd_vi_read(&v);
 	ybs_gf = ybs_gi * v + ybs_di;
-	v = ybs_gf * ybs_go + ybs_do;
-	ybsd_set_vo((int) v);
-}
+	v = (int)(ybs_gf * ybs_go + ybs_do);
+	ybsd_set_vo(v);
 
-void ADC_IRQHandler(void)
-{
-	ybs_a_update();
-}
-
-int mb_hreg_cb(int addr, char *buf, int nregs, int flag_read)
-{
-	return 0;
+	if(ybs_cfg.digital_out && ybs_cfg.digital_bin) {
+		short mgf10 = (short)(ybs_gf * 100);
+		uart_send(&uart0, &mgf10, sizeof(short));
+	}
 }
 
 #include "shell/cmd.h"
@@ -185,76 +180,74 @@ static int cmd_ybs_func(int argc, char *argv[])
 		"usage:\n"
 		"ybs -i			ybs info read\n"
 		"ybs -k			emulate reset key been pressed\n"
-		"ybs -f	[ms]		read mgf10, binary mode\n"
-		"ybs -F [ms]		read gf, float, text mode\n"
-		"ybs -c Gi Di Go Do	set calibration paras, text mode\n"
+		"ybs -f [ms]		read gf, float in text mode every ms, or mgf10 in binary mode if ms=0\n"
+		"ybs -r[/w]		read[/write] mfg data in binary mode\n"
 		"ybs -S			save settings to nvm\n"
 	};
 
-	int ms;
-	ybs_mode.digital_out = 0;
+	int n, ms, e = -1;
+	ybs_cfg.digital_out = 0;
+	char *p;
 	for(int i = 1; i < argc ; i ++) {
-		int e = (argv[i][0] != '-');
+		e = (argv[i][0] != '-');
 		if(!e) {
 			switch(argv[i][1]) {
-			case 'I':
-				printf("SN: %s, CAL: %08x-%08x-%08x-%08x, CFG: %08x-%08x-%08x-%08x, HW: %08x-%08x, SW: %s %s\n",
-					ybs_cfg.sn,
-					*((int *)&ybs_cfg.Gi),
-					*((int *)&ybs_cfg.Di),
-					*((int *)&ybs_cfg.Go),
-					*((int *)&ybs_cfg.Do),
-					*((int *)&ybs_cfg.GA),
-					*((int *)&ybs_cfg.DA),
-					*((int *)&ybs_cfg.GY),
-					*((int *)&ybs_cfg.DY),
-					*((int *)&ybs_cfg.hwgi),
-					*((int *)&ybs_cfg.swdi),
-					__TIME__,
-					__DATE__
-				);
-				break;
 			case 'i':
-			printf("SN: %s, CAL: %.3f-%.3f-%.3f-%.3f, CFG: %.3f-%.3f-%.3f-%.3f, HW: %.3fuV/g, %.0f, SW: %s %s\n",
-				ybs_cfg.sn,
-				ybs_cfg.Gi,
-				ybs_cfg.Di,
-				ybs_cfg.Go,
-				ybs_cfg.Do,
-				ybs_cfg.GA,
-				ybs_cfg.DA,
-				ybs_cfg.GY,
-				ybs_cfg.DY,
-				ybs_cfg.hwgi * 1000000,
-				ybs_cfg.swdi,
+			printf("SN: %s, CAL: %.3f-%.3f-%.3f-%.3f, HW: %.3fuV/g, %.0f, SW: %s %s\n",
+				mfg_data.sn,
+				mfg_data.Gi,
+				mfg_data.Di,
+				mfg_data.Go,
+				mfg_data.Do,
+				mfg_data.hwgi * 1000000,
+				mfg_data.swdi,
 				__TIME__,
 				__DATE__
 			);
 			break;
 			case 'k':
-				input_offset_update();
-				algo_cache_update();
+				ybs_reset_swdi();
+				ybs_reset_cache();
 				break;
 			case 'f':
-			case 'F':
-				if(argv[i][1] == 'F') {
-					ybs_mode.digital_bin = 1;
-				}
-				else {
-					ybs_mode.digital_bin = 0;
-					printf("%.3f\n", ybs_gf);
-				}
-
+				ybs_cfg.digital_out = 1;
+				ybs_cfg.digital_bin = 1;
+				ybs_ms = 0;
 				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &ms) == 1)) {
 					i ++;
-					if(ybs_ms >= 0) {
+					if(ybs_ms > 0) {
+						ybs_cfg.digital_bin = 0;
 						ybs_ms = ms;
-						ybs_mode.digital_out = 1;
 					}
 				}
+				if(ybs_cfg.digital_bin == 0) {
+					printf("%.3f\n", ybs_gf);
+				}
 				break;
+			case 'r':
+				uart_send(&uart0, &mfg_data, sizeof(mfg_data));
+				break;
+			case 'w':
+				p = sys_malloc(sizeof(mfg_data));
+				ybs_timer = time_get(500);
+				for(n = 0; n < sizeof(mfg_data);) {
+					if(time_left(ybs_timer) < 0)
+						break;
 
-			case 'c':
+					if(uart0.poll() > 0) {
+						p[n] = (char) uart0.getchar();
+						n ++;
+					}
+				}
+				if((n != sizeof(mfg_data)) || cksum(&mfg_data, sizeof(mfg_data))) { //fail
+					uart0.putchar(1);
+					break;
+				}
+				//ok
+				uart0.putchar(0);
+				memcpy((char *)&mfg_data, p, sizeof(mfg_data));
+				ybs_reset_cache();
+				break;
 			case 'S':
 				nvm_save();
 				break;
@@ -263,6 +256,10 @@ static int cmd_ybs_func(int argc, char *argv[])
 			}
 		}
 	}
+	if(e) {
+		printf("%s", usage);
+	}
+	return 0;
 }
 
 const cmd_t cmd_ybs = {"ybs", cmd_ybs_func, "ybs debug commands"};
