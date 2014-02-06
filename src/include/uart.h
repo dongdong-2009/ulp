@@ -54,6 +54,14 @@ extern uart_bus_t uart1;
 extern uart_bus_t uart2;
 extern uart_bus_t uart3;
 
+static inline void uart_send(uart_bus_t *uart, const void *frame, int n) {
+	const char *p = frame;
+	while(n > 0) {
+		uart->putchar(*p ++);
+		n --;
+	}
+}
+
 static inline void uart_puts(uart_bus_t *uart, char *str)
 {
 	while(*str) uart->putchar(*str ++);
