@@ -6,7 +6,7 @@
 */
 #include "config.h"
 #include "ulp/sys.h"
-#include "oid_dmm.h"
+#include "ybs_dmm.h"
 #include "spi.h"
 #include "common/vchip.h"
 #include "common/circbuf.h"
@@ -44,7 +44,7 @@ void reg_init(void)
 		.bits = 8,
 		.bseq = 1,
 	};
-	spi.init(&cfg);
+	spi0.init(&cfg);
 }
 
 int reg_update(void)

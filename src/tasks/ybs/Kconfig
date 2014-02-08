@@ -10,10 +10,12 @@ choice 'application select'	" \
 	DMM		CONFIG_YBS_DMM \
 " YBS
 
+if [ "$CONFIG_YBS_CAL" = "y" -o "$CONFIG_YBS_DMM" = "y"]; then
 choice 'board version select'	" \
 	V1.0		CONFIG_BRD_HWV10 \
 	V2.0		CONFIG_BRD_HWV20 \
 " V2.0
+fi
 
 if [ "$CONFIG_YBS_SENSOR" = "y"]; then
 	if [ "$CONFIG_COMMON_MODBUS" = "y"]; then

@@ -6,6 +6,6 @@ ifeq ($(CONFIG_YBS_CAL),y)
 endif
 
 ifeq ($(CONFIG_YBS_DMM),y)
-	obj-$(CONFIG_BRD_HWV10) += aduc_adc.o
-	obj-$(CONFIG_BRD_HWV10) += ybs_dmm.o
+	obj-$(CONFIG_BRD_HWV10) += dmm/aduc_adc.o
+	obj-$(CONFIG_BRD_HWV10) += dmm/ybs_dmm.o
 endif
