@@ -15,7 +15,7 @@
 #include "shell/cmd.h"
 #include "spi.h"
 #include "common/vchip.h"
-#include "oid_mcd.h"
+#include "ybs_mcd.h"
 #include <string.h>
 #include "led.h"
 #include "common/debounce.h"
