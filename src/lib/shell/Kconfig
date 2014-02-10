@@ -21,6 +21,7 @@ if [ "$CONFIG_SHELL_AUTORUN" = "y" ]; then
 	string "autorun cmdline" CONFIG_AUTORUN_CMDLINE ""
 	bool "cmd autorun support" CONFIG_CMD_AUTORUN
 fi
+bool "shell build-in command support" CONFIG_CMD_SHELL
 if [ "$CONFIG_TASK_SHELL" = "y" -a "$CONFIG_TASK_MOTOR" = "y"]; then
 	bool "enable commands for motor?" CONFIG_SHELL_MOTOR
 	bool "enable commands for motor debug?" CONFIG_SHELL_MOTOR_DEBUG
