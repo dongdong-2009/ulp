@@ -81,8 +81,11 @@ struct ybs_mfg_data_s {
 	float Do; //unit: gf
 };
 
-void ybs_init(void);
-void ybs_update(void);
-void ybs_isr(void);
+enum {
+	YBS_UNLOCK_NONE,
+	//please add new ybs unlock type here ...
+
+	YBS_UNLOCK_ALL,
+};
 
 #endif

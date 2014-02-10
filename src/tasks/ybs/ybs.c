@@ -23,9 +23,10 @@
 static struct ybs_mfg_data_s mfg_data __nvm;
 static float ybs_gf;
 static float ybs_gi, ybs_di, ybs_go, ybs_do; /*cache for ybs fast algorithm*/
-static int ybs_ms;
+static int ybs_ms = -1;
 static time_t ybs_timer = 0;
 static struct debounce_s ybs_key;
+static int ybs_unlock = 0;
 static struct {
 	int analog_vout : 1; /*continue analog voltage out*/
 	int digital_out	: 1; /*continue digital gf out*/
@@ -96,6 +97,22 @@ static void config_save(void)
 	nvm_save();
 }
 
+static int print_gf(float gf, const char *text)
+{
+	char buf[32], n;
+	if(ybs_cfg.digital_bin) { //bin mode
+		short mgf10 = (short)(gf * 100);
+		uart_send(&uart0, &mgf10, sizeof(short));
+		return 0;
+	}
+
+	//text mode
+	n = snprintf(buf, 32, "%.3f gf\n", gf);
+	if(text != NULL) strcpy(text, buf);
+	else uart_puts(&uart0, buf);
+	return n;
+}
+
 static void ybs_init(void)
 {
 	led_flash(LED_RED);
@@ -128,10 +145,10 @@ static void ybs_update(void)
 		config_save();
 	}
 
-	if(ybs_cfg.digital_out) {
-		if((ybs_ms > 0) && (time_left(ybs_timer) <= 0)) {
+	if(ybs_ms > 0) {
+		if(time_left(ybs_timer) < 0) {
 			ybs_timer = time_get(ybs_ms);
-			printf("%.3f gf\n", ybs_gf);
+			print_gf(ybs_gf);
 		}
 	}
 }
@@ -140,6 +157,7 @@ int main(void)
 {
 	IRQCLR |= IRQ_ADC;
 	sys_init();
+	shell_mute((const struct console_s *) &uart0);
 	ybsd_rb_init();
 	ybsd_vi_init();
 	ybsd_vo_init();
@@ -166,9 +184,8 @@ void ybs_isr(void)
 	v = (int)(ybs_gf * ybs_go + ybs_do);
 	ybsd_set_vo(v);
 
-	if(ybs_cfg.digital_out && ybs_cfg.digital_bin) {
-		short mgf10 = (short)(ybs_gf * 100);
-		uart_send(&uart0, &mgf10, sizeof(short));
+	if(ybs_ms == 0) {
+		print_gf(ybs_gf);
 	}
 }
 
@@ -180,49 +197,75 @@ static int cmd_ybs_func(int argc, char *argv[])
 		"usage:\n"
 		"ybs -i			ybs info read\n"
 		"ybs -k			emulate reset key been pressed\n"
-		"ybs -f [ms]		read gf, float in text mode every ms, or mgf10 in binary mode if ms=0\n"
+		"ybs -F[/f] [ms]	read gf, float in text mode[/mgf10 in binary mode] in every ms\n"
 		"ybs -r[/w]		read[/write] mfg data in binary mode\n"
 		"ybs -S			save settings to nvm\n"
 	};
 
+	if(!strcmp(argv[1], "uuuuu")) { //unlock
+		ybs_unlock = YBS_UNLOCK_ALL;
+		uart0.putchar('0');
+		return 0;
+	}
+
+	if(!strcmp(argv[1], "-u")) {
+		const char *passwd[] = {
+			"none", //YBS_UNLOCK_NONE
+			//please add new ybs unlock passwd here ...
+		};
+
+		for(int i = 0; i < YBS_UNLOCK_ALL; i ++) {
+			if(!strcmp(argv[2], passwd[i])) { //unlock success
+				ybs_unlock = i;
+				uart0.putchar('0');
+				return 0;
+			}
+		}
+	}
+
+	if(!ybs_unlock) {
+		return 0;
+	}
+
 	int n, ms, e = -1;
-	ybs_cfg.digital_out = 0;
+	//ybs_cfg.digital_out = 0;
+	ybs_cfg.digital_bin = 0; //default to text mode
+	ybs_ms = -1; //disable ybs continue digital output mode
 	char *p;
+
 	for(int i = 1; i < argc ; i ++) {
 		e = (argv[i][0] != '-');
 		if(!e) {
 			switch(argv[i][1]) {
 			case 'i':
-			printf("SN: %s, CAL: %.3f-%.3f-%.3f-%.3f, HW: %.3fuV/g, %.0f, SW: %s %s\n",
-				mfg_data.sn,
-				mfg_data.Gi,
-				mfg_data.Di,
-				mfg_data.Go,
-				mfg_data.Do,
-				mfg_data.hwgi * 1000000,
-				mfg_data.swdi,
-				__TIME__,
-				__DATE__
-			);
-			break;
+				printf("SN: %s, HW: %.3fuV/g(@%.0f), CAL: %.3f-%.3f-%.3f-%.3f, SW: %s %s\n",
+					mfg_data.sn,
+					mfg_data.hwgi * 1000000,
+					mfg_data.swdi,
+					mfg_data.Gi,
+					mfg_data.Di,
+					mfg_data.Go,
+					mfg_data.Do,
+					__TIME__,
+					__DATE__
+				);
+				break;
 			case 'k':
+				uart0.putchar('0');
 				ybs_reset_swdi();
 				ybs_reset_cache();
 				break;
 			case 'f':
-				ybs_cfg.digital_out = 1;
 				ybs_cfg.digital_bin = 1;
-				ybs_ms = 0;
+			case 'F':
 				if((i + 1 < argc) && (sscanf(argv[i + 1], "%d", &ms) == 1)) {
 					i ++;
-					if(ybs_ms > 0) {
-						ybs_cfg.digital_bin = 0;
-						ybs_ms = ms;
-					}
+					ybs_ms = ms;
 				}
-				if(ybs_cfg.digital_bin == 0) {
-					printf("%.3f\n", ybs_gf);
-				}
+
+				//output current value immediately
+				ybs_timer = time_get(ybs_ms);
+				print_gf(ybs_gf);
 				break;
 			case 'r':
 				uart_send(&uart0, &mfg_data, sizeof(mfg_data));
@@ -240,16 +283,17 @@ static int cmd_ybs_func(int argc, char *argv[])
 					}
 				}
 				if((n != sizeof(mfg_data)) || cksum(&mfg_data, sizeof(mfg_data))) { //fail
-					uart0.putchar(1);
+					uart0.putchar('1');
 					break;
 				}
 				//ok
-				uart0.putchar(0);
+				uart0.putchar('0');
 				memcpy((char *)&mfg_data, p, sizeof(mfg_data));
 				ybs_reset_cache();
 				break;
 			case 'S':
 				nvm_save();
+				uart0.putchar('0');
 				break;
 			default:
 				break;

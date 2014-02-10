@@ -13,40 +13,148 @@
 #include "ybs_dio.h"
 #include <string.h>
 
+#define __cmd(x) (ybs_version == 0x20) ? "ybs -"##x##"\n\r" : x
 #define YBS_RESPONSE_MS 100
+
+static struct ybs_mfg_data_s mfg_data;
+static int ybs_version;
 
 static void __ybs_init(void)
 {
 	ybs_uart_sel();
-	uart_cfg_t cfg = {
-		.baud = 115200,
-	};
-	ybs_uart.init(&cfg);
-	//warnning: to unlock, ybs response is forbid!!!
-	for(int i = 0; i < 5; i ++) ybs_uart.putchar('u');
+	if(ybs_version == 0 || ybs_version == 0x20) {
+		uart_cfg_t cfg = { .baud = 38400 };
+		ybs_uart.init(&cfg);
+		uart_puts(&ybs_uart, "ybs uuuuu\r\n");
+
+		time_t deadline = time_get(YBS_RESPONSE_MS);
+		while(1) {
+			if(time_left(deadline) < 0) {
+				sys_error("ybs response timeout");
+				break;
+			}
+
+			if(ybs_uart.poll()) {
+				int v = ybs_uart.getchar();
+				ybs_version = (v == '0') ? 0x20 : ybs_version;
+				break;
+			}
+		}
+	}
+
+	if(ybs_version == 0 || ybs_version == 0x10) {
+		uart_cfg_t cfg = { .baud = 115200};
+		ybs_uart.init(&cfg);
+		//warnning: to unlock, ybs response is forbid!!!
+		for(int i = 0; i < 5; i ++) ybs_uart.putchar('u');
+		ybs_version = 0x10;
+	}
+
 	uart_flush(&ybs_uart);
+}
+
+static char cksum(const void *data, int n)
+{
+	const char *p = (const char *) data;
+	char sum = 0;
+
+	for(int i = 0; i < n; i ++) sum += p[i];
+	return sum;
+}
+
+static int __ybs_mfg_read(void)
+{
+	__ybs_init();
+	uart_puts(&ybs_uart, __cmd("r"));
+
+	int ecode = -E_YBS_TIMEOUT, i = 0;
+	char *p = (char *) &mfg_data;
+	time_t deadline = time_get(YBS_RESPONSE_MS);
+	while(1) {
+		if(time_left(deadline) < 0) {
+			sys_error("ybs response timeout");
+			break;
+		}
+
+		if(ybs_uart.poll() == 0)
+			continue;
+
+		int v = ybs_uart.getchar();
+		p[i ++] = (char) v;
+		if(i >= sizeof(mfg_data)) {
+			ecode = 0;
+			//verify checksum
+			if(cksum(&mfg_data, sizeof(mfg_data))) {
+				ecode = -E_YBS_FRAME;
+				sys_error("ybs mfg data cksum error");
+			}
+			break;
+		}
+	}
+	return ecode;
+}
+
+static int __ybs_mfg_write(void)
+{
+	__ybs_init();
+	uart_puts(&ybs_uart, __cmd("w"));
+
+	mfg_data.cksum = 0;
+	mfg_data.cksum = cksum(&mfg_data, sizeof(mfg_data));
+	uart_send(&ybs_uart, &mfg_data, sizeof(mfg_data));
+
+	int ecode = -E_YBS_TIMEOUT;
+	time_t deadline = time_get(YBS_RESPONSE_MS);
+	while(1) {
+		if(time_left(deadline) < 0) {
+			sys_error("ybs response timeout");
+			break;
+		}
+
+		if(ybs_uart.poll() == 0)
+			continue;
+
+		int v = ybs_uart.getchar();
+		ecode = (v == '0') ? 0 : -E_YBS_RESPONSE;
+		break;
+	}
+	return ecode;
 }
 
 /*SN: 20130328001, CAL: 8000-0000-8000-0000, SW: 18:09:22 Mar 15 2013\r*/
 static int __ybs_info_decode(char *line, struct ybs_info_s *info)
 {
+	memset(info, 0x00, sizeof(struct ybs_info_s));
+
 	//decode serial number
 	line = strstr(line, "SN: ");
 	if(line == NULL) return -E_YBS_FRAME;
-	memset(info->sn, 0x00, 12);
 	memcpy(info->sn, line + 4, 11);
 
-	//decode cal data
-	line = strstr(line, "CAL: ");
-	if(line == NULL) return -E_YBS_FRAME;
-	int Gi, Di, Go, Do;
-	sscanf(line + 5, "%x-%x-%x-%x", &Gi, &Di, &Go, &Do);
-	Gi = (Gi > 0) ? Gi : -Gi;
-	Go = (Go > 0) ? Go : -Go;
-	info->Gi = Y2G(Gi);
-	info->Go = Y2G(Go);
-	info->Di = Y2D(Di);
-	info->Do = Y2D(Do);
+	//decode hardware info
+	if(strstr(line, "HW:") == NULL) {
+		//decode cal data
+		line = strstr(line, "CAL: ");
+		if(line == NULL) return -E_YBS_FRAME;
+		int Gi, Di, Go, Do;
+		sscanf(line + 5, "%x-%x-%x-%x", &Gi, &Di, &Go, &Do);
+		Gi = (Gi > 0) ? Gi : -Gi;
+		Go = (Go > 0) ? Go : -Go;
+		info->Gi = Y2G(Gi);
+		info->Go = Y2G(Go);
+		info->Di = Y2D(Di);
+		info->Do = Y2D(Do);
+	}
+	else { //try to get through command "ybs -r"
+		int ecode = __ybs_mfg_read();
+		if(ecode) return ecode;
+
+		info->mfg_data = &mfg_data;
+		info->Gi = mfg_data.Gi;
+		info->Di = mfg_data.Di;
+		info->Go = mfg_data.Go;
+		info->Do = mfg_data.Do;
+	}
 
 	line = strstr(line, "SW: ");
 	if(line == NULL) return -E_YBS_FRAME;
@@ -58,8 +166,9 @@ static int __ybs_info_decode(char *line, struct ybs_info_s *info)
 
 int ybs_init(struct ybs_info_s *info)
 {
+	ybs_version = 0x00;
 	__ybs_init();
-	ybs_uart.putchar('i');
+	uart_puts(&ybs_uart, __cmd("i"));
 
 	char *p = sys_malloc(128);
 	sys_assert(p != NULL);
@@ -94,7 +203,7 @@ int ybs_init(struct ybs_info_s *info)
 int ybs_reset(void)
 {
 	__ybs_init();
-	ybs_uart.putchar('k');
+	uart_puts(&ybs_uart, __cmd("k"));
 
 	int ecode = -E_YBS_TIMEOUT;
 	time_t deadline = time_get(YBS_RESPONSE_MS);
@@ -117,7 +226,7 @@ int ybs_reset(void)
 int ybs_read(float *gf)
 {
 	__ybs_init();
-	ybs_uart.putchar('f');
+	uart_puts(&ybs_uart, __cmd("f"));
 
 	char p[2];
 	int i = 0, ecode = -E_YBS_TIMEOUT;
@@ -161,46 +270,54 @@ int ybs_cal_write(float gf)
 
 int ybs_cal_config(float fGi, float fDi, float fGo, float fDo)
 {
-	short Gi = G2Y(fGi);
-	short Di = D2Y(fDi);
-	short Go = G2Y(fGo);
-	short Do = D2Y(fDo);
-	__ybs_init();
-	ybs_uart.putchar('c');
-	char *p = (char *) &Gi;
-	ybs_uart.putchar(p[0]);
-	ybs_uart.putchar(p[1]);
-	p = (char *) &Di;
-	ybs_uart.putchar(p[0]);
-	ybs_uart.putchar(p[1]);
-	p = (char *) &Go;
-	ybs_uart.putchar(p[0]);
-	ybs_uart.putchar(p[1]);
-	p = (char *) &Do;
-	ybs_uart.putchar(p[0]);
-	ybs_uart.putchar(p[1]);
+	if(ybs_version == 0x10) {
+		short Gi = G2Y(fGi);
+		short Di = D2Y(fDi);
+		short Go = G2Y(fGo);
+		short Do = D2Y(fDo);
+		__ybs_init();
+		ybs_uart.putchar('c');
+		char *p = (char *) &Gi;
+		ybs_uart.putchar(p[0]);
+		ybs_uart.putchar(p[1]);
+		p = (char *) &Di;
+		ybs_uart.putchar(p[0]);
+		ybs_uart.putchar(p[1]);
+		p = (char *) &Go;
+		ybs_uart.putchar(p[0]);
+		ybs_uart.putchar(p[1]);
+		p = (char *) &Do;
+		ybs_uart.putchar(p[0]);
+		ybs_uart.putchar(p[1]);
 
-	int ecode = -E_YBS_TIMEOUT;
-	time_t deadline = time_get(YBS_RESPONSE_MS);
-	while(1) {
-		if(time_left(deadline) < 0) {
-			sys_error("ybs response timeout");
+		int ecode = -E_YBS_TIMEOUT;
+		time_t deadline = time_get(YBS_RESPONSE_MS);
+		while(1) {
+			if(time_left(deadline) < 0) {
+				sys_error("ybs response timeout");
+				break;
+			}
+			if(ybs_uart.poll() == 0)
+				continue;
+
+			int v = ybs_uart.getchar();
+			ecode = (v == '0') ? 0 : -E_YBS_RESPONSE;
 			break;
 		}
-		if(ybs_uart.poll() == 0)
-			continue;
-
-		int v = ybs_uart.getchar();
-		ecode = (v == '0') ? 0 : -E_YBS_RESPONSE;
-		break;
+		return ecode;
 	}
-	return ecode;
+
+	mfg_data.Gi = fGi;
+	mfg_data.Di = fDi;
+	mfg_data.Go = fGo;
+	mfg_data.Do = fDo;
+	return __ybs_mfg_write();
 }
 
 int ybs_save(void)
 {
 	__ybs_init();
-	ybs_uart.putchar('S');
+	uart_puts(&ybs_uart, __cmd("S"));
 
 	int ecode = -E_YBS_TIMEOUT;
 	time_t deadline = time_get(YBS_RESPONSE_MS);
