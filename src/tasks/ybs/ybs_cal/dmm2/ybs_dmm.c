@@ -98,15 +98,19 @@ static int cmd_dmm_func(int argc, char *argv[])
 	for(int i = 1; (i < argc) && (e == 0); i ++) {
 		e += (argv[i][0] != '-');
 		switch(argv[i][1]) {
+		case 'e':
+			printf("ok\n\r");
+			break;
+
 		case 'x':
 			e = -1;
 			if(i + 1 < argc) {
 				v = atoi(argv[++ i]);
 				e = 0;
 			}
-			if(e) printf("1");
+			if(e) printf("1\n\r");
 			else {
-				printf("0");
+				printf("0\n\r");
 				dmm_mux_set(v);
 			}
 			break;
