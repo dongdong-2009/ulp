@@ -17,7 +17,7 @@
 #include "uart.h"
 #include "common/ansi.h"
 
-#define __DEBUG(X) X
+#define __DEBUG(X) //X
 #define dmm_uart_cnsl ((struct console_s *) &uart0)
 
 static struct dmm_result_s dmm_result;
@@ -56,6 +56,7 @@ static void dmm_init(void)
 		.pga1 = 0,
 		.mux0 = ADUC_MUX0_DCH01,
 		.mux1 = ADUC_MUX1_DCH23,
+		.vofs = 300,
 	};
 
 	dmm_mux_init();
@@ -118,7 +119,7 @@ static int cmd_dmm_func(int argc, char *argv[])
 		case 'r':
 			if(!dmm_result.ready) printf("---- v\n\r");
 			else if(dmm_result.ovld) printf("ovld v\n\r");
-			else printf("%.3f\n\r", dmm_result.value);
+			else printf("%.3f v\n\r", dmm_result.value);
 			break;
 
 		default:

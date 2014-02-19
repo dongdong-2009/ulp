@@ -82,6 +82,8 @@ enum {
 	ADUC_CAL_GAIN,
 };
 
+/*note: calibration failure normally caused by adc input dc offset voltage abnormal
+pls check your hardware first!!!*/
 int aduc_adc_init(const aduc_adc_cfg_t *cfg, int cal);
 /*!!! adc0 must be read before adc1 if it's useful*/
 int aduc_adc_is_ready(int adc); //to poll adc convert status, 1->ready, 0->busy
