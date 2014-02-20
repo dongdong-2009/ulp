@@ -9,6 +9,7 @@
 #define __OID_MCD_H__
 
 #include "dmm/ybs_dmm.h"
+#include "dmm2/ybs_dmm.h"
 
 int mcd_init(void);
 int mcd_mode(char mode); /*DMM_V_AUTO, DMM_R_AUTO, ...*/
