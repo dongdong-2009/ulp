@@ -644,10 +644,10 @@ static int cmd_shell_func(int argc, char *argv[])
 
 		switch(argv[i][1]) {
 		case 'a':
-			shell_mute(shell);
+			shell_mute(shell->console);
 			break;
 		case 'm':
-			shell_unmute(shell);
+			shell_unmute(shell->console);
 			break;
 
 		default:
