@@ -28,4 +28,6 @@ int ybsd_rb_get(void);
 int ybsd_tx_enable(void);
 int ybsd_rx_enable(void);
 
+extern void ybs_isr(void);
+
 #endif
