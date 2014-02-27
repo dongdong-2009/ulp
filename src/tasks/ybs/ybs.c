@@ -94,7 +94,7 @@ static char cksum(const void *data, int n)
 static void config_save(void)
 {
 	mfg_data.cksum = 0;
-	mfg_data.cksum = cksum(&mfg_data, sizeof(mfg_data));
+	mfg_data.cksum = -cksum(&mfg_data, sizeof(mfg_data));
 	nvm_save();
 }
 
