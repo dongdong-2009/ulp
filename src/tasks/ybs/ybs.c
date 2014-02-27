@@ -166,7 +166,7 @@ int main(void)
 	mb_init(MB_RTU, 0x00, 9600);
 #endif
 	printf("ybs v2.0d, SW: %s %s\n\r", __DATE__, __TIME__);
-        shell_mute((const struct console_s *) &uart0);
+	shell_mute((const struct console_s *) &uart0);
 	IRQEN |= IRQ_ADC;
 	while(1) {
 		sys_update();
@@ -271,12 +271,18 @@ static int cmd_ybs_func(int argc, char *argv[])
 				ybs_timer = time_get(ybs_ms);
 				gf_format_output(ybs_gf);
 				break;
+			case 'd': //debug purpose
+				for(int i = 0; i < sizeof(mfg_data); i ++) {
+					unsigned char *p = (unsigned char *) &mfg_data;
+					printf("%02x ", p[i]);
+				}
+				break;
 			case 'r':
 				uart_send(&uart0, &mfg_data, sizeof(mfg_data));
 				break;
 			case 'w':
-				p = sys_malloc(sizeof(mfg_data));
-				ybs_timer = time_get(500);
+				p = (char *) &mfg_data;
+				ybs_timer = time_get(100);
 				for(n = 0; n < sizeof(mfg_data);) {
 					if(time_left(ybs_timer) < 0)
 						break;
@@ -292,11 +298,10 @@ static int cmd_ybs_func(int argc, char *argv[])
 				}
 				//ok
 				uart0.putchar('0');
-				memcpy((char *)&mfg_data, p, sizeof(mfg_data));
 				ybs_reset_cache();
 				break;
 			case 'S':
-				nvm_save();
+				config_save();
 				uart0.putchar('0');
 				break;
 			default:
