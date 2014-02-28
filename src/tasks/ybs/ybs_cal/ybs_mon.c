@@ -79,8 +79,13 @@ int monitor_init(void)
 static void __sgm_init(void)
 {
 	//sgm uart init
+#ifdef CONFIG_BRD_HWV20 //fuck JJ!!!
+	GPIO_WriteBit(GPIOE, GPIO_Pin_1, Bit_RESET); //USART2_S0 = 1
+	GPIO_WriteBit(GPIOE, GPIO_Pin_0, Bit_SET); //USART2_S1 = 1
+#else
 	GPIO_WriteBit(GPIOE, GPIO_Pin_0, Bit_SET); //USART2_S0 = 1
 	GPIO_WriteBit(GPIOE, GPIO_Pin_1, Bit_SET); //USART2_S1 = 1
+#endif
 
 	uart_cfg_t cfg = {
 		.baud = 19200,
@@ -196,8 +201,13 @@ int sgm_read_until_stable(float *gf, int ms)
 static void sgm_console(void)
 {
 	//sgm uart init
+#ifdef CONFIG_BRD_HWV20 //fuck JJ!!!
+	GPIO_WriteBit(GPIOE, GPIO_Pin_1, Bit_RESET); //USART2_S0 = 1
+	GPIO_WriteBit(GPIOE, GPIO_Pin_0, Bit_SET); //USART2_S1 = 1
+#else
 	GPIO_WriteBit(GPIOE, GPIO_Pin_0, Bit_SET); //USART2_S0 = 1
 	GPIO_WriteBit(GPIOE, GPIO_Pin_1, Bit_SET); //USART2_S1 = 1
+#endif
 
 	uart_cfg_t cfg = {
 		.baud = 19200,
