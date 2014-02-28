@@ -34,6 +34,15 @@ static struct {
 	int digital_bin : 1; /*binary mgf10 mode or text mode*/
 } ybs_cfg;
 
+static char cksum(const void *data, int n)
+{
+	const char *p = (const char *) data;
+	char sum = 0;
+
+	for(int i = 0; i < n; i ++) sum += p[i];
+	return sum;
+}
+
 static void ybs_reset_swdi(void)
 {
 	int v;
@@ -47,6 +56,10 @@ static void ybs_reset_swdi(void)
 	}
         mfg_data.swdi = -avg;
 	IRQEN |= (status & IRQ_ADC);
+
+	//update cksum
+	mfg_data.cksum = 0;
+	mfg_data.cksum = -cksum(&mfg_data, sizeof(mfg_data));
 }
 
 static void ybs_reset_cache(void)
@@ -82,19 +95,8 @@ static void ybs_reset_cache(void)
 	ybs_do = mfg_data.Do * swgo + swdo;
 }
 
-static char cksum(const void *data, int n)
-{
-	const char *p = (const char *) data;
-	char sum = 0;
-
-	for(int i = 0; i < n; i ++) sum += p[i];
-	return sum;
-}
-
 static void config_save(void)
 {
-	mfg_data.cksum = 0;
-	mfg_data.cksum = -cksum(&mfg_data, sizeof(mfg_data));
 	nvm_save();
 }
 
@@ -255,9 +257,9 @@ static int cmd_ybs_func(int argc, char *argv[])
 				);
 				break;
 			case 'k':
-				uart0.putchar('0');
 				ybs_reset_swdi();
 				ybs_reset_cache();
+				uart0.putchar('0');
 				break;
 			case 'f':
 				ybs_cfg.digital_bin = 1;
