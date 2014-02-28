@@ -3,7 +3,7 @@
 * 1, during power-up, if calibration data is incorrect, err mode is entered
 * 2, ybs do continously adc
 * 3, according to 485 command, do corresponding response
-*
+* 4, pls unlock first, or ybs command will not function
 */
 
 #include "ulp/sys.h"
@@ -15,6 +15,7 @@
 #include "common/debounce.h"
 #include <string.h>
 #include "uart.h"
+#include "shell/shell.h"
 
 #ifndef CONFIG_YBS_MODBUS
 #define CONFIG_YBS_MODBUS 0
@@ -33,6 +34,15 @@ static struct {
 	int digital_bin : 1; /*binary mgf10 mode or text mode*/
 } ybs_cfg;
 
+static char cksum(const void *data, int n)
+{
+	const char *p = (const char *) data;
+	char sum = 0;
+
+	for(int i = 0; i < n; i ++) sum += p[i];
+	return sum;
+}
+
 static void ybs_reset_swdi(void)
 {
 	int v;
@@ -40,12 +50,16 @@ static void ybs_reset_swdi(void)
 	float avg = 0;
 
 	IRQCLR |= IRQ_ADC;
-	for(int i = 0; i < 256; i ++) {
+	for(int i = 0; i < 32; i ++) {
 		while(ybsd_vi_read(&v) == 0);
 		avg = (avg * i + v) / (i + 1);
 	}
         mfg_data.swdi = -avg;
 	IRQEN |= (status & IRQ_ADC);
+
+	//update cksum
+	mfg_data.cksum = 0;
+	mfg_data.cksum = -cksum(&mfg_data, sizeof(mfg_data));
 }
 
 static void ybs_reset_cache(void)
@@ -81,23 +95,12 @@ static void ybs_reset_cache(void)
 	ybs_do = mfg_data.Do * swgo + swdo;
 }
 
-static char cksum(const void *data, int n)
-{
-	const char *p = (const char *) data;
-	char sum = 0;
-
-	for(int i = 0; i < n; i ++) sum += p[i];
-	return sum;
-}
-
 static void config_save(void)
 {
-	mfg_data.cksum = 0;
-	mfg_data.cksum = cksum(&mfg_data, sizeof(mfg_data));
 	nvm_save();
 }
 
-static int print_gf(float gf, const char *text)
+static int gf_format_output(float gf)
 {
 	char buf[32], n;
 	if(ybs_cfg.digital_bin) { //bin mode
@@ -108,8 +111,7 @@ static int print_gf(float gf, const char *text)
 
 	//text mode
 	n = snprintf(buf, 32, "%.3f gf\n", gf);
-	if(text != NULL) strcpy(text, buf);
-	else uart_puts(&uart0, buf);
+	uart_puts(&uart0, buf);
 	return n;
 }
 
@@ -117,6 +119,7 @@ static void ybs_init(void)
 {
 	led_flash(LED_RED);
 	if((mfg_data.date == 0) || cksum(&mfg_data, sizeof(mfg_data))) {
+		printf("manufacture data is corrupted!!!\nsystem reset now...\n");
 		led_flash(LED_RED);
 
 		//try to use default parameters
@@ -148,7 +151,7 @@ static void ybs_update(void)
 	if(ybs_ms > 0) {
 		if(time_left(ybs_timer) < 0) {
 			ybs_timer = time_get(ybs_ms);
-			print_gf(ybs_gf);
+			gf_format_output(ybs_gf);
 		}
 	}
 }
@@ -157,7 +160,6 @@ int main(void)
 {
 	IRQCLR |= IRQ_ADC;
 	sys_init();
-	shell_mute((const struct console_s *) &uart0);
 	ybsd_rb_init();
 	ybsd_vi_init();
 	ybsd_vo_init();
@@ -165,6 +167,8 @@ int main(void)
 #if CONFIG_YBS_MODBUS
 	mb_init(MB_RTU, 0x00, 9600);
 #endif
+	printf("ybs v2.0d, SW: %s %s\n\r", __DATE__, __TIME__);
+	shell_mute((const struct console_s *) &uart0);
 	IRQEN |= IRQ_ADC;
 	while(1) {
 		sys_update();
@@ -185,7 +189,7 @@ void ybs_isr(void)
 	ybsd_set_vo(v);
 
 	if(ybs_ms == 0) {
-		print_gf(ybs_gf);
+		gf_format_output(ybs_gf);
 	}
 }
 
@@ -202,23 +206,25 @@ static int cmd_ybs_func(int argc, char *argv[])
 		"ybs -S			save settings to nvm\n"
 	};
 
-	if(!strcmp(argv[1], "uuuuu")) { //unlock
-		ybs_unlock = YBS_UNLOCK_ALL;
-		uart0.putchar('0');
-		return 0;
-	}
+	if(argc > 1) {
+		if(strcmp(argv[1], "uuuuu") >= 0) { //unlock
+			ybs_unlock = YBS_UNLOCK_ALL;
+			uart0.putchar('0');
+			return 0;
+		}
 
-	if(!strcmp(argv[1], "-u")) {
-		const char *passwd[] = {
-			"none", //YBS_UNLOCK_NONE
-			//please add new ybs unlock passwd here ...
-		};
+		if(!strcmp(argv[1], "-u")) {
+			const char *passwd[] = {
+				"none", //YBS_UNLOCK_NONE
+				//please add new ybs unlock passwd here ...
+			};
 
-		for(int i = 0; i < YBS_UNLOCK_ALL; i ++) {
-			if(!strcmp(argv[2], passwd[i])) { //unlock success
-				ybs_unlock = i;
-				uart0.putchar('0');
-				return 0;
+			for(int i = 0; i < YBS_UNLOCK_ALL; i ++) {
+				if(!strcmp(argv[2], passwd[i])) { //unlock success
+					ybs_unlock = i;
+					uart0.putchar('0');
+					return 0;
+				}
 			}
 		}
 	}
@@ -251,9 +257,9 @@ static int cmd_ybs_func(int argc, char *argv[])
 				);
 				break;
 			case 'k':
-				uart0.putchar('0');
 				ybs_reset_swdi();
 				ybs_reset_cache();
+				uart0.putchar('0');
 				break;
 			case 'f':
 				ybs_cfg.digital_bin = 1;
@@ -265,14 +271,20 @@ static int cmd_ybs_func(int argc, char *argv[])
 
 				//output current value immediately
 				ybs_timer = time_get(ybs_ms);
-				print_gf(ybs_gf);
+				gf_format_output(ybs_gf);
+				break;
+			case 'd': //debug purpose
+				for(int i = 0; i < sizeof(mfg_data); i ++) {
+					unsigned char *p = (unsigned char *) &mfg_data;
+					printf("%02x ", p[i]);
+				}
 				break;
 			case 'r':
 				uart_send(&uart0, &mfg_data, sizeof(mfg_data));
 				break;
 			case 'w':
-				p = sys_malloc(sizeof(mfg_data));
-				ybs_timer = time_get(500);
+				p = (char *) &mfg_data;
+				ybs_timer = time_get(100);
 				for(n = 0; n < sizeof(mfg_data);) {
 					if(time_left(ybs_timer) < 0)
 						break;
@@ -288,11 +300,10 @@ static int cmd_ybs_func(int argc, char *argv[])
 				}
 				//ok
 				uart0.putchar('0');
-				memcpy((char *)&mfg_data, p, sizeof(mfg_data));
 				ybs_reset_cache();
 				break;
 			case 'S':
-				nvm_save();
+				config_save();
 				uart0.putchar('0');
 				break;
 			default:

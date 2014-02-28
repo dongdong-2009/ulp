@@ -1,19 +1,29 @@
 /*
  *	junjun@2013 initial version
  *	miaofng@2013 fixed baudrate setting bug
+ *	miaofng@2014-2-27 fixed swfifo bug & printf bypass console_xx (aduc putchar is called directly) issue
+ *	- accroding to experiment, 115200 rx still has problem dueto poor arm7 irq performance
+ *	- 57600 works very stable now
  */
 #include "uart.h"
 #include "aduc706x.h"
 #include "common/circbuf.h"
 
-#if CONFIG_UART0_RF_SZ > 0
-static circbuf_t uart_fifo_rx;
+#define RFSZ CONFIG_UART0_RF_SZ
+
+#if RFSZ > 127
+#error "fifo size is too big"
+#endif
+
+#if RFSZ > 1
+static char uart_fifo[RFSZ];
+static char uart_ridx, uart_widx;
 
 void UART_IRQHandler(void)
 {
-	if(UrtSta()&1) {
-		int c = getchar();
-		buf_push(&uart_fifo_rx, &c, 1);
+	while(COMSTA0 & 1) {
+		uart_fifo[uart_widx ++] = COMRX;
+		uart_widx -= (uart_widx == RFSZ) ? RFSZ : 0;
 	}
 }
 #endif
@@ -54,27 +64,30 @@ static int uart_Init(const uart_cfg_t *cfg)
 	COMCON0 = 0x03; /*DLAB = 0, WLS = 11(8bits)*/
 	GP1CON |= 0x11; // Select UART for P1.0/P1.1
 
-#if CONFIG_UART0_RF_SZ > 0
-	buf_init(&uart_fifo_rx, CONFIG_UART0_RF_SZ);
+#if RFSZ > 1
+	uart_ridx = 0;
+	uart_widx = 0;
 	IRQEN |= IRQ_UART;
-	COMIEN0 |= 1; //Enable rx buf full irq
+	COMIEN0 = 1; //Enable rx buf full irq
 #endif
 	return 0;
 }
 
 static int uart_putchar(int data)
 {
-	putchar(data & 0xff);
+	while(!(COMSTA0 & (1 << 6))); //wait until COMTX empty(TEMT = 1)
+	COMTX = (data & 0xff);
 	return 0;
 }
 
 static int uart_IsNotEmpty(void)
 {
 	int ret;
-#if CONFIG_UART0_RF_SZ > 0
-	ret = buf_size(&uart_fifo_rx);
+#if RFSZ > 1
+	ret = uart_widx - uart_ridx;
+	ret += (ret < 0) ? RFSZ : 0;
 #else
-	ret = UrtSta()&1;
+	ret = COMSTA0 & 1;
 #endif
 	return ret;
 }
@@ -83,11 +96,11 @@ static int uart_getch(void)
 {
 	int ret;
 	while(!uart_IsNotEmpty());
-#if CONFIG_UART0_RF_SZ > 0
-	ret = 0;
-	buf_pop(&uart_fifo_rx, &ret, 1);
+#if RFSZ > 1
+	ret = uart_fifo[uart_ridx ++];
+	uart_ridx -= (uart_ridx == RFSZ) ? RFSZ : 0;
 #else
-	ret = getchar();
+	ret = COMRX;
 #endif
 	return ret;
 }
