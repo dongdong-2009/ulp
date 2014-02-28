@@ -182,8 +182,11 @@ static int cmd_mcd_func(int argc, char *argv[])
 		"mcd -i			mcd init\n"
 		"mcd -r [100]		read [100] times\n"
 		"mcd -x	ch		ch: ASIG=0, DET=1, BURN=2, unit: mv\n"
+		"mcd -g [baud]		dmm debug console\n"
 	};
 
+	int baud;
+	char *line;
 	if(argc > 0) {
 		int r = 0, v, ch, e = 0;
 		for(int j, i = 1; i < argc; i ++) {
@@ -216,6 +219,30 @@ static int cmd_mcd_func(int argc, char *argv[])
 				else printf("ecode = %d\n", e);
 				break;
 
+			case 'g':
+				baud = (argc > 2) ? atoi(argv[2]) : 9600;
+				{ //ybs communication i/f init
+					uart_cfg_t cfg;
+					cfg.baud = baud;
+					mcd_bus->init(&cfg);
+					printf("welcome to dmm debug console, type 'q' to exit\n");
+					line = sys_malloc(128);
+				}
+				while(1) {
+					//sys_update();
+					while(mcd_bus->poll()) {
+						char c = mcd_bus->getchar();
+						putchar(c);
+					}
+					if(shell_ReadLine("dmm> ", line)) {
+						if(line[0] == 'q') break;
+						uart_send(mcd_bus, line, strlen(line));
+						uart_send(mcd_bus, "\r\n", 2);
+					}
+				}
+				sys_free(line);
+				break;
+
 			default:
 				e ++;
 			}
@@ -229,7 +256,7 @@ static int cmd_mcd_func(int argc, char *argv[])
 		while(r > 0) {
 			r --;
 			e = mcd_read(&v);
-			printf("read %s(val = %d)\n", (e == 0) ? "pass" : "fail", v);
+			printf("%d mv(ecode = %d)\n", v, e);
 		}
 	}
 	return 0;
@@ -242,30 +269,11 @@ DECLARE_SHELL_CMD(cmd_mcd)
 void main(void)
 {
 	sys_init();
-	mdelay(500);
 	static const uart_cfg_t cfg = {.baud = 9600};
 	mcd_bus->init(&cfg);
 
 	while(1) {
 		sys_update();
-		while(mcd_bus->poll()) {
-			char c = mcd_bus->getchar();
-			putchar(c);
-		}
 	}
 }
-
-static int cmd_dmm_func(int argc, char *argv[])
-{
-	for(int i = 0; i < argc; i ++) {
-		uart_puts(mcd_bus, argv[i]);
-		mcd_bus->putchar(' ');
-	}
-	mcd_bus->putchar('\n');
-	mcd_bus->putchar('\r');
-	return 0;
-}
-
-const cmd_t cmd_dmm = {"dmm", cmd_dmm_func, "dmm debug console cmds"};
-DECLARE_SHELL_CMD(cmd_dmm)
 #endif

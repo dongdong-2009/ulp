@@ -100,7 +100,7 @@ static int __ybs_mfg_write(void)
 	uart_puts(&ybs_uart, __cmd("w"));
 
 	mfg_data.cksum = 0;
-	mfg_data.cksum = cksum(&mfg_data, sizeof(mfg_data));
+	mfg_data.cksum = -cksum(&mfg_data, sizeof(mfg_data));
 	uart_send(&ybs_uart, &mfg_data, sizeof(mfg_data));
 
 	int ecode = -E_YBS_TIMEOUT;
@@ -211,7 +211,7 @@ int ybs_reset(void)
 	uart_puts(&ybs_uart, __cmd("k"));
 
 	int ecode = -E_YBS_TIMEOUT;
-	time_t deadline = time_get(YBS_RESPONSE_MS);
+	time_t deadline = time_get(3000);
 	while(1) {
 		if(time_left(deadline) < 0) {
 			sys_error("ybs response timeout");
@@ -352,11 +352,13 @@ static int cmd_ybs_func(int argc, char *argv[])
 		"ybs -w gf		write raw gf to DAC for calibration\n"
 		"ybs -S			command ybs to save current settings\n"
 		"ybs -c	Gi Di Go Do	config ybs with calbration parameters(float)\n"
+		"ybs -g	[baud]		exchange console to ybs, pls type 'q' to exit\n"
 	};
 
 	struct ybs_info_s info;
-	int ms, e = 1, ecode;
+	int ms, e = 1, ecode, baud;
 	float gf;
+	char *line;
 	if(argc > 1) {
 		e = 0;
 		for(int i = 1; i < argc; i ++) {
@@ -412,6 +414,31 @@ static int cmd_ybs_func(int argc, char *argv[])
 			case 'S':
 				ecode = ybs_save();
 				printf("save %s(%d)\n", (ecode) ? "FAIL" : "PASS", ecode);
+				break;
+			case 'g':
+				baud = (argc > 2) ? atoi(argv[2]) : 38400;
+				{ //ybs communication i/f init
+					uart_cfg_t cfg;
+					cfg.baud = baud;
+					ybs_uart.init(&cfg);
+					monitor_init();
+					ybs_uart_sel();
+					printf("welcome to ybs debug console, type 'q' to exit\n");
+					line = sys_malloc(128);
+				}
+				while(1) {
+					//sys_update();
+					while(ybs_uart.poll()) {
+						char c = ybs_uart.getchar();
+						putchar(c);
+					}
+					if(shell_ReadLine("ybs> ", line)) {
+						if(line[0] == 'q') break;
+						uart_send(&ybs_uart, line, strlen(line));
+						uart_send(&ybs_uart, "\r\n", 2);
+					}
+				}
+				sys_free(line);
 				break;
 			default:
 				e ++;
