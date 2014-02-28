@@ -64,7 +64,7 @@ static char cksum(const void *data, int n)
 
 static int __ybs_mfg_read(void)
 {
-	__ybs_init();
+	uart_flush(&ybs_uart);
 	uart_puts(&ybs_uart, __cmd("r"));
 
 	int ecode = -E_YBS_TIMEOUT, i = 0;
@@ -96,7 +96,7 @@ static int __ybs_mfg_read(void)
 
 static int __ybs_mfg_write(void)
 {
-	__ybs_init();
+	uart_flush(&ybs_uart);
 	uart_puts(&ybs_uart, __cmd("w"));
 
 	mfg_data.cksum = 0;
@@ -130,9 +130,13 @@ static int __ybs_info_decode(char *line, struct ybs_info_s *info)
 	line = strstr(line, "SN: ");
 	if(line == NULL) return -E_YBS_FRAME;
 	memcpy(info->sn, line + 4, 11);
+	char *p = strchr(info->sn, ',');
+	if(p != NULL) { //length of sn is smaller than 11
+		*p = 0;
+	}
 
 	//decode hardware info
-	if(strstr(line, "HW:") == NULL) {
+	if(strstr(line, "HW: ") == NULL) { //ybs v1.x do not has HW:
 		//decode cal data
 		line = strstr(line, "CAL: ");
 		if(line == NULL) return -E_YBS_FRAME;
@@ -146,6 +150,7 @@ static int __ybs_info_decode(char *line, struct ybs_info_s *info)
 		info->Do = Y2D(Do);
 	}
 	else { //try to get through command "ybs -r"
+		sys_mdelay(10); //must add this line, to solve ghost 0x0a issue!!!
 		int ecode = __ybs_mfg_read();
 		if(ecode) return ecode;
 
@@ -363,9 +368,9 @@ static int cmd_ybs_func(int argc, char *argv[])
 					printf("SW: %s\n", info.sw);
 					printf("SN: %s\n", info.sn);
 					printf("Gi: %f\n", info.Gi);
-					printf("Di: %f gf)\n", info.Di);
+					printf("Di: %f gf\n", info.Di);
 					printf("Go: %f\n", info.Go);
-					printf("Do: %f gf)\n", info.Do);
+					printf("Do: %f gf\n", info.Do);
 				}
 				else sys_error("ybs init fail");
 				break;
