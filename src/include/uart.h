@@ -64,7 +64,10 @@ static inline void uart_send(uart_bus_t *uart, const void *frame, int n) {
 
 static inline void uart_puts(uart_bus_t *uart, char *str)
 {
-	while(*str) uart->putchar(*str ++);
+	while(*str) {
+		if(*str == '\n') uart->putchar('\r');
+		uart->putchar(*str ++);
+	}
 }
 
 static inline void uart_flush(uart_bus_t *uart)
