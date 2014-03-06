@@ -11,7 +11,8 @@
 #endif
 
 /*for led ecode use*/
-#define LED_IDLE_PERIOD		3
+#define LED_ERROR_PERIOD	200 /*unit: mS*/
+#define LED_ERROR_IDLE		10
 
 typedef enum {
 	LED_GREEN = 0,
