@@ -2,8 +2,8 @@
  *
  */
 
-#ifndef __OID_DMM_H__
-#define __OID_DMM_H__
+#ifndef __YBS_DMM_H__
+#define __YBS_DMM_H__
 
 enum {
 	DMM_CH_ASIG, //p0.0

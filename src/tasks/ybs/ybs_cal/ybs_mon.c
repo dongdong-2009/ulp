@@ -27,7 +27,14 @@
 #include "ybs_mon.h"
 #include "ybs_dio.h"
 
+#ifdef CONFIG_BRD_HWV20 //fuck JJ!!!
+#define ybs_motor_pusle 3500
+#endif
+
+#ifdef CONFIG_BRD_HWV10 //fuck JJ!!!
 #define ybs_motor_pusle 5000
+#endif
+
 static float ybs_gf_max = 0;
 
 static int ybs_steps_max = -1;
@@ -37,15 +44,16 @@ static int ybs_steps = -1; /*note: ybs_steps_min <= ybs_steps <= ybs_steps_max, 
 int monitor_init(void)
 {
 	/* pinmap:
-	PE2	DO	YBS_PASS
-	PE3	DO	YBS_FAIL
-	PC2	DI	MOTOR_NEAR
-	PC3	DI	MOTOR_AWAY
-	PA0	DO	MOTOR_PULSE
-	PA1	DO	MOTOR_DIR
-	PC4	DI	KEY_START
-	PE0	DO	USART2_S0
-	PE1	DO	USART2_S1
+	CAL V1.0	CAL V2.0
+	PE2	PE2	DO	YBS_PASS
+	PE3	PE3	DO	YBS_FAIL
+	PC2	PA8	DI	MOTOR_NEAR
+	PC3	-	DI	MOTOR_AWAY
+	PA0	PA12	DO	MOTOR_PULSE
+	PA1	PA11	DO	MOTOR_DIR
+	PC4	PC9	DI	KEY_START
+	PE0	PE1	DO	USART2_S0
+	PE1	PE0	DO	USART2_S1
 	*/
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
@@ -57,6 +65,19 @@ int monitor_init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
+#ifdef CONFIG_BRD_HWV20
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_12;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+#else
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
@@ -66,13 +87,23 @@ int monitor_init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+#endif
 
+#ifdef CONFIG_BRD_HWV20
+	GPIO_WriteBit(GPIOE, GPIO_Pin_0, Bit_RESET); //USART2_S1 = 0
+	GPIO_WriteBit(GPIOE, GPIO_Pin_1, Bit_RESET); //USART2_S0= 0
+	GPIO_WriteBit(GPIOE, GPIO_Pin_3, Bit_RESET); //YBS_FAIL = 0
+	GPIO_WriteBit(GPIOE, GPIO_Pin_2, Bit_RESET); //YBS_PASS = 0
+	GPIO_WriteBit(GPIOA, GPIO_Pin_12, Bit_RESET); //MOTOR_PULSE = 0
+	GPIO_WriteBit(GPIOA, GPIO_Pin_11, Bit_RESET); //MOTOR_DIR = 0
+#else
 	GPIO_WriteBit(GPIOE, GPIO_Pin_0, Bit_RESET); //USART2_S0 = 0
 	GPIO_WriteBit(GPIOE, GPIO_Pin_1, Bit_RESET); //USART2_S1 = 0
 	GPIO_WriteBit(GPIOE, GPIO_Pin_2, Bit_RESET); //YBS_FAIL = 0
 	GPIO_WriteBit(GPIOE, GPIO_Pin_3, Bit_RESET); //YBS_PASS = 0
 	GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_RESET); //MOTOR_PULSE = 0
 	GPIO_WriteBit(GPIOA, GPIO_Pin_1, Bit_RESET); //MOTOR_DIR = 0
+#endif
 	return 0;
 }
 
@@ -291,6 +322,82 @@ static int cmd_sgm_func(int argc, char *argv[])
 const cmd_t cmd_sgm = {"sgm", cmd_sgm_func, "ybs monitor strain gauge meter ctrl"};
 DECLARE_SHELL_CMD(cmd_sgm)
 
+#ifdef CONFIG_BRD_HWV20
+/*for initially positioning purpose, this routine must be called first
+an Proximity sensor(PNP type) is added in board v2.0, its position is:
+right to left: about -4200 steps sensor led on(TLP181 output 3.330v)
+left to right: about -4000 steps sensor led off(TLP181 output 0.096v)
+*/
+int mov_i(int distance, float gf_max)
+{
+	sys_assert((distance > 0) && (gf_max > 0.1) && (gf_max < 51.0));
+	ybs_gf_max = gf_max;
+
+	if(sgm_init()) {
+		sys_error("Force Gauge no response!!!\n");
+		return -1;
+	}
+
+	/*it's dangerous!!! be careful ..*/
+	ybs_steps = 0;
+	ybs_steps_min = -50000;
+	ybs_steps_max = 50000;
+
+	//to find a rough touch point
+	//note: near => sensor light off => gpio = high level
+	int near = GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_8);
+	if(near) {
+		//backward until sensor light off
+		while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_8) == near) {
+			mov_n(-100);
+			if(ybs_steps < - 10000) {
+				sys_error("Proximity sensor signal lost or step motor fail!!!\n");
+				goto MOV_I_FAIL;
+			}
+		}
+	}
+
+	//forward until light off, that is gpio = high
+	sys_mdelay(1000);
+	ybs_steps = 0;
+	while(!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_8)) {
+		mov_n(100);
+		if(ybs_steps > 10000) {
+			sys_error("Proximity sensor signal lost or step motor fail!!!\n");
+			goto MOV_I_FAIL;
+		}
+	}
+
+	//ok, we found the initial positioning point
+	ybs_steps = 0;
+	sys_mdelay(3000);
+	if(sgm_reset_to_zero()) goto MOV_I_FAIL;
+	if(mov_n(2500)) goto MOV_I_FAIL;
+
+	//find a more precise zero point
+	mov_f(0, 100);
+	distance = ybs_steps;
+	ybs_steps = 0;
+	ybs_steps_min = - distance - 1000;
+
+	mov_f(gf_max, 100);
+	ybs_steps_max = ybs_steps;
+
+	mov_p(-distance);
+
+	float gf;
+	if(!sgm_read(&gf)) {
+		//sgm is ok, ignore mov_f adjust too long error
+		return 0;
+	}
+
+MOV_I_FAIL:
+	ybs_steps = -1;
+	ybs_steps_min = -1;
+	ybs_steps_max = -1;
+	return -1;
+}
+#else
 /*for initially positioning purpose, this routine must be called first*/
 int mov_i(int distance, float gf_max)
 {
@@ -340,6 +447,7 @@ MOV_I_FAIL:
 	ybs_steps_max = -1;
 	return -1;
 }
+#endif
 
 /*fast move forwrd/backward steps, with each step ms*/
 int mov_n(int steps)
@@ -360,16 +468,27 @@ int mov_n(int steps)
 	int dir = (steps > 0) ? 1 : -1;
 	if(dir != ybs_mov_dir) {
 		ybs_mov_dir = dir;
+#ifdef CONFIG_BRD_HWV20
+		GPIO_WriteBit(GPIOA, GPIO_Pin_11, (ybs_mov_dir > 0) ? Bit_SET : Bit_RESET);
+#else
 		GPIO_WriteBit(GPIOA, GPIO_Pin_1, (ybs_mov_dir > 0) ? Bit_SET : Bit_RESET);
+#endif
 		for(int pw = ybs_motor_pusle; pw > 0; pw --);
 	}
 
 	//mov
 	while(steps != 0) {
+#ifdef CONFIG_BRD_HWV20
+		GPIO_WriteBit(GPIOA, GPIO_Pin_12, Bit_SET);
+		for(int pw = ybs_motor_pusle; pw > 0; pw --);
+		GPIO_WriteBit(GPIOA, GPIO_Pin_12, Bit_RESET);
+		for(int pw = ybs_motor_pusle; pw > 0; pw --);
+#else
 		GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_SET);
 		for(int pw = ybs_motor_pusle; pw > 0; pw --);
 		GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_RESET);
 		for(int pw = ybs_motor_pusle; pw > 0; pw --);
+#endif
 		steps -= ybs_mov_dir;
 		ybs_steps += ybs_mov_dir;
 	}
@@ -433,6 +552,16 @@ int mov_f(float target_gf, int gf_settling_ms)
 
 	float gf;
 	if(sgm_read(&gf)) return -1;
+
+#ifdef CONFIG_BRD_HWV20
+	//fast move to contact point
+	while(gf <= 0) {
+		if(mov_n(50)) return -1;
+		if(sgm_read_until_stable(&gf, 100)) return -1;
+
+	}
+#endif
+#ifdef CONFIG_BRD_HWV10
 	if(gf <= 0) { //fast move to nearby zero point first
 		if(mov_p(100)) return -1;
 		if(sgm_read_until_stable(&gf, 100)) return -1;
@@ -441,6 +570,7 @@ int mov_f(float target_gf, int gf_settling_ms)
 			return -1;
 		}
 	}
+#endif
 
 	for(int micro_steps = 0; micro_steps < 15; ) {
 		if(sgm_read(&gf)) return -1;
