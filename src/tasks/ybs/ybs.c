@@ -69,7 +69,8 @@ static struct {
 */
 enum {
 	YBS_E_OK,
-	YBS_E_MFG_DATA = 2,
+	YBS_E_FAST_FLASH, /*reset key pressed*/
+	YBS_E_MFG_DATA,
 	YBS_E_ADC_OVLD,
 	YBS_E_RESET,
 	YBS_E_MALLOC, /*dynamic memory allocation fail*/
@@ -146,13 +147,16 @@ static void ybs_error(int ecode)
 		ybs_ecode = 0;
 		led_error(0);
 		led_on(LED_RED);
-		break;
+		return;
 	case YBS_E_RUN:
 		if(ybs_ecode == YBS_E_OK) {
 			led_flash(LED_RED);
 		}
-		break;
+		return;
 	case YBS_E_UPDATE:
+		if(ybs_ecode == YBS_E_FAST_FLASH) {
+			led_flash(LED_RED);
+		}
 		break;
 
 	default:
@@ -173,6 +177,8 @@ static void ybs_error(int ecode)
 static int ybs_reset_swdi(void)
 {
 	int v, f;
+
+	ybs_ecode = YBS_E_FAST_FLASH;
 
 	//chebyshev iir filter: fs=100Hz fc=1Hz
 	//cheb2_init(&ybs_cheb1, -1.9291698173542138f, 0.93337555158934971f, 0.0010514335587839682f);
