@@ -21,18 +21,63 @@
 #define CONFIG_YBS_MODBUS 0
 #endif
 
+#define YBS_FILTER_ORDER4
+
+//chebyshev filter: Fs = 100Hz, Fc = 10Hz order = 2
+#ifdef YBS_FILTER_ORDER2
+#define CHEB1_DEN1 -1.1996775682021836f
+#define CHEB1_DEN2 0.51573875617675269f
+#define CHEB1_GAIN 0.079015296993642237f
+#endif
+
+//chebyshev filter: Fs = 100Hz, Fc = 10Hz order = 4
+#ifdef YBS_FILTER_ORDER4
+#define CHEB1_DEN1 -1.4995544968104402
+#define CHEB1_DEN2 0.84821868171669579
+#define CHEB1_GAIN 0.087166046226563931
+
+#define CHEB2_DEN1 -1.5547851795965149
+#define CHEB2_DEN2 0.64929543813658097
+#define CHEB2_GAIN 0.023627564635016512
+#endif
+
 static struct ybs_mfg_data_s mfg_data __nvm;
+static int ybs_vadc = 0;
 static float ybs_gf;
 static float ybs_gi, ybs_di, ybs_go, ybs_do; /*cache for ybs fast algorithm*/
-static int ybs_ms = -1;
+static short ybs_ms = -1;
 static time_t ybs_timer = 0;
 static struct debounce_s ybs_key;
-static int ybs_unlock = 0;
+static char ybs_unlock = 0;
+static char ybs_ecode = 0;
+static struct cheb2_s ybs_cheb1;
+#ifdef YBS_FILTER_ORDER4
+static struct cheb2_s ybs_cheb2;
+#endif
+
 static struct {
 	int analog_vout : 1; /*continue analog voltage out*/
 	int digital_out	: 1; /*continue digital gf out*/
 	int digital_bin : 1; /*binary mgf10 mode or text mode*/
 } ybs_cfg;
+
+/* led policy:
+1, init -> led keep on
+2, normal working -> led flash(1s on, 1s off)
+3, reset key is pressed -> fast flash(50mS on, 50mS off)
+4, error mode, flash error code
+*/
+enum {
+	YBS_E_OK,
+	YBS_E_MFG_DATA = 2,
+	YBS_E_ADC_OVLD,
+	YBS_E_RESET,
+	YBS_E_MALLOC, /*dynamic memory allocation fail*/
+
+	YBS_E_INIT,
+	YBS_E_RUN,
+	YBS_E_UPDATE, /*update ybs led display*/
+};
 
 static char cksum(const void *data, int n)
 {
@@ -43,23 +88,131 @@ static char cksum(const void *data, int n)
 	return sum;
 }
 
-static void ybs_reset_swdi(void)
+void cheb2_init(struct cheb2_s *f, float d1, float d2, float gain)
 {
-	int v;
-	int status = IRQEN;
-	float avg = 0;
+	memset(f, 0x00, sizeof(struct cheb2_s));
+	f->den1 = (int)(d1 * (1 << 13));
+	f->den2 = (int)(d2 * (1 << 13));
+	f->gain = (int)(gain * (1 << 13));
+}
+
+int cheb2(struct cheb2_s *f, int x)
+{
+	int x2, x1;
+	int y2, y1, y;
+	int v, v1, v2;
+
+	x2 = f->x2;
+	x1 = f->x1;
+	y2 = f->y2;
+	y1 = f->y1;
+
+	y = x + x1 + x1 + x2;
+	//v = f->den1 * y1 + f->den2 * y2;
+	v1 = f->den1 * (y1 >> 13);
+	v2 = f->den2 * (y2 >> 13);
+	v = v1 + v2;
+	y -= v;
+
+	f->x2 = x1;
+	f->x1 = x;
+	f->y2 = y1;
+	f->y1 = y;
+
+	//output
+	y = (y >> 13) * f->gain;
+	return y;
+}
+
+static void ybs_error(int ecode)
+{
+	static time_t led_timer;
+
+	switch(ecode) {
+	case YBS_E_ADC_OVLD:
+		led_timer = time_get(8000);
+		if(ybs_ecode != ecode) {
+			ybs_ecode = (ybs_ecode == YBS_E_OK) ? ecode : ybs_ecode;
+			led_error(ecode);
+		}
+		return;
+	case YBS_E_OK:
+		ybs_ecode = 0;
+		led_error(0);
+		led_flash(LED_RED);
+		return;
+
+	case YBS_E_INIT:
+		ybs_ecode = 0;
+		led_error(0);
+		led_on(LED_RED);
+		break;
+	case YBS_E_RUN:
+		if(ybs_ecode == YBS_E_OK) {
+			led_flash(LED_RED);
+		}
+		break;
+	case YBS_E_UPDATE:
+		break;
+
+	default:
+		ybs_ecode = ecode;
+		led_error(ecode);
+		return;
+	}
+
+	if(time_left(led_timer) < 0) {
+		if(ybs_ecode == YBS_E_ADC_OVLD) {
+			ybs_ecode = YBS_E_OK;
+			led_error(0);
+			led_flash(LED_RED);
+		}
+	}
+}
+
+static int ybs_reset_swdi(void)
+{
+	int v, f;
+
+	//chebyshev iir filter: fs=100Hz fc=1Hz
+	//cheb2_init(&ybs_cheb1, -1.9291698173542138f, 0.93337555158934971f, 0.0010514335587839682f);
+	cheb2_init(&ybs_cheb1, CHEB1_DEN1, CHEB1_DEN2, CHEB1_GAIN);
+	#ifdef YBS_FILTER_ORDER4
+	cheb2_init(&ybs_cheb2, CHEB2_DEN1, CHEB2_DEN2, CHEB2_GAIN);
+	#endif
 
 	IRQCLR |= IRQ_ADC;
-	for(int i = 0; i < 32; i ++) {
-		while(ybsd_vi_read(&v) == 0);
-		avg = (avg * i + v) / (i + 1);
-	}
-        mfg_data.swdi = -avg;
-	IRQEN |= (status & IRQ_ADC);
+	ybs_timer = time_get(50);
+	for(int i = 0; i < 500; i ++) {
+		while((ybsd_vi_read(&v) & 0x01) == 0){
+			if(time_left(ybs_timer) < 0) {
+				ybs_timer = time_get(50);
+				led_inv(LED_RED);
+			}
+		}
 
-	//update cksum
-	mfg_data.cksum = 0;
-	mfg_data.cksum = -cksum(&mfg_data, sizeof(mfg_data));
+		f = cheb2(&ybs_cheb1, v);
+		#ifdef YBS_FILTER_ORDER4
+		f = cheb2(&ybs_cheb2, f);
+		#endif
+		//printf("%d %d\n", v, f);
+	}
+	IRQEN |= IRQ_ADC;
+
+	if(1) {
+		mfg_data.swdi = -f;
+
+		//update cksum
+		mfg_data.cksum = 0;
+		mfg_data.cksum = -cksum(&mfg_data, sizeof(mfg_data));
+	}
+
+	//restore filter parameters
+	cheb2_init(&ybs_cheb1, CHEB1_DEN1, CHEB1_DEN2, CHEB1_GAIN);
+	#ifdef YBS_FILTER_ORDER4
+	cheb2_init(&ybs_cheb2, CHEB2_DEN1, CHEB2_DEN2, CHEB2_GAIN);
+	#endif
+	return 0;
 }
 
 static void ybs_reset_cache(void)
@@ -102,7 +255,6 @@ static void config_save(void)
 
 static int gf_format_output(float gf)
 {
-	char buf[32], n;
 	if(ybs_cfg.digital_bin) { //bin mode
 		short mgf10 = (short)(gf * 100);
 		uart_send(&uart0, &mgf10, sizeof(short));
@@ -110,20 +262,26 @@ static int gf_format_output(float gf)
 	}
 
 	//text mode
-	n = snprintf(buf, 32, "%.3f gf\n", gf);
-	uart_puts(&uart0, buf);
+	char *line = sys_malloc(64);
+	int n = snprintf(line, 64, "%.3f gf( %d )\n", gf, ybs_vadc);
+	uart_puts(&uart0, line);
+	sys_free(line);
 	return n;
 }
 
 static void ybs_init(void)
 {
-	led_flash(LED_RED);
-	if((mfg_data.date == 0) || cksum(&mfg_data, sizeof(mfg_data))) {
-		printf("manufacture data is corrupted!!!\nsystem reset now...\n");
-		led_flash(LED_RED);
+	cheb2_init(&ybs_cheb1, CHEB1_DEN1, CHEB1_DEN2, CHEB1_GAIN);
+	#ifdef YBS_FILTER_ORDER4
+	cheb2_init(&ybs_cheb2, CHEB2_DEN1, CHEB2_DEN2, CHEB2_GAIN);
+	#endif
+	if(cksum(&mfg_data, sizeof(mfg_data))) {
+		ybs_error(YBS_E_MFG_DATA);
 
 		//try to use default parameters
 		sprintf(mfg_data.sn, "default");
+
+		mfg_data.adcflt = ADCFLT_DEF;
 		mfg_data.Gi = mfg_data.Go = 1;
 		mfg_data.Di = mfg_data.Do = 0;
 
@@ -133,7 +291,7 @@ static void ybs_init(void)
 		mfg_data.DY = YVOFS;
 
 		mfg_data.hwgi = 0.4/100/512; //400mv/100g/512;
-		ybs_reset_swdi();
+		mfg_data.swdi = 0;
 	}
 
 	debounce_init(&ybs_key, 300, ybsd_rb_get());
@@ -142,10 +300,12 @@ static void ybs_init(void)
 
 static void ybs_update(void)
 {
-	if(debounce(&ybs_key, ybsd_rb_get()) && ybs_key.on) {
+	ybs_error(YBS_E_UPDATE);
+	if(debounce(&ybs_key, ybsd_rb_get()) && ybs_key.off) {
 		ybs_reset_swdi();
 		ybs_reset_cache();
 		config_save();
+		ybs_error(YBS_E_RUN);
 	}
 
 	if(ybs_ms > 0) {
@@ -160,14 +320,16 @@ int main(void)
 {
 	IRQCLR |= IRQ_ADC;
 	sys_init();
-	ybsd_rb_init();
-	ybsd_vi_init();
-	ybsd_vo_init();
+	printf("ybs v2.0d, SW: %s %s\n\r", __DATE__, __TIME__);
+	ybs_error(YBS_E_INIT);
 	ybs_init();
+	ybsd_rb_init();
+	ybsd_vi_init(mfg_data.adcflt);
+	ybsd_vo_init();
 #if CONFIG_YBS_MODBUS
 	mb_init(MB_RTU, 0x00, 9600);
 #endif
-	printf("ybs v2.0d, SW: %s %s\n\r", __DATE__, __TIME__);
+	ybs_error(YBS_E_RUN);
 	shell_mute((const struct console_s *) &uart0);
 	IRQEN |= IRQ_ADC;
 	while(1) {
@@ -181,12 +343,20 @@ int main(void)
 
 void ybs_isr(void)
 {
-	int v;
-
-	ybsd_vi_read(&v);
-	ybs_gf = ybs_gi * v + ybs_di;
-	v = (int)(ybs_gf * ybs_go + ybs_do);
-	ybsd_set_vo(v);
+	#define ADC0CERR (1 << 12)
+	int digi, status = ybsd_vi_read(&ybs_vadc);
+	if (status & ADC0CERR) {
+		ybs_error(YBS_E_ADC_OVLD);
+	}
+	else {
+		digi = cheb2(&ybs_cheb1, ybs_vadc);
+		#ifdef YBS_FILTER_ORDER4
+		digi = cheb2(&ybs_cheb2, digi);
+		#endif
+		ybs_gf = ybs_gi * digi + ybs_di;
+		digi = (int)(ybs_gf * ybs_go + ybs_do);
+		ybsd_set_vo(digi);
+	}
 
 	if(ybs_ms == 0) {
 		gf_format_output(ybs_gf);
@@ -204,6 +374,7 @@ static int cmd_ybs_func(int argc, char *argv[])
 		"ybs -F[/f] [ms]	read gf, float in text mode[/mgf10 in binary mode] in every ms\n"
 		"ybs -r[/w]		read[/write] mfg data in binary mode\n"
 		"ybs -S			save settings to nvm\n"
+		"ybs -c [flt_hex/[af sf chop]]	aduc adcflt reg config\n"
 	};
 
 	if(argc > 1) {
@@ -233,8 +404,7 @@ static int cmd_ybs_func(int argc, char *argv[])
 		return 0;
 	}
 
-	int n, ms, e = -1;
-	//ybs_cfg.digital_out = 0;
+	int n, v, ms, e = -1;
 	ybs_cfg.digital_bin = 0; //default to text mode
 	ybs_ms = -1; //disable ybs continue digital output mode
 	char *p;
@@ -305,6 +475,31 @@ static int cmd_ybs_func(int argc, char *argv[])
 			case 'S':
 				config_save();
 				uart0.putchar('0');
+				break;
+			case 'c':
+				v = mfg_data.adcflt;
+				if(argc == 3) { //ybs -c adcflt
+					v = htoi(argv[2]);
+					i ++;
+				}
+				if(argc == 5) { //ybs -c af sf chop
+					int af = atoi(argv[2]);
+					int sf = atoi(argv[3]);
+					int chop = atoi(argv[4]);
+					v &= ~((1 << 15) | (0x3f << 8) | 0x7f);
+					v |= (af & 0x3f) << 8;
+					v |= (sf & 0x7f);
+					v |= chop & 0x01;
+					i += 3;
+				}
+				mfg_data.adcflt = v;
+				//update cksum
+				mfg_data.cksum = 0;
+				mfg_data.cksum = -cksum(&mfg_data, sizeof(mfg_data));
+				IRQCLR |= IRQ_ADC;
+				ybsd_vi_init(v);
+				IRQEN |= IRQ_ADC;
+				printf("adcflt = 0x%02x\n", v);
 				break;
 			default:
 				break;

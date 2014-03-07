@@ -13,10 +13,10 @@
 #define YBSD_ADC_D2V(d) (d*1.2/(1<<23)/YBSD_ADC_PGA)
 #define YBSD_DAC_V2D(v) (v/1.2*(1<<16))
 
-int ybsd_vi_init(void);
+int ybsd_vi_init(int adcflt);
 static inline int ybsd_vi_read(int *p) { //ok return 1
 	*p = ADC0DAT;
-	return (ADCSTA & 0x01);
+	return (ADCSTA);
 }
 
 int ybsd_vo_init(void);

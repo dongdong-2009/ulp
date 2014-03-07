@@ -62,7 +62,14 @@ GY DY		ybs design specification
 struct ybs_mfg_data_s {
 	char cksum;
 	char sn[15]; //format: 20130328001, NULL terminated
-	unsigned flag;
+	short flag;
+
+
+//#define ADCFLT_DEF (0x8000 | 127) //Fadc = 16Hz, chop on
+//#define ADCFLT_DEF (0x8000 | 52) //Fadc = 50.299Hz, chop on
+#define ADCFLT_DEF (0x8000 | 25) //Fadc = 102Hz, chop on
+
+	short adcflt; //adc conversion setting
 
 	/*ybs design specification*/
 	float GA; //amplifier circuit gain, 10
@@ -81,11 +88,27 @@ struct ybs_mfg_data_s {
 	float Do; //unit: gf
 };
 
+//unlock
 enum {
 	YBS_UNLOCK_NONE,
 	//please add new ybs unlock type here ...
 
 	YBS_UNLOCK_ALL,
 };
+
+struct cheb2_s {
+	//note: num0 = 1; num1 = 2; num2 = 1; den0 = 1;
+	int den1; //=den1 << 13
+	int den2; //=den2 << 13
+	int gain; //=gain << 13
+	int x1;
+	int x2;
+	int y1;
+	int y2;
+};
+
+//chebyshev iir filter
+void cheb2_init(struct cheb2_s *f, float d1, float d2, float gain);
+int cheb2(struct cheb2_s *f, int x);
 
 #endif
