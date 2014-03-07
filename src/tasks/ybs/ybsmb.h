@@ -8,8 +8,8 @@
 #define __YBSMB_H__
 
 enum {
-	YBS_E_OK,
-	YBS_E_CFG,
+	YBS_MB_E_OK,
+	YBS_MB_E_CFG,
 };
 
 enum {

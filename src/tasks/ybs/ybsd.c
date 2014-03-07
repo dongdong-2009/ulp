@@ -12,26 +12,16 @@
 #include "ybsd.h"
 #include "ybs.h"
 
-#define CONFIG_ADUC_50HZ_CHOP 1
-
 void ADC_IRQHandler(void)
 {
 	ybs_isr();
 }
 
-int ybsd_vi_init(void)
+int ybsd_vi_init(int adcflt)
 {
 	ADCMDE = (1 << 7) | 3; //force adc to idle mode
 	IEXCON = (3 << 6) | (5 << 1) | 1; //Iexc = 1mA * 2, 10uA diag current source = on
-#if CONFIG_ADUC_50HZ
-	ADCFLT = (1 << 7) | 127; //Fadc = 50Hz, chop off
-#endif
-#if CONFIG_ADUC_50HZ_CHOP
-	ADCFLT = 0xc000 | (1 << 7) | 52;//Fadc = 50.3Hz, chop on
-#endif
-#if CONFIG_ADUC_10HZ_CHOP
-	ADCFLT = 0xc000 | (6 << 8) | (1 << 7) | 60;//AF=8, SF=60, Fadc = 11.9Hz, chop on
-#endif
+	ADCFLT = adcflt;
 
 	ADC0CON = 0x00; //disable both adc first
 	ADC1CON = 0x00;
