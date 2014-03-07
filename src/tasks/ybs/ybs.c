@@ -459,8 +459,9 @@ static int cmd_ybs_func(int argc, char *argv[])
 				uart_send(&uart0, &mfg_data, sizeof(mfg_data));
 				break;
 			case 'w':
+				IRQCLR |= IRQ_ADC;
 				p = (char *) &mfg_data;
-				ybs_timer = time_get(100);
+				ybs_timer = time_get(500);
 				for(n = 0; n < sizeof(mfg_data);) {
 					if(time_left(ybs_timer) < 0)
 						break;
@@ -470,6 +471,7 @@ static int cmd_ybs_func(int argc, char *argv[])
 						n ++;
 					}
 				}
+				IRQEN |= IRQ_ADC;
 				if((n != sizeof(mfg_data)) || cksum(&mfg_data, sizeof(mfg_data))) { //fail
 					uart0.putchar('1');
 					break;
