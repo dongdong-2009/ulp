@@ -8,8 +8,17 @@
 #ifndef __OID_MCD_H__
 #define __OID_MCD_H__
 
+#include "config.h"
 #include "dmm/ybs_dmm.h"
 #include "dmm2/ybs_dmm.h"
+
+#ifdef CONFIG_BRD_HWV20
+#define MCD_CH_DET	DMM_CH_DET
+#define MCD_CH_ASIG	DMM_CH_ASIG
+#else
+#define MCD_CH_DET	11
+#define MCD_CH_ASIG	10
+#endif
 
 int mcd_init(void);
 int mcd_mode(char mode); /*DMM_V_AUTO, DMM_R_AUTO, ...*/

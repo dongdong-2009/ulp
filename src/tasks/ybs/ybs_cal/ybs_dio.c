@@ -14,7 +14,7 @@
 #include <string.h>
 
 #define __cmd(x) (ybs_version == 0x20) ? "ybs -"##x##"\n\r" : x
-#define YBS_RESPONSE_MS 100
+#define YBS_RESPONSE_MS 500
 
 static struct ybs_mfg_data_s mfg_data;
 static int ybs_version;
@@ -23,9 +23,9 @@ static void __ybs_init(void)
 {
 	ybs_uart_sel();
 	if(ybs_version == 0 || ybs_version == 0x20) {
-		uart_cfg_t cfg = { .baud = 38400 };
+		uart_cfg_t cfg = { .baud = 9600 };
 		ybs_uart.init(&cfg);
-		uart_puts(&ybs_uart, "ybs uuuuu\r\n");
+		uart_puts(&ybs_uart, "\rybs uuuuu\r\n");
 
 		time_t deadline = time_get(YBS_RESPONSE_MS);
 		while(1) {
@@ -101,6 +101,7 @@ static int __ybs_mfg_write(void)
 
 	mfg_data.cksum = 0;
 	mfg_data.cksum = -cksum(&mfg_data, sizeof(mfg_data));
+	sys_mdelay(10);
 	uart_send(&ybs_uart, &mfg_data, sizeof(mfg_data));
 
 	int ecode = -E_YBS_TIMEOUT;
@@ -416,7 +417,7 @@ static int cmd_ybs_func(int argc, char *argv[])
 				printf("save %s(%d)\n", (ecode) ? "FAIL" : "PASS", ecode);
 				break;
 			case 'g':
-				baud = (argc > 2) ? atoi(argv[2]) : 38400;
+				baud = (argc > 2) ? atoi(argv[2]) : 9600;
 				{ //ybs communication i/f init
 					uart_cfg_t cfg;
 					cfg.baud = baud;

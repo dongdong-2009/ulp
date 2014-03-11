@@ -16,7 +16,7 @@
 
 #define __DEBUG(X) X
 #define MCD_LINEBUF_BYTES 32
-#define MCD_GAIN 25 //max5490 is 25:1
+#define MCD_GAIN (25*1.037) //max5490 is 25:1
 
 enum {
 	MCD_OK,
@@ -269,6 +269,7 @@ DECLARE_SHELL_CMD(cmd_mcd)
 void main(void)
 {
 	sys_init();
+	monitor_init();
 	static const uart_cfg_t cfg = {.baud = 9600};
 	mcd_bus->init(&cfg);
 
