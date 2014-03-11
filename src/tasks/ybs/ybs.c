@@ -54,6 +54,7 @@ static struct cheb2_s ybs_cheb1;
 #ifdef YBS_FILTER_ORDER4
 static struct cheb2_s ybs_cheb2;
 #endif
+static char ybs_temp[sizeof(struct ybs_mfg_data_s)]; /*temp buffer*/
 
 static struct {
 	int analog_vout : 1; /*continue analog voltage out*/
@@ -224,7 +225,7 @@ static int ybs_reset_swdi(void)
 static void ybs_reset_cache(void)
 {
 	float swgi, swgo, swdi, swdo;
-
+	IRQCLR |= IRQ_ADC;
 	/*HW: Vybs = (gf_rough * swgo + swdo) * gdac * gamp + damp, note:
 	1, amp = amplifier = ybs_a
 	2, gdac = vout/din = vout_1v/din_1v = 1v/v2d(1v)
@@ -252,6 +253,7 @@ static void ybs_reset_cache(void)
 	*/
 	ybs_go = mfg_data.Go * swgo;
 	ybs_do = mfg_data.Do * swgo + swdo;
+	IRQEN |= IRQ_ADC;
 }
 
 static void config_save(void)
@@ -268,10 +270,9 @@ static int gf_format_output(float gf)
 	}
 
 	//text mode
-	char *line = sys_malloc(64);
+	char *line = ybs_temp;
 	int n = snprintf(line, 64, "%.3f gf( %d )\n", gf, ybs_vadc);
 	uart_puts(&uart0, line);
-	sys_free(line);
 	return n;
 }
 
@@ -459,26 +460,34 @@ static int cmd_ybs_func(int argc, char *argv[])
 				uart_send(&uart0, &mfg_data, sizeof(mfg_data));
 				break;
 			case 'w':
-				IRQCLR |= IRQ_ADC;
-				p = (char *) &mfg_data;
+				p = ybs_temp;
 				ybs_timer = time_get(500);
+				uart_flush(&uart0);
+
+				//read sizeof(mfg_data) bytes
+				IRQCLR |= IRQ_ADC;
 				for(n = 0; n < sizeof(mfg_data);) {
 					if(time_left(ybs_timer) < 0)
 						break;
 
 					if(uart0.poll() > 0) {
 						p[n] = (char) uart0.getchar();
+						uart0.putchar(p[n]); //echo back
 						n ++;
 					}
 				}
 				IRQEN |= IRQ_ADC;
-				if((n != sizeof(mfg_data)) || cksum(&mfg_data, sizeof(mfg_data))) { //fail
-					uart0.putchar('1');
-					break;
+				//verify data received
+				if(n == sizeof(mfg_data)) {
+					if(cksum(p, sizeof(mfg_data)) == 0) { //pass
+						uart0.putchar('0');
+						memcpy(&mfg_data, p, sizeof(mfg_data));
+						ybs_reset_cache();
+						break;
+					}
 				}
-				//ok
-				uart0.putchar('0');
-				ybs_reset_cache();
+				//fail
+				uart0.putchar('1');
 				break;
 			case 'S':
 				config_save();
