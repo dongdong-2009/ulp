@@ -21,7 +21,7 @@ static char uart_ridx, uart_widx;
 
 void UART_IRQHandler(void)
 {
-	while(COMSTA0 & 1) {
+	if(COMSTA0 & 1) {
 		uart_fifo[uart_widx ++] = COMRX;
 		uart_widx -= (uart_widx == RFSZ) ? RFSZ : 0;
 	}
@@ -67,7 +67,7 @@ static int uart_Init(const uart_cfg_t *cfg)
 #if RFSZ > 1
 	uart_ridx = 0;
 	uart_widx = 0;
-	IRQEN |= IRQ_UART;
+	FIQEN |= IRQ_UART;
 	COMIEN0 = 1; //Enable rx buf full irq
 #endif
 	return 0;

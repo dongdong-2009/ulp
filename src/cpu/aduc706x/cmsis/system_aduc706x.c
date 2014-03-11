@@ -48,7 +48,7 @@ void SysTick_Config(unsigned cd)
 	TCfg(0, T_D1, T_HCLK, 1); //TIM0 in auto reload mode
 	TMod(0, T_DOWN, T_BIN); //binary mode
 	TGo(0, cd - 1, T_RUN);
-	FIQEN |= IRQ_TIM0;
+	IRQEN |= IRQ_TIM0;
 }
 
 void SystemInit (void)
