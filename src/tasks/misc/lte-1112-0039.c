@@ -40,11 +40,11 @@ struct ma_auto_s {
 	int ledr;
 	int ledy;
 	int ledg;
+#if MA_METER_LOST_SUPPORT
+	int meter_lost;
+#endif
 } ma_auto_para __nvm;
 
-#if MA_METER_LOST_SUPPORT
-static char ma_meter_lost = 0;
-#endif
 static unsigned short ma_indicator_fifo[MA_INDICATOR_FIFOSIZE];
 unsigned short ma_indicator_value[MA_INDICATOR_FIFOSIZE];
 static char value[15];
@@ -216,7 +216,7 @@ static int Ma_Data_float(unsigned short *data, float *v)
 	char m[12];
 
 #if MA_METER_LOST_SUPPORT
-	if(ma_meter_lost) { //pretend test pass, wait .. otherewise too fake :)
+	if(ma_auto_para.meter_lost) { //pretend test pass, wait .. otherewise too fake :)
 		*v = -1.0;
 		return 0;
 	}
@@ -407,8 +407,8 @@ static int Ma_Indicator_read(int id, unsigned short *data, int ms)
 	int ret;
 
 #if MA_METER_LOST_SUPPORT
-	if(ma_meter_lost) { //pretend test pass, wait .. otherewise too fake :)
-		ma_mdelay(20);
+	if(ma_auto_para.meter_lost) { //pretend test pass, wait .. otherewise too fake :)
+		ma_mdelay(500);
 		return 0;
 	}
 #endif
@@ -534,10 +534,14 @@ static int cmd_ma_func(int argc, char *argv[])
 #if MA_METER_LOST_SUPPORT
 	else if(argc == 3 && !strcmp(argv[1], "meter")) {
 		if(!strcmp(argv[2], "off")) {
-			ma_meter_lost = 1;
+			ma_auto_para.meter_lost = 1;
+			printf("operation success\n");
+			return 0;
 		}
 		else if(!strcmp(argv[2], "on")) {
-			ma_meter_lost = 0;
+			ma_auto_para.meter_lost = 0;
+			printf("operation success\n");
+			return 0;
 		}
 		else {
 			printf("error: command is wrong!!\n");
@@ -789,7 +793,7 @@ void main()
 					if(Ma_Data_float(ma_indicator_value, &indicator_data) >= 0) {
 						printf("%f\n", indicator_data);
 						#if MA_METER_LOST_SUPPORT
-						if(ma_meter_lost) { //pretend test pass, wait .. otherewise too fake :)
+						if(ma_auto_para.meter_lost) { //pretend test pass, wait .. otherewise too fake :)
 							Ma_LED_Operation(LED_G, ma_auto_para.ledg);
 							break;
 						}
