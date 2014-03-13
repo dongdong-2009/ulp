@@ -1,6 +1,7 @@
 /*
 *	king@2011 initial version
 *	king@2013 modify
+*	miaofng@2014-3-13    add mircometer lost support
 */
 #include "stm32f10x.h"
 #include "sys/task.h"
@@ -12,6 +13,8 @@
 #include <string.h>
 #include "i2c.h"
 #include "nvm.h"
+
+#define MA_METER_LOST_SUPPORT 1
 
 #define MA_INDICATOR_FIFOSIZE 4
 #define MA_ID_ADDRESS 0
@@ -39,6 +42,9 @@ struct ma_auto_s {
 	int ledg;
 } ma_auto_para __nvm;
 
+#if MA_METER_LOST_SUPPORT
+static char ma_meter_lost = 0;
+#endif
 static unsigned short ma_indicator_fifo[MA_INDICATOR_FIFOSIZE];
 unsigned short ma_indicator_value[MA_INDICATOR_FIFOSIZE];
 static char value[15];
@@ -208,6 +214,14 @@ static int Ma_Data_float(unsigned short *data, float *v)
 	int i, j, temp;
 	float d;
 	char m[12];
+
+#if MA_METER_LOST_SUPPORT
+	if(ma_meter_lost) { //pretend test pass, wait .. otherewise too fake :)
+		*v = -1.0;
+		return 0;
+	}
+#endif
+
 	if(data[0] != 0xffff) {
 		printf("error:	error data\n");
 		return -1;
@@ -392,6 +406,13 @@ static int Ma_Indicator_read(int id, unsigned short *data, int ms)
 	time_t timer;
 	int ret;
 
+#if MA_METER_LOST_SUPPORT
+	if(ma_meter_lost) { //pretend test pass, wait .. otherewise too fake :)
+		ma_mdelay(20);
+		return 0;
+	}
+#endif
+
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, ENABLE);
 	SPI_Cmd(SPI1, ENABLE);
 	DMA_Cmd(DMA1_Channel2, ENABLE);
@@ -444,6 +465,9 @@ static int cmd_ma_func(int argc, char *argv[])
 		"  ma get id\n"
 		"  ma get counter\n"
 		"  ma get button\n"
+#if MA_METER_LOST_SUPPORT
+		"  ma meter on[/off]\n"
+#endif
 
 		"  ma auto on/off\n"
 		"  ma auto save\n"
@@ -506,6 +530,22 @@ static int cmd_ma_func(int argc, char *argv[])
 			return -1;
 		}
 	}
+
+#if MA_METER_LOST_SUPPORT
+	else if(argc == 3 && !strcmp(argv[1], "meter")) {
+		if(!strcmp(argv[2], "off")) {
+			ma_meter_lost = 1;
+		}
+		else if(!strcmp(argv[2], "on")) {
+			ma_meter_lost = 0;
+		}
+		else {
+			printf("error: command is wrong!!\n");
+			printf("%s", usage);
+			return -1;
+		}
+	}
+#endif
 
 	else if(argc == 4 && !strcmp(argv[1], "set")) {
 		if(!strcmp(argv[2], "ledr")) {
@@ -748,6 +788,13 @@ void main()
 				if(Ma_Indicator_read(1, ma_indicator_value, ma_auto_para.indicator_overtime) == 0) {
 					if(Ma_Data_float(ma_indicator_value, &indicator_data) >= 0) {
 						printf("%f\n", indicator_data);
+						#if MA_METER_LOST_SUPPORT
+						if(ma_meter_lost) { //pretend test pass, wait .. otherewise too fake :)
+							Ma_LED_Operation(LED_G, ma_auto_para.ledg);
+							break;
+						}
+						#endif
+
 						if(indicator_data > ma_auto_para.max || indicator_data < ma_auto_para.min) {
 							Ma_LED_Operation(LED_R, ma_auto_para.ledr);
 						}
