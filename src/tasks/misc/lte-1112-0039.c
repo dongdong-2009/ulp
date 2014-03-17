@@ -15,6 +15,7 @@
 #include "nvm.h"
 
 #define MA_METER_LOST_SUPPORT 1
+#define MA_DDEF_SUPPORT 1
 
 #define MA_INDICATOR_FIFOSIZE 4
 #define MA_ID_ADDRESS 0
@@ -43,7 +44,16 @@ struct ma_auto_s {
 #if MA_METER_LOST_SUPPORT
 	int meter_lost;
 #endif
+#if MA_DDEF_SUPPORT
+	int ddef; //device default
+#endif
 } ma_auto_para __nvm;
+
+#if MA_DDEF_SUPPORT
+#define ma_ddef ma_auto_para.ddef
+#else
+#define ma_ddef 1
+#endif
 
 static unsigned short ma_indicator_fifo[MA_INDICATOR_FIFOSIZE];
 unsigned short ma_indicator_value[MA_INDICATOR_FIFOSIZE];
@@ -458,6 +468,7 @@ static int cmd_ma_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"  ma set ledr/ledg/ledy 0~100\n"
+		"  ma set ddef on[/off]  set device default status\n"
 		"  ma set divice1/divice2 on/off\n"
 		"  ma set id xxxxxxxxxx\n"
 		"  ma set counter xxxxxxxxxx/+\n"
@@ -561,6 +572,25 @@ static int cmd_ma_func(int argc, char *argv[])
 			printf("operation success\n");
 			return 0;
 		}
+#if MA_DDEF_SUPPORT
+		else if(!strcmp(argv[2], "ddef")) {
+			if(!strcmp(argv[3], "on")) {
+				ma_auto_para.ddef = 1;
+				printf("operation success\n");
+				return 0;
+			}
+			else if(!strcmp(argv[3], "off")) {
+				ma_auto_para.ddef = 0;
+				printf("operation success\n");
+				return 0;
+			}
+			else {
+				printf("error: command is wrong!!\n");
+				printf("%s", usage);
+				return -1;
+			}
+		}
+#endif
 		else if(!strcmp(argv[2], "ledy")) {
 			sscanf(argv[3], "%d", &a);
 			if(Ma_LED_Operation(LED_Y, a)) {
@@ -772,9 +802,9 @@ void main()
 	Ma_Init();
 
 	Ma_LED_Operation(LED_Y, ma_auto_para.ledy);
-	Ma_Device_Operation(2, 1);
+	Ma_Device_Operation(2, ma_ddef);
 	ma_mdelay(ma_auto_para.device2);
-	Ma_Device_Operation(1, 1);
+	Ma_Device_Operation(1, ma_ddef);
 	ma_mdelay(ma_auto_para.device1);
 
 	while(1) {
@@ -784,9 +814,9 @@ void main()
 				ma_mdelay(200);
 			}
 			Ma_LED_Operation(LED_Y, ma_auto_para.ledy);
-			Ma_Device_Operation(1, 0);
+			Ma_Device_Operation(1, !ma_ddef);
 			ma_mdelay(ma_auto_para.device1);
-			Ma_Device_Operation(2, 0);
+			Ma_Device_Operation(2, !ma_ddef);
 			ma_mdelay(ma_auto_para.device2);
 			for(i = 0; i < 5; i++) {
 				if(Ma_Indicator_read(1, ma_indicator_value, ma_auto_para.indicator_overtime) == 0) {
@@ -826,9 +856,9 @@ void main()
 				}
 				Ma_LED_Operation(LED_R, 0);
 			}
-			Ma_Device_Operation(2, 1);
+			Ma_Device_Operation(2, ma_ddef);
 			ma_mdelay(ma_auto_para.device2);
-			Ma_Device_Operation(1, 1);
+			Ma_Device_Operation(1, ma_ddef);
 			ma_mdelay(ma_auto_para.device1);
 		}
 		task_Update();
