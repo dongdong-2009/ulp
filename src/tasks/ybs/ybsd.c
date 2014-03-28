@@ -34,7 +34,13 @@ int ybsd_vi_init(int adcflt)
 
 	/*zcal*/
 	ADCMDE = (1 << 7) | 0x04; //self offset calibration
-	while((ADCSTA & 0x01) == 0);
+	time_t deadline = time_get(500);
+	while((ADCSTA & 0x01) == 0) {
+		if(time_left(deadline) < 0) {
+			ybs_error(YBS_E_ADC_ZCAL);
+			break;
+		}
+	}
 
 	ADCMDE = (1 << 7) | 0x01;
 	ADCMSKI = 1 << 0;

@@ -15,8 +15,9 @@
 
 int ybsd_vi_init(int adcflt);
 static inline int ybsd_vi_read(int *p) { //ok return 1
+	int status = ADCSTA;
 	*p = ADC0DAT;
-	return (ADCSTA);
+	return status;
 }
 
 int ybsd_vo_init(void);
