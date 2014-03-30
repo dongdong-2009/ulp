@@ -66,11 +66,11 @@ struct o2s_s {
 	int mohm;
 	int min; //mohm_min
 	int max; //mohm_max
-	int grounded : 8;
-	int lines : 4;
-	int deleted : 1; //used by cvi only
-	int newbie : 1; //used by cvi only
-	int tcode : 16;
+	char grounded;
+	char lines : 4;
+	char deleted : 1;
+	char newbie : 1;
+	unsigned short tcode;
 };
 
 struct oid_config_s {
