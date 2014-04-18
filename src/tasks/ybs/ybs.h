@@ -88,6 +88,24 @@ struct ybs_mfg_data_s {
 	float Do; //unit: gf
 };
 
+/* led policy:
+1, init -> led keep on
+2, normal working -> led flash(1s on, 1s off)
+3, reset key is pressed -> fast flash(50mS on, 50mS off), clear all errors after reset
+4, error mode, flash error code
+*/
+enum {
+	YBS_E_OK,
+	YBS_E_RESET, /*reset key been pressed, note: all errors will be cleared!!!*/
+	YBS_E_MFG_DATA,
+	YBS_E_ADC_OVLD,
+	YBS_E_ADC_ZCAL,
+	YBS_E_MALLOC, /*dynamic memory allocation fail*/
+	YBS_E_INVALID
+};
+
+void ybs_error(int ecode);
+
 //unlock
 enum {
 	YBS_UNLOCK_NONE,
