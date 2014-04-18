@@ -57,7 +57,7 @@ static struct oid_s {
 	int mohm; //typical resistance
 	char pin2func[NR_OF_PINS]; /*such as: pin1 = gray*/
 	char func2pin[NR_OF_PINS]; /*such as: pin_gray = 1*/
-	char grounded; //'Y', 'N', '?', 'X'
+	char grounded; //'Y', 'N', '?', '-'
 } oid;
 
 static void oid_error(int ecode)
@@ -251,7 +251,7 @@ int oid_hot_get_mv(void)
 
 static void oid_1_ident(void)
 {
-	oid.grounded = 'X';
+	oid.grounded = '-';
 	oid.mohm = 0;
 
 	oid.pin2func[PIN_1] = FUNC_BLACK;
@@ -306,7 +306,7 @@ static void oid_2_ident(void)
 /*black, white, white*/
 static void oid_3_ident(void)
 {
-	oid.grounded = 'X';
+	oid.grounded = '-';
 	oid.mohm = 0;
 
 	//to identify grounded or not
@@ -417,7 +417,7 @@ static void oid_identify(void)
 				return;
 			}
 
-			__DEBUG(printf("R[%d][%d] = %d mohm\n", pinA, pinK, mohm);)
+			//__DEBUG(printf("R[%d][%d] = %d mohm\n", pinA, pinK, mohm);)
 			if((mohm != DMM_DATA_UNKNOWN) && (mohm != DMM_DATA_INVALID)) {
 				e += (mohm < DMM_MOHM_MIN) ? 1 : 0;
 				e += (mohm > DMM_MOHM_MAX) ? 1 : 0;
@@ -425,6 +425,9 @@ static void oid_identify(void)
 					oid_error(OID_E_SYS_DMM_DATA);
 					return;
 				}
+
+				mohm -= oid_mohm_cal.val;
+				mohm = (mohm < 0) ? 0 : mohm;
 			}
 
 			e = 0;
@@ -436,9 +439,8 @@ static void oid_identify(void)
 				oid_error(ecode);
 			}
 
-			mohm -= oid_mohm_cal.val;
-			mohm = (mohm < 0) ? 0 : mohm;
 			oid.R[pinA][pinK] = mohm;
+			__DEBUG(printf("RCAL[%d][%d] = %d mohm\n", pinA, pinK, mohm);)
 		}
 	}
 
@@ -520,7 +522,7 @@ static void oid_1_diag(void)
 	oid_ohm_test(PIN_BLACK, PIN_SHELL, OPEN);
 	oid_hot_test(PIN_BLACK, PIN_SHELL);
 
-	oid.grounded = 'X';
+	oid.grounded = '-';
 	oid.mohm = 0;
 }
 
@@ -547,7 +549,7 @@ static void oid_3_diag(void)
 	int mohm = oid_ohm_test(PIN_WHITE0, PIN_WHITE1, HEATWIRE);
 	oid_hot_test(PIN_BLACK, PIN_SHELL);
 
-	oid.grounded = 'X';
+	oid.grounded = '-';
 	oid.mohm = mohm;
 }
 
@@ -608,7 +610,7 @@ static void oid_diagnosis(void)
 				return;
 			}
 
-			__DEBUG(printf("R[%d][%d] = %d mohm\n", pinA, pinK, mohm);)
+			//__DEBUG(printf("R[%d][%d] = %d mohm\n", pinA, pinK, mohm);)
 			if((mohm != DMM_DATA_UNKNOWN) && (mohm != DMM_DATA_INVALID)) {
 				e += (mohm < DMM_MOHM_MIN) ? 1 : 0;
 				e += (mohm > DMM_MOHM_MAX) ? 1 : 0;
@@ -616,11 +618,13 @@ static void oid_diagnosis(void)
 					oid_error(OID_E_SYS_DMM_DATA);
 					return;
 				}
+
+				mohm -= oid_mohm_cal.val;
+				mohm = (mohm < 0) ? 0 : mohm;
 			}
 
-			mohm -= oid_mohm_cal.val;
-			mohm = (mohm < 0) ? 0 : mohm;
 			oid.R[pinA][pinK] = mohm;
+			__DEBUG(printf("RCAL[%d][%d] = %d mohm\n", pinA, pinK, mohm);)
 		}
 	}
 
@@ -693,7 +697,7 @@ static void oid_update(void)
 	int e, mohm;
 
 	//ocfg is correct?
-	char sum, *p = (char *) &ocfg;
+	char sum = 0, *p = (char *) &ocfg;
 	for(int i = 0; i < sizeof(ocfg); i ++) {
 		sum += p[i];
 	}
