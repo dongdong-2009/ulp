@@ -12,3 +12,4 @@ obj-$(CONFIG_TASK_YBS) += ybs/
 obj-$(CONFIG_TASK_YBSREPEATER) += ybs_repeater/
 obj-$(CONFIG_TASK_SIMULATOR) += simulator/
 obj-$(CONFIG_TASK_OID) += oid/
+obj-$(CONFIG_TASK_IRT) += irt/

@@ -1,0 +1,9 @@
+CONFIG_IRT_IRC
+  irt control board
+
+CONFIG_IRT_MXC5324
+  matrix control board, (4+1CH_SW)x32 + 4(BUS_SW) high voltage matrix
+
+CONFIG_IRC_INSWSZ
+  commands are encoded in 32bit instruction words, this macro define
+  this buffer size in words.
