@@ -19,6 +19,7 @@ int main(void)
 	vm_init();
 	printf("irc v1.0, SW: %s %s\n\r", __DATE__, __TIME__);
 	while(1) {
+		sys_update();
 	}
 }
 
