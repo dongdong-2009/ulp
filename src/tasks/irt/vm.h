@@ -10,6 +10,9 @@
 
 #include "config.h"
 
+#define NR_OF_LINE_MAX 9999
+#define NR_OF_BUS_MAX 0004
+
 enum {
 	VM_OPCODE_OPEN,
 	VM_OPCODE_CLOSE,
@@ -24,22 +27,22 @@ enum {
 
 typedef union opcode_u {
 	struct {
-		short line : 12;
-		short bus : 2;
-		short type : 2;
+		unsigned short line : 12;
+		unsigned short bus : 2;
+		unsigned short type : 2;
 	};
 
 	struct {
-		short line : 12;
-		short type : 4;
+		unsigned short line : 12;
+		unsigned short type : 4;
 	} special;
 
 	struct {
-		short arm : 12;
+		unsigned short arm : 12;
 
 	} seq;
 
-	short value;
+	unsigned short value;
 } opcode_t;
 
 void vm_init(void);
@@ -53,9 +56,5 @@ int vm_fetch( //non-zero if error happened
 );
 int vm_opgrp_is_over(void); //group finish
 int vm_is_opc(void); //operation complete
-
-/*arm is used to notify the group length in scan operation,
-op will fail if  vm_opq_is_not_empty*/
-int vm_scan_set_arm(int arm);
 
 #endif

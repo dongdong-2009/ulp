@@ -1,4 +1,5 @@
 ifeq ($(CONFIG_IRT_IRC),y)
+	obj-y += err.o
 	obj-y += irc.o
 	obj-y += vm.o
 endif
