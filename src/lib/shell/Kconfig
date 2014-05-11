@@ -12,6 +12,7 @@ int "max bytes of command history?" CONFIG_SHELL_LEN_HIS_MAX 256
 bool "multiple console support" CONFIG_SHELL_MULTI
 bool "cmd pattern like 0,2-5,8 support" CONFIG_CMD_PATTERN
 bool "cmd repeatedly run support" CONFIG_CMD_REPEAT
+bool "@ replace \r support" CONFIG_CMD_RET_OPT
 if [ "$CONFIG_CMD_REPEAT" = "y" ]; then
 	bool "enhanced cmd background run(like cmdxxx&100) support" CONFIG_CMD_BKG
 fi

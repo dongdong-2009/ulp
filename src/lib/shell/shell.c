@@ -299,8 +299,10 @@ int shell_ReadLine(const char *prompt, char *str)
 				strcpy(shell -> cmd_buffer, "pause");
 			else
 				strcpy(shell -> cmd_buffer, "kill all");
+#if CONFIG_CMD_RET_OPT
 		case '@':
 			shell_print("%c", '\r');
+#endif
 		case '\r':		// Return
 			shell -> cmd_idx = -1;
 			ready = 1;
