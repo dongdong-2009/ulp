@@ -54,7 +54,8 @@ int vm_fetch( //non-zero if error happened
 	void *buf, //rx buffer,  normally = can_msg.data[8]
 	int *bytes //input buf size, output bytes filled
 );
-int vm_opgrp_is_over(void); //group finish
+int vm_opgrp_is_over(void); //group finish?
+int vm_opgrp_is_scan(void); //yes->trig dmm is needed, valid only when group is over
 int vm_is_opc(void); //operation complete
 
 #endif

@@ -26,6 +26,7 @@ static int vm_scan_cnt;
 
 static struct {
 	unsigned grp_over : 1;
+	unsigned grp_scan : 1;
 } vm_status;
 
 void vm_init(void)
@@ -39,6 +40,7 @@ void vm_init(void)
 	vm_odata_seq.special.type = VM_OPCODE_NUL;
 	vm_scan_arm = 1;
 	vm_scan_cnt = 0;
+	memset(&vm_status, 0x00, sizeof(vm_status));
 	vm_status.grp_over = 1;
 }
 
@@ -52,6 +54,12 @@ int vm_opgrp_is_over(void)
 		}
 	}
 	return grp_is_over;
+}
+
+int vm_opgrp_is_scan(void)
+{
+	int grp_is_scan = (vm_status.grp_scan) ? 1 : 0;
+	return grp_is_scan;
 }
 
 static int vm_opq_is_not_empty(void)
@@ -178,6 +186,7 @@ int vm_execute(void)
 
 	/*group over?*/
 	int grp_is_over = 1;
+	int grp_is_scan = 0;
 	if(vm_odata.special.type != VM_OPCODE_NUL) {
 		//identify current opcode type
 		int type = vm_odata.type;
@@ -189,6 +198,8 @@ int vm_execute(void)
 				//Serious error!!!
 			}
 		}
+
+		grp_is_scan = (type == VM_OPCODE_SCAN) ? 1 : grp_is_scan;
 
 		//calculate according to the different opcode type
 		if((type == VM_OPCODE_OPEN) || (type == VM_OPCODE_CLOSE)) {
@@ -216,6 +227,7 @@ int vm_execute(void)
 		}
 	}
 	vm_status.grp_over = grp_is_over;
+	vm_status.grp_scan = grp_is_scan;
 
 	if(prefetch) {
 		vm_prefetch();
