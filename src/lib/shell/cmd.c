@@ -201,6 +201,14 @@ enum {
 	__CMD_EXEC_FLAG_CLOSE,
 };
 
+__weak int cmd_xxx_func(int argc, char *argv[])
+{
+	return -1;
+}
+
+const cmd_t cmd_xxx = {"xxx", cmd_xxx_func, "default cmdline handler"};
+DECLARE_SHELL_CMD(cmd_xxx)
+
 static int __cmd_exec(struct cmd_list_s *clst, int flag)
 {
 	int argc, ret, n;
@@ -222,6 +230,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 	argc = __cmd_parse(clst -> cmdline, clst -> len, argv, CONFIG_SHELL_NR_PARA_MAX);
 	if(argc > 0) {
 		cmd = (cmd_queue->trap != NULL) ? cmd_queue->trap : __name2cmd(argv[0]);
+		cmd = (cmd == NULL) ? &cmd_xxx : cmd;
 		if(cmd != NULL) {
 #ifdef CONFIG_CMD_BKG
 			if(clst->repeat) {
