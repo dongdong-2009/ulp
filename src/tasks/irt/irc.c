@@ -18,7 +18,15 @@
 static const can_bus_t *irc_bus = &can1;
 static volatile int irc_vmcomp_pulsed;
 static int irc_ecode = 0;
-static char irc_busy = 0;
+static int irc_mode = IRC_MODE_L2T;
+static int irc_mode_new;
+
+static struct {
+	unsigned opc : 1;
+	unsigned rst : 1;
+	unsigned abt : 1;
+	unsigned nmb : 1; /*new mode*/
+} irc_status;
 
 #if 1
 #include "stm32f10x.h"
@@ -85,6 +93,27 @@ static inline void _irc_init(void)
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 }
+
+static inline void _rly_init(void)
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
+
+	/*PE0~PE7*/
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | \
+		GPIO_Pin_3 |GPIO_Pin_4 |GPIO_Pin_5 |GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+}
+
+static inline void _rly_set(int x)
+{
+	int y = vGPIOE->ODR ;
+	y &= 0xf0;
+	y |= x;
+	vGPIOE->ODR = y;
+}
 #endif
 
 void irc_init(void)
@@ -92,6 +121,7 @@ void irc_init(void)
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
 	irc_bus->init(&cfg);
 	_irc_init();
+	_rly_init();
 }
 
 int relay_latch(void)
@@ -148,6 +178,52 @@ int dmm_trig(void)
 	return -1;
 }
 
+static int irc_is_opc(void)
+{
+	vm_is_opc();
+	opc = (irc_status.opc) ? opc : 0;
+	return opc;
+}
+
+static int irc_reset(void)
+{
+	return 0;
+}
+
+static int irc_abort(void)
+{
+	return 0;
+}
+
+static int irc_mode(int mode)
+{
+	int ecode = 0;
+	int cnt = 0, bytes, over;
+	can_msg_t msg;
+	irc_cfg_msg_t *cfg = (irc_cfg_msg_t *) msg.data;
+
+	//step 1, turn off all relays
+	cfg->cmd = IRC_CFG_ALLOFF_IBUS_ELNE;
+	msg.id = CAN_ID_CFG;
+	ecode = irc_bus->send(&msg);
+	if(ecode) {
+		irc_ecode = -IRT_E_CAN;
+		return ecode;
+	}
+
+	ecode = relay_latch();
+	if(ecode) { //find the bad guys hide inside the good slots
+		irc_ecode = -IRT_E_SLOT;
+		return ecode;
+	}
+
+	//step 2, set irc board itself relays
+	_rly_set(mode & 0xff);
+
+	return ecode;
+}
+
+/*implement a group of switch operation*/
 void irc_update(void)
 {
 	int ecode = 0;
@@ -192,17 +268,18 @@ void irc_update(void)
 				}
 			}
 		}
+
+		//reset or abort?
+		if(irc_status.rst) {
+			irc_reset();
+			return;
+		}
+
+		if(irc_status.abt) {
+			irc_abort();
+			return;
+		}
 	} while(!over);
-}
-
-int irc_reset(void)
-{
-	return 0;
-}
-
-int irc_abort(void)
-{
-	return 0;
 }
 
 int main(void)
@@ -212,9 +289,9 @@ int main(void)
 	printf("irc v1.0, SW: %s %s\n\r", __DATE__, __TIME__);
 	while(1) {
 		sys_update();
-		irc_busy = 1;
+		irc_status.opc = 0;
 		irc_update();
-		irc_busy = 0;
+		irc_status.opc = 1;
 	}
 }
 
@@ -237,8 +314,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*OPC?")) {
-		int opc = vm_is_opc();
-		opc = (irc_busy) ? 0 : opc;
+		int opc = irc_is_opc();
 		printf("<%+d\n\r", opc);
 		return 0;
 	}
@@ -247,10 +323,10 @@ int cmd_xxx_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*RST")) {
-		ecode = irc_reset();
+		irc_status.rst = 1;
 	}
 	else if(!strcmp(argv[0], "ABORT")) {
-		ecode = irc_abort();
+		irc_status.abt = 1;
 	}
 	else if(!strcmp(argv[0], "*?")) {
 		printf("%s", usage);
@@ -266,6 +342,49 @@ int cmd_xxx_func(int argc, char *argv[])
 
 static int cmd_mode_func(int argc, char *argv[])
 {
+	const char *usage = {
+		"usage:\n"
+		"MODE <mode> <lv> <is>\n"
+		"	<mode> = [HVR|L4R|W4R|L2R|L2T|RMX|VHV|VLV|IIS]\n"
+	};
+
+	int ecode = 0;
+	if(!strcmp(argv[1], "MODE")) {
+		int lv = (argc > 2) ? atoi(argv[2]) : 0;
+		int is = (argc > 3) ? atoi(argv[3]) : 0;
+		const char *name[] = {
+			"HVR", "L4R", "W4R", "L2R", "L2T", "RMX", "VHV", "VLV", "IIS"
+		};
+		const int mode_list[] = {
+			IRC_MODE_HVR, IRC_MODE_L4R,
+			IRC_MODE_W4R, IRC_MODE_L2R,
+			IRC_MODE_L2T, IRC_MODE_RMX,
+			IRC_MODE_VHV, IRC_MODE_VLV,
+			IRC_MODE_IIS
+		};
+		ecode = -IRT_E_CMD_FORMAT;
+		for(int i = 0; i < sizeof(mode_list) / sizeof(int); i ++) {
+			if(!strcmp(argv[1], name[i])) {
+				int mode = mode_list[i];
+				mode |= (mode & IRC_MASK_ELV) ? lv : 0;
+				mode |= (mode & IRC_MASK_EIS) ? is : 0;
+				ecode = -IRT_E_OP_REFUSED;
+				if(irc_is_opc()) {
+					irc_mode_new = mode;
+					irc_status.nmd = 1;
+					ecode = 0;
+				}
+			}
+		}
+	}
+	else if(!strcmp(argv[1], "HELP")) {
+		printf("%s", usage);
+		return 0;
+	}
+	else {
+		ecode = -IRT_E_CMD_FORMAT;
+	}
+	err_print(ecode);
 	return 0;
 }
 const cmd_t cmd_mode = {"MODE", cmd_mode_func, "change irc work mode"};

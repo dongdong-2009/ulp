@@ -29,7 +29,16 @@ void err_print(int ecode)
 		msg = "Memory is Out of Usage";
 		break;
 	case IRT_E_OP_REFUSED:
-		msg = "Operation is not allowed";
+		msg = "Operation is refused";
+		break;
+	case IRT_E_CAN:
+		msg = "CAN communication fail";
+		break;
+	case IRT_E_SLOT:
+		msg = "SLOT handshake fail";
+		break;
+	case IRT_E_DMM:
+		msg = "DMM handshake fail";
 		break;
 	default:
 		msg = "Undefined Error";
