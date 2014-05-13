@@ -20,6 +20,9 @@ const mbi5025_t mxc_mbi = {.bus = &spi1, .idx = 0, .load_pin = SPI_CS_PA4, .oe_p
 static char mxc_image[20];
 static char mxc_image_static[20]; //hold static open/closed relays
 static int mxc_addr = 0;
+static int mxc_line_min;
+static int mxc_line_max;
+
 static opcode_t mxc_opcode_alone; //added to solve seq opcode be located two can frame issue
 
 static void mxc_can_handler(can_msg_t *msg);
@@ -143,6 +146,8 @@ void mxc_init(void)
 
 	//init glvar
 	mxc_opcode_alone.special.type = VM_OPCODE_NUL;
+	mxc_line_min = mxc_addr * 32;
+	mxc_line_max = mxc_line_min + 31;
 
 	//communication init
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
@@ -186,7 +191,11 @@ static void mxc_can_switch(can_msg_t *msg)
 		}
 
 		//seq contains special type & line_start
-		for(int line = opcode_seq->line; line <= opcode->line; line ++) {
+		int min = opcode_seq->line;
+		int max = opcode->line;
+		min = (min < mxc_line_min) ? mxc_line_min : min;
+		max = (max > mxc_line_max) ? mxc_line_max : max;
+		for(int line = min - mxc_line_min; line <= max - mxc_line_min; line ++) {
 			switch(opcode->type) {
 			case VM_OPCODE_SCAN:
 			case VM_OPCODE_OPEN:
