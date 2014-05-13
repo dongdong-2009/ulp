@@ -1,7 +1,12 @@
 #ifndef __BITOPS_H_
 #define __BITOPS_H_
 
+#include "config.h"
+#if CONFIG_TASK_NEST
 #define BIT_MASK(n)		(0x80 >> ((n) % 8))
+#else
+#define BIT_MASK(n)		(0x01 << ((n) % 8))
+#endif
 #define BIT_WORD(n)		((n) / 8)
 
 static inline void bit_set(int n, void *addr)
