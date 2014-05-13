@@ -238,8 +238,9 @@ static int cmd_can_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"can init ch baud silent		init can hw interface, def to CH1+500K\n"
-		"can send id d0 ...		can send, 11bit id\n"
-		"can sene id d0 ...		can send, 29bit id\n"
+		"can send id d0 ...		can send, 11bit id(hex)\n"
+		"can sent id d0 ...		can send, 11bit id(hex), no wait response\n"
+		"can sene id d0 ...		can send, 29bit id(hex)\n"
 		"can recv id0 id1		can bus monitor, id0.. for filter\n"
 		"can recv cancel			can bus monitor, cancel filter setting\n"
 		"can qedit ms id d0 ...		can queue edit, 11bit id\n"
@@ -310,20 +311,22 @@ static int cmd_can_func(int argc, char *argv[])
 			if (can_bus -> send(&msg)) {
 				printf("can send fail\n");
 			} else {
-				send_overtime = time_get(1000);
-				while (time_left(send_overtime)) {
-					if (!can_bus -> recv(&msg)) {
-						printf("%06dms ", (int)((time_get(0) - timer)*1000/CONFIG_TICK_HZ));
+				if(argv[1][3] != 't') {
+					send_overtime = time_get(1000);
+					while (time_left(send_overtime)) {
+						if (!can_bus -> recv(&msg)) {
+							printf("%06dms ", (int)((time_get(0) - timer)*1000/CONFIG_TICK_HZ));
 
-						//printf can frame
-						if(msg.flag & CAN_FLAG_EXT)
-							printf("R%08x ", msg.id);
-						else
-							printf("R%03x ", msg.id);
-						for(x = 0; x < msg.dlc; x ++) {
-							printf("%02x ", msg.data[x] & 0xff);
+							//printf can frame
+							if(msg.flag & CAN_FLAG_EXT)
+								printf("R%08x ", msg.id);
+							else
+								printf("R%03x ", msg.id);
+							for(x = 0; x < msg.dlc; x ++) {
+								printf("%02x ", msg.data[x] & 0xff);
+							}
+							printf("\n");
 						}
-						printf("\n");
 					}
 				}
 			}
