@@ -55,6 +55,7 @@ if [ "$CONFIG_SPI1_CS_SOFT" = "y" -o "$CONFIG_SPI2_CS_SOFT" = "y" -o "$CONFIG_SP
 	bool "PC3 as CS" CONFIG_SPI_CS_PC3
 	bool "PC4 as CS" CONFIG_SPI_CS_PC4
 	bool "PC5 as CS" CONFIG_SPI_CS_PC5
+	bool "PC6 as CS" CONFIG_SPI_CS_PC6
 	bool "PC7 as CS" CONFIG_SPI_CS_PC7
 	bool "PC8 as CS" CONFIG_SPI_CS_PC8
 

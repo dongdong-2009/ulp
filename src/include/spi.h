@@ -27,6 +27,7 @@ enum {
 	SPI_CS_PC3,
 	SPI_CS_PC4,
 	SPI_CS_PC5,
+	SPI_CS_PC6,
 	SPI_CS_PC7,
 	SPI_CS_PC8,
 
