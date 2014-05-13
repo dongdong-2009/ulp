@@ -20,6 +20,7 @@ const mbi5025_t mxc_mbi = {.bus = &spi1, .idx = 0, .load_pin = SPI_CS_PA4, .oe_p
 static char mxc_image[20];
 static char mxc_image_static[20]; //hold static open/closed relays
 static int mxc_addr = 0;
+static opcode_t mxc_opcode_alone; //added to solve seq opcode be located two can frame issue
 
 static void mxc_can_handler(can_msg_t *msg);
 
@@ -140,6 +141,9 @@ void mxc_init(void)
 	memset(mxc_image, 0x00, sizeof(mxc_image));
 	mxc_execute(1);
 
+	//init glvar
+	mxc_opcode_alone.special.type = VM_OPCODE_NUL;
+
 	//communication init
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
 	mxc_can->init(&cfg);
@@ -147,16 +151,38 @@ void mxc_init(void)
 }
 
 /* limitations:
-1, seq operation must be inside one can frame
+1, seq operation must be inside one can frame ----- supported now!
 2, command frame must contain at least one relay operation
 */
 static void mxc_can_switch(can_msg_t *msg)
 {
-	opcode_t *opcode_seq, *opcode = (opcode_t *) msg->data;
-	for(int i = 0; i < msg->dlc; opcode ++, i += sizeof(opcode_t)) {
+	opcode_t *opcode_seq, *opcode;
+	opcode_t opcode_alone;
+
+	int n = msg->dlc / sizeof(opcode_t);
+	for(int i = 0; i < n; ) {
+		//lonely opcode exist?
+		if(mxc_opcode_alone.special.type != VM_OPCODE_NUL) {
+			//use it ...
+			opcode_alone.value = mxc_opcode_alone.value;
+			opcode = &opcode_alone;
+			mxc_opcode_alone.special.type = VM_OPCODE_NUL;
+		}
+		else {
+			opcode = (opcode_t *) msg->data + i;
+			i ++;
+		}
+
 		opcode_seq = opcode;
 		if(opcode->special.type == VM_OPCODE_SEQ) {
-			opcode ++;
+			if(i < n) {
+				opcode = (opcode_t *) msg->data + i;
+				i ++;
+			}
+			else { //save to alone opcode, this can id mustn't be a command frame
+				mxc_opcode_alone.value = opcode->value;
+				break;
+			}
 		}
 
 		//seq contains special type & line_start
