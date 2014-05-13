@@ -7,6 +7,10 @@
 #include "mbi5025.h"
 #include "spi.h"
 
+#ifndef CONFIG_MBI5025_KHZ
+#define CONFIG_MBI5025_KHZ 1000
+#endif
+
 void mbi5025_Init(const mbi5025_t *chip)
 {
 	spi_cfg_t cfg = {
@@ -15,7 +19,7 @@ void mbi5025_Init(const mbi5025_t *chip)
 		.bits = 8,
 		.bseq = 1,
 		.csel = 1,
-		.freq = 1000000,
+		.freq = CONFIG_MBI5025_KHZ * 1000,
 	};
 	chip->bus->init(&cfg);
 }
