@@ -188,6 +188,8 @@ int vm_execute(void)
 	int grp_is_over = 1;
 	int grp_is_scan = 0;
 	if(vm_odata.special.type != VM_OPCODE_NUL) {
+		grp_is_over = 0;
+
 		//identify current opcode type
 		int type = vm_odata.type;
 		if(vm_odata.special.type == VM_OPCODE_SEQ) {
