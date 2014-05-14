@@ -26,7 +26,7 @@ enum {
 
 typedef struct {
 	unsigned char cmd;
-	unsigned char rsv; //always 0
+	unsigned char ms; //0 -> slot card should dead wait LE signal
 	unsigned char slot; // 0-127, or 0xFF indicate all slots
 	unsigned char bus; //bit mask, 0 ibus, 1 ebus, 8 buses at most
 	unsigned line; //bit mask, 1 external, 0 internal, 32 lines at most
