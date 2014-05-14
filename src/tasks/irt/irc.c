@@ -212,6 +212,7 @@ static int irc_mode_change(int mode)
 
 	//step 1, set slot relays
 	cfg->cmd = IRC_CFG_NORMAL;
+	cfg->ms = IRC_RLY_MS;
 	cfg->slot = 0xFF;
 	cfg->bus = (mode & IRC_MASK_EBUS) ? 0xFF : 0;
 	cfg->line = (mode & IRC_MASK_ELNE) ? -1 : 0;
