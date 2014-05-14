@@ -16,13 +16,12 @@
 
 static const spi_bus_t *mxc_spi = &spi1;
 static const can_bus_t *mxc_can = &can1;
-const mbi5025_t mxc_mbi = {.bus = &spi1, .idx = 0, .load_pin = SPI_CS_PA4, .oe_pin = SPI_CS_PC4};
+const mbi5025_t mxc_mbi = {.bus = &spi1, .idx = 0};
 static char mxc_image[20];
 static char mxc_image_static[20]; //hold static open/closed relays
 static int mxc_addr = 0;
 static int mxc_line_min;
 static int mxc_line_max;
-
 static opcode_t mxc_opcode_alone; //added to solve seq opcode be located two can frame issue
 
 static void mxc_can_handler(can_msg_t *msg);
@@ -47,6 +46,55 @@ static void _mxc_init(void)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 | \
 		GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	/*mbi OE PC4 */
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	//hardware bug, set mbi LE PA4 to input to avoid conflict
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	/*irc central control, init LE_txd, LE_rxd,
+	LE_txd	PC7
+	LE_rxd	PC6
+	*/
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+}
+
+/*mbi OE PC4 */
+static inline void _oe_set(int high) {
+	if(high) {
+		GPIOC->BSRR = GPIO_Pin_4;
+	}
+	else {
+		GPIOC->BRR = GPIO_Pin_4;
+	}
+}
+
+/*LE_txd PC7*/
+static inline void _le_set(int high) {
+	if(high) {
+		GPIOC->BSRR = GPIO_Pin_7;
+	}
+	else {
+		GPIOC->BRR = GPIO_Pin_7;
+	}
+}
+
+/*LE_rxd	PC6*/
+static inline int _le_get(void) {
+	return GPIOC->IDR & GPIO_Pin_6;
 }
 
 void mxc_bus_set(unsigned bus_mask)
@@ -126,7 +174,23 @@ static int mxc_line_set(unsigned line_mask)
 
 int mxc_execute(int save)
 {
-	mbi5025_write_and_latch(&mxc_mbi, mxc_image, sizeof(mxc_image));
+	//shift out .. refer to mbi5025_write_and_latch
+	for(int i = sizeof(mxc_image) - 1; i >= 0; i --) {
+		char byte = mxc_image[i];
+		mxc_spi->wreg(0, byte);
+	}
+
+	//load pin ctrl, to sync every slots
+	time_t timer = time_get(1);
+	_le_set(1);
+	while(_le_get() == 0) {
+		if(- time_left(timer) > 2) {
+			//timeout ...
+			sys_update();
+		}
+	}
+	_le_set(0);
+
 	if(save) {
 		memcpy(mxc_image_static, mxc_image, sizeof(mxc_image));
 	}
@@ -134,25 +198,6 @@ int mxc_execute(int save)
 		memcpy(mxc_image, mxc_image_static, sizeof(mxc_image));
 	}
 	return 0;
-}
-
-void mxc_init(void)
-{
-	_mxc_init();
-	mxc_addr = _mxc_addr_get();
-	mbi5025_Init(&mxc_mbi);
-	memset(mxc_image, 0x00, sizeof(mxc_image));
-	mxc_execute(1);
-
-	//init glvar
-	mxc_opcode_alone.special.type = VM_OPCODE_NUL;
-	mxc_line_min = mxc_addr * 32;
-	mxc_line_max = mxc_line_min + 31;
-
-	//communication init
-	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
-	mxc_can->init(&cfg);
-	_can_isr_enable();
 }
 
 /* limitations:
@@ -277,6 +322,29 @@ void mxc_can_handler(can_msg_t *msg)
 	default:
 		break;
 	}
+}
+
+void mxc_init(void)
+{
+	_mxc_init();
+	mxc_addr = _mxc_addr_get();
+	mbi5025_Init(&mxc_mbi);
+
+	//maybe we shouldn't do this here????
+	_oe_set(1);
+	memset(mxc_image, 0x00, sizeof(mxc_image));
+	mxc_execute(1);
+	_oe_set(0);
+
+	//init glvar
+	mxc_opcode_alone.special.type = VM_OPCODE_NUL;
+	mxc_line_min = mxc_addr * 32;
+	mxc_line_max = mxc_line_min + 31;
+
+	//communication init
+	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
+	mxc_can->init(&cfg);
+	_can_isr_enable();
 }
 
 void main()
