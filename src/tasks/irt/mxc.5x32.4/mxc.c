@@ -23,6 +23,7 @@ static int mxc_addr = 0;
 static int mxc_line_min;
 static int mxc_line_max;
 static opcode_t mxc_opcode_alone; //added to solve seq opcode be located two can frame issue
+static volatile int mxc_le_pulsed;
 
 static void mxc_can_handler(can_msg_t *msg);
 
@@ -33,6 +34,8 @@ static void _mxc_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 
 	/*PA0(= BUS0)..PA3*/
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -70,6 +73,54 @@ static void _mxc_init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	//LE_rxd	PC6
+	EXTI_InitTypeDef EXTI_InitStruct;
+	GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource6);
+	EXTI_InitStruct.EXTI_Line = EXTI_Line6;
+	EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
+	EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
+	EXTI_InitStruct.EXTI_LineCmd = ENABLE;
+	EXTI_Init(&EXTI_InitStruct);
+
+	/*!!! to usePreemptionPriority, group must be config first
+	systick priority !must! use  NVIC_SetPriority() to set
+	*/
+	NVIC_InitTypeDef NVIC_InitStructure;
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+	NVIC_SetPriority(SysTick_IRQn, 0);
+
+	NVIC_InitStructure.NVIC_IRQChannel = EXTI9_5_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+}
+
+void _can_isr_enable(void)
+{
+	NVIC_InitTypeDef  NVIC_InitStructure;
+#ifndef STM32F10X_CL
+	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN1_RX0_IRQn;
+#else
+	NVIC_InitStructure.NVIC_IRQChannel = CAN1_RX0_IRQn;
+#endif
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 2;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+
+	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
+	CAN_ITConfig(CAN1, CAN_IT_FMP0, ENABLE);
+}
+
+void USB_LP_CAN1_RX0_IRQHandler(void)
+{
+	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
+	can_msg_t msg;
+	while(!mxc_can->recv(&msg)) {
+		mxc_can_handler(&msg);
+	}
 }
 
 /*mbi OE PC4 */
@@ -93,8 +144,14 @@ static inline void _le_set(int high) {
 }
 
 /*LE_rxd	PC6*/
+void EXTI9_5_IRQHandler(void)
+{
+	mxc_le_pulsed = 1;
+	EXTI->PR = EXTI_Line6;
+}
+
 static inline int _le_get(void) {
-	return GPIOC->IDR & GPIO_Pin_6;
+	return (GPIOC->IDR & GPIO_Pin_6) ? 1 : 0;
 }
 
 void mxc_bus_set(unsigned bus_mask)
@@ -112,33 +169,6 @@ int _mxc_addr_get(void)
 	v = ~v;
 	v &= 0xff;
 	return v;
-}
-
-void _can_isr_enable(void)
-{
-	NVIC_InitTypeDef  NVIC_InitStructure;
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_0);
-#ifndef STM32F10X_CL
-	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN1_RX0_IRQn;
-#else
-	NVIC_InitStructure.NVIC_IRQChannel = CAN1_RX0_IRQn;
-#endif
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x0;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x0;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure);
-
-	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
-	CAN_ITConfig(CAN1, CAN_IT_FMP0, ENABLE);
-}
-
-void USB_LP_CAN1_RX0_IRQHandler(void)
-{
-	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
-	can_msg_t msg;
-	while(!mxc_can->recv(&msg)) {
-		mxc_can_handler(&msg);
-	}
 }
 #endif
 
@@ -180,16 +210,34 @@ int mxc_execute(int save)
 		mxc_spi->wreg(0, byte);
 	}
 
+	led_on(LED_RED);
 	//load pin ctrl, to sync every slots
-	time_t timer = time_get(1);
+	time_t timer = time_get(0);
+	mxc_le_pulsed = 0;
+	int level = _le_get();
 	_le_set(1);
-	while(_le_get() == 0) {
+	while(!mxc_le_pulsed) {
+		level += _le_get();
 		if(- time_left(timer) > 2) {
 			//timeout ...
 			sys_update();
 		}
 	}
+
+	//for debug use
+	mxc_le_pulsed = level;
+
+	//wait for irc clear le
+	while(_le_get()) {
+		if(- time_left(timer) > 2) {
+			//timeout ...
+			sys_update();
+		}
+	}
+
+	//operation finish
 	_le_set(0);
+	led_off(LED_RED);
 
 	if(save) {
 		memcpy(mxc_image_static, mxc_image, sizeof(mxc_image));
@@ -294,6 +342,7 @@ static void mxc_can_cfg(can_msg_t *msg)
 		mxc_line_set(line);
 		mxc_execute(1);
 		mxc_bus_set(bus);
+		_oe_set(0);
 	}
 }
 
@@ -329,12 +378,16 @@ void mxc_init(void)
 	_mxc_init();
 	mxc_addr = _mxc_addr_get();
 	mbi5025_Init(&mxc_mbi);
+	_oe_set(0);
+	_le_set(0);
 
-	//maybe we shouldn't do this here????
-	_oe_set(1);
+	/*maybe we shouldn't do this here????
+	wait for CAN config frame to do init*/
+#if 0
 	memset(mxc_image, 0x00, sizeof(mxc_image));
 	mxc_execute(1);
 	_oe_set(0);
+#endif
 
 	//init glvar
 	mxc_opcode_alone.special.type = VM_OPCODE_NUL;
