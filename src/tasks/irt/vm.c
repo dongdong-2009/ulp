@@ -179,6 +179,7 @@ int vm_execute(void)
 
 				if(vm_opcode_scan.line > vm_opcode_seq.line) {
 					//Serious error!!!
+					return -IRT_E_VM;
 				}
 			}
 		}
@@ -207,6 +208,7 @@ int vm_execute(void)
 		if((type == VM_OPCODE_OPEN) || (type == VM_OPCODE_CLOSE)) {
 			if(vm_scan_cnt != 0) {
 				//Serious error!!!
+				return -IRT_E_VM;
 			}
 
 			grp_is_over = (vm_opcode_nxt.special.type == VM_OPCODE_GRP) ? 1 : 0;
@@ -260,7 +262,11 @@ int vm_fetch( //non-zero if error happened
 		if((n > 0) && vm_opgrp_is_over()) {
 			break;
 		}
-		vm_execute();
+		int ecode = vm_execute();
+		if(ecode) {
+			return ecode;
+		}
+
 		if(vm_is_opc()) {
 			break;
 		}

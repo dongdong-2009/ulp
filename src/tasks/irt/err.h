@@ -20,6 +20,7 @@ enum {
 	IRT_E_CAN,
 	IRT_E_SLOT,
 	IRT_E_DMM,
+	IRT_E_VM, /*vm execute error*/
 };
 
 void err_print(int ecode);

@@ -40,6 +40,9 @@ void err_print(int ecode)
 	case IRT_E_DMM:
 		msg = "DMM handshake fail";
 		break;
+	case IRT_E_VM:
+		msg = "VM execute error";
+		break;
 	default:
 		msg = "Undefined Error";
 		break;

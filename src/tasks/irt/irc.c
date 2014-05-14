@@ -28,7 +28,7 @@ static struct {
 
 static inline void irc_error(int ecode)
 {
-	irc_ecode = -ecode;
+	irc_ecode = (ecode > 0) ? -ecode : ecode;
 }
 
 #if 1
@@ -192,14 +192,9 @@ static int irc_is_opc(void)
 	return opc;
 }
 
-static int irc_reset(void)
-{
-
-	return 0;
-}
-
 static int irc_abort(void)
 {
+	vm_init();
 	return 0;
 }
 
@@ -262,8 +257,12 @@ void irc_update(void)
 	do {
 		bytes = 8;
 		ecode = vm_fetch(msg.data, &bytes);
+		if(ecode) {
+			irc_error(ecode);
+		}
+
 		over = vm_opgrp_is_over();
-		if(bytes > 0) {
+		if(!ecode && bytes > 0) {
 			//send can message
 			msg.dlc = (char) bytes;
 			msg.id =  over ? CAN_ID_CMD : CAN_ID_DAT;
@@ -292,12 +291,6 @@ void irc_update(void)
 					}
 				}
 			}
-		}
-
-		//reset or abort?
-		if(irc_status.rst) {
-			irc_reset();
-			return;
 		}
 
 		if(irc_status.abt) {
