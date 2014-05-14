@@ -24,6 +24,8 @@ static int mxc_line_min;
 static int mxc_line_max;
 static opcode_t mxc_opcode_alone; //added to solve seq opcode be located two can frame issue
 static volatile int mxc_le_pulsed;
+static int mxc_ecode;
+static int mxc_le_timeout;
 
 static void mxc_can_handler(can_msg_t *msg);
 
@@ -215,12 +217,27 @@ int mxc_execute(int save)
 	time_t timer = time_get(0);
 	mxc_le_pulsed = 0;
 	int level = _le_get();
-	_le_set(1);
+
+	/*in case of mxc error, i'll hold LE bus low
+	to tell irc, pls take care of me :(
+	pc could use mode command to unlock
+	*/
+	if(mxc_ecode == IRT_E_OK) {
+		_le_set(1);
+	}
+
 	while(!mxc_le_pulsed) {
 		level += _le_get();
 		if(- time_left(timer) > 2) {
 			//timeout ...
 			sys_update();
+		}
+		if(mxc_le_timeout != 0) {
+			if(- time_left(timer) > mxc_le_timeout) {
+				//irc timeout .. i follow
+				mxc_ecode = -IRT_E_SLOT;
+				break;
+			}
 		}
 	}
 
@@ -233,11 +250,20 @@ int mxc_execute(int save)
 			//timeout ...
 			sys_update();
 		}
+		if(mxc_le_timeout != 0) {
+			if(- time_left(timer) > mxc_le_timeout) {
+				//irc timeout .. i follow
+				mxc_ecode = -IRT_E_SLOT;
+				break;
+			}
+		}
 	}
 
 	//operation finish
 	_le_set(0);
-	led_off(LED_RED);
+	if(mxc_ecode == IRT_E_OK) {
+		led_off(LED_RED);
+	}
 
 	if(save) {
 		memcpy(mxc_image_static, mxc_image, sizeof(mxc_image));
@@ -310,11 +336,10 @@ static void mxc_can_switch(can_msg_t *msg)
 static void mxc_can_cfg(can_msg_t *msg)
 {
 	irc_cfg_msg_t *cfg = (irc_cfg_msg_t *) msg->data;
-	int slot = mxc_addr, bus, line, off = 1;
+	int slot = mxc_addr, bus, line;
 
 	switch(cfg->cmd) {
 	case IRC_CFG_NORMAL:
-		off = 0;
 		slot = (cfg->slot == 0xff) ? mxc_addr : slot;
 		bus = cfg->bus;
 		line = cfg->line;
@@ -336,9 +361,9 @@ static void mxc_can_cfg(can_msg_t *msg)
 	}
 
 	if(slot == mxc_addr) {
-		if(off) {
-			mxc_relay_clr_all();
-		}
+		mxc_ecode = IRT_E_OK; //clear last error
+		mxc_le_timeout = cfg->ms;
+		mxc_relay_clr_all();
 		mxc_line_set(line);
 		mxc_execute(1);
 		mxc_bus_set(bus);
@@ -390,9 +415,11 @@ void mxc_init(void)
 #endif
 
 	//init glvar
+	mxc_ecode = IRT_E_OK;
 	mxc_opcode_alone.special.type = VM_OPCODE_NUL;
 	mxc_line_min = mxc_addr * 32;
 	mxc_line_max = mxc_line_min + 31;
+	mxc_le_timeout = 0;
 
 	//communication init
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
