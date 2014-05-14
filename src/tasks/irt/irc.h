@@ -33,7 +33,7 @@ typedef struct {
 } irc_cfg_msg_t;
 
 #define IRC_RLY_MS 10 //LE wait ms at most
-#define IRC_DMM_MS 100 //DMM finish pulse wait at most
+#define IRC_DMM_MS 10000 //DMM finish pulse wait at most
 
 #define IRC_MASK_HV	(1<<1)
 #define IRC_MASK_IS	(1<<5) //1, current source on, to measure resistor
