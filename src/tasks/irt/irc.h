@@ -32,6 +32,7 @@ typedef struct {
 	unsigned line; //bit mask, 1 external, 0 internal, 32 lines at most
 } irc_cfg_msg_t;
 
+#define IRC_CAN_MS 5 //can communication timeout setting
 #define IRC_RLY_MS 10 //LE wait ms at most
 #define IRC_DMM_MS 10000 //DMM finish pulse wait at most
 

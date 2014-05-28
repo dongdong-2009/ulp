@@ -131,6 +131,21 @@ static inline void _rly_set(int x)
 }
 #endif
 
+int irc_send(const can_msg_t *msg)
+{
+	int ecode = -IRT_E_CAN;
+	time_t deadline = time_get(IRC_CAN_MS);
+	if(!irc_bus->send(msg)) { //wait until message are sent
+		while(time_left(deadline) > 0) {
+			if(irc_bus->poll(CAN_POLL_TBUF) == 0) {
+				ecode = 0;
+				break;
+			}
+		}
+	}
+	return ecode;
+}
+
 int relay_latch(void)
 {
 	time_t timer = time_get(1);
@@ -213,16 +228,18 @@ static int irc_mode_change(int mode)
 	cfg->line = (mode & IRC_MASK_ELNE) ? -1 : 0;
 	msg.id = CAN_ID_CFG;
 	msg.dlc = sizeof(irc_cfg_msg_t);
-	ecode = irc_bus->send(&msg);
+
+
+	ecode = irc_send(&msg);
 	if(ecode) {
-		irc_error(IRT_E_CAN);
+		irc_error(ecode);
 		return ecode;
 	}
 
 	ecode = relay_latch();
 	if(ecode) { //find the bad guys hide inside the good slots
 		irc_error(-IRT_E_SLOT);
-		return ecode;
+		return -IRT_E_SLOT;
 	}
 
 	//step 2, set irc board itself relays
@@ -267,7 +284,7 @@ void irc_update(void)
 			msg.dlc = (char) bytes;
 			msg.id =  over ? CAN_ID_CMD : CAN_ID_DAT;
 			msg.id += cnt & 0x0F;
-			ecode = irc_bus->send(&msg);
+			ecode = irc_send(&msg);
 			if(ecode) {
 				irc_error(IRT_E_CAN);
 				return;
@@ -397,6 +414,7 @@ static int cmd_mode_func(int argc, char *argv[])
 			ecode = -IRT_E_OP_REFUSED;
 			if(irc_is_opc()) {
 				ecode = irc_mode_change(mode);
+				break;
 			}
 		}
 	}
