@@ -295,12 +295,51 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 }
 #endif
 
+int can_poll(int fifo)
+{
+	int n = 0;
+	int tsr = CAN1->TSR;
+	switch(fifo) {
+	case CAN_POLL_TBUF0:
+		n = (tsr & (1 << 26)) ? 0 : 1;
+		break;
+	case CAN_POLL_TBUF1:
+		n = (tsr & (1 << 27)) ? 0 : 1;
+		break;
+	case CAN_POLL_TBUF2:
+		n = (tsr & (1 << 28)) ? 0 : 1;
+		break;
+	case CAN_POLL_TBUF:
+		n = (tsr & (1 << 26)) ? 0 : 1;
+		n += (tsr & (1 << 26)) ? 0 : 1;
+		n += (tsr & (1 << 26)) ? 0 : 1;
+		break;
+
+	case CAN_POLL_RBUF0:
+		n = CAN1->RF0R & 0x03;
+		break;
+	case CAN_POLL_RBUF1:
+		n = CAN1->RF1R & 0x03;
+		break;
+	case CAN_POLL_RBUF:
+		n = CAN1->RF0R & 0x03;
+		n += CAN1->RF1R & 0x03;
+		break;
+
+	default:
+		break;
+	}
+
+	return n;
+}
+
 const can_bus_t can1 = {
 	.init = can_init,
 	.send = can_send,
 	.recv = can_recv,
 	.filt = can_filt,
 	.flush = can_flush,
+	.poll = can_poll,
 #ifdef CONFIG_CAN_ENHANCED
 	.efilt = can_efilt,
 	.erecv = can_erecv,
