@@ -16,6 +16,7 @@
 #define CAN_ID_CMD 0x200 //0x200-20f
 
 #define CAN_ID_CFG 0x300
+#define CAN_ID_DPS 0x400
 
 enum {
 	IRC_CFG_NORMAL, /*config is determined by para slot&bus&line*/
