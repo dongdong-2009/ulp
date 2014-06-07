@@ -141,10 +141,11 @@ void led_flash(led_t led)
 	flag_flash |= 1 << i;
 }
 
-void led_error(char ecode)
+void led_error(int ecode)
 {
+	ecode = (ecode < 0) ? - ecode : ecode;
 	if((ecode == 0) || (led_ecode == 0)) {
-		led_ecode = ecode;
+		led_ecode = (char) ecode;
 		led_estep = 0;
 	}
 }
