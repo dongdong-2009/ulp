@@ -2,6 +2,8 @@ ifeq ($(CONFIG_IRT_IRC),y)
 	obj-y += err.o
 	obj-y += irc.o
 	obj-y += vm.o
+	obj-y += bsp.o
+	obj-y += mxc.o
 endif
 
 ifeq ($(CONFIG_IRT_DPS),y)
