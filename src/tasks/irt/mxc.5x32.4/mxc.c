@@ -1,6 +1,7 @@
 /*
 *
 *  miaofng@2014-5-10   initial version
+*  miaofng@2014-6-7	slot board v2.2, line switch default connect to external
 *
 */
 #include "ulp/sys.h"
@@ -343,7 +344,7 @@ static void mxc_can_cfg(can_msg_t *msg)
 	case MXC_CMD_CFG:
 		slot = (cfg->slot == 0xff) ? mxc_addr : slot;
 		bus = cfg->bus;
-		line = cfg->line;
+		line = ~cfg->line;
 		break;
 	default:
 		break;
