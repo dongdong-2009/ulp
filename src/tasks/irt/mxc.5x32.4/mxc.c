@@ -28,6 +28,13 @@ static opcode_t mxc_opcode_alone; //added to solve seq opcode be located two can
 static volatile int mxc_le_pulsed;
 static int mxc_ecode;
 static int mxc_le_timeout;
+static time_t mxc_timer_poll;
+static enum mxc_status_e {
+	MXC_STATUS_INIT,
+	MXC_STATUS_READY,
+	MXC_STATUS_ERROR,
+	MXC_STATUS_PING,
+} mxc_status;
 
 static void mxc_can_handler(can_msg_t *msg);
 
@@ -139,6 +146,7 @@ static inline void _oe_set(int high) {
 
 /*LE_txd PC7*/
 static inline void _le_set(int high) {
+	mxc_le_pulsed = 0;
 	if(high) {
 		GPIOC->BSRR = GPIO_Pin_7;
 	}
@@ -175,6 +183,45 @@ int _mxc_addr_get(void)
 	return v;
 }
 #endif
+
+static int mxc_status_change(enum mxc_status_e new_status)
+{
+	/*default set le = 0 to disable any relay matrix latch operation
+	response to can_id_dat/cmd only when status = ready
+	*/
+	mxc_status = new_status;
+	switch(mxc_status) {
+	case MXC_STATUS_INIT:
+		led_on(LED_RED);
+		led_flash(LED_GREEN);
+		_le_set(0);
+		break;
+	case MXC_STATUS_READY:
+		mxc_timer_poll = time_get(IRC_POL_MS * 2);
+		led_off(LED_RED);
+		led_flash(LED_GREEN);
+		break;
+	case MXC_STATUS_ERROR:
+		led_off(LED_GREEN);
+		led_error(mxc_ecode);
+		_le_set(0);
+		break;
+	case MXC_STATUS_PING:
+		if(mxc_status == MXC_STATUS_READY) {
+			if(mxc_timer_poll == 0) {
+				//restore led display
+				led_off(LED_RED);
+				led_flash(LED_GREEN);
+			}
+			mxc_timer_poll = time_get(IRC_POL_MS * 2);
+		}
+		break;
+	default:
+		mxc_status = MXC_STATUS_ERROR;
+		break;
+	}
+	return 0;
+}
 
 static void mxc_relay_clr_all(void)
 {
@@ -216,45 +263,33 @@ int mxc_execute(int save)
 
 	led_on(LED_RED);
 	//load pin ctrl, to sync every slots
-	time_t timer = time_get(0);
-	mxc_le_pulsed = 0;
-	int level = _le_get();
+	time_t deadline = time_get(mxc_le_timeout);
+	time_t suspend = time_get(IRC_UPD_MS);
 
 	/*in case of mxc error, i'll hold LE bus low
 	to tell irc, pls take care of me :(
 	pc could use mode command to unlock
 	*/
-	if(mxc_ecode == IRT_E_OK) {
-		_le_set(1);
-	}
-
+	_le_set(1);
 	while(!mxc_le_pulsed) {
-		level += _le_get();
-		if(- time_left(timer) > 2) {
-			//timeout ...
+		if(time_left(suspend) < 0) {
 			sys_update();
 		}
 		if(mxc_le_timeout != 0) {
-			if(- time_left(timer) > mxc_le_timeout) {
-				//irc timeout .. i follow
+			if(time_left(deadline) < 0) { //host error???
 				mxc_ecode = -IRT_E_SLOT;
 				break;
 			}
 		}
 	}
 
-	//for debug use
-	mxc_le_pulsed = level;
-
 	//wait for irc clear le
-	while(_le_get()) {
-		if(- time_left(timer) > 2) {
-			//timeout ...
+	while(_le_get() == 1) {
+		if(time_left(suspend) < 0) {
 			sys_update();
 		}
 		if(mxc_le_timeout != 0) {
-			if(- time_left(timer) > mxc_le_timeout) {
-				//irc timeout .. i follow
+			if(time_left(deadline) < 0) { //host error???
 				mxc_ecode = -IRT_E_SLOT;
 				break;
 			}
@@ -263,8 +298,9 @@ int mxc_execute(int save)
 
 	//operation finish
 	_le_set(0);
-	if(mxc_ecode == IRT_E_OK) {
-		led_off(LED_RED);
+	led_off(LED_RED);
+	if(mxc_ecode) {
+		mxc_status_change(MXC_STATUS_ERROR);
 	}
 
 	if(save) {
@@ -338,27 +374,39 @@ static void mxc_can_switch(can_msg_t *msg)
 static void mxc_can_cfg(can_msg_t *msg)
 {
 	mxc_cfg_msg_t *cfg = (mxc_cfg_msg_t *) msg->data;
-	int slot = mxc_addr, bus, line;
+	mxc_echo_msg_t *echo = (mxc_echo_msg_t *) msg->data;
+	int slot = cfg->slot, bus, line;
 
 	switch(cfg->cmd) {
 	case MXC_CMD_CFG:
 		slot = (cfg->slot == 0xff) ? mxc_addr : slot;
 		bus = cfg->bus;
 		line = ~cfg->line;
+		if(slot == mxc_addr) {
+			mxc_ecode = IRT_E_OK; //clear last error
+			mxc_status_change(MXC_STATUS_READY);
+			mxc_can->flush();
+			memset(mxc_image_static, 0x00, sizeof(mxc_image_static));
+			mxc_le_timeout = cfg->ms;
+			mxc_relay_clr_all();
+			mxc_line_set(line);
+			mxc_execute(1);
+			mxc_bus_set(bus);
+			_oe_set(0);
+		}
+		break;
+	case MXC_CMD_PING:
+		echo->cmd = MXC_CMD_ECHO;
+		echo->slot = (unsigned char) mxc_addr;
+		echo->ecode = mxc_ecode;
+		mxc_can->send(msg);
+		mxc_status_change(MXC_STATUS_PING);
 		break;
 	default:
 		break;
 	}
 
-	if(slot == mxc_addr) {
-		mxc_ecode = IRT_E_OK; //clear last error
-		mxc_le_timeout = cfg->ms;
-		mxc_relay_clr_all();
-		mxc_line_set(line);
-		mxc_execute(1);
-		mxc_bus_set(bus);
-		_oe_set(0);
-	}
+
 }
 
 int mxc_verify_sequence(int cnt)
@@ -375,9 +423,11 @@ void mxc_can_handler(can_msg_t *msg)
 	switch(id) {
 	case CAN_ID_DAT:
 	case CAN_ID_CMD:
-		if(!mxc_verify_sequence(cnt)) {
-			msg->id = id;
-			mxc_can_switch(msg);
+		if(mxc_status == MXC_STATUS_READY) {
+			if(!mxc_verify_sequence(cnt)) {
+				msg->id = id;
+				mxc_can_switch(msg);
+			}
 		}
 		break;
 	case CAN_ID_CFG:
@@ -393,7 +443,7 @@ int mxc_init(void)
 	_mxc_init();
 	mxc_addr = _mxc_addr_get();
 	mbi5025_Init(&mxc_mbi);
-	_oe_set(0);
+	_oe_set(1);
 	_le_set(0);
 
 	/*maybe we shouldn't do this here????
@@ -410,6 +460,7 @@ int mxc_init(void)
 	mxc_line_min = mxc_addr * 32;
 	mxc_line_max = mxc_line_min + 31;
 	mxc_le_timeout = 0;
+	mxc_status_change(MXC_STATUS_INIT);
 
 	//communication init
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
@@ -425,6 +476,17 @@ void main()
 	printf("mxc v1.0, SW: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
 		sys_update();
+		if(mxc_status == MXC_STATUS_READY) {
+			if(mxc_timer_poll != 0) {
+				if(time_left(mxc_timer_poll) < 0) {
+					led_off(LED_RED);
+					led_off(LED_GREEN);
+					led_flash(LED_RED);
+					led_flash(LED_GREEN);
+					mxc_timer_poll = 0;
+				}
+			}
+		}
 	}
 }
 

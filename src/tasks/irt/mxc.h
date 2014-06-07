@@ -12,6 +12,8 @@
 
 enum {
 	MXC_CMD_CFG,
+	MXC_CMD_PING,
+	MXC_CMD_ECHO,
 };
 
 typedef struct {
@@ -28,6 +30,14 @@ typedef struct {
 	unsigned char bus; //bit mask, 0 ibus, 1 ebus, 8 buses at most
 	unsigned line; //bit mask, 1 external, 0 internal, 32 lines at most
 } mxc_cfg_msg_t;
+
+typedef struct {
+	unsigned char cmd;
+	unsigned char unused1;
+	unsigned char slot; // 0-127, or 0xFF indicate all slots
+	unsigned char unused2;
+	int ecode;
+} mxc_echo_msg_t;
 
 int mxc_init(void);
 int mxc_send(const can_msg_t *msg);
