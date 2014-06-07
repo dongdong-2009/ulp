@@ -189,22 +189,24 @@ static int mxc_status_change(enum mxc_status_e new_status)
 	/*default set le = 0 to disable any relay matrix latch operation
 	response to can_id_dat/cmd only when status = ready
 	*/
-	mxc_status = new_status;
-	switch(mxc_status) {
+	switch(new_status) {
 	case MXC_STATUS_INIT:
 		led_on(LED_RED);
 		led_flash(LED_GREEN);
 		_le_set(0);
+		mxc_status = new_status;
 		break;
 	case MXC_STATUS_READY:
 		mxc_timer_poll = time_get(IRC_POL_MS * 2);
 		led_off(LED_RED);
 		led_flash(LED_GREEN);
+		mxc_status = new_status;
 		break;
 	case MXC_STATUS_ERROR:
 		led_off(LED_GREEN);
 		led_error(mxc_ecode);
 		_le_set(0);
+		mxc_status = new_status;
 		break;
 	case MXC_STATUS_PING:
 		if(mxc_status == MXC_STATUS_READY) {
