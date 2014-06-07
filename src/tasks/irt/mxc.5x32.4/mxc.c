@@ -13,6 +13,7 @@
 #include "../err.h"
 #include "mbi5025.h"
 #include "common/bitops.h"
+#include "../mxc.h"
 
 static const spi_bus_t *mxc_spi = &spi1;
 static const can_bus_t *mxc_can = &can1;
@@ -335,26 +336,14 @@ static void mxc_can_switch(can_msg_t *msg)
 
 static void mxc_can_cfg(can_msg_t *msg)
 {
-	irc_cfg_msg_t *cfg = (irc_cfg_msg_t *) msg->data;
+	mxc_cfg_msg_t *cfg = (mxc_cfg_msg_t *) msg->data;
 	int slot = mxc_addr, bus, line;
 
 	switch(cfg->cmd) {
-	case IRC_CFG_NORMAL:
+	case MXC_CMD_CFG:
 		slot = (cfg->slot == 0xff) ? mxc_addr : slot;
 		bus = cfg->bus;
 		line = cfg->line;
-		break;
-	case IRC_CFG_ALLOFF_IBUS_ELNE:
-		bus = 0; //hw default = ibus
-		line = -1; //hw default = iline
-		break;
-	case IRC_CFG_ALLOFF_EBUS_ILNE:
-		bus = 0xff;
-		line = 0;
-		break;
-	case IRC_CFG_ALLOFF_EBUS_ELNE:
-		bus = -1;
-		line = -1;
 		break;
 	default:
 		break;
@@ -398,7 +387,7 @@ void mxc_can_handler(can_msg_t *msg)
 	}
 }
 
-void mxc_init(void)
+int mxc_init(void)
 {
 	_mxc_init();
 	mxc_addr = _mxc_addr_get();
@@ -425,6 +414,7 @@ void mxc_init(void)
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
 	mxc_can->init(&cfg);
 	_can_isr_enable();
+        return 0;
 }
 
 void main()
