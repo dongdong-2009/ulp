@@ -146,6 +146,7 @@ int main(void)
 	printf("irc v1.1, SW: %s %s\n\r", __DATE__, __TIME__);
 	irc_init();
 	vm_init();
+	lv_config(12.0);
 	irc_mode(IRC_MODE_L2T);
 	while(1) {
 		sys_update();
@@ -246,3 +247,29 @@ static int cmd_mode_func(int argc, char *argv[])
 }
 const cmd_t cmd_mode = {"MODE", cmd_mode_func, "change irc work mode"};
 DECLARE_SHELL_CMD(cmd_mode)
+
+static int cmd_power_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"POWER LV <value>	change lv voltage\n"
+	};
+
+	int ecode = -IRT_E_CMD_FORMAT;
+	if((argc > 1) && !strcmp(argv[1], "HELP")) {
+		printf("%s", usage);
+		return 0;
+	}
+	else if((argc == 3) && !strcmp(argv[1], "LV")) {
+		float v = atof(argv[2]);
+		ecode = - IRT_E_CMD_PARA;
+		if((v >= 0.0) && (v <= 30.0)) {
+			ecode = lv_config(v);
+		}
+	}
+
+	err_print(ecode);
+	return 0;
+}
+const cmd_t cmd_power = {"POWER", cmd_power_func, "power board ctrl"};
+DECLARE_SHELL_CMD(cmd_power)

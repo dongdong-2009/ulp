@@ -154,6 +154,20 @@ int mxc_reset(int slot)
 	return ecode;
 }
 
+int lv_config(float v)
+{
+	dps_cfg_msg_t *cfg = (dps_cfg_msg_t *) mxc_msg.data;
+
+	cfg->cmd = DPS_CMD_CFG;
+	cfg->dps = DPS_LV;
+	cfg->key = DPS_KEY_U;
+	cfg->value = v;
+	mxc_msg.id = CAN_ID_CFG;
+	mxc_msg.dlc = sizeof(dps_cfg_msg_t);
+	int ecode = mxc_send(&mxc_msg);
+	return ecode;
+}
+
 static int cmd_mxc_func(int argc, char *argv[])
 {
 	const char *usage = {
