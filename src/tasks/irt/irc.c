@@ -93,6 +93,7 @@ void irc_update(void)
 {
 	int cnt = 0, bytes, over;
 	can_msg_t msg;
+	memset(&msg, 0x00, sizeof(msg));
 	irc_poll();
 
 	if(irc_ecode) {

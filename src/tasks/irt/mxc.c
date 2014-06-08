@@ -20,6 +20,7 @@ int mxc_init(void)
 {
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
 	mxc_bus->init(&cfg);
+	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
 
 	/*tricky, to bring slots back from deadlock on waiting le signal*/
 	le_set(1);
