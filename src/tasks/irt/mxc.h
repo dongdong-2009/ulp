@@ -43,5 +43,7 @@ int mxc_init(void);
 int mxc_send(const can_msg_t *msg);
 int mxc_latch(void);
 int mxc_mode(int mode);
+int mxc_ping(int slot); //return ecode of the slot
+int mxc_scan(int min, int max); //return nr of slots exist
 
 #endif

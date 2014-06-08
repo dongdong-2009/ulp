@@ -19,6 +19,7 @@
 #include "mxc.h"
 
 static int irc_ecode = 0;
+static int irc_slots = 0;
 static struct {
 	unsigned opc : 1;
 	unsigned rst : 1;
@@ -72,11 +73,8 @@ void irc_init(void)
 {
 	board_init();
 	mxc_init();
-
-	le_set(1); //tricky, to bring slot card from deadlock on waiting le signal
-	sys_mdelay(1);
-	le_set(0);
 	trig_set(0);
+	irc_slots = mxc_scan(0, 0);
 }
 
 /*implement a group of switch operation*/
@@ -132,9 +130,9 @@ int main(void)
 {
 	sys_init();
 	led_flash(LED_RED);
+	printf("irc v1.1, SW: %s %s\n\r", __DATE__, __TIME__);
 	irc_init();
 	vm_init();
-	printf("irc v1.0, SW: %s %s\n\r", __DATE__, __TIME__);
 	irc_mode(IRC_MODE_L2T);
 	while(1) {
 		sys_update();

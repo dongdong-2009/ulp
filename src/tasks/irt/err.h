@@ -11,6 +11,7 @@
 
 enum {
 	IRT_E_OK,
+	IRT_E_NA, /*NOT AVAILABLE*/
 	IRT_E_CAN,
 	IRT_E_SLOT,
 	IRT_E_CMD_FORMAT, /*command syntax error*/

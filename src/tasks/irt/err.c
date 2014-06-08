@@ -16,6 +16,9 @@ void err_print(int ecode)
 	case IRT_E_OK:
 		msg = "No error";
 		break;
+	case IRT_E_NA:
+		msg = "Not Available";
+		break;
 	case IRT_E_CMD_FORMAT:
 		msg = "Command Format Error";
 		break;

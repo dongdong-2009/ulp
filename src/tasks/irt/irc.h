@@ -22,6 +22,7 @@
 #define IRC_DMM_MS 10000 //DMM finish pulse wait at most
 #define IRC_UPD_MS 2 //longest system suspend time
 #define IRC_POL_MS 1000 //POLL MS
+#define IRC_ECO_MS 5 //echo back max delay
 
 enum {
 	IRC_MODE_HVR,	//insulation resistance test
