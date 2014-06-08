@@ -146,7 +146,12 @@ void led_hwSetStatus(led_t led, led_status_t status)
 #endif
 			break;
 		case LED_YELLOW:
+#if (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_TASK_IRT == 1)
+			GPIO_WriteBit(GPIOC, GPIO_Pin_0, ba);
+			GPIO_WriteBit(GPIOC, GPIO_Pin_1, ba);
+#else
 			GPIO_WriteBit(GPIOC, GPIO_Pin_7, ba);
+#endif
 			break;
 		default:
 			break;

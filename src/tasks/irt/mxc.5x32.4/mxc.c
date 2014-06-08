@@ -191,19 +191,18 @@ static int mxc_status_change(enum mxc_status_e new_status)
 	*/
 	switch(new_status) {
 	case MXC_STATUS_INIT:
-		led_on(LED_RED);
-		led_flash(LED_GREEN);
+		led_flash(LED_YELLOW);
 		_le_set(0);
 		mxc_status = new_status;
 		break;
 	case MXC_STATUS_READY:
 		mxc_timer_poll = time_get(IRC_POL_MS * 2);
-		led_off(LED_RED);
+		led_off(LED_YELLOW);
 		led_flash(LED_GREEN);
 		mxc_status = new_status;
 		break;
 	case MXC_STATUS_ERROR:
-		led_off(LED_GREEN);
+		led_off(LED_YELLOW);
 		led_error(mxc_ecode);
 		_le_set(0);
 		mxc_status = new_status;
@@ -212,7 +211,7 @@ static int mxc_status_change(enum mxc_status_e new_status)
 		if(mxc_status == MXC_STATUS_READY) {
 			if(mxc_timer_poll == 0) {
 				//restore led display
-				led_off(LED_RED);
+				led_off(LED_YELLOW);
 				led_flash(LED_GREEN);
 			}
 			mxc_timer_poll = time_get(IRC_POL_MS * 2);
@@ -445,10 +444,16 @@ void mxc_can_handler(can_msg_t *msg)
 int mxc_init(void)
 {
 	_mxc_init();
-	mxc_addr = _mxc_addr_get();
 	mbi5025_Init(&mxc_mbi);
 	_oe_set(1);
 	_le_set(0);
+
+	//to avoid addr signal instable error when inserting
+	led_off(LED_GREEN);
+	led_on(LED_RED);
+	sys_mdelay(1000);
+	led_off(LED_RED);
+	mxc_addr = _mxc_addr_get();
 
 	/*maybe we shouldn't do this here????
 	wait for CAN config frame to do init*/
@@ -483,10 +488,7 @@ void main()
 		if(mxc_status == MXC_STATUS_READY) {
 			if(mxc_timer_poll != 0) {
 				if(time_left(mxc_timer_poll) < 0) {
-					led_off(LED_RED);
-					led_off(LED_GREEN);
-					led_flash(LED_RED);
-					led_flash(LED_GREEN);
+					led_flash(LED_YELLOW);
 					mxc_timer_poll = 0;
 				}
 			}
