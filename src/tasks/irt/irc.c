@@ -199,13 +199,13 @@ static int cmd_mode_func(int argc, char *argv[])
 	int lv = (argc > 2) ? atoi(argv[2]) : 0;
 	int is = (argc > 3) ? atoi(argv[3]) : 0;
 	const char *name[] = {
-		"HVR", "L4R", "W4R", "L2R", "L2T", "PRB",
+		"HVR", "L4R", "W4R", "L2R", "L2T", "RPB",
 		"RMX", "VHV", "VLV", "IIS", "OFF", "DEF"
 	};
 	const int mode_list[] = {
 		IRC_MODE_HVR, IRC_MODE_L4R,
 		IRC_MODE_W4R, IRC_MODE_L2R,
-		IRC_MODE_L2T, IRC_MODE_PRB,
+		IRC_MODE_L2T, IRC_MODE_RPB,
 
 		IRC_MODE_RMX, IRC_MODE_VHV,
 		IRC_MODE_VLV, IRC_MODE_IIS,

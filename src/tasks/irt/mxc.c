@@ -75,8 +75,8 @@ int mxc_mode(int mode)
 	sys_assert((mode >= IRC_MODE_HVR) && (mode < IRC_MODE_OFF));
 
 	//step 1, ibus?ebus + iline?eline
-	bus = (mode < IRC_MODE_PRB) ? MXC_ALL_IBUS : MXC_ALL_EBUS;
-	lne = (mode > IRC_MODE_PRB) ? MXC_ALL_ILNE : MXC_ALL_ELNE;
+	bus = (mode < IRC_MODE_RPB) ? MXC_ALL_IBUS : MXC_ALL_EBUS;
+	lne = (mode > IRC_MODE_RPB) ? MXC_ALL_ILNE : MXC_ALL_ELNE;
 
 	//step 2, fill slot config message
 	mxc_cfg_msg_t *cfg = (mxc_cfg_msg_t *) mxc_msg.data;

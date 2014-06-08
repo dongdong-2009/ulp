@@ -30,7 +30,7 @@ enum {
 	IRC_MODE_W4R,
 	IRC_MODE_L2R, IRC_MODE_L2T = IRC_MODE_L2R,
 
-	IRC_MODE_PRB,	//probe mode
+	IRC_MODE_RPB,	//probe mode
 
 	IRC_MODE_RMX,	//matrix self test mode
 	IRC_MODE_VHV,	//hv calibration mode
