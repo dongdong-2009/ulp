@@ -22,6 +22,7 @@ int lv_config(int key, float value)
 	switch(key) {
 	case DPS_KEY_U:
 		lv_u_set(value);
+		lv_enable(value > 0.1);
 		break;
 	default:
 		break;
@@ -59,7 +60,7 @@ void main()
 {
 	sys_init();
 	dps_init();
-	lv_enable(1);
+	lv_enable(0);
 	printf("dps v1.0, SW: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
 		sys_update();

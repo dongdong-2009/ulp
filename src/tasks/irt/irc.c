@@ -146,7 +146,7 @@ int main(void)
 	printf("irc v1.1, SW: %s %s\n\r", __DATE__, __TIME__);
 	irc_init();
 	vm_init();
-	lv_config(DPS_KEY_U, 12.0);
+	lv_config(DPS_KEY_U, 0.0);
 	irc_mode(IRC_MODE_L2T);
 	while(1) {
 		sys_update();
