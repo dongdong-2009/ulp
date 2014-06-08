@@ -46,5 +46,6 @@ int mxc_latch(void);
 int mxc_mode(int mode);
 int mxc_ping(int slot); //return ecode of the slot
 int mxc_scan(int min, int max); //return nr of slots exist
+int mxc_reset(int slot); //MXC_ALL_SLOT is supported
 
 #endif

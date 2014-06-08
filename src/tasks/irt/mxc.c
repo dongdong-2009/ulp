@@ -25,7 +25,10 @@ int mxc_init(void)
 	le_set(1);
 	mdelay(1);
 	le_set(0);
-	return 0;
+
+	//wait for power-up signal stable
+	mdelay(100);
+	return mxc_reset(MXC_ALL_SLOT);
 }
 
 int mxc_send(const can_msg_t *msg)
@@ -136,6 +139,18 @@ int mxc_scan(int min, int max)
 	}
 	printf("Total %d cards\n", slots);
 	return slots;
+}
+
+int mxc_reset(int slot)
+{
+	mxc_cfg_msg_t *cfg = (mxc_cfg_msg_t *) mxc_msg.data;
+
+	cfg->cmd = MXC_CMD_RST;
+	cfg->slot = (unsigned char) slot;
+	mxc_msg.id = CAN_ID_CFG;
+	mxc_msg.dlc = sizeof(mxc_cfg_msg_t);
+	int ecode = mxc_send(&mxc_msg);
+	return ecode;
 }
 
 static int cmd_mxc_func(int argc, char *argv[])

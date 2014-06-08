@@ -20,6 +20,8 @@
 
 static int irc_ecode = 0;
 static int irc_slots = 0;
+static time_t irc_poll_timer = 0;
+static int irc_poll_slot = 0;
 static struct {
 	unsigned opc : 1;
 	unsigned rst : 1;
@@ -77,11 +79,21 @@ void irc_init(void)
 	irc_slots = mxc_scan(0, 0);
 }
 
+void irc_poll(void)
+{
+	if(time_left(irc_poll_timer) < 0) {
+		irc_poll_timer = time_get(IRC_POL_MS);
+		mxc_ping(irc_poll_slot);
+		irc_poll_slot = (irc_poll_slot < irc_slots) ? (irc_poll_slot + 1) : 0;
+	}
+}
+
 /*implement a group of switch operation*/
 void irc_update(void)
 {
 	int cnt = 0, bytes, over;
 	can_msg_t msg;
+	irc_poll();
 
 	if(irc_ecode) {
 		return;
