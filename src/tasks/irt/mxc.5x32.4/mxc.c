@@ -398,10 +398,12 @@ static void mxc_can_cfg(can_msg_t *msg)
 		}
 		break;
 	case MXC_CMD_PING:
-		echo->cmd = MXC_CMD_ECHO;
-		echo->slot = (unsigned char) mxc_addr;
-		echo->ecode = mxc_ecode;
-		mxc_can->send(msg);
+		if(slot == mxc_addr) {
+			echo->cmd = MXC_CMD_ECHO;
+			echo->slot = (unsigned char) mxc_addr;
+			echo->ecode = mxc_ecode;
+			mxc_can->send(msg);
+		}
 		mxc_status_change(MXC_STATUS_PING);
 		break;
 	default:
@@ -475,7 +477,7 @@ void main()
 {
 	sys_init();
 	mxc_init();
-	printf("mxc v1.0, SW: %s %s\n\r", __DATE__, __TIME__);
+	printf("mxc v1.1, SW: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
 		sys_update();
 		if(mxc_status == MXC_STATUS_READY) {
