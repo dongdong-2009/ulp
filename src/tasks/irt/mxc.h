@@ -14,6 +14,7 @@ enum {
 	MXC_CMD_CFG,
 	MXC_CMD_PING,
 	MXC_CMD_ECHO,
+	MXC_CMD_RST,
 };
 
 typedef struct {

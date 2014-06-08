@@ -262,7 +262,7 @@ int mxc_execute(int save)
 		mxc_spi->wreg(0, byte);
 	}
 
-	led_on(LED_RED);
+	//led_on(LED_RED);
 	//load pin ctrl, to sync every slots
 	time_t deadline = time_get(mxc_le_timeout);
 	time_t suspend = time_get(IRC_UPD_MS);
@@ -299,7 +299,7 @@ int mxc_execute(int save)
 
 	//operation finish
 	_le_set(0);
-	led_off(LED_RED);
+	//led_off(LED_RED);
 	if(mxc_ecode) {
 		mxc_status_change(MXC_STATUS_ERROR);
 	}
@@ -379,15 +379,23 @@ static void mxc_can_cfg(can_msg_t *msg)
 	int slot = cfg->slot, bus, line;
 
 	switch(cfg->cmd) {
+	case MXC_CMD_RST:
+		mxc_addr = _mxc_addr_get();
+		slot = (cfg->slot == 0xff) ? mxc_addr : slot;
+		if(slot == mxc_addr) {
+			mxc_ecode = IRT_E_OK; //clear last error
+			mxc_status_change(MXC_STATUS_READY);
+			mxc_can->flush();
+			mxc_opcode_alone.special.type = VM_OPCODE_NUL;
+			mxc_line_min = mxc_addr * 32;
+			mxc_line_max = mxc_line_min + 31;
+		}
+		break;
 	case MXC_CMD_CFG:
 		slot = (cfg->slot == 0xff) ? mxc_addr : slot;
 		bus = cfg->bus;
 		line = ~cfg->line;
 		if(slot == mxc_addr) {
-			mxc_ecode = IRT_E_OK; //clear last error
-			mxc_status_change(MXC_STATUS_READY);
-			mxc_can->flush();
-			memset(mxc_image_static, 0x00, sizeof(mxc_image_static));
 			mxc_le_timeout = cfg->ms;
 			mxc_relay_clr_all();
 			mxc_line_set(line);
@@ -448,27 +456,7 @@ int mxc_init(void)
 	_oe_set(1);
 	_le_set(0);
 
-	//to avoid addr signal instable error when inserting
-	led_off(LED_GREEN);
-	led_on(LED_RED);
-	sys_mdelay(1000);
-	led_off(LED_RED);
-	mxc_addr = _mxc_addr_get();
-
-	/*maybe we shouldn't do this here????
-	wait for CAN config frame to do init*/
-#if 0
-	memset(mxc_image, 0x00, sizeof(mxc_image));
-	mxc_execute(1);
-	_oe_set(0);
-#endif
-
-	//init glvar
-	mxc_ecode = IRT_E_OK;
-	mxc_opcode_alone.special.type = VM_OPCODE_NUL;
-	mxc_line_min = mxc_addr * 32;
-	mxc_line_max = mxc_line_min + 31;
-	mxc_le_timeout = 0;
+	//state matchine
 	mxc_status_change(MXC_STATUS_INIT);
 
 	//communication init
