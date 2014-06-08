@@ -60,6 +60,7 @@ void main()
 {
 	sys_init();
 	dps_init();
+        led_flash(LED_RED);
 	lv_enable(0);
 	printf("dps v1.0, SW: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
