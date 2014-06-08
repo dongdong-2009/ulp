@@ -191,18 +191,25 @@ static int mxc_status_change(enum mxc_status_e new_status)
 	*/
 	switch(new_status) {
 	case MXC_STATUS_INIT:
+		led_error(0);
+		led_off(LED_RED);
+		led_off(LED_GREEN);
 		led_flash(LED_YELLOW);
 		_le_set(0);
 		mxc_status = new_status;
 		break;
 	case MXC_STATUS_READY:
 		mxc_timer_poll = time_get(IRC_POL_MS * 2);
+		led_error(0);
 		led_off(LED_YELLOW);
+		led_off(LED_RED);
 		led_flash(LED_GREEN);
 		mxc_status = new_status;
 		break;
 	case MXC_STATUS_ERROR:
 		led_off(LED_YELLOW);
+		led_off(LED_RED);
+		led_off(LED_GREEN);
 		led_error(mxc_ecode);
 		_le_set(0);
 		mxc_status = new_status;
@@ -211,7 +218,9 @@ static int mxc_status_change(enum mxc_status_e new_status)
 		if(mxc_status == MXC_STATUS_READY) {
 			if(mxc_timer_poll == 0) {
 				//restore led display
+				led_error(0);
 				led_off(LED_YELLOW);
+				led_off(LED_RED);
 				led_flash(LED_GREEN);
 			}
 			mxc_timer_poll = time_get(IRC_POL_MS * 2);
@@ -476,6 +485,9 @@ void main()
 		if(mxc_status == MXC_STATUS_READY) {
 			if(mxc_timer_poll != 0) {
 				if(time_left(mxc_timer_poll) < 0) {
+					led_error(0);
+					led_off(LED_RED);
+					led_off(LED_GREEN);
 					led_flash(LED_YELLOW);
 					mxc_timer_poll = 0;
 				}
