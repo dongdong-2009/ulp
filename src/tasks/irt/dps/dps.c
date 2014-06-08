@@ -11,21 +11,42 @@
 #include "shell/shell.h"
 #include "can.h"
 #include "dps.h"
+#include "../mxc.h"
 
 void dps_auto_regulate(void)
 {
 }
 
-void dps_can_handler(can_msg_t *msg)
+int lv_config(int key, float value)
 {
-	int id = msg->id;
-	id &= 0xfff0;
-
-	switch(id) {
-	case CAN_ID_DPS:
+	switch(key) {
+	case DPS_KEY_U:
+		lv_u_set(value);
 		break;
 	default:
 		break;
+	}
+	return 0;
+}
+
+void dps_can_handler(can_msg_t *msg)
+{
+	dps_cfg_msg_t *cfg = (dps_cfg_msg_t *) msg->data;
+	int id = msg->id;
+	id &= 0xfff0;
+
+	if((id == CAN_ID_CFG) && (cfg->cmd == DPS_CMD_CFG)) {
+		switch(cfg->dps) {
+		case DPS_LV:
+			lv_config(cfg->key, cfg->value);
+			break;
+		case DPS_HV:
+			break;
+		case DPS_IS:
+			break;
+		default:
+			break;
+		}
 	}
 }
 

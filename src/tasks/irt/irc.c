@@ -264,7 +264,7 @@ static int cmd_power_func(int argc, char *argv[])
 		float v = atof(argv[2]);
 		ecode = - IRT_E_CMD_PARA;
 		if((v >= 0.0) && (v <= 30.0)) {
-			ecode = lv_config(v);
+			ecode = lv_config(DPS_KEY_U, v);
 		}
 	}
 
