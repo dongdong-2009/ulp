@@ -9,10 +9,29 @@
 #include "stm32f10x.h"
 #include "can.h"
 #include "bsp.h"
+#include "mbi5025.h"
 
 static volatile int irc_vmcomp_pulsed;
+const mbi5025_t irc_mbi = {.bus = &spi2, .load_pin = SPI_2_NSS, .oe_pin = SPI_CS_PB12};
 
-static void rly_init(void)
+#define K0 (1 << 0)
+#define K1 (1 << 1)
+#define K2 (1 << 2)
+#define K3 (1 << 3)
+#define K4 (1 << 4)
+#define K5 (1 << 5)
+#define K6 (1 << 6)
+#define K7 (1 << 7)
+#define K8 (1 << 8)
+#define K9 (1 << 9)
+#define K10 (1 << 10)
+#define K11 (1 << 11)
+#define K12 (1 << 12)
+#define K13 (1 << 13)
+#define K14 (1 << 14)
+#define K15 (1 << 15)
+
+static void _rly_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
@@ -25,7 +44,7 @@ static void rly_init(void)
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 }
 
-void rly_set(int mode)
+void _rly_set(int mode)
 {
 	/*
 	enum {
@@ -47,6 +66,35 @@ void rly_set(int mode)
 	y &= 0xff00;
 	y |= image[mode];
 	GPIOE->ODR = y;
+}
+
+static void rly_init(void)
+{
+	_rly_init();
+	mbi5025_DisableOE(&irc_mbi);
+	mbi5025_Init(&irc_mbi);
+}
+
+void rly_set(int mode)
+{
+	_rly_set(mode);
+	const short image[] = {
+		/*HVR*/ K0|K2,
+		/*L4R*/ K7|K4,
+		/*W4R*/ K3|K7,
+		/*L2T*/ K3|K10,
+		/*RPB*/ K5|K8,
+		/*RMX*/ K5|K8,
+		/*VHV*/ K6|K9,
+		/*VLV*/ K6|K11,
+		/*IIS*/ K1|K13,
+		0x00,
+	};
+
+	sys_assert((mode >= IRC_MODE_HVR) && (mode <= IRC_MODE_OFF));
+	short relays = image[mode];
+	mbi5025_write_and_latch(&irc_mbi, &relays, sizeof(relays));
+	mbi5025_EnableOE(&irc_mbi);
 }
 
 /*
