@@ -229,9 +229,12 @@ ERROR_CODE PrintSoftwareVersion(void)
   if(result != E_OK) return result;
 	
   //wait	
+#if 0
   result = wait_test_finish(FACTORY_TEST_MODE_TESTID, FACTORY_TEST_MODE_TIMEOUT);	
   if (result != E_OK) return result;
 	
+#endif
+  nest_mdelay(1000);
   //print result	
   result = mcamOSUpload(DW_CAN1, buffer, OUTBOX_ADDR, 3, CAN_TIMEOUT);	
   if (result != E_OK) return result;
@@ -445,7 +448,7 @@ ERROR_CODE Verify_PHDLFaultTest(UINT8 *pdata)
   ERROR_CODE result;	
   result = E_OK;
 	
-  if( pdata[0]&0xf0 != 0 ) 
+  if((pdata[0]&0xf0) != 0 )
   {		
     result = DUT_OOPS;		
     ERROR(FB_FAIL, "PHDL Fault Diagnostic Test");		
@@ -493,7 +496,7 @@ ERROR_CODE Verify_C2PSEFaultTest(UINT8 *pdata)
   ERROR_CODE result;	
   result = E_OK;
 	
-  if( pdata[0]&0x03 != 0 ) 
+  if( pdata[0] != 0 )
   {		
     result = DUT_OOPS;		
     ERROR(FB_FAIL, "C2PSE Fault Diagnostic Test");		
@@ -510,6 +513,25 @@ ERROR_CODE Verify_C2PSEFaultTest(UINT8 *pdata)
   return result;
 }
 
+static void mask_pch06(void)
+{
+	switch(bmr) {
+	case BM_28358081:
+		c2mio_mask("PCH06");
+		break;
+	case BM_28358082:
+		c2mio_mask("PCH06");
+		break;
+	case BM_28358083:
+		c2mio_mask("PCH06");
+		break;
+	case BM_28358084:
+		c2mio_mask("PCH06");
+		break;
+	default:
+		break;
+	}
+}
 static void FaultTest(void)
 {	
   ERROR_CODE result = 0;	
@@ -517,8 +539,12 @@ static void FaultTest(void)
   if(nest_fail())		
     return;
 	
+  if((mfg_data.sn[3]!='0')&&(mfg_data.sn[3]!='1'))
+    return;
   c2mio_init();
+  mask_pch06();
 //  c2mio_mask("PCH33");
+  nest_mdelay(1000);
   nest_message("#C2MIO Open/Short to GND Test Start ... \n");	
   result += Execute_C2MIOFaultTest(C2MIO_FAULTTEST_MODE_OPENSHORT_TO_GND, buf);	
   for(i=0;i<10;i++)	
@@ -529,6 +555,7 @@ static void FaultTest(void)
   result += c2mio_verify(buf);
 	
   nest_mdelay(1000);	
+#if 0
   nest_message("#C2MIO Short to VBAT Test Start ... \n");	
   result += Execute_C2MIOFaultTest(C2MIO_FAULTTEST_MODE_SHORT_TO_BAT, buf);	
   for(i=0;i<10;i++)	
@@ -537,11 +564,14 @@ static void FaultTest(void)
   }	
   message("\n");	
   result += c2mio_verify(buf);
+#endif
 	
   nest_message("#PHDL Open Fault Test Start ... \n");	
   result += Execute_PHDLFaultTest(PHDL_FAULTTEST_MODE_OPEN_FAULT, buf);
   result += Verify_PHDLFaultTest(buf);	
   nest_mdelay(1000);	
+
+#if 0 ///////////////////////add yu////////////////////////////
   nest_message("#PHDL Short Fault Test Start ... \n");	
   result += Execute_PHDLFaultTest(PHDL_FAULTTEST_MODE_SHORT_FAULT, buf);	
   result += Verify_PHDLFaultTest(buf);	
@@ -550,6 +580,7 @@ static void FaultTest(void)
   result += Execute_PHDLFaultTest(PHDL_FAULTTEST_MODE_OVER_CURRENT, buf);	
   result += Verify_PHDLFaultTest(buf);	
   nest_mdelay(1000);
+#endif        //////////////////////////////////////////////////
 	
   nest_message("#C2PSE Fault Diagnostic Test Start ... \n");	
   result += Execute_C2PSEFaultTest(buf);	
@@ -623,26 +654,28 @@ static void CyclingTest(void)
   ERROR_CODE result = 0;	
   int tensec, deadline;
 	
-//  if(nest_fail())		
-//    return;
+  if(nest_fail())
+    return;
+  if(mfg_data.sn[3]!='0')
+    return;
 	
   c2mio_init();
-//  c2mio_mask("PCH33");
+  mask_pch06();
   message("#Output Cycling Test Start... \n");	
   mcamOSInit(DW_CAN1, CAN_KBAUD);	
   result += Execute_Cycling(CYCLING_LOOP_IN);	
-  nest_mdelay(200);	
+  nest_mdelay(500);
   for(tensec = 0; tensec < CND_PERIOD; tensec ++) 
   {		
-    //delay 10 seconds		
-    deadline = nest_time_get(1000 * 10);		
+    //delay 60 seconds
+    deadline = nest_time_get(1000 * 60);
     while(nest_time_left(deadline) > 0) 
     {			
       nest_update();			
       nest_light(RUNNING_TOGGLE);		
     }
 		
-    nest_message("T = %d s\n", (tensec*10));		
+    nest_message("T = %d min\n", (tensec));
     result += ReadFaultByte();		
     if(tensec != 0) 
     {			
@@ -656,6 +689,9 @@ static void CyclingTest(void)
       nest_error_set(FB_FAIL, "Cycling Test");			
 //      break;		
     }	
+    if(nest_fail())
+      return;
+      mask_pch06();
   }
 	
   Execute_Cycling(CYCLING_LOOP_OUT);	
@@ -678,6 +714,8 @@ void TestStart(void)
   ERROR_CODE result;	
   UINT8 buffer[4];	
   UINT8 amb;
+  UINT8 i;
+  UINT8 j=0,mm=0;
   //	UINT8 psv, psv_save;
   //	int cnt;
 	
@@ -704,6 +742,16 @@ void TestStart(void)
     nest_error_set(CAN_FAIL, "CAN");		
     return;	
   }	
+/////////////////////add yu////////////////////////
+	for(i=0;i<48;i++){
+		printf("  %02x", mfg_data.date[i]);
+		j++;
+		if(j==16){
+			j=0;
+			printf("\n");
+		}
+	}
+////////////////////////////////////////////
   //test Sample model ID	
   if(0) 
   {		
@@ -781,6 +829,7 @@ void TestStop(void)
   message("#Test Stop\n");
 	
   //store fault bytes back to dut	
+  memcpy(mfg_data.ctfb, buf, sizeof(mfg_data.ctfb));
   result = Write_Memory(FB_ADDR, mfg_data.ctfb, sizeof(mfg_data.ctfb));	
   if( result != E_OK ) 
     ERROR(MISC_FAIL, "Write back Fault Bytes");
