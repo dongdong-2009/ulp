@@ -1,5 +1,6 @@
 /*
  * 	miaofng@2012 initial version
+ *	miaofng@2013/7/25 enhanced gui to totaly seprate gui thread and oid main thread
  */
 
 #include "gui/gui.h"
@@ -8,85 +9,93 @@
 #include "string.h"
 #include "ulp/sys.h"
 
-struct oid_gui_s gui;
-static char str[16]; /*str buffer for snprintf*/
-
 static gwidget *main_window;
 static gwidget *fixed;
-static gwidget *button_lines;
-static gwidget *button_ground;
-static gwidget *button_mode_id;
-static gwidget *button_mode_dg;
+static gwidget *button_lines; //update when pressed
+static gwidget *button_ground; //update when pressed
+static gwidget *button_mode_id; //update when id/dg pressed
+static gwidget *button_mode_dg; //update when id/dg pressed
 static gwidget *button_start;
-static gwidget *button_keycode;
-static gwidget *button_typecode;
-static gwidget *button_ecode0;
-static gwidget *button_ecode1;
-static gwidget *button_ecode2;
+static gwidget *button_keycode; //update manually when necessary
+static gwidget *button_typecode; //update manually when necessary
+static gwidget *button_ecode0; //update manually when necessary
+static gwidget *button_ecode1; //update manually when necessary
+static gwidget *button_ecode2; //update manually when necessary
+static gwidget *boot_timer;
 
 static unsigned cmap_ecode[] = GUI_COLORMAP_NEW(RED, WHITE);
 static unsigned cmap_tcode[] = GUI_COLORMAP_NEW(GREEN, WHITE);
 static unsigned cmap_kcode[] = GUI_COLORMAP_NEW(RGB(0xe0, 0xe0, 0xe0), WHITE);
 
+static char str[16]; /*str buffer for snprintf*/
+static struct o2s_config_s gui_config;
+static struct oid_result_s gui_result;
+static time_t gui_timer;
+static char gui_counter;
+static char gui_busy;
+static char gui_flash;
+
 static int main_identify_on_event(gwidget *widget, gevent *event)
 {
-	static char str[5];
-	if(event->type == GUI_TOUCH_BEGIN) {
-		//printf("x = %d, y = %d\n", event->ts.x, event->ts.y);
-		if(gui_widget_touched(widget, event)) {
-			if(widget == button_lines) {
-				if(oid.lock == 0) {
-					oid.lines = (oid.lines < 4) ? (oid.lines + 1) : 1;
-					sprintf(str, "%d", oid.lines);
-					gui_widget_set_text(widget, str);
-				}
-			}
-			else if(widget == button_ground) {
-				if(oid.lock == 0) {
-					char *p;
-					switch(gui.gnd) {
-					case '?':
-						gui.gnd = 0;
-						p = "N";
-						break;
-					case 0:
-						gui.gnd = 1;
-						p = "Y";
-						break;
-					default:
-						gui.gnd = '?';
-						p = "?";
-						break;
-					}
-					gui_widget_set_text(widget, p);
-				}
-			}
-			else if(widget == button_mode_dg) {
-				if(oid.lock == 0) {
-					oid.mode = 'd';
-					gui_widget_set_text(button_mode_id, " ");
-					gui_widget_set_text(button_mode_dg, "<");
-				}
-			}
-			else if(widget == button_mode_id) {
-				if(oid.lock == 0) {
-					oid.mode = 'i';
-					gui_widget_set_text(button_mode_id, "<");
-					gui_widget_set_text(button_mode_dg, " ");
-				}
-			}
-			else if(widget == button_start) {
-				oid.start = 1;
-			}
-			else {
-			/*
-				i = (i < 19) ? (i + 1) : 0;
-				sprintf(str, "%d", i);
-				gui_widget_set_text(widget, str);
-			*/
-			}
+	if(event->type != GUI_TOUCH_BEGIN)
+		return -1;
+
+	//printf("x = %d, y = %d\n", event->ts.x, event->ts.y);
+	if(!gui_widget_touched(widget, event))
+		return -1;
+
+	if(widget == button_start) {
+		if(gui_flash == 0) {
+			oid_set_config(&gui_config);
+			oid_start();
+			return -1;
 		}
 	}
+
+	if(oid_is_busy())
+		return -1;
+
+	if(widget == button_lines) {
+		gui_config.lines = (gui_config.lines < 4) ? (gui_config.lines + 1) : 1;
+		sprintf(str, "%d", gui_config.lines);
+		gui_widget_set_text(widget, str);
+		oid_set_config(&gui_config);
+		if((gui_config.lines == 1) || (gui_config.lines == 3)) {
+			gui_widget_set_text(button_ground, "-");
+		}
+		else {
+			static const char *grounded = "?YN?";
+			int i;
+			for(i = 0; grounded[i] != gui_config.grounded; i ++);
+			memset(str, 0x00, sizeof(str));
+			str[0] = gui_config.grounded;
+			gui_widget_set_text(button_ground, str);
+		}
+	}
+
+	else if(widget == button_ground) {
+		if((gui_config.lines == 2) || (gui_config.lines == 4)) {
+			static const char *grounded = "?YN?";
+			int i;
+			for(i = 0; grounded[i] != gui_config.grounded; i ++);
+			gui_config.grounded = grounded[++ i];
+			memset(str, 0x00, sizeof(str));
+			str[0] = gui_config.grounded;
+			gui_widget_set_text(widget, str);
+			oid_set_config(&gui_config);
+		}
+	}
+
+	else if((widget == button_mode_dg) || (widget == button_mode_id)) {
+		char mode = (widget == button_mode_dg)? 'D' : 'I';
+		if(mode != gui_config.mode) {
+			gui_widget_set_text(button_mode_id, (mode == 'I') ? "<" : " ");
+			gui_widget_set_text(button_mode_dg, (mode == 'D') ? "<" : " ");
+			gui_config.mode = mode;
+			oid_set_config(&gui_config);
+		}
+	}
+
 	return -1;
 }
 
@@ -108,6 +117,7 @@ static void main_window_init(void)
 	button_ecode0 = gui_button_new_with_label(" -- ");
 	button_ecode1 = gui_button_new_with_label(" -- ");
 	button_ecode2 = gui_button_new_with_label(" -- ");
+	boot_timer = gui_button_new_with_label("5");
 
 	gui_widget_set_colormap(button_keycode, cmap_kcode);
 	gui_widget_set_colormap(button_typecode, cmap_tcode);
@@ -119,7 +129,8 @@ static void main_window_init(void)
 	gui_widget_set_size_request(button_ground, 60, 40-4);
 	gui_widget_set_size_request(button_mode_id, 60, 40-4);
 	gui_widget_set_size_request(button_mode_dg, 60, 40-4);
-	gui_widget_set_size_request(button_start, 120, 40-4);
+	gui_widget_set_size_request(button_start, 120, 40-4);//
+	gui_widget_set_size_request(boot_timer, 20, 40-4);
 	gui_widget_set_size_request(button_keycode, 116, 40-4);
 	gui_widget_set_size_request(button_typecode, 116, 40-4);
 	gui_widget_set_size_request(button_ecode0, 116, 40-4);
@@ -130,6 +141,7 @@ static void main_window_init(void)
 	gui_fixed_put(fixed, button_mode_dg, 260, 40*3 + 2);
 	gui_fixed_put(fixed, button_mode_id, 260, 40*4 + 2);
 	gui_fixed_put(fixed, button_start, 200, 40*5 + 2);
+	gui_fixed_put(fixed, boot_timer, 295, 40*5 + 2);
 	gui_fixed_put(fixed, button_keycode, 80, 40*1 + 2);
 	gui_fixed_put(fixed, button_typecode, 80, 40*2 + 2);
 	gui_fixed_put(fixed, button_ecode0, 80, 40*3 + 2);
@@ -148,121 +160,182 @@ static void main_window_init(void)
 	gui_window_show(main_window);
 }
 
-void gui_progress_update(void)
+
+//110 + 14 * i, 46
+static void oid_draw_box(int x, int y, int w, int h, int color)
 {
-	gwidget *widget = (oid.mode == 'i') ? button_mode_id : button_mode_dg;
-	if(oid.lock != gui.lock) {
-		gui.lock = oid.lock;
-		if(gui.lock == 0) { //resume '<'
-			char *p = "<";
-			gui_widget_set_text(widget, p);
-			return;
-		}
-	}
+	gui_lcd_pen(BLACK, WHITE, 1);
+	gui_lcd_rectangle(x, y, w, h);
+	gui_lcd_pen(color, WHITE, 1);
+	gui_lcd_box(x + 1, y + 1, w - 2, h - 2);
+}
 
-	if(oid.lock == 0) { //controlled by event loop
-		return;
-	}
+#if 1
+#include "shell/cmd.h"
 
-	if(oid.scnt != gui.scnt) { //display digit
-		gui.scnt = oid.scnt;
-		sprintf(str, "%d", gui.scnt);
-		gui_widget_set_text(widget, str);
-		return;
-	}
-
-	if(oid.scnt == 0) {
-		if(time_left(gui.timer) < 0) {
-			gui.timer = time_get(1000);
-			gui.pbar ++;
-			gui.pbar = (gui.pbar < 3) ? gui.pbar : 0;
-			
-			char *p = ">";
-			p = (gui.pbar == 0) ? ">  " : p;
-			p = (gui.pbar == 1) ? ">> " : p;
-			p = (gui.pbar == 2) ? ">>>" : p;
-			gui_widget_set_text(widget, p);
-		}
+static int cmd_box_func(int argc, char *argv[])
+{
+	if(argc >= 6) {
+		int x = atoi(argv[1]);
+		int y = atoi(argv[2]);
+		int w = atoi(argv[3]);
+		int h = atoi(argv[4]);
+		int c = htoi(argv[5]);
+		int r = (c >> 16) & 0xff;
+		int g = (c >> 8) & 0xff;
+		int b = (c >> 0) & 0xff;
+		oid_draw_box(x, y, w, h, RGB(r, g, b));
 	}
 }
 
-static void gui_error_update(int show)
+const cmd_t cmd_box = {"box", cmd_box_func, "draw box at specified position"};
+DECLARE_SHELL_CMD(cmd_box)
+#endif
+
+void oid_gui_init(void)
 {
-	gwidget *widget[] = {
+	gui_config.lines = 4;
+	gui_config.mode = 'I';
+	gui_config.grounded = '?';
+	memset(&gui_result, 0x00, sizeof(gui_result));
+	gui_busy = 0;
+
+	gui_init(NULL);
+	main_window_init();
+	gui_update(); //to disp the main window asap
+
+	//to display boot timer
+	for(int i = 26; i > 0; i --) {
+		const char *p[] = {"-", "/", "|", "\\"};
+		gui_widget_set_text(boot_timer, p[i&0x03]);
+		mdelay(200);
+	}
+	gui_widget_set_text(boot_timer, " ");
+}
+
+void oid_gui_update(void)
+{
+	struct oid_result_s oid_result;
+	oid_get_result(&oid_result);
+	gwidget *widget = (gui_config.mode == 'I') ? button_mode_id : button_mode_dg;
+
+	//start & stop event detection
+	char restore = 0;
+	char oid_busy = oid_is_busy();
+	if(oid_busy != gui_busy) {
+		gui_busy = oid_busy;
+		gui_timer = time_get(0);
+		restore = 1;
+
+		if(oid_busy) { //idle -> busy
+			gui_counter = 0;
+			memset(&gui_result, 0x00, sizeof(gui_result));
+		}
+		else { //busy->idle
+			gui_flash = 6;
+		}
+	}
+
+	if(restore || (oid_result.kcode != gui_result.kcode)) {
+		if(gui_config.mode == 'D') {
+			sprintf(str, "%04x", oid_result.kcode);
+			char *p = (oid_result.kcode == 0) ? " -- " : str;
+			gui_widget_set_text(button_keycode, p);
+		}
+		else {
+			static const int colors[NR_OF_PINS] = { RED, GRAY, BLACK, WHITE, WHITE};
+			memset(str, 0x00, sizeof(str));
+			for(int i = 0; i < 4; i ++) {
+				int idx = (oid_result.kcode >> (3 - i) * 4) & 0x0f;
+				str[i] = (idx == 0) ? '?' : ' ';
+				if(i + 1 > gui_config.lines) {
+					str[i] = '-';
+				}
+			}
+			gui_widget_set_text(button_keycode, str);
+
+			for(int i = 0; i < 4; i ++) {
+				int idx = (oid_result.kcode >> (3 - i) * 4) & 0x0f;
+				idx %= 5;
+				if(idx != 0) {
+					oid_draw_box(110 + 16 * i, 46, 10, 28, colors[idx]);
+				}
+			}
+		}
+	}
+
+	if(restore || (oid_result.tcode != gui_result.tcode)) {
+		sprintf(str, "%04x", oid_result.tcode);
+		char *p = (oid_result.tcode == 0) ? " -- " : str;
+		gui_widget_set_text(button_typecode, p);
+	}
+
+	//diplay o2s mv at kcode position
+	if(oid_busy) {
+		if(oid_is_hot()) {
+			static int mv_disp = 0;
+			int mv = oid_hot_get_mv();
+			mv = (mv > 9999) ? 9999 : mv; /*to avoid display digits too long*/
+			if(mv != mv_disp) {
+				mv_disp = mv;
+				sprintf(str, "%04d", mv);
+				gui_widget_set_text(button_keycode, str);
+			}
+		}
+	}
+
+	//progress bar update
+	if(restore) gui_widget_set_text(widget, "<");
+	if(oid_busy) {
+		if(time_left(gui_timer) <= 0) {
+			gui_timer = time_get(1000);
+
+			if(oid_is_hot()) {
+				//display 90 89 88 ...
+				int ms = oid_hot_get_ms();
+				sprintf(str, "%d", ms / 1000);
+				gui_widget_set_text(widget, str);
+			}
+			else { //display >>>
+				static const char *pstr[] = {">  ", ">> ", ">>>"};
+				gui_widget_set_text(widget, pstr[gui_counter]);
+				gui_counter ++;
+				gui_counter %= 3;
+			}
+		}
+	}
+
+	//ecode handling
+	gwidget *button_ecode[] = {
 		button_ecode0,
 		button_ecode1,
 		button_ecode2,
 	};
 
-	for(int i = 0; i < 3; i ++) {
-		if(oid.ecode[i] != gui.ecode[i]) {
-			int ecode = oid.ecode[i];
-			gui.ecode[i] = ecode;
-			switch(ecode) {
-			case E_OK:
-				snprintf(str, 7, "--");
-				break;
+	//ecode flash?
+	int force = 0;
+	if(gui_flash > 0) {
+		if(time_left(gui_timer) <= 0) {
+			gui_timer = time_get(300);
+			gui_flash --;
 
-			default:
-				if(ecode & 0xff000000) {
-					ecode -= 0x01000000;
-					snprintf(str, 7, "?%05d", ecode);
-				}
-				else {
-					snprintf(str, 7, "%06x", ecode);
-				}
+			//force ecode display update
+			force = 1;
+		}
+	}
+
+	//ecode display
+	for(int i = 0; i < 3; i ++) {
+		if(restore || force || (oid_result.ecode[i] != gui_result.ecode[i])) {
+			sprintf(str, "%06x", oid_result.ecode[i]);
+			char *p = (oid_result.ecode[i] == 0) ? " -- " : str;
+			if(oid_result.ecode[i] != 0x00) {
+				p = (gui_flash & 0x01) ? "      " : p;
 			}
-
-			if(show == 0) strcpy(str, "      ");
-			gui_widget_set_text(widget[i], str);
+			gui_widget_set_text(button_ecode[i], p);
 		}
 	}
-}
 
-void gui_error_flash(void)
-{
-	for(int i = 0; i < 3; i ++) {
-		gui_error_update(0);
-		sys_mdelay(200);
-		gui_error_update(1);
-		sys_mdelay(100);
-	}
-}
-
-void oid_gui_init(void)
-{
-	memset(&gui, 0xff, sizeof(gui));
-	gui.gnd = '?';
-	gui_init(NULL);
-	main_window_init();
-	gui_update(); //to disp the main window asap
-}
-
-void oid_gui_update(void)
-{
 	gui_update();
-	gui_error_update(1);
-	gui_progress_update();
-
-	if(oid.kcode != gui.kcode) {
-		gui.kcode = oid.kcode;
-		sprintf(str, "%04x", gui.kcode);
-		char *p = (gui.kcode == 0) ? " -- " : str;
-		gui_widget_set_text(button_keycode, p);
-	}
-	
-	if(oid.tcode != gui.tcode) {
-		gui.tcode = oid.tcode;
-		sprintf(str, "%04x", gui.tcode);
-		char *p = (gui.tcode == 0) ? " -- " : str;
-		gui_widget_set_text(button_typecode, p);
-	}
-	
-	if(oid.scnt != 0) {
-		if(oid.mv != gui.mv) {
-			gui.mv = oid.mv;
-			sprintf(str, "%04d", gui.mv);
-			gui_widget_set_text(button_keycode, str);
-		}
-	}
+	memcpy(&gui_result, &oid_result, sizeof(gui_result));
 }

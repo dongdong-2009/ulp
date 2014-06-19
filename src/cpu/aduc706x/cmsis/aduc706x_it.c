@@ -41,6 +41,7 @@ const isr_t vectors_irq[] = {
 	NULL_ISR,                   /* 31 - Unused                 */
 };
 
+/* these codes has been moved to cstartup.s
 #ifndef CONFIG_ADUC706X_VECTOR
 __irq __arm void IRQ_Handler(void)
 {
@@ -58,6 +59,7 @@ __irq __arm void FIQ_Handler(void)
 {
 }
 #endif
+*/
 
 __weak void NULL_ISR(void)
 {

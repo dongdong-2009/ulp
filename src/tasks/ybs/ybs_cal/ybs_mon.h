@@ -8,9 +8,6 @@
 #include "uart.h"
 #include "stm32f10x.h"
 
-#define MCD_CH_DET	11
-#define MCD_CH_ASIG	10
-
 #define ybs_uart uart2
 #define ybs_uart_sel() do { \
 	GPIO_WriteBit(GPIOE, GPIO_Pin_0, Bit_RESET); \

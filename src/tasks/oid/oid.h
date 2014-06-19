@@ -5,96 +5,120 @@
 #ifndef __OID_H__
 #define __OID_H__
 
-#define oid_sec_threshold 90
-#define oid_mv_threshold 750
-#define mohm_open_threshold _kohm(10)
-#define mohm_short_threshold _ohm(1)
+#include "oid_dmm.h"
 
-enum {
-	PIN_SHELL,
-	PIN_GRAY,
-	PIN_BLACK,
-	PIN_WHITE0,
-	PIN_WHITE1,
-	NR_OF_PINS,
-};
+#define oid_rcal_mohm		ocfg.rcal
+#define oid_rcal_mohm_delta_max ocfg.rcal_delta
+#define oid_short_threshold	ocfg.short_max
+#define oid_hot_timeout_ms	ocfg.hot_time
+#define oid_hot_mv_th_ident	ocfg.hot_ident
+#define oid_hot_mv_th_diag	ocfg.hot_diag
 
-struct oid_s {
-	char seconds;
-	char o2s[NR_OF_PINS]; /*o2 sensor pinmap*/
-	int mohms[NR_OF_PINS][NR_OF_PINS];
-	int mv; /*current o2 output voltage*/
-	int mohm; /*heat wire*/
-	int mohm_real;
-	int tcode;
-	int kcode;
-	int ecode[3];
-	unsigned start : 1;
-	unsigned lock : 1; /*config operation is locked*/
-	unsigned lines : 3;
-	unsigned scnt : 8; /*seconds counter*/
-	unsigned mode : 8; //'i', 'd'
-	unsigned gnd : 8; //0x00->ground, 0x01->unground, '?'->unknown
-};
-
-struct oid_gui_s {
-	time_t timer;
-	int ecode[3];
-	int tcode;
-	int kcode;
-	int mv;
-	unsigned lock : 1;
-	unsigned pbar : 3; /*progress bar*/
-	unsigned scnt : 8;
-	unsigned gnd : 8;
-	
-};
-
-/*progress bar operation*/
-enum {
-	PROGRESS_START,
-	PROGRESS_STOP,
-	PROGRESS_BUSY,
-};
-
-extern int oid_stm;
-extern struct oid_config_s oid_config;
-extern void oid_mdelay(int ms);
-
-void oid_gui_init(void);
-void oid_show_result(int tcode, int kcode);
-void oid_show_progress(int value);
-
-/*error handling*/
 enum oid_error_type {
-	E_OK = 0,
-	E_SYSTEM = 0x000100, /*oid system self check error*/
-	E_STRANGE_RESISTOR = 0x01000000, /*strange resistance is found*/
-	E_SHORT_OTHER = 0x000300, /*some pins are shorten except shell pin*/
-	E_SHORT_SHELL_MORE = 0x000400, /*more than one pins are shorten to shell*/
-	E_WIRE_MORE = 0x000500, /*more than one heating wire is found*/
-	
-	/*trans provided error codes*/
-	E_SHORT_SHELL_GRAY = 0x020202,
-	E_SHORT_SHELL_BLACK = 0x010101,
-	E_SHORT_SHELL_WHITE = 0x030103,
-	
-	E_SHORT_GRAY_BLACK = 0x020101,
-	E_SHORT_GRAY_WHITE = 0x000, //MF ADDED
-	
-	E_SHORT_BLACK_WHITE = 0x030105, //MF ADDED
-	E_SHORT_WHITE_WHITE = 0x030106, //MF ADDED
-	E_STRANGE_WHITE_WHITE = 0x030107, //MF ADDED
-	
-	E_OPEN_SHELL_GRAY = 0x020102,
-	E_OPEN_WHITE_WHITE = 0x030102,
-	
-	E_LOSE_HIGH_VOLTAGE = 0x030104,
-	E_UNDEF,
+	OID_E_OK,
+
+	/*Test Device Error*/
+	OID_E_SYS_CAL = 0x090001,
+	OID_E_SYS_DMM_COMM,
+	OID_E_SYS_DMM_DATA,
+	OID_E_SYS_CFG_ERROR,
+
+	OID_E_GROUNDED_PIN_TOO_MUCH = 0x020001,
+	OID_E_GROUNDED_PIN_LOST,
+	OID_E_HEATWIRE_LOST,
+	OID_E_HEATWIRE_MANY,
+
+	OID_E_O2S_VOLTAGE_LOST = 0x030001,
+	OID_E_O2S_VOLTAGE_POLAR = 0x030002, /*black&gray pin exchange?*/
 };
 
-extern struct oid_s oid;
-extern struct oid_gui_s gui;
-void gui_error_flash(void);
+enum {
+	PIN_0,
+	PIN_SHELL = PIN_0,
+
+	PIN_1,
+	PIN_GRAY = PIN_1,
+
+	PIN_2,
+	PIN_BLACK = PIN_2,
+
+	PIN_3,
+	PIN_WHITE0 = PIN_3,
+
+	PIN_4,
+	PIN_WHITE1 = PIN_4,
+
+	NR_OF_PINS,
+	PIN_5 = 5,
+	PIN_CAL = PIN_5,
+};
+
+enum {
+	FUNC_SHELL,
+	FUNC_NONE = FUNC_SHELL,
+	FUNC_GRAY,
+	FUNC_BLACK,
+	FUNC_WHITE0,
+	FUNC_WHITE1,
+};
+
+struct o2s_s {
+	int mohm;
+	int min; //mohm_min
+	int max; //mohm_max
+	char grounded;
+	char lines : 4;
+	char deleted : 1;
+	char newbie : 1;
+	unsigned short tcode;
+};
+
+struct oid_config_s {
+	char cksum;
+	char nr_of_sensors;
+	int rcal;
+	int rcal_delta;
+	int short_max;
+	int hot_time;
+	int hot_ident;
+	int hot_diag;
+	struct o2s_s o2s_list[32];
+};
+
+struct o2s_config_s {
+	char lines; /*1..4*/
+	char mode; /*'d' => diag mode, 'i' => ident mode*/
+	char grounded; /*gray line is grounded? 'Y' or 'N' or '?'*/
+};
+
+/* note:
+diag mode: kcode = lines(msb) + gnd + mohm(35 = 3500mohm)
+idet mode: kcode = pin1->function(msb) + pin2->function + pin3->function + pin4->function
+*/
+struct oid_result_s {
+	int kcode; /*0x000000 indicates unknown*/
+	int tcode; /*0x000000 indicates unknown*/
+
+	/*will be managed by oid_error()*/
+	int ecode[3]; /*0x000000 indicates no error*/
+};
+
+/*
+when idle: start a new test
+when busy: halt test
+*/
+void oid_start(void);
+int oid_is_busy(void);
+void oid_set_config(const struct o2s_config_s *cfg);
+void oid_get_result(struct oid_result_s *result); /*get test result*/
+
+int oid_is_hot(void); //warming up?
+void oid_hot_set_ms(int ms);
+int oid_hot_get_ms(void); /*for hot test time left display*/
+int oid_hot_get_mv(void); /*for hot test get current o2s voltage output*/
+
+//oid_gui
+void oid_gui_init(void);
+void oid_gui_update(void);
 
 #endif

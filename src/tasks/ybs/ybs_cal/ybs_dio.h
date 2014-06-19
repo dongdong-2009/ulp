@@ -5,6 +5,8 @@
 #ifndef __YBS_DIO_H_
 #define __YBS_DIO_H_
 
+#include "../ybs.h"
+
 /*float Devation/Gain <=> ybs para conversion*/
 #define G2Y(x) ((unsigned short)(x * 0x8000))
 #define D2Y(x) ((short)(x * 100.0))
@@ -34,6 +36,7 @@ struct ybs_info_s {
 	float Di; /*calibration: input adc zero deviation*/
 	float Go; /*calibration: output dac gain coefficient*/
 	float Do; /*calibration: output dac zero deviation*/
+	struct ybs_mfg_data_s *mfg_data;
 };
 
 int ybs_init(struct ybs_info_s *);

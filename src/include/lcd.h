@@ -110,6 +110,7 @@ int lcd_clear(struct lcd_s *lcd, int x, int y, int w, int h);
 int lcd_clear_all(struct lcd_s *lcd);
 int lcd_puts(struct lcd_s *lcd, int x, int y, const char *str);
 int lcd_line(struct lcd_s *lcd, int x0, int y0, int x1, int y1);
+int lcd_box(struct lcd_s *lcd, int x, int y, int w, int h);
 int lcd_rect(struct lcd_s *lcd, int x, int y, int w, int h);
 
 #endif /*__LCD_H_*/

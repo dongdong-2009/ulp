@@ -46,14 +46,15 @@ void led_Update(void)
 
 #ifdef CONFIG_LED_ECODE
 	if(led_ecode != 0) { //ecode=2: 1110 10 10
-		if(led_estep < LED_IDLE_PERIOD) {
-			led_on(LED_RED);
+		led_timer = time_get(LED_ERROR_PERIOD);
+		if(led_estep < LED_ERROR_IDLE) {
+			led_off(LED_RED);
 		}
 		else {
 			led_inv(LED_RED);
 		}
 		led_estep ++;
-		led_estep = (led_estep > (LED_IDLE_PERIOD + 1 + 2 * led_ecode)) ? 0 : led_estep;
+		led_estep = (led_estep > (LED_ERROR_IDLE + 1 + 2 * (led_ecode - 1))) ? 0 : led_estep;
 	}
 #endif
 
@@ -140,10 +141,11 @@ void led_flash(led_t led)
 	flag_flash |= 1 << i;
 }
 
-void led_error(char ecode)
+void led_error(int ecode)
 {
+	ecode = (ecode < 0) ? - ecode : ecode;
 	if((ecode == 0) || (led_ecode == 0)) {
-		led_ecode = ecode;
+		led_ecode = (char) ecode;
 		led_estep = 0;
 	}
 }

@@ -9,11 +9,26 @@
 #define ADUC_ADC1	0x01
 
 #define ADUC_MUX0_DCH01	0x00
-#define ADUC_MUX0_DCH23	0x05
 #define ADUC_MUX0_SCH05	0x01
 #define ADUC_MUX0_SCH15	0x02
+#define ADUC_MUX0_DCH23	0x05
+#define ADUC_MUX0_SCH25	0x06
+#define ADUC_MUX0_SCH35	0x07
+#define ADUC_MUX0_VREF  0x03
+
 #define ADUC_MUX1_DCH23	0x00
+#define ADUC_MUX1_DCH45 0x01
+#define ADUC_MUX1_DCH67	0x02
+#define ADUC_MUX1_DCH89 0x03
+#define ADUC_MUX1_SCH25 0x04
+#define ADUC_MUX1_SCH35 0x05
+#define ADUC_MUX1_SCH45 0x06
+#define ADUC_MUX1_SCH65 0x07
+#define ADUC_MUX1_SCH75 0x08
+#define ADUC_MUX1_SCH86 0x09
+#define ADUC_MUX1_SCH95 0x0A
 #define ADUC_MUX1_SCHTS	0x0B
+#define ADUC_MUX1_VREF	0x0C
 
 #define ADUC_GAIN_PGA(pga) (1 << (pga))
 #define ADUC_IEXC_UA(cfg) (cfg->iexc * 200UL + cfg->ua10 * 10UL)
@@ -67,8 +82,9 @@ enum {
 	ADUC_CAL_GAIN,
 };
 
-void aduc_adc_init(const aduc_adc_cfg_t *cfg, int cal);
+int aduc_adc_init(const aduc_adc_cfg_t *cfg, int cal);
 /*!!! adc0 must be read before adc1 if it's useful*/
-int aduc_adc_get(int adc, int *value); //0->ok, 1->busy, -1->overrange
+int aduc_adc_is_ready(int adc); //to poll adc convert status, 1->ready, 0->busy
+int aduc_adc_get(int *adc0, int *adc1); //blocked adc conversion until ready, 0->ok, <0 ->overrange
 
 #endif

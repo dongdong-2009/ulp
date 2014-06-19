@@ -261,8 +261,8 @@ int shell_ReadLine(const char *prompt, char *str)
 			shell_print("%s", prompt);
 		}
 		memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
-#if CONFIG_SHELL_LEN_HIS_MAX > 0
 		shell -> cmd_idx ++;
+#if CONFIG_SHELL_LEN_HIS_MAX > 0
 		shell -> cmd_hrpos = shell -> cmd_hrail - 1;
 		if(shell -> cmd_hrpos < 0)
 			shell -> cmd_hrpos = shell -> cmd_hsz;
@@ -299,8 +299,10 @@ int shell_ReadLine(const char *prompt, char *str)
 				strcpy(shell -> cmd_buffer, "pause");
 			else
 				strcpy(shell -> cmd_buffer, "kill all");
+#if CONFIG_CMD_RET_OPT
 		case '@':
 			shell_print("%c", '\r');
+#endif
 		case '\r':		// Return
 			shell -> cmd_idx = -1;
 			ready = 1;
@@ -627,4 +629,40 @@ static int cmd_autorun_func(int argc, char *argv[])
 
 const cmd_t cmd_autorun = {"autorun", cmd_autorun_func, "autorun a specified cmdline"};
 DECLARE_SHELL_CMD(cmd_autorun)
+#endif
+
+#ifdef CONFIG_CMD_SHELL
+static int cmd_shell_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"shell -m[/a]		switch shell to manual[/auto] mode\n"
+	};
+
+	int e = (argc > 1) ? 0 : -1;
+	for(int i = 1; i < argc; i ++) {
+		e = (argv[i][0] != '-');
+		if(e) break;
+
+		switch(argv[i][1]) {
+		case 'a':
+			shell_mute(shell->console);
+			break;
+		case 'm':
+			shell_unmute(shell->console);
+			break;
+
+		default:
+			e ++;
+		}
+	}
+
+	if(e)
+		printf("%s", usage);
+
+	return 0;
+}
+
+const cmd_t cmd_shell = {"shell", cmd_shell_func, "shell management commands"};
+DECLARE_SHELL_CMD(cmd_shell)
 #endif

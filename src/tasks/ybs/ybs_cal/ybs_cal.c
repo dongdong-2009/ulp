@@ -13,7 +13,7 @@
 #include "shell/cmd.h"
 #include "spi.h"
 #include "common/vchip.h"
-#include "oid_mcd.h"
+#include "ybs_mcd.h"
 #include <string.h>
 #include "led.h"
 #include "stm32f10x.h"
@@ -23,7 +23,7 @@
 #include "nvm.h"
 
 #include "ybs_mon.h"
-#include "oid_mcd.h"
+#include "ybs_mcd.h"
 #include "ybs_dio.h"
 //#include "ybs_cal.h"
 
@@ -149,7 +149,7 @@ static int ybs_pre_check(void)
 	printf("vdet = %.3f\n", test_result.vdet);
 	if(OV_RANGE(test_result.vdet, 8.0, 9.0)) {
 		sys_error("ybs DET pin level over-range [%.1fv, %.1fv)", 8.0, 9.0);
-		return -1;
+		//return -1;
 	}
 
 	e = mcd_xread(MCD_CH_ASIG, &mv);
@@ -158,7 +158,7 @@ static int ybs_pre_check(void)
 	printf("vasig = %.3f\n", test_result.vasig);
 	if(OV_RANGE(test_result.vasig, 1.5, 2.5)) {
 		sys_error("ybs ASIG pin level over-range [%.1fv, %.1fv)", 1.5, 2.5);
-		return -1;
+		//return -1;
 	}
 
 	float gf100, gf200;
@@ -404,7 +404,12 @@ static int test_stop(void)
 	int e, mv;
 	struct debounce_s power;
 
+#ifdef CONFIG_BRD_HWV20
+	mov_p(-2500);
+#endif
+#ifdef CONFIG_BRD_HWV10
 	mov_p(-5000);
+#endif
 
 	//reset ybs
 	//ybs_reset();

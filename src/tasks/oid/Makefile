@@ -12,8 +12,3 @@ ifeq ($(CONFIG_OID_DMM),y)
 endif
 
 obj-$(CONFIG_OID_YBS) += oid_ybs.o
-
-obj-$(CONFIG_YBS_MON) += oid_mcd.o
-obj-$(CONFIG_YBS_MON) += ybs_mon.o
-obj-$(CONFIG_YBS_MON) += ybs_dio.o
-obj-$(CONFIG_YBS_CAL) += ybs_cal.o

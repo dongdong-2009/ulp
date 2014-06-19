@@ -1,5 +1,25 @@
 #
-# Written by junjun@2011
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2013
 #
 
-bool "enable yarn break sensor application" CONFIG_TASK_YBS
+choice 'application select'	" \
+	YBS		CONFIG_YBS_SENSOR \
+	CAL		CONFIG_YBS_CAL \
+	DMM		CONFIG_YBS_DMM \
+" YBS
+
+if [ "$CONFIG_YBS_CAL" = "y" -o "$CONFIG_YBS_DMM" = "y"]; then
+choice 'board version select'	" \
+	V1.0		CONFIG_BRD_HWV10 \
+	V2.0		CONFIG_BRD_HWV20 \
+" V2.0
+fi
+
+if [ "$CONFIG_YBS_SENSOR" = "y"]; then
+	if [ "$CONFIG_COMMON_MODBUS" = "y"]; then
+		bool "enable modbus support" CONFIG_YBS_MODBUS n
+	fi
+	bool "ybs for pctest project" CONFIG_YBS_FOR_PCTEST n
+fi
