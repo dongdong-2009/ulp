@@ -8,9 +8,50 @@
 #include "vm.h"
 #include <string.h>
 #include "err.h"
+#include "irc.h"
 
-void err_print(int ecode)
+static int irc_ecode = 0;
+static const char *irc_efile = NULL;
+static int irc_eline;
+
+int irc_error_get(void)
 {
+	return irc_ecode;
+}
+
+int irc_error_set(int ecode, const char *file, int line)
+{
+	ecode = (ecode > 0) ? -ecode : ecode;
+	if(ecode) {
+		irc_ecode = ecode;
+		irc_efile = file;
+		irc_eline = line;
+
+		_irc_error_print(ecode, irc_efile, irc_eline);
+
+		while(irc_ecode) {
+			irc_update();
+		}
+	}
+	return irc_ecode;
+}
+
+int irc_error_clear(void)
+{
+	irc_ecode = 0;
+	irc_efile = NULL;
+	irc_eline = 0;
+	return irc_ecode;
+}
+
+void _irc_error_print(int ecode, const char *file, int line)
+{
+	if(file == NULL) {
+		ecode = irc_ecode;
+		file = irc_efile;
+		line = irc_eline;
+	}
+
 	const char *msg = NULL;
 	switch(-ecode) {
 	case IRT_E_OK:
@@ -35,20 +76,26 @@ void err_print(int ecode)
 		msg = "Operation is refused";
 		break;
 	case IRT_E_CAN:
-		msg = "CAN communication fail";
+		msg = "CAN communication Fail";
 		break;
 	case IRT_E_SLOT:
-		msg = "SLOT handshake fail";
+		msg = "SLOT handshake Fail";
 		break;
 	case IRT_E_DMM:
-		msg = "DMM handshake fail";
+		msg = "DMM handshake Fail";
 		break;
 	case IRT_E_VM:
-		msg = "VM execute error";
+		msg = "VM runtime Error";
 		break;
 	default:
 		msg = "Undefined Error";
 		break;
 	}
-	printf("<%+d,\"%s\"\n\r", ecode, msg);
+
+	if(ecode && (file != NULL)) {
+		printf("<%+d,\"%s(%s:%d)\"\r\n", ecode, msg, strrchr(file, '\\')+1, line);
+	}
+	else {
+		printf("<%+d,\"%s\"\r\n", ecode, msg);
+	}
 }

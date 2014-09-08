@@ -41,4 +41,7 @@ enum {
 	IRC_MODE_DEF = IRC_MODE_L2T,
 };
 
+void irc_init(void);
+void irc_update(void);
+
 #endif

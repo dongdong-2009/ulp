@@ -8,7 +8,7 @@
 #define __MXC_H__
 
 #include "config.h"
-
+#include "can.h"
 
 enum {
 	MXC_CMD_CFG,

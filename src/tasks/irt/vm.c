@@ -3,6 +3,10 @@
 *  miaofng@2014-5-10   initial version
 *  1, only matrix relay operation will be buffered in opq(bus&line sw is configured by command 'mode')
 *  2, ARM value could be changed only when vm_opq_is_empty
+*
+* miaofng@2014-8-24
+* 1, replace api vm_fetch => vm_update to solve the complex introduced by can frame.
+* 2, add new cmd "ROUTE FSCN"
 */
 
 #include "ulp/sys.h"
@@ -11,288 +15,318 @@
 #include "common/circbuf.h"
 #include "err.h"
 #include <ctype.h>
+#include "irc.h"
+#include "mxc.h"
+#include "bsp.h"
 
-#define VM_DEBUG 1
-
-static circbuf_t vm_opq; /*virtual machine task queue*/
+static circbuf_t vm_opq = {.data = NULL}; /*virtual machine task queue*/
+static circbuf_t vm_odata = {.data = NULL};
 static opcode_t vm_opcode; //current opcode
-static opcode_t vm_opcode_nxt;
 static opcode_t vm_opcode_seq; //contain line_stop of seq type
-static opcode_t vm_opcode_scan; //contain line_stop of seq+scan type, for odata_seq use
-static opcode_t vm_odata;
-static opcode_t vm_odata_seq; //contain line_stop for seq type
+static opcode_t vm_opcode_nxt; //used by vm_prefetch only
+static opcode_t vm_opcode_nul = {.type = VM_OPCODE_NULL}; //used by vm_prefetch only
 static int vm_scan_arm;
 static int vm_scan_cnt;
+static char vm_frame_counter;
+const char *vm_opcode_types;
+static can_msg_t vm_msg;
+static char vm_swdebug;
+static char vm_busy;
 
-static struct {
-	unsigned grp_over : 1;
-	unsigned grp_scan : 1;
-} vm_status;
+
+static void vm_opcode_print(opcode_t opcode)
+{
+	static const char *names[] = {
+		"OPEN", "CLOS", "SCAN", "FSCN", "SEQU", "GRUP", "NULL"
+	};
+
+	const char *name = "????";
+	if(opcode.type <= VM_OPCODE_NULL) {
+		name = names[opcode.type];
+	}
+
+	printf("%s|%04d|%02d", name, opcode.line, opcode.bus);
+}
 
 void vm_init(void)
 {
+	buf_free(&vm_opq);
+	buf_free(&vm_odata);
 	buf_init(&vm_opq, CONFIG_IRC_INSWSZ);
-	vm_opcode.special.type = VM_OPCODE_NUL;
-	vm_opcode_nxt.special.type = VM_OPCODE_NUL;
-	vm_opcode_seq.special.type = VM_OPCODE_NUL;
-	vm_opcode_scan.special.type = VM_OPCODE_NUL;
-	vm_odata.special.type = VM_OPCODE_NUL;
-	vm_odata_seq.special.type = VM_OPCODE_NUL;
+	buf_init(&vm_odata, 8);
+	vm_opcode = vm_opcode_nul;
+	vm_opcode_nxt = vm_opcode_nul;
+	vm_opcode_seq = vm_opcode_nul;
 	vm_scan_arm = 1;
 	vm_scan_cnt = 0;
-	memset(&vm_status, 0x00, sizeof(vm_status));
-	vm_status.grp_over = 1;
+	vm_frame_counter = 0;
+	vm_swdebug = 0;
+	vm_busy = 0;
 }
 
-int vm_opgrp_is_over(void)
+void vm_abort(void)
 {
-	int grp_is_over = 0;
-	if(vm_status.grp_over) {
-		if((vm_odata.special.type == VM_OPCODE_NUL) && (vm_odata_seq.special.type == VM_OPCODE_NUL)) {
-			//odata has been fetched, over
-			grp_is_over = 1;
+	irc_error_clear();
+}
+
+/*trig dmm to do measurement and wait for operation finish*/
+static int vm_measure(void)
+{
+	int ecode = -IRT_E_DMM;
+	time_t deadline = time_get(IRC_DMM_MS);
+	time_t suspend = time_get(IRC_UPD_MS);
+
+	trig_set(1);
+	while(time_left(deadline) > 0) {
+		if(trig_get() == 1) { //vmcomp pulsed
+			trig_set(0);
+			ecode = 0;
+			break;
+		}
+
+		if(time_left(suspend) < 0) {
+			irc_update();
 		}
 	}
-	return grp_is_over;
-}
 
-int vm_opgrp_is_scan(void)
-{
-	int grp_is_scan = (vm_status.grp_scan) ? 1 : 0;
-	return grp_is_scan;
-}
-
-static int vm_opq_is_not_empty(void)
-{
-	return buf_size(&vm_opq);
-}
-
-/*
-1, vm_opq shoud be empty
-2, opcode_nxt should be null
-3, opgrp should be over
-*/
-int vm_is_opc(void)
-{
-	if(vm_opq_is_not_empty()) {
-		return 0;
-	}
-
-	if(vm_opcode_nxt.special.type != VM_OPCODE_NUL) {
-		return 0;
-	}
-
-	if(vm_opcode.special.type != VM_OPCODE_NUL) { //?????
-		return 0;
-	}
-
-	if(!vm_opgrp_is_over()) {
-		return 0;
-	}
-
-	return 1;
-}
-
-int vm_prefetch(void)
-{
-	int ecode = 0;
-	vm_opcode.value = vm_opcode_nxt.value;
-	vm_opcode_nxt.special.type = VM_OPCODE_NUL;
-	if(vm_opq_is_not_empty()) {
-		buf_pop(&vm_opq, &vm_opcode_nxt.value, sizeof(vm_opcode_nxt));
-	}
-
-	if(vm_opcode_nxt.special.type == VM_OPCODE_SEQ) {
-		/*exchange & fill opcode_seq, note:
-		before: opcode = scan/open/clos + bus + linestart, opcode_nxt = seq + linestop
-		after:   opcode = seq + linestart, opcode_seq = scan/open/clos + bus + linestop
-		*/
-		vm_opcode_seq.value = vm_opcode.value;
-		vm_opcode_seq.line = vm_opcode_nxt.special.line;
-		vm_opcode_nxt.line = vm_opcode.line;
-		vm_opcode.value = vm_opcode_nxt.value;
-	}
-
-	switch(vm_opcode.special.type) {
-	case VM_OPCODE_GRP:
-	case VM_OPCODE_NUL:
-		if(vm_opq_is_not_empty()) {
-			vm_prefetch();
-		}
-		break;
-	case VM_OPCODE_SEQ:
-		vm_opcode_nxt.special.type = VM_OPCODE_NUL;
-		if(vm_opq_is_not_empty()) {
-			buf_pop(&vm_opq, &vm_opcode_nxt.value, sizeof(vm_opcode_nxt));
-		}
-		break;
-	default:
-		//serious error!!!!
-		break;
-	}
+	irc_error(ecode);
 	return ecode;
 }
 
-/*
- 1, normal open/close instruction, just let it pass through
- 2, grp tag
- 3, seq(loop) instruction
-*/
-int vm_execute(void)
+static void vm_emit(int can_id)
 {
-	int prefetch = 1;
+	memset(&vm_msg, 0x00, sizeof(vm_msg));
+	vm_msg.dlc = buf_size(&vm_odata);
+	vm_msg.id = can_id;
+	vm_msg.id += vm_frame_counter & 0x0F;
+	if(vm_msg.dlc > 0) {
+		vm_frame_counter = (can_id == CAN_ID_CMD) ? 0 : vm_frame_counter + 1;
+		buf_pop(&vm_odata, &vm_msg.data, buf_size(&vm_odata));
 
-	vm_odata.special.type = VM_OPCODE_NUL;
-	vm_odata_seq.special.type = VM_OPCODE_NUL;
-
-	/*prefetch is needed? */
-	if(vm_opcode.type != VM_OPCODE_SPECIAL) {
-		vm_odata.value = vm_opcode.value;
-	}
-
-	/*
-	vm_opcode		seq type + line_start
-	vm_opcode_seq	scan/open/clos type + bus + line_stop
-	*/
-	if(vm_opcode.special.type == VM_OPCODE_SEQ) {
-		if(vm_opcode.line <= vm_opcode_seq.line) { //update line_start
-			if(vm_opcode_seq.type != VM_OPCODE_SCAN) {
-				//give out two opcode, over
-				vm_odata.value = vm_opcode.value;
-				vm_odata_seq.value = vm_opcode_seq.value;
+		if(vm_swdebug) {
+			printf("\n%s: ", (can_id == CAN_ID_CMD) ? "CAN_ID_CMD":"CAN_ID_DAT");
+			for(int i = 0; i < vm_msg.dlc; i += sizeof(opcode_t)) {
+				opcode_t opcode;
+				memcpy(&opcode.value, vm_msg.data+i, sizeof(opcode_t));
+				vm_opcode_print(opcode);
+				printf(" ");
 			}
-			else {
-				vm_opcode_scan.value = vm_opcode_seq.value;
-				vm_opcode_scan.line = vm_opcode.line + vm_scan_arm - 1;
-
-				//give out two opcode
-				vm_odata.value = vm_opcode.value;
-				vm_odata_seq.value = vm_opcode_scan.value;
-
-				//update special.line_start
-				vm_opcode.line = vm_opcode_scan.line + 1;
-
-				//prefetch is needed?
-				if(vm_opcode.line <= vm_opcode_seq.line) {
-					prefetch = 0;
-				}
-
-				if(vm_opcode_scan.line > vm_opcode_seq.line) {
-					//Serious error!!!
-					return -IRT_E_VM;
+			printf("\n");
+			sys_mdelay(1000);
+		}
+		else {
+			mxc_send(&vm_msg);
+			if(can_id == CAN_ID_CMD) {
+				opcode_t opcode;
+				memcpy(&opcode, vm_msg.data + vm_msg.dlc - sizeof(opcode_t), sizeof(opcode_t));
+				if(!mxc_latch()) {
+					if(opcode.type == VM_OPCODE_SCAN) {
+						//dmm trig is needed
+						vm_measure();
+					}
 				}
 			}
 		}
 	}
-
-	/*group over?*/
-	int grp_is_over = 1;
-	int grp_is_scan = 0;
-	if(vm_odata.special.type != VM_OPCODE_NUL) {
-		grp_is_over = 0;
-
-		//identify current opcode type
-		int type = vm_odata.type;
-		if(vm_odata.special.type == VM_OPCODE_SEQ) {
-			if(vm_odata_seq.special.type != VM_OPCODE_NUL) {
-				type = vm_odata_seq.type;
-			}
-			else {
-				//Serious error!!!
-			}
-		}
-
-		grp_is_scan = (type == VM_OPCODE_SCAN) ? 1 : grp_is_scan;
-
-		//calculate according to the different opcode type
-		if((type == VM_OPCODE_OPEN) || (type == VM_OPCODE_CLOSE)) {
-			if(vm_scan_cnt != 0) {
-				//Serious error!!!
-				return -IRT_E_VM;
-			}
-
-			grp_is_over = (vm_opcode_nxt.special.type == VM_OPCODE_GRP) ? 1 : 0;
-			grp_is_over = (vm_opcode_nxt.special.type == VM_OPCODE_NUL) ? 1 : grp_is_over;
-		}
-		else if(type == VM_OPCODE_SCAN) {
-			//vm_scan_cnt process
-			if(vm_odata.special.type == VM_OPCODE_SEQ) {
-				vm_scan_cnt += vm_odata_seq.line - vm_odata.line + 1;
-			}
-			else {
-				vm_scan_cnt ++;
-			}
-
-			//grp_is_over is determined by arm value & scan counter
-			if(vm_scan_cnt == vm_scan_arm) {
-				grp_is_over = 1;
-				vm_scan_cnt = 0;
-			}
-		}
-	}
-	vm_status.grp_over = grp_is_over;
-	vm_status.grp_scan = grp_is_scan;
-
-	if(prefetch) {
-		vm_prefetch();
-	}
-	return 0;
 }
 
-int vm_fetch( //non-zero if error happened
-	void *buf, //rx buffer,  normally = can_msg.data[8]
-	int *bytes //input buf size, output bytes filled
-)
+static void vm_execute(opcode_t opcode, opcode_t seq)
 {
-	int n = 0;
-	short *p = (short *) buf;
-	for(n = 0; n < *bytes;) {
-		if(vm_odata.special.type != VM_OPCODE_NUL) {
-			*p ++ = vm_odata.value;
-			n += sizeof(short);
-			vm_odata.special.type = VM_OPCODE_NUL;
-			continue;
-		}
-		if(vm_odata_seq.special.type != VM_OPCODE_NUL) {
-			*p ++ = vm_odata_seq.value;
-			n += sizeof(short);
-			vm_odata_seq.special.type = VM_OPCODE_NUL;
-			continue;
-		}
-		if((n > 0) && vm_opgrp_is_over()) {
-			break;
-		}
-		int ecode = vm_execute();
-		if(ecode) {
-			return ecode;
+	int type = opcode.type;
+	int left = buf_left(&vm_odata);
+
+	vm_busy = 1;
+
+	switch(type) {
+	case VM_OPCODE_GRUP:
+		vm_emit(CAN_ID_CMD);
+		break;
+
+	default:
+		left -= sizeof(opcode_t);
+		left -= (type == VM_OPCODE_SEQU) ? sizeof(opcode_t) : 0;
+		if(left < 0) {
+			//send out the data
+			vm_emit(CAN_ID_DAT);
 		}
 
-		if(vm_is_opc()) {
-			break;
+		//space is enough now
+		buf_push(&vm_odata, &opcode, sizeof(opcode_t));
+		if(type == VM_OPCODE_SEQU) {
+			buf_push(&vm_odata, &seq, sizeof(opcode_t));
 		}
 	}
 
-	*bytes = n;
-	return 0;
+	vm_busy = 0;
+}
+
+int vm_is_opc(void)
+{
+	int n = (vm_busy) ? 1 : 0;
+	if(n == 0) {
+		n += buf_size(&vm_opq);
+		n += buf_size(&vm_odata);
+		n += (vm_opcode.type != VM_OPCODE_NULL) ? 1 : 0;
+		n += (vm_opcode_seq.type != VM_OPCODE_NULL) ? 1 : 0;
+		n += (vm_opcode_nxt.type != VM_OPCODE_NULL) ? 1 : 0;
+		n += vm_scan_cnt;
+	}
+
+	return n;
+}
+
+/*
+1, destroy vm_opcode
+2, modify seq type opcode
+3, vm_opcode_nxt is 'seen' only in this function
+*/
+static void vm_prefetch(opcode_t *result)
+{
+	opcode_t opcode = vm_opcode_nxt;
+	vm_opcode_nxt.type = VM_OPCODE_NULL;
+
+	if(opcode.type == VM_OPCODE_NULL) {
+		while(buf_size(&vm_opq) == 0) {
+			irc_update();
+		}
+		buf_pop(&vm_opq, &opcode, sizeof(opcode_t));
+	}
+
+	if(opcode.type != VM_OPCODE_GRUP) { //prefectch next
+		while(buf_size(&vm_opq) == 0) {
+			irc_update();
+		}
+		buf_pop(&vm_opq, &vm_opcode_nxt, sizeof(opcode_t));
+	}
+
+	if(vm_opcode_nxt.type == VM_OPCODE_SEQU) { //exchange
+		opcode_t x = opcode;
+		opcode_t y = vm_opcode_nxt;
+
+		opcode.type = y.type;
+		opcode.bus = x.bus; //bus start
+		opcode.line = x.line; //line start
+
+		vm_opcode_nxt.type = x.type;
+		vm_opcode_nxt.bus = y.bus; //bus end
+		vm_opcode_nxt.line = y.line; //line end
+
+		if(opcode.type == VM_OPCODE_SCAN) {
+			if(x.bus != y.bus) {
+				irc_error(-IRT_E_VM);
+				x.bus = y.bus;
+			}
+		}
+	}
+
+	*result = opcode;
+}
+
+void vm_update(void)
+{
+	int finish = 1;
+	if(vm_opcode.type == VM_OPCODE_NULL) {
+		vm_prefetch(&vm_opcode);
+		if(vm_opcode.type == VM_OPCODE_SEQU) {
+			vm_prefetch(&vm_opcode_seq);
+		}
+	}
+
+	int type = vm_opcode.type;
+	type = (type == VM_OPCODE_SEQU) ? vm_opcode_seq.type : type;
+
+	//handle scan operation
+	if((type == VM_OPCODE_SCAN) || (type == VM_OPCODE_FSCN)) {
+		if(vm_opcode.type == VM_OPCODE_SEQU) {
+			if(type == VM_OPCODE_SCAN) {
+				//only scan one bus - seq.bus
+				int n = vm_opcode_seq.line - vm_opcode.line + 1;
+				if(n < 0) {
+					irc_error(-IRT_E_VM);
+				}
+
+				int scan_left = vm_scan_arm - vm_scan_cnt;
+				if(n > scan_left) {
+					n = scan_left;
+					finish = 0;
+
+					opcode_t target = vm_opcode;
+					target.line += n - 1;
+					target.type = vm_opcode_seq.type;
+					vm_execute(vm_opcode, target);
+					vm_scan_cnt += n;
+
+					//modify scan base
+					vm_opcode.line += n;
+				}
+				else {
+					vm_execute(vm_opcode, vm_opcode_seq);
+					vm_scan_cnt += n;
+				}
+			}
+
+			if(type == VM_OPCODE_FSCN) {
+				//scan sequence: line0: bus0..3, line1:bus0..3, ...
+				opcode_t target = vm_opcode_seq;
+				target.type = vm_opcode.type;
+				int n = target.value - vm_opcode.value + 1;
+				if(n < 0) {
+					irc_error(-IRT_E_VM);
+				}
+
+				int scan_left = vm_scan_arm - vm_scan_cnt;
+				if(n > scan_left) {
+					n = scan_left;
+					finish = 0;
+
+					//make new scan target
+					target = vm_opcode;
+					target.value += n - 1;
+					target.type = vm_opcode_seq.type;
+					vm_execute(vm_opcode, target);
+					vm_scan_cnt += n;
+
+					//modify scan base
+					vm_opcode.value += n;
+				}
+				else {
+					vm_execute(vm_opcode, vm_opcode_seq);
+					vm_scan_cnt += n;
+				}
+			}
+		}
+		else { //non seq type
+			vm_scan_cnt ++;
+			vm_execute(vm_opcode, vm_opcode_nul);
+		}
+
+		//count == arm? insert opcode_grp
+		if(vm_scan_cnt == vm_scan_arm) {
+			vm_scan_cnt = 0;
+			opcode_t opcode_grp = {.type = VM_OPCODE_GRUP};
+			vm_execute(opcode_grp, vm_opcode_nul);
+		}
+	}
+	else {
+		if(vm_scan_cnt) {
+			irc_error(IRT_E_VM);
+			vm_scan_cnt = 0;
+		}
+		vm_execute(vm_opcode, vm_opcode_seq);
+	}
+
+	if(finish) {
+		vm_opcode = vm_opcode_seq = vm_opcode_nul;
+	}
 }
 
 int __vm_opq_add(int tcode, int bus, int line)
 {
 	opcode_t opcode;
 	opcode.value = 0;
-	switch(tcode) {
-	case VM_OPCODE_GRP:
-		opcode.special.type = tcode;
-		break;
-	case VM_OPCODE_SEQ:
-		opcode.special.type = tcode;
-		opcode.line = line;
-		break;
-	default:
-		opcode.type = tcode;
-		opcode.bus = bus;
-		opcode.line = line;
-	}
+	opcode.type = tcode;
+	opcode.bus = bus;
+	opcode.line = line;
 
 	int ecode = - IRT_E_OPQ_FULL;
 	if(buf_left(&vm_opq) > sizeof(opcode)) {
@@ -326,14 +360,14 @@ int _vm_opq_add(int tcode, const char *relay)
 
 	switch(relay[0]) {
 	case '@': //first one
-		__vm_opq_add(VM_OPCODE_GRP, 0, 0);
+		__vm_opq_add(VM_OPCODE_GRUP, 0, 0);
 		ecode = __vm_opq_add(tcode, bus, line);
 		break;
 	case ',': //list
 		ecode = __vm_opq_add(tcode, bus, line);
 		break;
 	case ':': //seq
-		ecode = __vm_opq_add(VM_OPCODE_SEQ, bus, line);
+		ecode = __vm_opq_add(VM_OPCODE_SEQU, bus, line);
 		break;
 	default:
 		ecode = -IRT_E_CMD_FORMAT;
@@ -361,6 +395,9 @@ int vm_opq_add(int tcode, const char *relay_list)
 		if(i + 1 != n) {
 			ecode = - IRT_E_CMD_FORMAT;
 		}
+
+		//group is over
+		ecode = __vm_opq_add(VM_OPCODE_GRUP, 0, 1);
 	}
 	if(ecode) { //restore in case of error accounts
 		memcpy(&vm_opq, &backup, sizeof(vm_opq));
@@ -381,39 +418,43 @@ int vm_scan_set_arm(int arm)
 	return ecode;
 }
 
-#if VM_DEBUG
-int vm_opq_dump(void)
+void vm_dump(void)
 {
-	char msg[8];
-	int bytes;
+	//odata
+	const char *id_type = ((vm_msg.id & 0xFF0) == CAN_ID_CMD) ? "CAN_ID_CMD":"CAN_ID_???";
+	id_type = ((vm_msg.id & 0xFF0) == CAN_ID_DAT) ? "CAN_ID_DAT": id_type;
 
-	while(!vm_is_opc()) {
-		bytes = 8;
-		vm_fetch(msg, &bytes);
-		for(int i = 0; i < bytes; i += 2) {
-			const char* ctype[] = {
-				"OPEN","CLOS","SCAN","SPEC"
-			};
-			const char* stype[] = {
-				"SEQ","GRP","???","NUL"
-			};
+	printf("ARM: %d/%d\r\n", vm_scan_cnt, vm_scan_arm);
+	printf("CAN: %s(0x%03x) ", id_type, vm_msg.id);
+	for(int i = 0; i < vm_msg.dlc; i += sizeof(opcode_t)) {
+		opcode_t opcode;
+		memcpy(&opcode.value, vm_msg.data+i, sizeof(opcode_t));
+		vm_opcode_print(opcode);
+		printf(" ");
+	}
+	printf("\n");
 
-			opcode_t *opcode = (opcode_t *) &msg[i];
-			printf("%s<%s>: bus = %02d, line = %04d\n", \
-				ctype[opcode->type], \
-				(opcode->special.type>=12)?stype[opcode->special.type - 12]:"---", \
-				opcode->bus, \
-				opcode->line \
-			);
-		}
-		if(bytes > 0) {
-			if(vm_opgrp_is_over())
-				printf("\n");
+	printf("CUR: "); vm_opcode_print(vm_opcode); printf("\r\n");
+	printf("SEQ: "); vm_opcode_print(vm_opcode_seq); printf("\r\n");
+	printf("NXT: "); vm_opcode_print(vm_opcode_nxt); printf("\r\n");
+
+	//opcode queue
+	circbuf_t q;
+	memcpy(&q, &vm_opq, sizeof(q));
+	opcode_t opcode;
+	printf("OPQ: ");
+	for(int i = 0; buf_size(&q) > 0;) {
+		buf_pop(&q, &opcode, sizeof(opcode));
+		vm_opcode_print(opcode); printf(" ");
+		if((opcode.type == VM_OPCODE_GRUP) && (opcode.line == 1)) {
+			i ++;
+			printf("\r\n");
+			printf("%03d: ", i);
 		}
 	}
-	return 0;
+	printf("\r\n");
+	_irc_error_print(irc_error_get(), NULL, 0);
 }
-#endif
 
 #include "shell/cmd.h"
 #if 1
@@ -421,9 +462,10 @@ static int cmd_route_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"usage:\n"
-		"ROUTE [CLOS|OPEN|SCAN] (@bbllll:bbllll,bbllll,bbllll)\n"
+		"ROUTE [CLOS|OPEN|SCAN|FSCN] (@bbllll:bbllll,bbllll,bbllll)\n"
 		"ROUTE ARM 2\n"
 		"ROUTE DUMP\n"
+		"ROUTE DEBUG\n"
 	};
 
 	int ecode = 0, tcode = 0;
@@ -432,11 +474,15 @@ static int cmd_route_func(int argc, char *argv[])
 		ecode = vm_opq_add(tcode, argv[2]);
 	}
 	else if(!strcmp(argv[1], "CLOS")) {
-		tcode = VM_OPCODE_CLOSE;
+		tcode = VM_OPCODE_CLOS;
 		ecode = vm_opq_add(tcode, argv[2]);
 	}
 	else if(!strcmp(argv[1], "SCAN")) {
 		tcode = VM_OPCODE_SCAN;
+		ecode = vm_opq_add(tcode, argv[2]);
+	}
+	else if(!strcmp(argv[1], "FSCN")) {
+		tcode = VM_OPCODE_FSCN;
 		ecode = vm_opq_add(tcode, argv[2]);
 	}
 	else if(!strcmp(argv[1], "ARM")) {
@@ -447,18 +493,21 @@ static int cmd_route_func(int argc, char *argv[])
 		printf("<%+d\n\r", vm_scan_arm);
 		return 0;
 	}
-#if VM_DEBUG
 	else if(!strcmp(argv[1], "DUMP")) {
-		vm_opq_dump();
+		vm_dump();
 		return 0;
 	}
-#endif
+	else if(!strcmp(argv[1], "DEBUG")) {
+		vm_swdebug = !vm_swdebug;
+		printf("vm_swdebug is %s\r\n", vm_swdebug ? "on" : "off");
+		return 0;
+	}
 	else {
 		printf("%s", usage);
 		return 0;
 	}
 
-	err_print(ecode);
+	irc_error_print(ecode);
 	return 0;
 }
 

@@ -68,6 +68,7 @@ int mxc_latch(void)
 		}
 	}
 
+	irc_error(ecode);
 	return ecode;
 }
 
@@ -136,7 +137,7 @@ int mxc_scan(int min, int max)
 	for(int slot = min; (slot <= max) || (!max && !ecode); slot ++) {
 		ecode = mxc_ping(slot);
 		slots += (ecode != -IRT_E_NA) ? 1 : 0;
-		printf("slot %02d: ", slot); err_print(ecode);
+		printf("slot %02d: ", slot); irc_error_print(ecode);
 	}
 	printf("Total %d cards\n", slots);
 	return slots;
@@ -180,7 +181,7 @@ static int cmd_mxc_func(int argc, char *argv[])
 	if((argc > 1) && !strcmp(argv[1], "ping")) {
 		int slot = (argc > 2) ? atoi(argv[2]) : 0;
 		int ecode = mxc_ping(slot);
-		printf("slot = %02d, ", slot); err_print(ecode);
+		printf("slot = %02d, ", slot); irc_error_print(ecode);
 	}
 	else if((argc > 1) && !strcmp(argv[1], "scan")) {
 		int ecode = 0;

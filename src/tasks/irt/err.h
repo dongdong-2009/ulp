@@ -24,5 +24,16 @@ enum {
 	IRT_E_VM, /*vm execute error*/
 };
 
-void err_print(int ecode);
+#define irc_error(ecode) do { \
+	irc_error_set(ecode, __BASE_FILE__, __LINE__); \
+} while(0)
+
+#define irc_error_print(ecode) do { \
+	_irc_error_print(ecode, __BASE_FILE__, __LINE__); \
+} while(0)
+
+int irc_error_get(void);
+int irc_error_set(int ecode, const char *file, int line);
+int irc_error_clear(void);
+void _irc_error_print(int ecode, const char *file, int line);
 #endif

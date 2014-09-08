@@ -18,49 +18,19 @@
 #include "bsp.h"
 #include "mxc.h"
 
-static int irc_ecode = 0;
 static int irc_slots = 0;
 static time_t irc_poll_timer = 0;
 static int irc_poll_slot = 0;
-static struct {
-	unsigned opc : 1;
-	unsigned rst : 1;
-	unsigned abt : 1;
-} irc_status;
-
-int dmm_trig(void)
-{
-	int ecode = -IRT_E_DMM;
-	time_t deadline = time_get(IRC_DMM_MS);
-	time_t suspend = time_get(IRC_UPD_MS);
-
-	trig_set(1);
-	while(time_left(deadline) > 0) {
-		if(trig_get() == 1) { //vmcomp pulsed
-			trig_set(0);
-			ecode = 0;
-			break;
-		}
-
-		if(time_left(suspend) < 0) {
-			sys_update();
-		}
-	}
-
-	return ecode;
-}
 
 static int irc_is_opc(void)
 {
 	int opc = vm_is_opc();
-	opc = (irc_status.opc) ? opc : 0;
-	return opc;
+	return !opc;
 }
 
-static int irc_abort(void)
+static void irc_abort(void)
 {
-	vm_init();
-	return 0;
+	vm_abort();
 }
 
 static int irc_mode(int mode)
@@ -91,52 +61,8 @@ void irc_poll(void)
 /*implement a group of switch operation*/
 void irc_update(void)
 {
-	int cnt = 0, bytes, over;
-	can_msg_t msg;
-	memset(&msg, 0x00, sizeof(msg));
+	sys_update();
 	irc_poll();
-
-	if(irc_ecode) {
-		return;
-	}
-
-	do {
-		bytes = 8;
-		irc_ecode = vm_fetch(msg.data, &bytes);
-		over = vm_opgrp_is_over();
-		if(!irc_ecode && bytes > 0) {
-			//send can message
-			msg.dlc = (char) bytes;
-			msg.id =  over ? CAN_ID_CMD : CAN_ID_DAT;
-			msg.id += cnt & 0x0F;
-			irc_ecode = mxc_send(&msg);
-			if(irc_ecode) {
-				return;
-			}
-
-			cnt ++;
-
-			//LE operation is needed?
-			if(over) {
-				irc_ecode = mxc_latch();
-				if(irc_ecode) { //find the bad guys hide inside the good slots
-					return;
-				}
-
-				if(vm_opgrp_is_scan()) {
-					irc_ecode = dmm_trig();
-					if(irc_ecode) {
-						return;
-					}
-				}
-			}
-		}
-
-		if(irc_status.abt) {
-			irc_abort();
-			return;
-		}
-	} while(!over);
 }
 
 int main(void)
@@ -149,10 +75,8 @@ int main(void)
 	lv_config(DPS_KEY_U, 0.0);
 	irc_mode(IRC_MODE_L2T);
 	while(1) {
-		sys_update();
-		irc_status.opc = 0;
 		irc_update();
-		irc_status.opc = 1;
+		vm_update();
 	}
 }
 
@@ -166,7 +90,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		"*OPC?		operation is completed?\n"
 		"*ERR?		error code & info\n"
 		"*RST		instrument reset\n"
-		"ABORT		abort operation queue left\n"
+		"ABORT		abort current fail operation\n"
 	};
 
 	int ecode = 0;
@@ -180,14 +104,16 @@ int cmd_xxx_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*ERR?")) {
-		err_print(irc_ecode);
+		_irc_error_print(irc_error_get(), NULL, 0);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*RST")) {
 		board_reset();
 	}
 	else if(!strcmp(argv[0], "ABORT")) {
-		irc_status.abt = 1;
+		irc_abort();
+		printf("<%+d\n\r", 0);
+		return 0;
 	}
 	else if(!strcmp(argv[0], "*?")) {
 		printf("%s", usage);
@@ -197,7 +123,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		ecode = -IRT_E_CMD_FORMAT;
 	}
 
-	err_print(ecode);
+	irc_error_print(ecode);
 	return 0;
 }
 
@@ -242,7 +168,7 @@ static int cmd_mode_func(int argc, char *argv[])
 			}
 		}
 	}
-	err_print(ecode);
+	irc_error_print(ecode);
 	return 0;
 }
 const cmd_t cmd_mode = {"MODE", cmd_mode_func, "change irc work mode"};
@@ -268,7 +194,7 @@ static int cmd_power_func(int argc, char *argv[])
 		}
 	}
 
-	err_print(ecode);
+	irc_error_print(ecode);
 	return 0;
 }
 const cmd_t cmd_power = {"POWER", cmd_power_func, "power board ctrl"};
