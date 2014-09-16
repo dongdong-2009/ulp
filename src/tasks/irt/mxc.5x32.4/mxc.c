@@ -1,7 +1,15 @@
 /*
+* design hints:
+*  1, led policy: power-up/offline=>yellow flash, ready=>green flash, error=>ecode
+*  2, error policy: hold le = low, then all relay operation will fail(offline isn't an error)
+*  3, power-up(/plug-in): le = high, do not affect test system and no response to can frame except CAN_ID_CFG
 *
 *  miaofng@2014-5-10   initial version
-*  miaofng@2014-6-7	slot board v2.2, line switch default connect to external
+*  miaofng@2014-6-7    slot board v2.2, line switch default connect to external
+*  miaofng@2014-9-16   slot board v3.0
+*  1, alone opcode is not allowed
+*  2, add FSCN sequ type support (line:bus -> line:bus)
+*  3, add vbus0..3, vline support
 *
 */
 #include "ulp/sys.h"
@@ -19,12 +27,14 @@
 static const spi_bus_t *mxc_spi = &spi1;
 static const can_bus_t *mxc_can = &can1;
 const mbi5025_t mxc_mbi = {.bus = &spi1, .idx = 0};
+static unsigned char mxc_sense; //0..3=>vbus0..3 ctrl, msb=>vline ctrl
 static char mxc_image[20];
 static char mxc_image_static[20]; //hold static open/closed relays
 static int mxc_addr = 0;
 static int mxc_line_min;
 static int mxc_line_max;
-static opcode_t mxc_opcode_alone; //added to solve seq opcode be located two can frame issue
+static int mxc_fscn_min; //line:bus
+static int mxc_fscn_max;
 static volatile int mxc_le_pulsed;
 static int mxc_ecode;
 static int mxc_le_timeout;
@@ -37,6 +47,12 @@ static enum mxc_status_e {
 } mxc_status;
 
 static void mxc_can_handler(can_msg_t *msg);
+static int mxc_status_change(enum mxc_status_e new_status);
+
+static void mxc_error(int ecode) {
+	mxc_ecode = ecode;
+	mxc_status_change(MXC_STATUS_ERROR);
+}
 
 #if 1
 #include "stm32f10x.h"
@@ -54,17 +70,17 @@ static void _mxc_init(void)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	/*ADDR PINS PC8(=A0)..PC15*/
+	/*ADDR PINS PC8(=A0)..PC15, PC3 = DET*/
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 | \
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3, GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 | \
 		GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	/*mbi OE PC4 */
+	/*mbi OE PC4, PC2 = VLINE */
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_2;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
 	//hardware bug, set mbi LE PA4 to input to avoid conflict
@@ -166,12 +182,21 @@ static inline int _le_get(void) {
 	return (GPIOC->IDR & GPIO_Pin_6) ? 1 : 0;
 }
 
-void mxc_bus_set(unsigned bus_mask)
+void mxc_sense_set(unsigned char mask)
 {
+	//vbus 3..0
 	int v = GPIOA->ODR ; /*PA0(= BUS0)..PA3*/
 	v &= 0xfff0;
-	v |= bus_mask;
+	v |= (mask & 0x0f);
 	GPIOA->ODR = v;
+
+	//vline
+	if(mask & 0x80) {
+		GPIOC->BSRR = GPIO_Pin_2;
+	}
+	else {
+		GPIOC->BRR = GPIO_Pin_2;
+	}
 }
 
 int _mxc_addr_get(void)
@@ -214,7 +239,7 @@ static int mxc_status_change(enum mxc_status_e new_status)
 		_le_set(0);
 		mxc_status = new_status;
 		break;
-	case MXC_STATUS_PING:
+	case MXC_STATUS_PING: //offline detection
 		if(mxc_status == MXC_STATUS_READY) {
 			if(mxc_timer_poll == 0) {
 				//restore led display
@@ -239,19 +264,28 @@ static void mxc_relay_clr_all(void)
 	memset(mxc_image, 0x00, 16);
 }
 
-/* opcode only support: VM_OPCODE_OPEN, VM_OPCODE_CLOSE
+/* opcode only support: VM_OPCODE_OPEN, VM_OPCODE_CLOS
 */
 static int mxc_relay_set(int line, int bus, int opcode)
 {
+	//vbus0..3&vline
+	if((opcode == VM_OPCODE_SCAN) || (opcode == VM_OPCODE_FSCN)) {
+		mxc_sense |= 1 << bus;
+		mxc_sense |= 1 << 7;
+	}
+
 	int n = (line << 2) + bus;
-	if((opcode == VM_OPCODE_CLOSE) || (opcode == VM_OPCODE_SCAN)) {
+	switch(opcode) {
+	case VM_OPCODE_CLOS:
+	case VM_OPCODE_SCAN:
+	case VM_OPCODE_FSCN:
 		bit_set(n, mxc_image);
-	}
-	else if( opcode == VM_OPCODE_OPEN )  {
+		break;
+	case VM_OPCODE_OPEN:
 		bit_clr(n, mxc_image);
-	}
-	else {
-		return -1;
+		break;
+	default:
+		mxc_error(-IRT_E_SLOT_OPCODE);
 	}
 	return 0;
 }
@@ -265,6 +299,10 @@ static int mxc_line_set(unsigned line_mask)
 
 int mxc_execute(int save)
 {
+	//sense relay ctrl
+	mxc_sense_set(mxc_sense);
+	mxc_sense = 0;
+
 	//shift out .. refer to mbi5025_write_and_latch
 	for(int i = sizeof(mxc_image) - 1; i >= 0; i --) {
 		char byte = mxc_image[i];
@@ -287,7 +325,7 @@ int mxc_execute(int save)
 		}
 		if(mxc_le_timeout != 0) {
 			if(time_left(deadline) < 0) { //host error???
-				mxc_ecode = -IRT_E_SLOT;
+				mxc_error(-IRT_E_SLOT_LATCH);
 				break;
 			}
 		}
@@ -300,7 +338,7 @@ int mxc_execute(int save)
 		}
 		if(mxc_le_timeout != 0) {
 			if(time_left(deadline) < 0) { //host error???
-				mxc_ecode = -IRT_E_SLOT;
+				mxc_error(-IRT_E_SLOT_RESTORE);
 				break;
 			}
 		}
@@ -308,10 +346,6 @@ int mxc_execute(int save)
 
 	//operation finish
 	_le_set(0);
-	//led_off(LED_RED);
-	if(mxc_ecode) {
-		mxc_status_change(MXC_STATUS_ERROR);
-	}
 
 	if(save) {
 		memcpy(mxc_image_static, mxc_image, sizeof(mxc_image));
@@ -328,56 +362,47 @@ int mxc_execute(int save)
 */
 static void mxc_can_switch(can_msg_t *msg)
 {
-	opcode_t *opcode_seq, *opcode;
-	opcode_t opcode_alone;
-
+	opcode_t *target, *opcode;
 	int n = msg->dlc / sizeof(opcode_t);
 	for(int i = 0; i < n; ) {
-		//lonely opcode exist?
-		if(mxc_opcode_alone.special.type != VM_OPCODE_NUL) {
-			//use it ...
-			opcode_alone.value = mxc_opcode_alone.value;
-			opcode = &opcode_alone;
-			mxc_opcode_alone.special.type = VM_OPCODE_NUL;
-		}
-		else {
-			opcode = (opcode_t *) msg->data + i;
-			i ++;
-		}
+		target = opcode = (opcode_t *) msg->data + i;
+		i ++;
 
-		opcode_seq = opcode;
-		if(opcode->special.type == VM_OPCODE_SEQ) {
+		if(opcode->type == VM_OPCODE_SEQU) {
 			if(i < n) {
 				opcode = (opcode_t *) msg->data + i;
 				i ++;
 			}
-			else { //save to alone opcode, this can id mustn't be a command frame
-				mxc_opcode_alone.value = opcode->value;
+			else {
+				//error: alone opcode is detected!
 				break;
 			}
 		}
 
-		//seq contains special type & line_start
-		int min = opcode_seq->line;
-		int max = opcode->line;
-		min = (min < mxc_line_min) ? mxc_line_min : min;
-		max = (max > mxc_line_max) ? mxc_line_max : max;
-		for(int line = min - mxc_line_min; line <= max - mxc_line_min; line ++) {
-			switch(opcode->type) {
-			case VM_OPCODE_SCAN:
-			case VM_OPCODE_OPEN:
-			case VM_OPCODE_CLOSE:
+		if(opcode->type == VM_OPCODE_FSCN) { //fscn
+			int min = opcode->fscn;
+			int max = target->fscn;
+			min = (min < mxc_fscn_min) ? mxc_fscn_min : min;
+			max = (max > mxc_fscn_max) ? mxc_fscn_max : max;
+			for(int fscn = min - mxc_fscn_min; fscn <= max - mxc_fscn_min; fscn ++) {
+				opcode->fscn = fscn;
+				mxc_relay_set(opcode->line, opcode->bus, opcode->type);
+			}
+		} else { //normal
+			int min = opcode->line;
+			int max = target->line;
+			min = (min < mxc_line_min) ? mxc_line_min : min;
+			max = (max > mxc_line_max) ? mxc_line_max : max;
+			for(int line = min - mxc_line_min; line <= max - mxc_line_min; line ++) {
 				mxc_relay_set(line, opcode->bus, opcode->type);
-				break;
-			default:
-				sys_error("invalid opcode");
-				break;
 			}
 		}
 	}
 
 	if(msg->id == CAN_ID_CMD) { //command frame, execute it ...
-		mxc_execute(opcode->type != VM_OPCODE_SCAN);
+		int save = (opcode->type == VM_OPCODE_SCAN) ? 0 : 1;
+		save = (opcode->type == VM_OPCODE_FSCN) ? 0 : save;
+		mxc_execute(save);
 	}
 }
 
@@ -395,9 +420,10 @@ static void mxc_can_cfg(can_msg_t *msg)
 			mxc_ecode = IRT_E_OK; //clear last error
 			mxc_status_change(MXC_STATUS_READY);
 			mxc_can->flush();
-			mxc_opcode_alone.special.type = VM_OPCODE_NUL;
 			mxc_line_min = mxc_addr * 32;
 			mxc_line_max = mxc_line_min + 31;
+			mxc_fscn_min = mxc_line_min << 2;
+			mxc_fscn_max = mxc_line_max << 2 + 3;
 		}
 		break;
 	case MXC_CMD_CFG:
@@ -409,7 +435,7 @@ static void mxc_can_cfg(can_msg_t *msg)
 			mxc_relay_clr_all();
 			mxc_line_set(line);
 			mxc_execute(1);
-			mxc_bus_set(bus);
+			mxc_sense_set(bus);
 			_oe_set(0);
 		}
 		break;
@@ -518,7 +544,7 @@ static int cmd_mxc_func(int argc, char *argv[])
 			else if(bus < 4) {
 				//turn on bus:line
 				memset(mxc_image, 0x00, sizeof(mxc_image));
-				mxc_relay_set(line, bus, VM_OPCODE_CLOSE);
+				mxc_relay_set(line, bus, VM_OPCODE_CLOS);
 				mxc_execute(1);
 				return 0;
 			}
@@ -552,7 +578,7 @@ static int cmd_mxc_func(int argc, char *argv[])
 	}
 	else if(!strcmp(argv[1], "bus")) {
 		int bus = (argc > 2) ? atoi(argv[2]) : 0;
-		mxc_bus_set(1 << bus);
+		mxc_sense_set(1 << bus);
 		return 0;
 	}
 	else if(!strcmp(argv[1], "scan")) {
@@ -561,7 +587,7 @@ static int cmd_mxc_func(int argc, char *argv[])
 		while(1) {
 			for(int bus = 0; bus < 4; bus ++) {
 				for(int line = 0; line < 32; line ++) {
-					mxc_relay_set(line, bus, (on) ? VM_OPCODE_CLOSE : VM_OPCODE_OPEN);
+					mxc_relay_set(line, bus, (on) ? VM_OPCODE_CLOS : VM_OPCODE_OPEN);
 					mxc_execute(1);
 					sys_mdelay(ms);
 				}
