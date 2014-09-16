@@ -26,8 +26,13 @@ enum {
 
 typedef union opcode_u {
 	struct {
-		unsigned short bus : 2;
-		unsigned short line : 11;
+		union {
+			struct {
+				unsigned short bus : 2;
+				unsigned short line : 11;
+			};
+			unsigned short fscn : 13;
+		};
 		unsigned short type : 3;
 	};
 
