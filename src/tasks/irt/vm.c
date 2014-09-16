@@ -1,4 +1,8 @@
 /*
+*  design hints:
+*  1, opcode queue is separated into groups, each group's opcode type should be the same.
+*  2, slot relay action is performed when group end tag is executed
+*  3, dmm trig & measurement will be implemented in case of scan/fscn group type
 *
 *  miaofng@2014-5-10   initial version
 *  1, only matrix relay operation will be buffered in opq(bus&line sw is configured by command 'mode')
