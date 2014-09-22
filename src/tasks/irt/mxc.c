@@ -262,13 +262,13 @@ static int cmd_mxc_func(int argc, char *argv[])
 		char image[NR_OF_SLOT_MAX/8];
 		memset(image, 0x00, sizeof(image));
 		int slots = mxc_scan(image, type);
-		printf("<%+d", slots);
+		printf("<%+d,\"", slots);
 		for(int i = 0; i < NR_OF_SLOT_MAX; i ++) {
 			if(bit_get(i, image)) {
-				printf(",%d", i);
+				printf("%d,", i);
 			}
 		}
-		printf("\n\r");
+		printf("\"\n\r");
 	}
 	else if((argc > 0) && !strcmp(argv[1], "help")) {
 		printf("%s", usage);
