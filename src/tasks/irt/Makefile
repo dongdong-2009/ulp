@@ -4,6 +4,8 @@ ifeq ($(CONFIG_IRT_IRC),y)
 	obj-y += vm.o
 	obj-y += bsp.o
 	obj-y += mxc.o
+	obj-y += dps.o
+	obj-y += rut.o
 endif
 
 ifeq ($(CONFIG_IRT_DPS),y)
