@@ -82,10 +82,10 @@ void _irc_error_print(int ecode, const char *file, int line)
 		msg = "SLOT handshake Fail";
 		break;
 	case IRT_E_SLOT_LATCH:
-		msg = "SLOT card latch Fail";
+		msg = "SLOT card LE latch Fail";
 		break;
 	case IRT_E_SLOT_RESTORE:
-		msg = "SLOT card le restore Fail";
+		msg = "SLOT card LE restore Fail";
 		break;
 	case IRT_E_SLOT_OPCODE:
 		msg = "SLOT card opcode recognize Fail";

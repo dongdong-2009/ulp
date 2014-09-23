@@ -57,7 +57,8 @@ void rut_mode(int mode)
 		LS(25)|LS(16)|LS(18), /*VHV*/
 		LS(26)|LS(16)|LS(18), /*VLV*/
 		LS(17)|LS(16)|LS(13), /*IIS*/
-		0x00,
+		0x00, /*DBG*/
+		0x00, /*OFF*/
 	};
 
 	sys_assert((mode >= IRC_MODE_HVR) && (mode <= IRC_MODE_OFF));

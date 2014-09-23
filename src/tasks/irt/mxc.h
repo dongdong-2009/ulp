@@ -44,7 +44,7 @@ typedef struct {
 	unsigned char cmd;
 	unsigned char ms; //0 -> slot card should dead wait LE signal
 	unsigned char mode;
-	unsigned char bus_sw; //bit mask,  1->relay on, debug mode only
+	unsigned char vbus_sw; //bit mask,  1->relay on, debug mode only
 	unsigned line_sw; //bit mask, 1->relay on, debug mode only
 } mxc_cfg_t;
 
@@ -64,6 +64,7 @@ enum {
 	MXC_OFFLINE,
 };
 
+#if CONFIG_IRT_IRC
 struct mxc_s {
 	int slot;
 	int flag; // (1 << MXC_SELF )? | (1 << MXC_DCFM)?
@@ -84,5 +85,6 @@ int mxc_scan(void *image, int type); //return nr of working slots&slot list
 int mxc_reset(int slot);
 int mxc_ping(int slot, int ms); //if(ms > 0) return current(or last) ecode of the slot
 int mxc_offline(int slot);
+#endif
 
 #endif

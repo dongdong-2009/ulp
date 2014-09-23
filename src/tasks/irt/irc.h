@@ -27,6 +27,7 @@
 #define IRC_UPD_MS 2 //longest system suspend time
 #define IRC_POL_MS 1000 //POLL MS
 #define IRC_ECO_MS 5 //echo back max delay
+#define IRC_INT_MS 10
 
 enum {
 	IRC_MODE_HVR,	//insulation resistance test
@@ -42,9 +43,8 @@ enum {
 	IRC_MODE_VLV,	//lv calibration mode
 	IRC_MODE_IIS,	//is calibration mode
 
+	IRC_MODE_DBG,
 	IRC_MODE_OFF,
-	IRC_MODE_DBG = IRC_MODE_OFF,
-	IRC_MODE_DEF = IRC_MODE_L2T,
 };
 
 void irc_init(void);

@@ -14,8 +14,8 @@ enum {
 	IRT_E_NA, /*NOT AVAILABLE*/
 	IRT_E_CAN,
 	IRT_E_SLOT,
-	IRT_E_SLOT_LATCH,
-	IRT_E_SLOT_RESTORE,
+	IRT_E_SLOT_LATCH_H,
+	IRT_E_SLOT_LATCH_L,
 	IRT_E_SLOT_OPCODE,
 	IRT_E_CMD_FORMAT, /*command syntax error*/
 	IRT_E_CMD_PARA, /*command syntax OK, but is illegal*/
