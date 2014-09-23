@@ -47,10 +47,10 @@ void rut_mode(int mode)
 	#define LS(n) (1 << n)
 
 	const int image[] = {
-		LS(12)|LS(14), /*HVR*/
-		LS(18)|LS(15)|LS(23)|LS(21), /*L4R, real 4 line resistor measurement*/
-		LS(17)|LS(15)|LS(24)|LS(21), /*W4R, use Is!*/
-		LS(18)|LS(15), /*L2T, dmm sense pin is open*/
+		LS(12)|LS(14)|LS(27), /*HVR|LV*/
+		LS(18)|LS(15)|LS(23)|LS(21)|LS(27), /*L4R|LV, real 4 line resistor measurement*/
+		LS(17)|LS(15)|LS(24)|LS(21)|LS(27), /*W4R|LV, use Is!*/
+		LS(18)|LS(15)|LS(27), /*L2T|LV, dmm sense pin is open*/
 		LS(18)|LS(23)|LS(0)|LS(1)|LS(2)|LS(3)|LS(8)|LS(9)|LS(10)|LS(11), /*RPB*/
 		LS(18)|LS(23)|LS(0)|LS(1)|LS(2)|LS(3)|LS(8)|LS(9)|LS(10)|LS(11), /*RMX*/
 		LS(18)|LS(23)|LS(0)|LS(1)|LS(2)|LS(3)|LS(4)|LS(5)|LS(6)|LS(7), /*RX2*/
