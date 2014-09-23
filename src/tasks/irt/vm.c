@@ -119,7 +119,7 @@ static void vm_emit(int can_id)
 			sys_mdelay(1000);
 		}
 		else {
-			mxc_send(&vm_msg);
+			irc_send(&vm_msg);
 			if(can_id == CAN_ID_CMD) {
 				opcode_t opcode;
 				memcpy(&opcode, vm_msg.data + vm_msg.dlc - sizeof(opcode_t), sizeof(opcode_t));

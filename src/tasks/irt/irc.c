@@ -17,10 +17,74 @@
 #include "led.h"
 #include "bsp.h"
 #include "mxc.h"
+#include "rut.h"
+#include "dps.h"
 
-static int irc_slots = 0;
-static time_t irc_poll_timer = 0;
-static int irc_poll_slot = 0;
+static const can_bus_t *irc_bus = &can1;
+static const can_cfg_t irc_cfg = {.baud = CAN_BAUD, .silent = 0};
+static int irc_update_called = 0;
+
+void irc_init(void)
+{
+	board_init();
+
+	irc_bus->init(&irc_cfg);
+	rut_init();
+	mxc_init();
+	dps_init();
+	irc_update_called = 0;
+}
+
+int irc_send(const can_msg_t *msg)
+{
+	int ecode = -IRT_E_CAN;
+	time_t deadline = time_get(IRC_CAN_MS);
+	irc_bus->flush();
+	if(!irc_bus->send(msg)) { //wait until message are sent
+		while(time_left(deadline) > 0) {
+			if(irc_bus->poll(CAN_POLL_TBUF) == 0) {
+				ecode = 0;
+				break;
+			}
+		}
+	}
+	return ecode;
+}
+
+static int irc_can_dispatch(can_msg_t *msg)
+{
+	int id = CAN_TYPE(msg->id);
+	switch(id) {
+	case CAN_ID_MXC:
+		mxc_can_handler(msg);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+void irc_can_handler(void)
+{
+	can_msg_t msg;
+	while(!irc_bus->recv(&msg)) {
+		irc_can_dispatch(&msg);
+	}
+}
+
+void irc_update(void)
+{
+	sys_update();
+	irc_update_called ++;
+	if(irc_update_called == 1) {
+		mxc_update();
+		int n = mxc_scan(NULL, MXC_FAIL);
+		if(n > 0) {
+			irc_error(-IRT_E_SLOT);
+		}
+	}
+	irc_update_called --;
+}
 
 static int irc_is_opc(void)
 {
@@ -35,45 +99,24 @@ static void irc_abort(void)
 
 static int irc_mode(int mode)
 {
-	rly_set(IRC_MODE_OFF);
+	rut_mode(IRC_MODE_OFF);
 	int ecode = mxc_mode(mode);
-	rly_set(mode);
+	rut_mode(mode);
 	return ecode;
-}
-
-void irc_init(void)
-{
-	board_init();
-	mxc_init();
-	trig_set(0);
-	irc_slots = mxc_scan(0, 0);
-}
-
-void irc_poll(void)
-{
-	if(time_left(irc_poll_timer) < 0) {
-		irc_poll_timer = time_get(IRC_POL_MS);
-		mxc_ping(irc_poll_slot);
-		irc_poll_slot = (irc_poll_slot < irc_slots) ? (irc_poll_slot + 1) : 0;
-	}
-}
-
-/*implement a group of switch operation*/
-void irc_update(void)
-{
-	sys_update();
-	irc_poll();
 }
 
 int main(void)
 {
 	sys_init();
-	led_flash(LED_RED);
+	led_flash(LED_GREEN);
 	printf("irc v1.1, SW: %s %s\n\r", __DATE__, __TIME__);
 	irc_init();
 	vm_init();
-	lv_config(DPS_KEY_U, 0.0);
-	irc_mode(IRC_MODE_L2T);
+
+	dps_config(DPS_LV, 0.0);
+	dps_config(DPS_IS, 0.0);
+	dps_config(DPS_HV, 0.0);
+
 	while(1) {
 		irc_update();
 		vm_update();
@@ -108,6 +151,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*RST")) {
+		mxc_reset(MXC_SLOT_ALL);
 		board_reset();
 	}
 	else if(!strcmp(argv[0], "ABORT")) {
@@ -139,17 +183,16 @@ static int cmd_mode_func(int argc, char *argv[])
 	int lv = (argc > 2) ? atoi(argv[2]) : 0;
 	int is = (argc > 3) ? atoi(argv[3]) : 0;
 	const char *name[] = {
-		"HVR", "L4R", "W4R", "L2R", "L2T", "RPB",
-		"RMX", "VHV", "VLV", "IIS", "OFF", "DEF"
+		"HVR", "L4R", "W4R", "L2T", "RPB", "RMX",
+		"RX2", "VHV", "VLV", "IIS", "OFF",
 	};
 	const int mode_list[] = {
 		IRC_MODE_HVR, IRC_MODE_L4R,
-		IRC_MODE_W4R, IRC_MODE_L2R,
-		IRC_MODE_L2T, IRC_MODE_RPB,
-
-		IRC_MODE_RMX, IRC_MODE_VHV,
+		IRC_MODE_W4R, IRC_MODE_L2T,
+		IRC_MODE_RPB, IRC_MODE_RMX,
+		IRC_MODE_RX2, IRC_MODE_VHV,
 		IRC_MODE_VLV, IRC_MODE_IIS,
-		IRC_MODE_OFF, IRC_MODE_DEF,
+		IRC_MODE_OFF,
 	};
 
 	if(!strcmp(argv[1], "HELP")) {
@@ -174,28 +217,3 @@ static int cmd_mode_func(int argc, char *argv[])
 const cmd_t cmd_mode = {"MODE", cmd_mode_func, "change irc work mode"};
 DECLARE_SHELL_CMD(cmd_mode)
 
-static int cmd_power_func(int argc, char *argv[])
-{
-	const char *usage = {
-		"usage:\n"
-		"POWER LV <value>	change lv voltage\n"
-	};
-
-	int ecode = -IRT_E_CMD_FORMAT;
-	if((argc > 1) && !strcmp(argv[1], "HELP")) {
-		printf("%s", usage);
-		return 0;
-	}
-	else if((argc == 3) && !strcmp(argv[1], "LV")) {
-		float v = atof(argv[2]);
-		ecode = - IRT_E_CMD_PARA;
-		if((v >= 0.0) && (v <= 30.0)) {
-			ecode = lv_config(DPS_KEY_U, v);
-		}
-	}
-
-	irc_error_print(ecode);
-	return 0;
-}
-const cmd_t cmd_power = {"POWER", cmd_power_func, "power board ctrl"};
-DECLARE_SHELL_CMD(cmd_power)

@@ -11,6 +11,7 @@
 #include "config.h"
 
 /*vp230 could drive 120nodes: 32 * 120 = 3840 lines at most*/
+#define NR_OF_SLOT_MAX 0064
 #define NR_OF_LINE_MAX 2048
 #define NR_OF_BUS_MAX 0004
 

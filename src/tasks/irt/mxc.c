@@ -12,40 +12,120 @@
 #include "mxc.h"
 #include <string.h>
 #include "shell/cmd.h"
+#include "vm.h"
+#include "common/bitops.h"
+#include "irc.h"
 
-static const can_bus_t *mxc_bus = &can1;
 static can_msg_t mxc_msg;
+static LIST_HEAD(mxc_list);
 
-int mxc_init(void)
+static struct mxc_s *mxc_search(int slot)
 {
-	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
-	mxc_bus->init(&cfg);
-	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
+	struct list_head *pos;
+	struct mxc_s *q = NULL;
 
+	list_for_each(pos, &mxc_list) {
+		q = list_entry(pos, mxc_s, list);
+		if(q->slot == slot) { //found one
+			return q;
+		}
+	}
+
+	return NULL;
+}
+
+void mxc_init(void)
+{
 	/*tricky, to bring slots back from deadlock on waiting le signal*/
 	le_set(1);
 	mdelay(1);
 	le_set(0);
-
-	//wait for power-up signal stable
-	mdelay(100);
-	return mxc_reset(MXC_ALL_SLOT);
+	mdelay(1);
 }
 
-int mxc_send(const can_msg_t *msg)
+void mxc_can_handler(can_msg_t *msg)
 {
-	int ecode = -IRT_E_CAN;
-	time_t deadline = time_get(IRC_CAN_MS);
-	mxc_bus->flush();
-	if(!mxc_bus->send(msg)) { //wait until message are sent
-		while(time_left(deadline) > 0) {
-			if(mxc_bus->poll(CAN_POLL_TBUF) == 0) {
-				ecode = 0;
-				break;
+	mxc_echo_t *echo = (mxc_echo_t *) msg->data;
+	int node = CAN_NODE(msg->id);
+	int slot = MXC_SLOT(node);
+
+	if(echo->flag & MXC_INIT) {
+		mxc_offline(slot);
+	}
+
+	struct mxc_s *mxc = mxc_search(slot);
+	if(mxc != NULL) {
+		mxc->ecode = echo->ecode;
+		mxc->flag = echo->flag;
+		mxc->timer = time_get(0);
+	}
+	else {
+		//create new
+		mxc = sys_malloc(sizeof(mxc_echo_t));
+		sys_assert(mxc != NULL);
+		mxc->slot = slot;
+		mxc->ecode = echo->ecode;
+		mxc->flag = echo->flag;
+		mxc->timer = time_get(0);
+		list_add(&mxc->list, &mxc_list);
+	}
+}
+
+void mxc_update(void)
+{
+	struct list_head *pos;
+	struct mxc_s *q = NULL;
+
+	list_for_each(pos, &mxc_list) {
+		q = list_entry(pos, mxc_s, list);
+		if(time_left(q->timer) < -IRC_POL_MS) {
+			mxc_ping(q->slot, 0);
+			break;
+		}
+	}
+}
+
+int mxc_scan(void *image, int type)
+{
+	struct list_head *pos;
+	struct mxc_s *q = NULL;
+	int ms, match, nr_of_slots = 0;
+
+	static const int timeout = (int)(-IRC_POL_MS*NR_OF_SLOT_MAX*1.5);
+
+	list_for_each(pos, &mxc_list) {
+		q = list_entry(pos, mxc_s, list);
+		ms = time_left(q->timer);
+		switch(type) {
+		case MXC_ALL:
+			match = 1;
+			break;
+		case MXC_GOOD:
+			match = (q->ecode == IRT_E_OK);
+			match &= (ms > timeout);
+			break;
+		case MXC_FAIL:
+			match = (q->ecode != IRT_E_OK);
+			match |=  (ms <= timeout);
+			break;
+		case MXC_SELF:
+			match = (q->flag & (1 << MXC_SELF));
+			break;
+		case MXC_DCFM:
+			match = (q->flag & (1 << MXC_DCFM));
+			break;
+		default:
+			match = 0;
+		}
+
+		if(match) {
+			nr_of_slots ++;
+			if(image != NULL) {
+				bit_set(q->slot, image);
 			}
 		}
 	}
-	return ecode;
+	return nr_of_slots;
 }
 
 int mxc_latch(void)
@@ -74,27 +154,17 @@ int mxc_latch(void)
 
 int mxc_mode(int mode)
 {
-	int ecode = 0;
-	int bus, lne;
-
-	sys_assert((mode >= IRC_MODE_HVR) && (mode < IRC_MODE_OFF));
-
-	//step 1, ibus?ebus + iline?eline
-	bus = (mode < IRC_MODE_RPB) ? MXC_ALL_IBUS : MXC_ALL_EBUS;
-	lne = (mode > IRC_MODE_RPB) ? MXC_ALL_ILNE : MXC_ALL_ELNE;
-
-	//step 2, fill slot config message
-	mxc_cfg_msg_t *cfg = (mxc_cfg_msg_t *) mxc_msg.data;
-	cfg->cmd = MXC_CMD_CFG;
+	sys_assert((mode >= IRC_MODE_HVR) && (mode <= IRC_MODE_OFF));
+	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
+	mxc_cfg_t *cfg = (mxc_cfg_t *) mxc_msg.data;
+	cfg->cmd = MXC_CMD_MODE;
 	cfg->ms = IRC_RLY_MS;
-	cfg->slot = MXC_ALL_SLOT;
-	cfg->bus = bus;
-	cfg->line = lne;
+	cfg->mode = mode;
 
 	//step 3, send ...
-	mxc_msg.id = CAN_ID_CFG;
-	mxc_msg.dlc = sizeof(mxc_cfg_msg_t);
-	ecode = mxc_send(&mxc_msg);
+	mxc_msg.id = CAN_ID_MXC | MXC_ALL;
+	mxc_msg.dlc = sizeof(mxc_cfg_t);
+	int ecode = irc_send(&mxc_msg);
 
 	//step 4, send le signal
 	if(!ecode) {
@@ -103,26 +173,29 @@ int mxc_mode(int mode)
 	return ecode;
 }
 
-int mxc_ping(int slot)
+int mxc_ping(int slot, int ms)
 {
-	mxc_echo_msg_t *echo = (mxc_echo_msg_t *) mxc_msg.data;
-	mxc_cfg_msg_t *cfg = (mxc_cfg_msg_t *) mxc_msg.data;
+	sys_assert((slot >= 0) && (slot < NR_OF_SLOT_MAX));
+	struct mxc_s *mxc = mxc_search(slot);
+	if(mxc == NULL) {
+		return -IRT_E_NA;
+	}
 
+	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
+	mxc_cfg_t *cfg = (mxc_cfg_t *) mxc_msg.data;
 	cfg->cmd = MXC_CMD_PING;
-	cfg->slot = (unsigned char) slot;
-	mxc_msg.id = CAN_ID_CFG;
-	mxc_msg.dlc = sizeof(mxc_cfg_msg_t);
-	int ecode = mxc_send(&mxc_msg);
+	mxc_msg.id = CAN_ID_MXC | MXC_NODE(slot);
+	mxc_msg.dlc = sizeof(mxc_cfg_t);
+	int ecode = irc_send(&mxc_msg);
 	if(!ecode) {
-		ecode = -IRT_E_NA;
-		time_t deadline = time_get(IRC_ECO_MS);
-		while(time_left(deadline) > 0) {
-			if(mxc_bus->recv(&mxc_msg) == 0) {
-				int match = (mxc_msg.id == CAN_ID_CFG);
-				match = match && (echo->cmd == MXC_CMD_ECHO);
-				match = match && (echo->slot == slot);
-				if(match) {
-					ecode = echo->ecode;
+		ecode = mxc->ecode;
+		if(ms > 0) {
+			ecode = -IRT_E_NA;
+			time_t deadline = time_get(ms);
+			time_t backup = mxc->timer;
+			while(time_left(deadline) > 0) {
+				if(backup != mxc->timer) { //irq occurs
+					ecode = mxc->ecode;
 				}
 			}
 		}
@@ -130,42 +203,27 @@ int mxc_ping(int slot)
 	return ecode;
 }
 
-int mxc_scan(int min, int max)
-{
-	int ecode = 0;
-	int slots = 0;
-	for(int slot = min; (slot <= max) || (!max && !ecode); slot ++) {
-		ecode = mxc_ping(slot);
-		slots += (ecode != -IRT_E_NA) ? 1 : 0;
-		printf("slot %02d: ", slot); irc_error_print(ecode);
-	}
-	printf("Total %d cards\n", slots);
-	return slots;
-}
-
 int mxc_reset(int slot)
 {
-	mxc_cfg_msg_t *cfg = (mxc_cfg_msg_t *) mxc_msg.data;
+	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
+	mxc_cfg_t *cfg = (mxc_cfg_t *) mxc_msg.data;
 
-	cfg->cmd = MXC_CMD_RST;
-	cfg->slot = (unsigned char) slot;
-	mxc_msg.id = CAN_ID_CFG;
-	mxc_msg.dlc = sizeof(mxc_cfg_msg_t);
-	int ecode = mxc_send(&mxc_msg);
+	cfg->cmd = MXC_CMD_RESET;
+	mxc_msg.id = CAN_ID_MXC | MXC_NODE(slot);
+	mxc_msg.dlc = sizeof(mxc_cfg_t);
+	int ecode = irc_send(&mxc_msg);
 	return ecode;
 }
 
-int lv_config(int key, float v)
+int mxc_offline(int slot)
 {
-	dps_cfg_msg_t *cfg = (dps_cfg_msg_t *) mxc_msg.data;
+	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
+	mxc_cfg_t *cfg = (mxc_cfg_t *) mxc_msg.data;
 
-	cfg->cmd = DPS_CMD_CFG;
-	cfg->dps = DPS_LV;
-	cfg->key = key;
-	cfg->value = v;
-	mxc_msg.id = CAN_ID_CFG;
-	mxc_msg.dlc = sizeof(dps_cfg_msg_t);
-	int ecode = mxc_send(&mxc_msg);
+	cfg->cmd = MXC_CMD_OFFLINE;
+	mxc_msg.id = CAN_ID_MXC | MXC_NODE(slot);
+	mxc_msg.dlc = sizeof(mxc_cfg_t);
+	int ecode = irc_send(&mxc_msg);
 	return ecode;
 }
 
@@ -174,20 +232,43 @@ static int cmd_mxc_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"mxc ping <slot>		ping specified slot\n"
-		"mxc scan [min] [max]	abort until fail if max is not given\n"
+		"mxc scan good		list [all|good|fail|self|dcfm] slots\n"
 		"mxc help\n"
 	};
 
 	if((argc > 1) && !strcmp(argv[1], "ping")) {
 		int slot = (argc > 2) ? atoi(argv[2]) : 0;
-		int ecode = mxc_ping(slot);
-		printf("slot = %02d, ", slot); irc_error_print(ecode);
+		int ecode = mxc_ping(MXC_NODE(slot), IRC_ECO_MS);
+		irc_error_print(ecode);
 	}
 	else if((argc > 1) && !strcmp(argv[1], "scan")) {
-		int ecode = 0;
-		int min = (argc > 2) ? atoi(argv[2]) : 0;
-		int max = (argc > 2) ? atoi(argv[3]) : 0;
-		mxc_scan(min, max);
+		const char *name[] = {
+			"all", "good", "fail", "self", "dcfm"
+		};
+		const int type_list[] = {
+			MXC_ALL, MXC_GOOD, MXC_FAIL, MXC_SELF, MXC_DCFM
+		};
+
+		int type = MXC_GOOD;
+		if(argc > 2) {
+			for(int i = 0; i < sizeof(type_list) / sizeof(int); i ++) {
+				if(!strcmp(argv[2], name[i])) {
+					type = type_list[i];
+					break;
+				}
+			}
+		}
+
+		char image[NR_OF_SLOT_MAX/8];
+		memset(image, 0x00, sizeof(image));
+		int slots = mxc_scan(image, type);
+		printf("<%+d,\"", slots);
+		for(int i = 0; i < NR_OF_SLOT_MAX; i ++) {
+			if(bit_get(i, image)) {
+				printf("%d,", i);
+			}
+		}
+		printf("\"\n\r");
 	}
 	else if((argc > 0) && !strcmp(argv[1], "help")) {
 		printf("%s", usage);
