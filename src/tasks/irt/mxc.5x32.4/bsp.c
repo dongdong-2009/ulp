@@ -178,7 +178,7 @@ int mxc_has_diag(void)
 int mxc_has_dcfm(void)
 {
 	/*PC3(DET), if DCFM(din cal fixture mounted), level should be 0*/
-	int mounted = (GPIOC->IDR & GPIO_Pin_6) ? 0 : 1;
+	int mounted = (GPIOC->IDR & GPIO_Pin_3) ? 0 : 1;
 	return mounted;
 }
 
