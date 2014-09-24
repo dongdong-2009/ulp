@@ -62,13 +62,14 @@ void mxc_can_handler(can_msg_t *msg)
 	if(mxc != NULL) {
 		mxc->ecode = echo->ecode;
 		mxc->flag = echo->flag;
-		mxc->timer = time_get(0);
+		mxc->nlost = 0;
 	}
 	else { //create new
 		if(mxc_new == NULL) {
 			mxc_tmp.slot = slot;
 			mxc_tmp.ecode = echo->ecode;
 			mxc_tmp.flag = echo->flag;
+			mxc_tmp.nlost = 0;
 			mxc_tmp.timer = time_get(0);
 			mxc_new = &mxc_tmp;
 		}
@@ -94,7 +95,9 @@ void mxc_update(void)
 
 	list_for_each(pos, &mxc_list) {
 		q = list_entry(pos, mxc_s, list);
-		if(time_left(q->timer) < -IRC_POL_MS) {
+		if(time_left(q->timer) < 0) {
+			q->timer = time_get(IRC_POL_MS);
+			q->nlost ++;
 			mxc_ping(q->slot, 0);
 			break;
 		}
@@ -105,24 +108,21 @@ int mxc_scan(void *image, int type)
 {
 	struct list_head *pos;
 	struct mxc_s *q = NULL;
-	int ms, match, nr_of_slots = 0;
-
-	static const int timeout = (int)(-IRC_POL_MS*NR_OF_SLOT_MAX*1.5);
+	int match, nr_of_slots = 0;
 
 	list_for_each(pos, &mxc_list) {
 		q = list_entry(pos, mxc_s, list);
-		ms = time_left(q->timer);
 		switch(type) {
 		case MXC_ALL:
 			match = 1;
 			break;
 		case MXC_GOOD:
 			match = (q->ecode == IRT_E_OK);
-			match &= (ms > timeout);
+			match &= (q->nlost < IRC_POL_NL);
 			break;
 		case MXC_FAIL:
 			match = (q->ecode != IRT_E_OK);
-			match |=  (ms <= timeout);
+			match |= (q->nlost >= IRC_POL_NL);
 			break;
 		case MXC_SELF:
 			match = (q->flag & (1 << MXC_SELF));
@@ -146,7 +146,7 @@ int mxc_scan(void *image, int type)
 
 int mxc_latch(void)
 {
-	int ecode = -IRT_E_SLOT;
+	int ecode = -IRT_E_SLOT_LATCH_H;
 	time_t deadline = time_get(IRC_RLY_MS);
 	time_t suspend = time_get(IRC_UPD_MS);
 

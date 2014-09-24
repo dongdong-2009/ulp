@@ -25,9 +25,10 @@
 #define IRC_RLY_MS 10 //LE wait ms at most
 #define IRC_DMM_MS 10000 //DMM finish pulse wait at most
 #define IRC_UPD_MS 2 //longest system suspend time
-#define IRC_POL_MS 1000 //POLL MS
+#define IRC_POL_MS 500 //POLL MS
 #define IRC_ECO_MS 5 //echo back max delay
 #define IRC_INT_MS 10
+#define IRC_POL_NL 5 //N lost at most 5
 
 enum {
 	IRC_MODE_HVR,	//insulation resistance test

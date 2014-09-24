@@ -69,6 +69,7 @@ struct mxc_s {
 	int slot;
 	int flag; // (1 << MXC_SELF )? | (1 << MXC_DCFM)?
 	int ecode;
+	int nlost; //lost counter
 	time_t timer;
 	struct list_head list;
 };
