@@ -87,9 +87,12 @@ void mxc_update(void)
 		memcpy(mxc, mxc_new, sizeof(struct mxc_s));
 		list_add(&mxc->list, &mxc_list);
 		mxc_new = NULL;
+	}
 
-		if(mxc->flag & (1 << MXC_INIT)) {
-			mxc_offline(mxc->slot);
+	list_for_each(pos, &mxc_list) {
+		q = list_entry(pos, mxc_s, list);
+		if(q->flag & (1 << MXC_INIT)) {
+			mxc_offline(q->slot);
 		}
 	}
 
