@@ -21,16 +21,15 @@
 #include "dps.h"
 
 static const can_bus_t *irc_bus = &can1;
-static const can_cfg_t irc_cfg = {.baud = CAN_BAUD, .silent = 0};
 static int irc_update_called = 0;
 
 void irc_init(void)
 {
 	board_init();
 
-	irc_bus->init(&irc_cfg);
 	rut_init();
 	mxc_init();
+	mxc_reset(MXC_SLOT_ALL);
 	dps_init();
 	irc_update_called = 0;
 }
@@ -80,7 +79,7 @@ void irc_update(void)
 		mxc_update();
 		int n = mxc_scan(NULL, MXC_FAIL);
 		if(n > 0) {
-			irc_error(-IRT_E_SLOT);
+			irc_error(-IRT_E_SLOT_LOST);
 		}
 	}
 	irc_update_called --;

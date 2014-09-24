@@ -93,8 +93,13 @@ void board_init(void)
 	gpio_init();
 	trig_set(0);
 
+	const can_bus_t *irc_bus = &can1;
+	const can_cfg_t irc_cfg = {.baud = CAN_BAUD, .silent = 0};
+	irc_bus->init(&irc_cfg);
+
 	NVIC_InitTypeDef NVIC_InitStructure;
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+	NVIC_SetPriority(SysTick_IRQn, 0);
 
 	NVIC_InitStructure.NVIC_IRQChannel = EXTI3_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;

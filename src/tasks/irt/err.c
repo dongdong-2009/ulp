@@ -78,8 +78,8 @@ void _irc_error_print(int ecode, const char *file, int line)
 	case IRT_E_CAN:
 		msg = "CAN communication Fail";
 		break;
-	case IRT_E_SLOT:
-		msg = "SLOT handshake Fail";
+	case IRT_E_SLOT_LOST:
+		msg = "SLOT Response Timeout";
 		break;
 	case IRT_E_SLOT_LATCH_H:
 		msg = "SLOT wait LE high Timeout";
