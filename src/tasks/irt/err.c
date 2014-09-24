@@ -81,11 +81,11 @@ void _irc_error_print(int ecode, const char *file, int line)
 	case IRT_E_SLOT:
 		msg = "SLOT handshake Fail";
 		break;
-	case IRT_E_SLOT_LATCH:
-		msg = "SLOT card LE latch Fail";
+	case IRT_E_SLOT_LATCH_H:
+		msg = "SLOT wait LE high Timeout";
 		break;
-	case IRT_E_SLOT_RESTORE:
-		msg = "SLOT card LE restore Fail";
+	case IRT_E_SLOT_LATCH_L:
+		msg = "SLOT wait LE low Timeout";
 		break;
 	case IRT_E_SLOT_OPCODE:
 		msg = "SLOT card opcode recognize Fail";

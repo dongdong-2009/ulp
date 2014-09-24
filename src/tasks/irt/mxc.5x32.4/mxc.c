@@ -407,7 +407,7 @@ void main()
 {
 	sys_init();
 	mxc_init();
-	printf("mxc v3.0, SW: %s %s\n\r", __DATE__, __TIME__);
+	printf("mxc sw v1.2, build: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
 		sys_update();
 		mxc_update();

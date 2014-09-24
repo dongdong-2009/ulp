@@ -109,7 +109,7 @@ int main(void)
 {
 	sys_init();
 	led_flash(LED_GREEN);
-	printf("irc v1.1, SW: %s %s\n\r", __DATE__, __TIME__);
+	printf("irc sw v1.2, build: %s %s\n\r", __DATE__, __TIME__);
 	irc_init();
 	vm_init();
 
