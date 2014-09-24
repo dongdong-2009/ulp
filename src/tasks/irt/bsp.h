@@ -16,5 +16,6 @@ int trig_get(void); //vmcomp pulsed
 void le_set(int high);
 int le_get(void);
 void rly_set(int mode);
+void oe_set(int high);
 
 #endif

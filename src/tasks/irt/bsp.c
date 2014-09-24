@@ -19,10 +19,12 @@ TRIG	PC2	OUT
 VMCOMP	PC3	IN
 LE_D	PC6	OUT
 LE_R	PC7	IN
+MBI_OE	PB10	OUT
 */
 static void gpio_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 
@@ -30,6 +32,12 @@ static void gpio_init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2 | GPIO_Pin_7;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	//MBI_OE PB10 DEFAULT = HIGH/DISABLE
+	GPIOB->BSRR = GPIO_Pin_10;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_6;
@@ -43,6 +51,16 @@ static void gpio_init(void)
 	EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
 	EXTI_InitStruct.EXTI_LineCmd = ENABLE;
 	EXTI_Init(&EXTI_InitStruct);
+}
+
+/*MBI_OE OUT PB10*/
+void oe_set(int high) {
+	if(high) {
+		GPIOB->BSRR = GPIO_Pin_10;
+	}
+	else {
+		GPIOB->BRR = GPIO_Pin_10;
+	}
 }
 
 /*TRIG PC2 OUT*/
