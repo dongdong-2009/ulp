@@ -79,7 +79,7 @@ void irc_update(void)
 		mxc_update();
 		int n = mxc_scan(NULL, MXC_FAIL);
 		if(n > 0) {
-			irc_error(-IRT_E_SLOT_LOST);
+			irc_error(-IRT_E_SLOT_SCAN_FAIL);
 		}
 	}
 	irc_update_called --;
@@ -146,8 +146,21 @@ int cmd_xxx_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*ERR?")) {
-		_irc_error_print(irc_error_get(), NULL, 0);
-		return 0;
+		if(argc == 1) {
+			_irc_error_print(irc_error_get(), NULL, 0);
+			return 0;
+		}
+		else {
+			int slot = atoi(argv[1]);
+			struct mxc_s *mxc = mxc_search(slot);
+			if(mxc == NULL) {
+				irc_error_print(-IRT_E_CMD_PARA);
+				return 0;
+			}
+
+			irc_error_print(mxc->ecode);
+			return 0;
+		}
 	}
 	else if(!strcmp(argv[0], "*RST")) {
 		mxc_reset(MXC_SLOT_ALL);

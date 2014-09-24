@@ -12,8 +12,9 @@
 #include "can.h"
 #include "rut.h"
 #include "mbi5025.h"
+#include "bsp.h"
 
-static const mbi5025_t rut_mbi = {.bus = &spi2, .load_pin = SPI_2_NSS, .oe_pin = SPI_CS_PB12};
+static const mbi5025_t rut_mbi = {.bus = &spi2, .load_pin = SPI_2_NSS};
 
 /*to conver relay name order(LSn) to mbi5024 control line nr(Km)*/
 static int rly_map(int relays)
@@ -30,9 +31,8 @@ static int rly_map(int relays)
 
 void rut_init(void)
 {
-	mbi5025_DisableOE(&rut_mbi);
+	oe_set(1);
 	mbi5025_Init(&rut_mbi);
-	mbi5025_EnableOE(&rut_mbi);
 }
 
 /* warnning:
@@ -65,6 +65,7 @@ void rut_mode(int mode)
 	int relays = image[mode];
 	relays = rly_map(relays);
 	mbi5025_write_and_latch(&rut_mbi, &relays, sizeof(relays));
+	oe_set(0);
 }
 
 static int cmd_relay_func(int argc, char *argv[])
@@ -78,6 +79,7 @@ static int cmd_relay_func(int argc, char *argv[])
 		int relays = cmd_pattern_get(argv[1]);
 		relays = rly_map(relays);
 		mbi5025_write_and_latch(&rut_mbi, &relays, sizeof(relays));
+		oe_set(0);
 		return 0;
 	}
 

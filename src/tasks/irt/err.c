@@ -96,6 +96,9 @@ void _irc_error_print(int ecode, const char *file, int line)
 	case IRT_E_VM:
 		msg = "VM runtime Error";
 		break;
+	case IRT_E_SLOT_SCAN_FAIL:
+		msg = "Some slots Fail or Not Response";
+		break;
 	default:
 		msg = "Undefined Error";
 		break;

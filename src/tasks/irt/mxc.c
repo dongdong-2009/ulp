@@ -21,7 +21,7 @@ static can_msg_t mxc_msg;
 static struct mxc_s mxc_tmp;
 static struct mxc_s *mxc_new;
 
-static struct mxc_s *mxc_search(int slot)
+struct mxc_s *mxc_search(int slot)
 {
 	struct list_head *pos;
 	struct mxc_s *q = NULL;
@@ -87,9 +87,12 @@ void mxc_update(void)
 		memcpy(mxc, mxc_new, sizeof(struct mxc_s));
 		list_add(&mxc->list, &mxc_list);
 		mxc_new = NULL;
+	}
 
-		if(mxc->flag & (1 << MXC_INIT)) {
-			mxc_offline(mxc->slot);
+	list_for_each(pos, &mxc_list) {
+		q = list_entry(pos, mxc_s, list);
+		if(q->flag & (1 << MXC_INIT)) {
+			mxc_offline(q->slot);
 		}
 	}
 
