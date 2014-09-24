@@ -34,7 +34,7 @@ int mxc_has_dcfm(void); //slot card has din cal fixture mounted return 1
 //only change the memory of current relay image
 void mxc_relay_clr_all(void);
 void mxc_relay_set(int line, int bus, int on);
-void mxc_vsense_set(int bus);
+void mxc_vsense_set(int mask);
 void mxc_linesw_set(unsigned line_mask);
 
 void mxc_image_store(void);

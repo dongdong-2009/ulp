@@ -35,9 +35,9 @@ enum {
 	IRC_MODE_W4R,   //use Is
 	IRC_MODE_L2T,
 
-	IRC_MODE_RPB,	//probe mode
-	IRC_MODE_RMX,	//matrix self test mode - 4line
-	IRC_MODE_RX2,	//matrix self test mode - 2line
+	IRC_MODE_RPB,	//probe mode, also for zif cal
+	IRC_MODE_RMX,	//matrix self test mode - 4line, for din cal
+	IRC_MODE_RX2,	//matrix self test mode - 2line, for din cal
 
 	IRC_MODE_VHV,	//hv calibration mode
 	IRC_MODE_VLV,	//lv calibration mode

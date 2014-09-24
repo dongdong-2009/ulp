@@ -199,10 +199,9 @@ void mxc_relay_set(int line, int bus, int on)
 	}
 }
 
-void mxc_vsense_set(int bus)
+void mxc_vsense_set(int mask)
 {
-	mxc_sense |= 1 << bus;
-	mxc_sense |= 1 << 7; //enable VLINE
+	mxc_sense |= mask;
 }
 
 void mxc_linesw_set(unsigned line_mask)

@@ -20,6 +20,7 @@
 #include "common/bitops.h"
 #include "mxc.h"
 
+static int irc_mode;
 static int mxc_addr;
 static int mxc_line_min;
 static int mxc_line_max;
@@ -142,10 +143,11 @@ static void mxc_mode(mxc_cfg_t *cfg)
 		return;
 	}
 
+	irc_mode = cfg->mode;
 	mxc_le_timeout = cfg->ms;
 	mxc_relay_clr_all();
 
-	switch(cfg->mode) {
+	switch(irc_mode) {
 	case IRC_MODE_RMX:
 	case IRC_MODE_RX2:
 		mxc_linesw_set(-1);
@@ -186,6 +188,7 @@ static void mxc_ping(int slot)
 static void mxc_offline(can_msg_t *msg)
 {
 	//clean ecode
+	irc_mode = IRC_MODE_OFF;
 	mxc_ecode = 0;
 	mxc_status_change(MXC_STATUS_OFFLINE);
 }
@@ -222,7 +225,22 @@ static int mxc_switch(int line, int bus, int opcode)
 {
 	//vbus0..3&vline
 	if((opcode == VM_OPCODE_SCAN) || (opcode == VM_OPCODE_FSCN)) {
-		mxc_vsense_set(bus);
+		switch(irc_mode) {
+		case IRC_MODE_L4R:
+		case IRC_MODE_W4R:
+		case IRC_MODE_RPB:
+			mxc_vsense_set(1 << bus);
+			break;
+		case IRC_MODE_RMX:
+		case IRC_MODE_RX2:
+			mxc_vsense_set((1 << bus) | (1 << 7)); //also enable vline
+			break;
+		case IRC_MODE_DBG:
+			break;
+		default:
+			mxc_vsense_set(0);
+			break;
+		}
 	}
 
 	switch(opcode) {
@@ -333,6 +351,7 @@ void mxc_init(void)
 	oe_set(1);
 	le_lock(); //nobody could desert me :)
 
+	irc_mode = IRC_MODE_OFF;
 	mxc_addr = mxc_addr_get();
 	mxc_line_min = mxc_addr * 32;
 	mxc_line_max = mxc_line_min + 32 - 1;
