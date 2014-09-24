@@ -21,7 +21,7 @@ static can_msg_t mxc_msg;
 static struct mxc_s mxc_tmp;
 static struct mxc_s *mxc_new;
 
-static struct mxc_s *mxc_search(int slot)
+struct mxc_s *mxc_search(int slot)
 {
 	struct list_head *pos;
 	struct mxc_s *q = NULL;
