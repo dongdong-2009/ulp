@@ -16,8 +16,10 @@
 #include "common/bitops.h"
 #include "irc.h"
 
-static can_msg_t mxc_msg;
 static LIST_HEAD(mxc_list);
+static can_msg_t mxc_msg;
+static struct mxc_s mxc_tmp;
+static struct mxc_s *mxc_new;
 
 static struct mxc_s *mxc_search(int slot)
 {
@@ -36,6 +38,8 @@ static struct mxc_s *mxc_search(int slot)
 
 void mxc_init(void)
 {
+	mxc_new = NULL;
+
 	/*tricky, to bring slots back from deadlock on waiting le signal*/
 	le_set(1);
 	mdelay(1);
@@ -43,15 +47,16 @@ void mxc_init(void)
 	mdelay(1);
 }
 
+/*called by can isr, please don't:
+1, call non-re-entrant routines like malloc/...
+2, do not share glvar like mxc_msg with main routine
+3, do not share hardware like can controller with main routine
+*/
 void mxc_can_handler(can_msg_t *msg)
 {
 	mxc_echo_t *echo = (mxc_echo_t *) msg->data;
 	int node = CAN_NODE(msg->id);
 	int slot = MXC_SLOT(node);
-
-	if(echo->flag & MXC_INIT) {
-		mxc_offline(slot);
-	}
 
 	struct mxc_s *mxc = mxc_search(slot);
 	if(mxc != NULL) {
@@ -59,15 +64,14 @@ void mxc_can_handler(can_msg_t *msg)
 		mxc->flag = echo->flag;
 		mxc->timer = time_get(0);
 	}
-	else {
-		//create new
-		mxc = sys_malloc(sizeof(mxc_echo_t));
-		sys_assert(mxc != NULL);
-		mxc->slot = slot;
-		mxc->ecode = echo->ecode;
-		mxc->flag = echo->flag;
-		mxc->timer = time_get(0);
-		list_add(&mxc->list, &mxc_list);
+	else { //create new
+		if(mxc_new == NULL) {
+			mxc_tmp.slot = slot;
+			mxc_tmp.ecode = echo->ecode;
+			mxc_tmp.flag = echo->flag;
+			mxc_tmp.timer = time_get(0);
+			mxc_new = &mxc_tmp;
+		}
 	}
 }
 
@@ -75,6 +79,18 @@ void mxc_update(void)
 {
 	struct list_head *pos;
 	struct mxc_s *q = NULL;
+
+	if(mxc_new != NULL) {
+		struct mxc_s *mxc = sys_malloc(sizeof(struct mxc_s));
+		sys_assert(mxc != NULL);
+		memcpy(mxc, mxc_new, sizeof(struct mxc_s));
+		list_add(&mxc->list, &mxc_list);
+		mxc_new = NULL;
+
+		if(mxc->flag & (1 << MXC_INIT)) {
+			mxc_offline(mxc->slot);
+		}
+	}
 
 	list_for_each(pos, &mxc_list) {
 		q = list_entry(pos, mxc_s, list);
