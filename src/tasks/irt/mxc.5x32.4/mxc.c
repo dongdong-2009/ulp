@@ -85,15 +85,17 @@ static int mxc_status_change(enum mxc_status_e new_status)
 		led_error(mxc_ecode);
 		break;
 	default:
-		mxc_error(-IRT_E_SLOT);
 		break;
 	}
 	return 0;
 }
 
 void mxc_error(int ecode) {
-	mxc_ecode = ecode;
-	mxc_status_change(MXC_STATUS_ERROR);
+	//only log the first error
+	if(mxc_ecode == IRT_E_OK) {
+		mxc_ecode = ecode;
+		mxc_status_change(MXC_STATUS_ERROR);
+	}
 }
 
 int mxc_execute(void)
@@ -200,9 +202,6 @@ static void mxc_can_cfg(can_msg_t *msg)
 	int slot = MXC_SLOT(node);
 	slot = (slot == MXC_SLOT_ALL) ? mxc_addr : slot;
 	if(slot != mxc_addr) {
-		if(cfg->cmd == MXC_CMD_PING) {
-			mxc_ping(slot);
-		}
 		return;
 	}
 
@@ -215,6 +214,9 @@ static void mxc_can_cfg(can_msg_t *msg)
 		break;
 	case MXC_CMD_OFFLINE:
 		mxc_offline(msg);
+		break;
+	case MXC_CMD_PING:
+		mxc_ping(slot);
 		break;
 	default:
 		break;
