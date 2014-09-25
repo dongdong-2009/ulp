@@ -47,41 +47,21 @@ static int mxc_status_change(enum mxc_status_e new_status)
 	switch(new_status) {
 	case MXC_STATUS_INIT:
 		le_lock();
-		//yellow on
-		led_error(0);
-		led_off(LED_RED);
-		led_off(LED_GREEN);
 		led_on(LED_YELLOW);
 		break;
 	case MXC_STATUS_OFFLINE:
 		le_unlock();
-		//yellow flash
-		led_error(0);
-		led_off(LED_RED);
-		led_off(LED_GREEN);
 		led_flash(LED_YELLOW);
 		break;
 	case MXC_STATUS_READY:
 		mxc_timer = time_get(IRC_POL_MS * 2);
-		//green on
-		led_error(0);
-		led_off(LED_YELLOW);
-		led_off(LED_RED);
 		led_on(LED_GREEN);
 		break;
 	case MXC_STATUS_LOST:
-		//green flash
-		led_error(0);
-		led_off(LED_YELLOW);
-		led_off(LED_RED);
 		led_flash(LED_GREEN);
 		break;
 	case MXC_STATUS_ERROR:
 		le_lock();
-		//red flash
-		led_off(LED_YELLOW);
-		led_off(LED_RED);
-		led_off(LED_GREEN);
 		led_error(mxc_ecode);
 		break;
 	default:
