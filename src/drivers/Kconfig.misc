@@ -6,6 +6,8 @@
 bool "led driver" CONFIG_DRIVER_LED
 if [ "$CONFIG_DRIVER_LED" = "y" ]; then
 	int 'LED Module Update Period(mS)' CONFIG_LED_UPDATE_MS 1000
+	bool "enable led error code function" CONFIG_LED_ECODE
+	bool "enable dual color led function" CONFIG_LED_DUAL
 fi
 
 bool "bldc drivers?" CONFIG_DRIVER_MOTOR
