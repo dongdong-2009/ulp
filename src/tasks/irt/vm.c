@@ -472,6 +472,16 @@ static int cmd_route_func(int argc, char *argv[])
 		"ROUTE DEBUG\n"
 	};
 
+	int match = !strcmp(argv[1], "OPEN");
+	match |= !strcmp(argv[1], "CLOS");
+	match |= !strcmp(argv[1], "SCAN");
+	match |= !strcmp(argv[1], "FSCN");
+	match |= !strcmp(argv[1], "ARM");
+	if(match && irc_error_get()) {
+		irc_error_print(-IRT_E_OP_REFUSED_ESYS);
+		return 0;
+	}
+
 	int ecode = 0, tcode = 0;
 	if(!strcmp(argv[1], "OPEN")) {
 		tcode = VM_OPCODE_OPEN;

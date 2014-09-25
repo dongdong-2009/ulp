@@ -26,6 +26,7 @@ enum {
 	IRT_E_DMM,
 	IRT_E_VM, /*vm execute error*/
 	IRT_E_SLOT_SCAN_FAIL,
+	IRT_E_OP_REFUSED_ESYS,
 };
 
 #define irc_error(ecode) do { \

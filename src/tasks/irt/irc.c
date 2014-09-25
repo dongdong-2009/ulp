@@ -148,6 +148,7 @@ int cmd_xxx_func(int argc, char *argv[])
 	else if(!strcmp(argv[0], "*ERR?")) {
 		if(argc == 1) {
 			_irc_error_print(irc_error_get(), NULL, 0);
+			irc_error_clear();
 			return 0;
 		}
 		else {
@@ -158,7 +159,12 @@ int cmd_xxx_func(int argc, char *argv[])
 				return 0;
 			}
 
-			irc_error_print(mxc->ecode);
+			if(mxc->nlost >= IRC_POL_NL) {
+				irc_error_print(-IRT_E_SLOT_LOST);
+			}
+			else {
+				irc_error_print(mxc->ecode);
+			}
 			return 0;
 		}
 	}
@@ -191,6 +197,16 @@ static int cmd_mode_func(int argc, char *argv[])
 		"	<mode> = [HVR|L4R|W4R|L2R|L2T|PRB|RMX|VHV|VLV|IIS]\n"
 	};
 
+	if(!strcmp(argv[1], "HELP")) {
+		printf("%s", usage);
+		return 0;
+	}
+
+	if(irc_error_get()) {
+		irc_error_print(-IRT_E_OP_REFUSED_ESYS);
+		return 0;
+	}
+
 	int ecode = 0;
 	int lv = (argc > 2) ? atoi(argv[2]) : 0;
 	int is = (argc > 3) ? atoi(argv[3]) : 0;
@@ -206,11 +222,6 @@ static int cmd_mode_func(int argc, char *argv[])
 		IRC_MODE_VLV, IRC_MODE_IIS,
 		IRC_MODE_OFF,
 	};
-
-	if(!strcmp(argv[1], "HELP")) {
-		printf("%s", usage);
-		return 0;
-	}
 
 	ecode = -IRT_E_CMD_FORMAT;
 	for(int i = 0; i < sizeof(mode_list) / sizeof(int); i ++) {
