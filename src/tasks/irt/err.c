@@ -9,6 +9,7 @@
 #include <string.h>
 #include "err.h"
 #include "irc.h"
+#include "led.h"
 
 static int irc_ecode = 0;
 static const char *irc_efile = NULL;
@@ -26,6 +27,7 @@ int irc_error_set(int ecode, const char *file, int line)
 	ecode = (ecode > 0) ? -ecode : ecode;
 	if(ecode) {
 		if(irc_ecode == IRT_E_OK) {
+			led_error(ecode);
 			irc_ecode = ecode;
 			irc_efile = file;
 			irc_eline = line;
@@ -43,6 +45,7 @@ int irc_error_set(int ecode, const char *file, int line)
 
 int irc_error_clear(void)
 {
+	led_flash(LED_GREEN);
 	irc_ecode = 0;
 	irc_efile = NULL;
 	irc_eline = 0;
