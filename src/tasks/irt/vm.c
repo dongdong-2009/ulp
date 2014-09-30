@@ -176,7 +176,7 @@ int vm_is_opc(void)
 		n += vm_scan_cnt;
 	}
 
-	return n;
+	return !n;
 }
 
 /*

@@ -88,7 +88,7 @@ void irc_update(void)
 static int irc_is_opc(void)
 {
 	int opc = vm_is_opc();
-	return !opc;
+	return opc;
 }
 
 static void irc_abort(void)
