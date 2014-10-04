@@ -31,6 +31,7 @@ static int mxc_ecode;
 static int mxc_le_timeout;
 static time_t mxc_timer;
 static int mxc_flag_ping;
+static int mxc_safelatch;
 
 static enum mxc_status_e {
 	MXC_STATUS_INIT,
@@ -127,6 +128,7 @@ static void mxc_mode(mxc_cfg_t *cfg)
 
 	irc_mode = cfg->mode;
 	mxc_le_timeout = cfg->ms;
+	mxc_safelatch = cfg->safelatch;
 	mxc_relay_clr_all();
 
 	switch(irc_mode) {
@@ -290,9 +292,11 @@ static void mxc_can_switch(can_msg_t *msg)
 		scan = (opcode->type == VM_OPCODE_FSCN) ? 1 : scan;
 
 		if(scan) {
-			//back to original status, to avoid cross conduction issue
-			mxc_image_select_static();
-			mxc_execute();
+			if(mxc_safelatch) {
+				//back to original status, to avoid cross conduction issue
+				mxc_image_select_static();
+				mxc_execute();
+			}
 
 			//switch to new status
 			mxc_execute();

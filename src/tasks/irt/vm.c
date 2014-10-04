@@ -124,8 +124,8 @@ static void vm_emit(int can_id)
 				opcode_t opcode;
 				memcpy(&opcode, vm_msg.data + vm_msg.dlc - sizeof(opcode_t), sizeof(opcode_t));
 				if(!mxc_latch()) {
-					int scan = (opcode->type == VM_OPCODE_SCAN) ? 1 : 0;
-					scan = (opcode->type == VM_OPCODE_FSCN) ? 1 : scan;
+					int scan = (opcode.type == VM_OPCODE_SCAN) ? 1 : 0;
+					scan = (opcode.type == VM_OPCODE_FSCN) ? 1 : scan;
 					if(scan) {
 						//twice latch to avoid cross conduction issue
 						if(!mxc_latch()) {

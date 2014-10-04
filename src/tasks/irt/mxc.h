@@ -42,7 +42,8 @@ enum {
 
 typedef struct {
 	unsigned char cmd;
-	unsigned char ms; //0 -> slot card should dead wait LE signal
+	unsigned char ms : 7; //0 -> slot card should dead wait LE signal
+	unsigned char safelatch : 1;
 	unsigned char mode;
 	unsigned char vbus_sw; //bit mask,  1->relay on, debug mode only
 	unsigned line_sw; //bit mask, 1->relay on, debug mode only
