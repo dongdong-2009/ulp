@@ -147,6 +147,7 @@ static void mxc_mode(mxc_cfg_t *cfg)
 
 	oe_set(0);
 	if(!mxc_execute()) { //success
+		mxc_image_store();
 		mxc_status_change(MXC_STATUS_READY);
 	}
 }
@@ -284,16 +285,21 @@ static void mxc_can_switch(can_msg_t *msg)
 	}
 
 	if(msg->id == CAN_ID_CMD) {
-		//command frame, execute it ...
-		mxc_execute();
-
 		//dynamic group??? note: opcode types are the same inside one group
-		int save = (opcode->type == VM_OPCODE_SCAN) ? 0 : 1;
-		save = (opcode->type == VM_OPCODE_FSCN) ? 0 : save;
-		if(save) {
-			mxc_image_store();
-		} else {
+		int scan = (opcode->type == VM_OPCODE_SCAN) ? 1 : 0;
+		scan = (opcode->type == VM_OPCODE_FSCN) ? 1 : scan;
+
+		if(scan) {
+			//back to original status, to avoid cross conduction issue
+			mxc_image_select_static();
+			mxc_execute();
+
+			//switch to new status
+			mxc_execute();
 			mxc_image_restore();
+		} else {
+			mxc_execute();
+			mxc_image_store();
 		}
 	}
 }
