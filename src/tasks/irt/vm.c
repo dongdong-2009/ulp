@@ -234,6 +234,10 @@ static void vm_prefetch(opcode_t *result)
 void vm_update(void)
 {
 	int finish = 1;
+	if(irc_error_get()) {
+		return;
+	}
+
 	if(vm_opcode.type == VM_OPCODE_NULL) {
 		vm_prefetch(&vm_opcode);
 		if(vm_opcode.type == VM_OPCODE_SEQU) {

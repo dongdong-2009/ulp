@@ -101,6 +101,9 @@ static int irc_mode(int mode)
 	rut_mode(IRC_MODE_OFF);
 	int ecode = mxc_mode(mode);
 	rut_mode(mode);
+	if(!ecode) {
+		vm_scan_set_arm(1);
+	}
 	return ecode;
 }
 
