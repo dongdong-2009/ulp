@@ -267,12 +267,12 @@ static void mxc_can_switch(can_msg_t *msg)
 		}
 
 		if(opcode->type == VM_OPCODE_FSCN) { //fscn
-			int min = opcode->fscn;
-			int max = target->fscn;
+			int min = opcode->fscn.fscn;
+			int max = target->fscn.fscn;
 			min = (min < mxc_fscn_min) ? mxc_fscn_min : min;
 			max = (max > mxc_fscn_max) ? mxc_fscn_max : max;
 			for(int fscn = min - mxc_fscn_min; fscn <= max - mxc_fscn_min; fscn ++) {
-				opcode->fscn = fscn;
+				opcode->fscn.fscn = fscn;
 				mxc_switch(opcode->line, opcode->bus, opcode->type);
 			}
 		} else { //normal
