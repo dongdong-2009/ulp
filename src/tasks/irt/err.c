@@ -9,10 +9,13 @@
 #include <string.h>
 #include "err.h"
 #include "irc.h"
+#include "led.h"
 
 static int irc_ecode = 0;
 static const char *irc_efile = NULL;
 static int irc_eline;
+
+#define DEBUG_ERR 0
 
 int irc_error_get(void)
 {
@@ -23,14 +26,18 @@ int irc_error_set(int ecode, const char *file, int line)
 {
 	ecode = (ecode > 0) ? -ecode : ecode;
 	if(ecode) {
-		irc_ecode = ecode;
-		irc_efile = file;
-		irc_eline = line;
+		if(irc_ecode == IRT_E_OK) {
+			led_error(ecode);
+			irc_ecode = ecode;
+			irc_efile = file;
+			irc_eline = line;
+#if DEBUG_ERR
+			_irc_error_print(ecode, irc_efile, irc_eline);
 
-		_irc_error_print(ecode, irc_efile, irc_eline);
-
-		while(irc_ecode) {
-			irc_update();
+			while(irc_ecode) {
+				irc_update();
+			}
+#endif
 		}
 	}
 	return irc_ecode;
@@ -38,6 +45,7 @@ int irc_error_set(int ecode, const char *file, int line)
 
 int irc_error_clear(void)
 {
+	led_flash(LED_GREEN);
 	irc_ecode = 0;
 	irc_efile = NULL;
 	irc_eline = 0;
@@ -98,6 +106,9 @@ void _irc_error_print(int ecode, const char *file, int line)
 		break;
 	case IRT_E_SLOT_SCAN_FAIL:
 		msg = "Some slots Fail or Not Response";
+		break;
+	case IRT_E_OP_REFUSED_ESYS:
+		msg = "Operation Refused Due To System Has Error";
 		break;
 	default:
 		msg = "Undefined Error";

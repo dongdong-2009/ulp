@@ -194,7 +194,6 @@ int mxc_mode(int mode)
 
 int mxc_ping(int slot, int ms)
 {
-	sys_assert((slot >= 0) && (slot < NR_OF_SLOT_MAX));
 	struct mxc_s *mxc = mxc_search(slot);
 	if(mxc == NULL) {
 		return -IRT_E_NA;
@@ -250,19 +249,19 @@ static int cmd_mxc_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"usage:\n"
-		"mxc ping <slot>		ping specified slot\n"
-		"mxc scan good		list [all|good|fail|self|dcfm] slots\n"
-		"mxc help\n"
+		"MXC PING <slot>		ping specified slot\n"
+		"MXC SCAN GOOD			list [ALL|GOOD|FAIL|SELF|DCFM] slots\n"
+		"MXC HELP\n"
 	};
 
-	if((argc > 1) && !strcmp(argv[1], "ping")) {
+	if((argc > 1) && !strcmp(argv[1], "PING")) {
 		int slot = (argc > 2) ? atoi(argv[2]) : 0;
 		int ecode = mxc_ping(MXC_NODE(slot), IRC_ECO_MS);
 		irc_error_print(ecode);
 	}
-	else if((argc > 1) && !strcmp(argv[1], "scan")) {
+	else if((argc > 1) && !strcmp(argv[1], "SCAN")) {
 		const char *name[] = {
-			"all", "good", "fail", "self", "dcfm"
+			"ALL", "GOOD", "FAIL", "SELF", "DCFM"
 		};
 		const int type_list[] = {
 			MXC_ALL, MXC_GOOD, MXC_FAIL, MXC_SELF, MXC_DCFM
@@ -289,11 +288,11 @@ static int cmd_mxc_func(int argc, char *argv[])
 		}
 		printf("\"\n\r");
 	}
-	else if((argc > 0) && !strcmp(argv[1], "help")) {
+	else if((argc > 0) && !strcmp(argv[1], "HELP")) {
 		printf("%s", usage);
 	}
 
 	return 0;
 }
-const cmd_t cmd_mxc = {"mxc", cmd_mxc_func, "mxc related debug cmds"};
+const cmd_t cmd_mxc = {"MXC", cmd_mxc_func, "mxc related debug cmds"};
 DECLARE_SHELL_CMD(cmd_mxc)
