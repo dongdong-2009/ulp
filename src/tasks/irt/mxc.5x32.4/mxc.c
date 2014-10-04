@@ -257,7 +257,7 @@ static void mxc_can_switch(can_msg_t *msg)
 
 		if(opcode->type == VM_OPCODE_SEQU) {
 			if(i < n) {
-				opcode = (opcode_t *) msg->data + i;
+				target = (opcode_t *) msg->data + i;
 				i ++;
 			}
 			else {
@@ -273,7 +273,7 @@ static void mxc_can_switch(can_msg_t *msg)
 			max = (max > mxc_fscn_max) ? mxc_fscn_max : max;
 			for(int fscn = min - mxc_fscn_min; fscn <= max - mxc_fscn_min; fscn ++) {
 				opcode->fscn.fscn = fscn;
-				mxc_switch(opcode->line, opcode->bus, opcode->type);
+				mxc_switch(opcode->line, opcode->bus, target->type);
 			}
 		} else { //normal
 			int min = opcode->line;
@@ -281,15 +281,15 @@ static void mxc_can_switch(can_msg_t *msg)
 			min = (min < mxc_line_min) ? mxc_line_min : min;
 			max = (max > mxc_line_max) ? mxc_line_max : max;
 			for(int line = min - mxc_line_min; line <= max - mxc_line_min; line ++) {
-				mxc_switch(line, opcode->bus, opcode->type);
+				mxc_switch(line, opcode->bus, target->type);
 			}
 		}
 	}
 
 	if(msg->id == CAN_ID_CMD) {
 		//dynamic group??? note: opcode types are the same inside one group
-		int scan = (opcode->type == VM_OPCODE_SCAN) ? 1 : 0;
-		scan = (opcode->type == VM_OPCODE_FSCN) ? 1 : scan;
+		int scan = (target->type == VM_OPCODE_SCAN) ? 1 : 0;
+		scan = (target->type == VM_OPCODE_FSCN) ? 1 : scan;
 
 		if(scan) {
 			if(mxc_safelatch) {
