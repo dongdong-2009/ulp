@@ -37,9 +37,10 @@ void mxc_relay_set(int line, int bus, int on);
 void mxc_vsense_set(int mask);
 void mxc_linesw_set(unsigned line_mask);
 
-void mxc_image_store(void);
-void mxc_image_restore(void);
-void mxc_image_write(void); //write image to mbi5025
+void mxc_image_store(void); /*store image changes*/
+void mxc_image_restore(void); /*ignore image changes*/
+void mxc_image_select_static(void); /*set image pointer to static image*/
+void mxc_image_write(void); //write selected image to mbi5025 & reset image pointer to dynamic image
 
 void board_init(void);
 void board_reset(void);

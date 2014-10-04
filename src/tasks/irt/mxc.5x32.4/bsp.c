@@ -22,6 +22,7 @@ static int mxc_flag_diag; //set by gpio_init
 static can_msg_t mxc_msg;
 
 //relay image memory
+static char mxc_image_write_static;
 static char mxc_image[20];
 static char mxc_image_static[20]; //hold static open/closed relays
 static char mxc_sense; //0..3=>vbus0..3 ctrl, msb=>vline ctrl
@@ -220,15 +221,28 @@ void mxc_image_restore(void)
 	memcpy(mxc_image, mxc_image_static, sizeof(mxc_image));
 }
 
+void mxc_image_select_static(void)
+{
+	mxc_image_write_static = 1;
+}
+
 void mxc_image_write(void)
 {
-	//sense relay ctrl
-	sense_set(mxc_sense);
-	mxc_sense = 0;
+	char *image = mxc_image;
+	if(mxc_image_write_static) {
+		mxc_image_write_static = 0;
+
+		sense_set(0); //sense relay ctrl
+		image = mxc_image_static;
+	}
+	else {
+		sense_set(mxc_sense); //sense relay ctrl
+		mxc_sense = 0;
+	}
 
 	//shift out .. refer to mbi5025_write_and_latch
 	for(int i = sizeof(mxc_image) - 1; i >= 0; i --) {
-		char byte = mxc_image[i];
+		char byte = image[i];
 		mxc_spi->wreg(0, byte);
 	}
 }
@@ -239,6 +253,7 @@ void board_init(void)
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
 	mxc_can->init(&cfg);
 	mbi5025_Init(&mxc_mbi);
+	mxc_image_write_static = 0;
 
 	/*!!! to usePreemptionPriority, group must be config first
 	systick priority !must! use  NVIC_SetPriority() to set
