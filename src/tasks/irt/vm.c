@@ -127,11 +127,16 @@ static void vm_emit(int can_id)
 					int scan = (opcode.type == VM_OPCODE_SCAN) ? 1 : 0;
 					scan = (opcode.type == VM_OPCODE_FSCN) ? 1 : scan;
 					if(scan) {
+#if IRC_LATCH_TWICE > 0
+						mdelay(1000);
 						//twice latch to avoid cross conduction issue
 						if(!mxc_latch()) {
 							//dmm trig is needed
 							vm_measure();
 						}
+#else
+						vm_measure();
+#endif
 					}
 				}
 			}

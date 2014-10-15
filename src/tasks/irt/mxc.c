@@ -179,6 +179,7 @@ int mxc_mode(int mode)
 	cfg->cmd = MXC_CMD_MODE;
 	cfg->ms = IRC_RLY_MS;
 	cfg->mode = mode;
+	cfg->safelatch = IRC_LATCH_TWICE;
 
 	//step 3, send ...
 	mxc_msg.id = CAN_ID_MXC | MXC_ALL;

@@ -30,6 +30,8 @@
 #define IRC_INT_MS 10
 #define IRC_POL_NL 5 //N lost at most 5
 
+#define IRC_LATCH_TWICE 0
+
 enum {
 	IRC_MODE_HVR,	//insulation resistance test
 	IRC_MODE_L4R,
