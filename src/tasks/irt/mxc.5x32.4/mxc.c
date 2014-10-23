@@ -286,7 +286,7 @@ static void mxc_can_switch(can_msg_t *msg)
 		}
 	}
 
-	if(msg->id == CAN_ID_CMD) {
+	if(CAN_TYPE(msg->id) == CAN_ID_CMD) {
 		//dynamic group??? note: opcode types are the same inside one group
 		int scan = (target->type == VM_OPCODE_SCAN) ? 1 : 0;
 		scan = (target->type == VM_OPCODE_FSCN) ? 1 : scan;
