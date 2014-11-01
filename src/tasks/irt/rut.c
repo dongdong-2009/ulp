@@ -20,10 +20,22 @@ static const mbi5025_t rut_mbi = {.bus = &spi2, .load_pin = SPI_2_NSS};
 static int rly_map(int relays)
 {
 	int image = 0;
-	const char map[] = {0,11,12,21,1,10,13,20,  2,9,14,19,5,6,24,3,  18,25,8,15,7,4,26,17,  16,23,22,27,};
+	#define A(a) a
+	#define B(b) b+16-1
+	#define NC 31
+	const char map[] = { \
+		/*LS00-LS07*/ A( 0), A(12), A(10), A( 3), B( 5), B( 2), B( 4), NC,     \
+		/*LS08-LS15*/ NC,    NC,    NC,    NC,    A( 2), A(14), A( 9), A( 4),  \
+		/*LS15-LS23*/ B( 0), A( 6), A( 5), A( 7), NC,    A(11), A(15), B( 3),  \
+		/*LS24-LS31*/ A( 1), A(13), B( 1), A( 8), NC,    NC,    NC,    NC      \
+	};
+
 	for(int i = 0; i < sizeof(map); i ++) {
 		if(relays & (1 << i)) {
-			image |= 1 << map[i];
+			int K = map[i];
+			if(K != NC) {
+				image |= 1 << K;
+			}
 		}
 	}
 	return image;
@@ -75,7 +87,7 @@ static int cmd_relay_func(int argc, char *argv[])
 		"relay 0-2,4	turn on relay k0,k1,k2,k4\n" \
 	};
 
-	if (argc >= 2) {
+	if ((argc >= 2) &&(strcmp(argv[1], "help"))) {
 		int relays = cmd_pattern_get(argv[1]);
 		relays = rly_map(relays);
 		mbi5025_write_and_latch(&rut_mbi, &relays, sizeof(relays));
