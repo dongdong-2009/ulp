@@ -15,8 +15,8 @@
 static volatile int irc_vmcomp_pulsed;
 
 /*
-TRIG	PC2	OUT
-VMCOMP	PC3	IN
+TRIG	PE2	OUT
+VMCOMP	PE3	IN
 LE_D	PC6	OUT
 LE_R	PC7	IN
 MBI_OE	PB10	OUT
@@ -30,7 +30,7 @@ static void gpio_init(void)
 
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2 | GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_7;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
 	//MBI_OE PB10 DEFAULT = HIGH/DISABLE
@@ -40,12 +40,23 @@ static void gpio_init(void)
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_6;
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_6;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	//DMM TRIG & VMCOMP
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_2;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_3;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
 	//vmcomp exti input
 	EXTI_InitTypeDef EXTI_InitStruct;
-	GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource3);
+	GPIO_EXTILineConfig(GPIO_PortSourceGPIOE, GPIO_PinSource3);
 	EXTI_InitStruct.EXTI_Line = EXTI_Line3;
 	EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
 	EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
@@ -63,18 +74,18 @@ void oe_set(int high) {
 	}
 }
 
-/*TRIG PC2 OUT*/
+/*TRIG PE2 OUT*/
 void trig_set(int high) {
 	irc_vmcomp_pulsed = 0;
 	if(high) {
-		GPIOC->BSRR = GPIO_Pin_2;
+		GPIOE->BSRR = GPIO_Pin_2;
 	}
 	else {
-		GPIOC->BRR = GPIO_Pin_2;
+		GPIOE->BRR = GPIO_Pin_2;
 	}
 }
 
-/*VMCOMP PC3 IN*/
+/*VMCOMP PE3 IN*/
 int trig_get(void) {
 	return irc_vmcomp_pulsed;
 }
