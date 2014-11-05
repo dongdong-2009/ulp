@@ -94,6 +94,7 @@ void __cmd_preprocess(struct cmd_list_s *clst)
 			*p ++ = 0;
 			if(*p != 0) {
 				clst -> ms = atoi(p);
+				clst -> repeat = 1;
 			}
 			break;
 		}
@@ -237,6 +238,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 				clst -> deadline = time_get(clst -> ms);
 			}
 #endif
+/*
 			switch (flag) {
 			case __CMD_EXEC_FLAG_CLOSE:
 				_argv = NULL;
@@ -245,6 +247,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 			default:
 				break;
 			}
+*/
 
 			ret = cmd -> func(argc, _argv);
 #ifdef CONFIG_CMD_BKG
@@ -282,7 +285,7 @@ int cmd_queue_update(struct cmd_queue_s *cq)
 				continue;
 		}
 #endif
-		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) <= 0) {
+		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) < 0) {
 #ifdef CONFIG_CMD_BKG
 			//remove from queue
 			list_del(&clst -> list);
