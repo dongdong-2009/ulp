@@ -74,6 +74,8 @@ void irc_can_handler(void)
 void irc_update(void)
 {
 	sys_update();
+	dps_update();
+
 	irc_update_called ++;
 	if(irc_update_called == 1) {
 		mxc_update();
@@ -115,9 +117,16 @@ int main(void)
 	irc_init();
 	vm_init();
 
-	dps_config(DPS_LV, 0.0);
-	dps_config(DPS_IS, 0.0);
-	dps_config(DPS_HV, 0.0);
+	dps_enable(DPS_LV, 0);
+	dps_enable(DPS_HS, 0);
+	dps_enable(DPS_HV, 0);
+
+	//set default value
+	dps_set(DPS_LV, 12.0);
+	dps_set(DPS_HS, 8.0);
+	dps_set(DPS_HV, 500.0);
+	dps_set(DPS_IS, 0.010);
+	dps_set(DPS_VS, 5.0);
 
 	while(1) {
 		irc_update();

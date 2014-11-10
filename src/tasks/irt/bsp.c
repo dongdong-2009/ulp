@@ -64,6 +64,141 @@ static void gpio_init(void)
 	EXTI_Init(&EXTI_InitStruct);
 }
 
+/*DPS GPIO INIT
+PA0		IS_GS0
+PA1		IS_GS1
+PA2		LV_EN
+PA3		HS_VS
+PE4		HS_EN
+PE5		HV_FS
+PE6		HV_EN/IRSTART
+PE7		HV_VS/IRTEST
+
+PB6/TIM4_CH1	LV_PWM
+PB7/TIM4_CH2	IS_PWM
+PB8/TIM4_CH3	VS_PWM
+PB9/TIM4_CH4	HV_PWM
+
+PC0/ADC123_IN10	LV_FB
+PC1/ADC123_IN11	VS_FB
+PC2/ADC123_IN12	HS_FB
+PC3/ADC123_IN13	HV_FB
+*/
+
+static void bsp_dps_init(void)
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+
+	//GPO INIT
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+
+	//AIN
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	//ADC INIT, ADC1 INJECTED CH, CONT SCAN MODE
+	ADC_InitTypeDef ADC_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+	RCC_ADCCLKConfig(RCC_PCLK2_Div6); /*72Mhz/6 = 12Mhz, note: 14MHz at most*/
+	ADC_DeInit(ADC1);
+
+	ADC_StructInit(&ADC_InitStructure);
+	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
+	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
+	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
+	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Left;
+	ADC_InitStructure.ADC_NbrOfChannel = 0;
+	ADC_Init(ADC1, &ADC_InitStructure);
+
+	ADC_InjectedSequencerLengthConfig(ADC1, 4); //!!!length must be configured at first
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_10, 1, ADC_SampleTime_239Cycles5); //12Mhz / (12.5 + 239.5) = 47Khz
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_11, 2, ADC_SampleTime_239Cycles5);
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_12, 3, ADC_SampleTime_239Cycles5);
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_13, 4, ADC_SampleTime_239Cycles5);
+
+	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_None);
+	ADC_AutoInjectedConvCmd(ADC1, ENABLE); //!!!must be set because inject channel do not support CONT mode independently
+
+	ADC_Cmd(ADC1, ENABLE);
+	ADC_ResetCalibration(ADC1);
+	while(ADC_GetResetCalibrationStatus(ADC1));
+	ADC_StartCalibration(ADC1);
+	while(ADC_GetCalibrationStatus(ADC1)); //WARNNING: DEAD LOOP!!!
+	ADC_SoftwareStartConvCmd(ADC1, ENABLE);
+
+	//TIM4 PWM INIT
+	const pwm_cfg_t cfg = {.hz = 100000, .fs = 1023};
+	pwm41.init(&cfg);
+	pwm42.init(&cfg);
+	pwm43.init(&cfg);
+	pwm44.init(&cfg);
+}
+
+void bsp_gpio_set(int pin, int high)
+{
+	switch(pin) {
+	case IS_GS0:
+		if(high) GPIOA->BSRR = GPIO_Pin_0; else GPIOA->BRR = GPIO_Pin_0;
+		break;
+	case IS_GS1:
+		if(high) GPIOA->BSRR = GPIO_Pin_1; else GPIOA->BRR = GPIO_Pin_1;
+		break;
+	case LV_EN:
+		if(high) GPIOA->BSRR = GPIO_Pin_2; else GPIOA->BRR = GPIO_Pin_2;
+		break;
+	case HS_VS:
+		if(high) GPIOA->BSRR = GPIO_Pin_3; else GPIOA->BRR = GPIO_Pin_3;
+		break;
+	case HS_EN:
+		if(high) GPIOE->BSRR = GPIO_Pin_4; else GPIOE->BRR = GPIO_Pin_4;
+		break;
+	case HV_FS:
+		if(high) GPIOE->BSRR = GPIO_Pin_5; else GPIOE->BRR = GPIO_Pin_5;
+		break;
+	case HV_EN:
+	case IRSTART:
+		if(high) GPIOE->BSRR = GPIO_Pin_6; else GPIOE->BRR = GPIO_Pin_6;
+		break;
+	case HV_VS:
+	case IRTEST:
+		if(high) GPIOE->BSRR = GPIO_Pin_7; else GPIOE->BRR = GPIO_Pin_7;
+		break;
+	default:
+	}
+}
+
+int lv_adc_get(void)
+{
+	return ADC1->JDR1 << 1;
+}
+
+int vs_adc_get(void)
+{
+	return ADC1->JDR2 << 1;
+}
+
+int hs_adc_get(void)
+{
+	return ADC1->JDR3 << 1;
+}
+
+int hv_adc_get(void)
+{
+	return ADC1->JDR4 << 1;
+}
+
 /*MBI_OE OUT PB10*/
 void oe_set(int high) {
 	if(high) {
@@ -120,6 +255,7 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 void board_init(void)
 {
 	gpio_init();
+	bsp_dps_init();
 	trig_set(0);
 
 	const can_bus_t *irc_bus = &can1;

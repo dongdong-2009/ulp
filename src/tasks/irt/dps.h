@@ -11,19 +11,26 @@
 
 enum {
 	DPS_LV,
-	DPS_HV,
+	DPS_HS,
 	DPS_IS,
+	DPS_VS,
+	DPS_HV,
 };
 
-typedef struct {
-	unsigned char cmd;
-	unsigned char dps;
-	unsigned char key;
-	unsigned char unused1;
-	float value;
-} dps_cfg_msg_t;
+enum {
+	DPS_V, //U OR I SET
+	DPS_P, //PROTECTION OR DC BIAS SET
+	DPS_E,
+	DPS_G,
+};
 
 void dps_init(void);
-int dps_config(int key, float v);
+void dps_update(void);
+
+float dps_sense(int dps);
+int dps_gain(int dps, int gain, int execute);
+int dps_set(int dps, float v);
+int dps_enable(int dps, int enable);
+int dps_config(int dps, int key, void *p);
 
 #endif
