@@ -63,9 +63,9 @@ void rut_mode(int mode)
 		LS(18)|LS(15)|LS(23)|LS(21)|LS(27), /*L4R|LV, real 4 line resistor measurement*/
 		LS(17)|LS(15)|LS(24)|LS(21)|LS(27), /*W4R|LV, use Is!*/
 		LS(18)|LS(15)|LS(27), /*L2T|LV, dmm sense pin is open*/
-		LS(18)|LS(23)|LS(0)|LS(1)|LS(2)|LS(3)|LS(8)|LS(9)|LS(10)|LS(11), /*RPB*/
-		LS(18)|LS(23)|LS(0)|LS(1)|LS(2)|LS(3)|LS(8)|LS(9)|LS(10)|LS(11), /*RMX*/
-		LS(18)|LS(23)|LS(0)|LS(1)|LS(2)|LS(3)|LS(4)|LS(5)|LS(6)|LS(7), /*RX2*/
+		LS(18)|LS(23)|LS(0)|LS(1)|LS(2)|LS(3)|LS(6), /*RPB*/
+		LS(18)|LS(23)|LS(0)|LS(1)|LS(2)|LS(3)|LS(4), /*RMX*/
+		LS(18)|LS(23)|LS(0)|LS(1)|LS(2)|LS(3)|LS(5), /*RX2*/
 		LS(25)|LS(16)|LS(18), /*VHV*/
 		LS(26)|LS(16)|LS(18), /*VLV*/
 		LS(17)|LS(16)|LS(13), /*IIS*/
