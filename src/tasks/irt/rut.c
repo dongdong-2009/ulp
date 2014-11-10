@@ -21,7 +21,7 @@ static int rly_map(int relays)
 {
 	int image = 0;
 	#define A(a) a
-	#define B(b) b+16-1
+	#define B(b) b+16
 	#define NC 31
 	const char map[] = { \
 		/*LS00-LS07*/ A( 0), A(12), A(10), A( 3), B( 5), B( 2), B( 4), NC,     \
