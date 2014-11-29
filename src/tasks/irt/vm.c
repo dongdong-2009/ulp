@@ -97,7 +97,7 @@ static int vm_measure(void)
 	return ecode;
 }
 
-static void vm_emit(int can_id)
+static void vm_emit(int can_id, int do_measure)
 {
 	memset(&vm_msg, 0x00, sizeof(vm_msg));
 	vm_msg.dlc = buf_size(&vm_odata);
@@ -121,22 +121,9 @@ static void vm_emit(int can_id)
 		else {
 			irc_send(&vm_msg);
 			if(can_id == CAN_ID_CMD) {
-				opcode_t opcode;
-				memcpy(&opcode, vm_msg.data + vm_msg.dlc - sizeof(opcode_t), sizeof(opcode_t));
 				if(!mxc_latch()) {
-					int scan = (opcode.type == VM_OPCODE_SCAN) ? 1 : 0;
-					scan = (opcode.type == VM_OPCODE_FSCN) ? 1 : scan;
-					if(scan) {
-#if IRC_LATCH_TWICE > 0
-						mdelay(1000);
-						//twice latch to avoid cross conduction issue
-						if(!mxc_latch()) {
-							//dmm trig is needed
-							vm_measure();
-						}
-#else
+					if(do_measure) {
 						vm_measure();
-#endif
 					}
 				}
 			}
@@ -148,12 +135,13 @@ static void vm_execute(opcode_t opcode, opcode_t seq)
 {
 	int type = opcode.type;
 	int left = buf_left(&vm_odata);
+	static int opcode_type_saved;
 
 	vm_busy = 1;
 
 	switch(type) {
 	case VM_OPCODE_GRUP:
-		vm_emit(CAN_ID_CMD);
+		vm_emit(CAN_ID_CMD, (opcode_type_saved == VM_OPCODE_SCAN) || (opcode_type_saved == VM_OPCODE_FSCN));
 		break;
 
 	default:
@@ -161,12 +149,14 @@ static void vm_execute(opcode_t opcode, opcode_t seq)
 		left -= (type == VM_OPCODE_SEQU) ? sizeof(opcode_t) : 0;
 		if(left < 0) {
 			//send out the data
-			vm_emit(CAN_ID_DAT);
+			vm_emit(CAN_ID_DAT, 0);
 		}
 
 		//space is enough now
+		opcode_type_saved = opcode.type;
 		buf_push(&vm_odata, &opcode, sizeof(opcode_t));
 		if(type == VM_OPCODE_SEQU) {
+			opcode_type_saved = seq.type;
 			buf_push(&vm_odata, &seq, sizeof(opcode_t));
 		}
 	}
