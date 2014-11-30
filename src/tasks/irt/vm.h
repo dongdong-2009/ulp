@@ -46,6 +46,6 @@ void vm_update(void);
 /*return nr of uncompleted events or 0 if all operation is completed*/
 int vm_is_opc(void);
 void vm_abort(void);
-int vm_scan_set_arm(int arm);
+int vm_mode(int mode);
 
 #endif

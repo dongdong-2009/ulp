@@ -32,5 +32,7 @@ int dps_gain(int dps, int gain, int execute);
 int dps_set(int dps, float v);
 int dps_enable(int dps, int enable);
 int dps_config(int dps, int key, void *p);
+int dps_hv_start(void);
+int dps_hv_stop(void);
 
 #endif
