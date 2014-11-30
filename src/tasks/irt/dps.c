@@ -28,11 +28,11 @@ static int dps_hv_g;
 //=> DF = VOUT / VMAX
 static int dps_lv_set(float v)
 {
+	dps_lv = v;
 	#define lv_vmax (2.5 * 47/(100+47) * (47+1) / 1) //38v
 	int pwm = (int) (v * (1024/ lv_vmax));
 	pwm = (pwm > 1023) ? 1023 : pwm;
 	lv_pwm_set(pwm);
-	dps_lv = v;
 	return 0;
 }
 
@@ -96,16 +96,7 @@ static int dps_is_set(float amp)
 
 static int dps_hs_set(float v)
 {
-	return 0;
-}
-
-static int dps_vs_set(float v)
-{
-	return 0;
-}
-
-static int dps_hv_set(float v)
-{
+	bsp_gpio_set(HS_VS, v > 10.0);
 	return 0;
 }
 
@@ -118,12 +109,38 @@ static float dps_hs_get(void)
 	return vout;
 }
 
-static float dps_vs_get(void)
+/////hv gain = 250 or 1000, vref=1.25v
+static int dps_hv_set(float v)
 {
+	dps_hv = v;
+	if(dps_flag_gain_auto & (1 << DPS_HV)) { //auto range adjust
+		if(v > 250.0) dps_hv_g = 1;
+		else dps_hv_g = 0;
+	}
+
+	dps_gain(DPS_HV, dps_hv_g, 1);
+	v += (dps_hv_g & 0x01) ? 30 : 7;
+	v /= (dps_hv_g & 0x01) ? 1125.51 : 366.82;
+	int pwm = (int) (v * (1024/ 1.25));
+	pwm = (pwm > 1023) ? 1023 : pwm;
+	hv_pwm_set(pwm);
 	return 0;
 }
 
 static float dps_hv_get(void)
+{
+	float vadc = hv_adc_get();
+	vadc *= 2.5 / 65536;
+	float vout = vadc * ((dps_hv_g & 0x01) ? 1125.51 : 366.82);
+	return vout;
+}
+
+static int dps_vs_set(float v)
+{
+	return 0;
+}
+
+static float dps_vs_get(void)
 {
 	return 0;
 }
@@ -217,8 +234,7 @@ int dps_gain(int dps, int gain, int execute)
 	case DPS_HV:
 		if(execute) {
 			dps_hv_g = gain;
-			bsp_gpio_set(HV_FS, gain & 0x01);
-			bsp_gpio_set(HV_VS, gain & 0x02);
+			bsp_gpio_set(HV_VS, gain & 0x01);
 		}
 		else {
 			if(gain < 0) {

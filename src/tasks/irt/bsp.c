@@ -71,8 +71,8 @@ PA2		LV_EN
 PA3		HS_VS
 PE4		HS_EN
 PE5		HV_FS
-PE6		HV_EN/IRSTART
-PE7		HV_VS/IRTEST
+PE6		HV_VS/IRTEST
+PE7		HV_EN/IRSTART
 
 PB6/TIM4_CH1	LV_PWM
 PB7/TIM4_CH2	IS_PWM
@@ -169,11 +169,11 @@ void bsp_gpio_set(int pin, int high)
 		break;
 	case HV_EN:
 	case IRSTART:
-		if(high) GPIOE->BSRR = GPIO_Pin_6; else GPIOE->BRR = GPIO_Pin_6;
+		if(high) GPIOE->BSRR = GPIO_Pin_7; else GPIOE->BRR = GPIO_Pin_7;
 		break;
 	case HV_VS:
 	case IRTEST:
-		if(high) GPIOE->BSRR = GPIO_Pin_7; else GPIOE->BRR = GPIO_Pin_7;
+		if(high) GPIOE->BSRR = GPIO_Pin_6; else GPIOE->BRR = GPIO_Pin_6;
 		break;
 	default:
 	}
