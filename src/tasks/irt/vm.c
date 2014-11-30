@@ -22,6 +22,7 @@
 #include "irc.h"
 #include "mxc.h"
 #include "bsp.h"
+#include "dps.h"
 
 static circbuf_t vm_opq = {.data = NULL}; /*virtual machine task queue*/
 static circbuf_t vm_odata = {.data = NULL};
@@ -35,8 +36,10 @@ static char vm_frame_counter;
 const char *vm_opcode_types;
 static can_msg_t vm_msg;
 static char vm_swdebug;
-static char vm_busy;
-
+static struct {
+	unsigned char busy : 1;
+	unsigned char hv : 1;
+} vm_flag;
 
 static void vm_opcode_print(opcode_t opcode)
 {
@@ -65,7 +68,7 @@ void vm_init(void)
 	vm_scan_cnt = 0;
 	vm_frame_counter = 0;
 	vm_swdebug = 0;
-	vm_busy = 0;
+	vm_flag.busy = 0;
 }
 
 void vm_abort(void)
@@ -97,7 +100,7 @@ static int vm_measure(void)
 	return ecode;
 }
 
-static void vm_emit(int can_id)
+static void vm_emit(int can_id, int do_measure)
 {
 	memset(&vm_msg, 0x00, sizeof(vm_msg));
 	vm_msg.dlc = buf_size(&vm_odata);
@@ -119,25 +122,24 @@ static void vm_emit(int can_id)
 			sys_mdelay(1000);
 		}
 		else {
+			if(do_measure) {
+				if(vm_flag.hv) {
+					if(dps_hv_start())
+						return;
+				}
+			}
+
 			irc_send(&vm_msg);
 			if(can_id == CAN_ID_CMD) {
-				opcode_t opcode;
-				memcpy(&opcode, vm_msg.data + vm_msg.dlc - sizeof(opcode_t), sizeof(opcode_t));
-				if(!mxc_latch()) {
-					int scan = (opcode.type == VM_OPCODE_SCAN) ? 1 : 0;
-					scan = (opcode.type == VM_OPCODE_FSCN) ? 1 : scan;
-					if(scan) {
-#if IRC_LATCH_TWICE > 0
-						mdelay(1000);
-						//twice latch to avoid cross conduction issue
-						if(!mxc_latch()) {
-							//dmm trig is needed
-							vm_measure();
-						}
-#else
-						vm_measure();
-#endif
-					}
+				if(mxc_latch())
+					return;
+			}
+
+			if(do_measure) {
+				vm_measure();
+				if(vm_flag.hv) {
+					if(dps_hv_stop())
+						return;
 				}
 			}
 		}
@@ -148,12 +150,13 @@ static void vm_execute(opcode_t opcode, opcode_t seq)
 {
 	int type = opcode.type;
 	int left = buf_left(&vm_odata);
+	static int opcode_type_saved;
 
-	vm_busy = 1;
+	vm_flag.busy = 1;
 
 	switch(type) {
 	case VM_OPCODE_GRUP:
-		vm_emit(CAN_ID_CMD);
+		vm_emit(CAN_ID_CMD, (opcode_type_saved == VM_OPCODE_SCAN) || (opcode_type_saved == VM_OPCODE_FSCN));
 		break;
 
 	default:
@@ -161,22 +164,24 @@ static void vm_execute(opcode_t opcode, opcode_t seq)
 		left -= (type == VM_OPCODE_SEQU) ? sizeof(opcode_t) : 0;
 		if(left < 0) {
 			//send out the data
-			vm_emit(CAN_ID_DAT);
+			vm_emit(CAN_ID_DAT, 0);
 		}
 
 		//space is enough now
+		opcode_type_saved = opcode.type;
 		buf_push(&vm_odata, &opcode, sizeof(opcode_t));
 		if(type == VM_OPCODE_SEQU) {
+			opcode_type_saved = seq.type;
 			buf_push(&vm_odata, &seq, sizeof(opcode_t));
 		}
 	}
 
-	vm_busy = 0;
+	vm_flag.busy = 0;
 }
 
 int vm_is_opc(void)
 {
-	int n = (vm_busy) ? 1 : 0;
+	int n = (vm_flag.busy) ? 1 : 0;
 	if(n == 0) {
 		n += buf_size(&vm_opq);
 		n += buf_size(&vm_odata);
@@ -425,13 +430,25 @@ int vm_opq_add(int tcode, const char *relay_list)
 
 /*arm is used to notify the group length in scan operation,
 op will fail if  vm_opq_is_not_empty*/
-int vm_scan_set_arm(int arm)
+static int vm_scan_set_arm(int arm)
 {
 	int ecode = 0;
 	ecode = (arm < 1) ? -IRT_E_CMD_PARA : ecode;
 	ecode = (!vm_is_opc()) ? -IRT_E_OP_REFUSED : ecode;
 	if(!ecode) {
 		vm_scan_arm = arm;
+	}
+	return ecode;
+}
+
+int vm_mode(int mode)
+{
+	int ecode = vm_scan_set_arm(1);
+	if(!ecode) {
+		vm_flag.hv = 0;
+		if(mode == IRC_MODE_HVR) {
+			vm_flag.hv = 1;
+		}
 	}
 	return ecode;
 }

@@ -26,11 +26,11 @@ static int irc_update_called = 0;
 void irc_init(void)
 {
 	board_init();
+	dps_init();
 
 	rut_init();
 	mxc_init();
 	mxc_reset(MXC_SLOT_ALL);
-	dps_init();
 	irc_update_called = 0;
 }
 
@@ -100,11 +100,11 @@ static void irc_abort(void)
 
 static int irc_mode(int mode)
 {
-	rut_mode(IRC_MODE_OFF);
-	int ecode = mxc_mode(mode);
-	rut_mode(mode);
-	if(!ecode) {
-		vm_scan_set_arm(1);
+	int ecode = -IRT_E_OP_REFUSED;
+	if(!vm_mode(mode)) {
+		rut_mode(IRC_MODE_OFF);
+		ecode = mxc_mode(mode);
+		rut_mode(mode);
 	}
 	return ecode;
 }
@@ -116,17 +116,6 @@ int main(void)
 	printf("irc sw v1.2, build: %s %s\n\r", __DATE__, __TIME__);
 	irc_init();
 	vm_init();
-
-	dps_enable(DPS_LV, 0);
-	dps_enable(DPS_HS, 0);
-	dps_enable(DPS_HV, 0);
-
-	//set default value
-	dps_set(DPS_LV, 12.0);
-	dps_set(DPS_HS, 8.0);
-	dps_set(DPS_HV, 500.0);
-	dps_set(DPS_IS, 0.010);
-	dps_set(DPS_VS, 5.0);
 
 	while(1) {
 		irc_update();

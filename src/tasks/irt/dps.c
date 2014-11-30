@@ -128,13 +128,32 @@ static float dps_hv_get(void)
 	return 0;
 }
 
-
 void dps_init(void)
 {
+	dps_enable(DPS_LV, 0);
+	dps_enable(DPS_HS, 0);
+	dps_enable(DPS_HV, 0);
+
+	//set default value
+	dps_set(DPS_LV, 12.0);
+	dps_set(DPS_HS, 8.0);
+	dps_set(DPS_HV, 500.0);
+	dps_set(DPS_IS, 0.010);
+	dps_set(DPS_VS, 5.0);
 }
 
 void dps_update(void)
 {
+}
+
+int dps_hv_start(void)
+{
+	return 0;
+}
+
+int dps_hv_stop(void)
+{
+	return 0;
 }
 
 int dps_enable(int dps, int enable)
