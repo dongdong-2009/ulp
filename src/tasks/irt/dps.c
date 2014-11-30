@@ -28,9 +28,10 @@ static int dps_hv_g;
 //=> DF = VOUT / VMAX
 static int dps_lv_set(float v)
 {
-	const float vmax = 2.5 * 47/(100+47) * (47+1) / 1; //38v
-	float df = v/vmax * 1024;
-	lv_pwm_set((int) df);
+	#define lv_vmax (2.5 * 47/(100+47) * (47+1) / 1) //38v
+	int pwm = (int) (v * (1024/ lv_vmax));
+	pwm = (pwm > 1023) ? 1023 : pwm;
+	lv_pwm_set(pwm);
 	dps_lv = v;
 	return 0;
 }
@@ -56,14 +57,17 @@ static float dps_lv_get(void)
 #define IS_GH   100 //INA225 GAIN
 #define IS_GL   25
 
+/*NOTE:  2.5V*0.95 = 2.375*/
+#define IS_RATIO_MAX 0.90
+
 static int dps_is_set(float amp)
 {
 	float v; int pwm;
 	//AUTO RANGE ADJUST
 	if(dps_flag_gain_auto & (1 << DPS_IS)) {
-		if(v > 0.5) dps_is_g = IS_GSR50 | IS_GS025;
-		else if(v > 0.1) dps_is_g = IS_GSR50 | IS_GS100;
-		else if(v > 0.025) dps_is_g = IS_GSR1R | IS_GS025;
+		if(v > 0.5*IS_RATIO_MAX) dps_is_g = IS_GSR50 | IS_GS025;
+		else if(v > 0.1*IS_RATIO_MAX) dps_is_g = IS_GSR50 | IS_GS100;
+		else if(v > 0.025*IS_RATIO_MAX) dps_is_g = IS_GSR1R | IS_GS025;
 		else dps_is_g = IS_GSR1R | IS_GS100;
 	}
 
@@ -85,6 +89,7 @@ static int dps_is_set(float amp)
 	}
 
 	pwm = (int) (v * (1024 / 2.5));
+	pwm = (pwm > 1023) ? 1023 : pwm;
 	is_pwm_set(pwm);
 	return 0;
 }
@@ -351,7 +356,7 @@ static int cmd_power_func(int argc, char *argv[])
 					ecode = dps_config(dps, DPS_E, &enable);
 				}
 				else {
-					int gain = (argc > 3) ? atof(argv[2]) : -1; //auto range
+					int gain = (argc > 3) ? atof(argv[3]) : -1; //auto range
 					float v = atof(argv[2]);
 
 					ecode = dps_config(dps, DPS_G, &gain);
