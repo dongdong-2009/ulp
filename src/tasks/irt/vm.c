@@ -122,24 +122,20 @@ static void vm_emit(int can_id, int do_measure)
 			sys_mdelay(1000);
 		}
 		else {
-			if(do_measure) {
-				if(vm_flag.hv) {
-					if(dps_hv_start())
-						return;
-				}
-			}
-
 			irc_send(&vm_msg);
 			if(can_id == CAN_ID_CMD) {
-				if(mxc_latch())
-					return;
+				mxc_latch();
 			}
 
 			if(do_measure) {
-				vm_measure();
 				if(vm_flag.hv) {
-					if(dps_hv_stop())
-						return;
+					dps_hv_start();
+				}
+
+				vm_measure();
+
+				if(vm_flag.hv) {
+					dps_hv_stop();
 				}
 			}
 		}

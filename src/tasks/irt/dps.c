@@ -10,6 +10,7 @@
 #include "shell/shell.h"
 #include "dps.h"
 #include "bsp.h"
+#include <math.h>
 
 static float dps_lv;
 static float dps_hs;
@@ -137,12 +138,16 @@ static float dps_hv_get(void)
 
 static int dps_vs_set(float v)
 {
+	//vs only has switch on/off function
 	return 0;
 }
 
 static float dps_vs_get(void)
 {
-	return 0;
+	float vadc = vs_adc_get();
+	vadc *= 2.5 / 65536;
+	float vout = vadc * ((dps_hv_g & 0x01) ? 1125.51 : 366.82);
+	return vout;
 }
 
 void dps_init(void)
@@ -150,13 +155,13 @@ void dps_init(void)
 	dps_enable(DPS_LV, 0);
 	dps_enable(DPS_HS, 0);
 	dps_enable(DPS_HV, 0);
+	dps_enable(DPS_VS, 0);
 
 	//set default value
 	dps_set(DPS_LV, 12.0);
 	dps_set(DPS_HS, 8.0);
-	dps_set(DPS_HV, 500.0);
+	dps_set(DPS_HV, 5.0);
 	dps_set(DPS_IS, 0.010);
-	dps_set(DPS_VS, 5.0);
 }
 
 void dps_update(void)
@@ -165,12 +170,48 @@ void dps_update(void)
 
 int dps_hv_start(void)
 {
-	return 0;
+	int ecode = - IRT_E_HV_UP;
+	float hv, delta;
+	time_t deadline = time_get(DPS_HVUP_MS);
+
+	bsp_gpio_set(VS_EN, 1);
+	while(time_left(deadline) > 0) {
+		irc_update();
+		hv = dps_vs_get();
+		delta = abs(hv - dps_hv);
+		if(delta < 10.0) { //OK
+			ecode = 0;
+			break;
+		}
+	}
+
+	if(ecode) {
+		dps_hv_stop();
+		irc_error(ecode);
+	}
+	return ecode;
 }
 
 int dps_hv_stop(void)
 {
-	return 0;
+	int ecode = - IRT_E_HV_DN;
+	float hv;
+	time_t deadline = time_get(DPS_HVDN_MS);
+
+	bsp_gpio_set(VS_EN, 0);
+	while(time_left(deadline) > 0) {
+		irc_update();
+		hv = dps_vs_get();
+		if(hv < 10.0) { //OK
+			ecode = 0;
+			break;
+		}
+	}
+
+	if(ecode) {
+		irc_error(ecode);
+	}
+	return ecode;
 }
 
 int dps_enable(int dps, int enable)
@@ -193,6 +234,7 @@ int dps_enable(int dps, int enable)
 	case DPS_IS:
 		break;
 	case DPS_VS:
+		bsp_gpio_set(VS_EN, enable);
 		break;
 	case DPS_HV:
 		bsp_gpio_set(HV_EN, enable);
@@ -200,7 +242,7 @@ int dps_enable(int dps, int enable)
 	default:
 		ecode = IRT_E_OP_REFUSED;
 	}
-	
+
 	return ecode;
 }
 
@@ -249,7 +291,7 @@ int dps_gain(int dps, int gain, int execute)
 	default:
 		ecode = IRT_E_OP_REFUSED;
 	}
-	
+
 	return ecode;
 }
 

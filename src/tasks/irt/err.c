@@ -65,8 +65,11 @@ void _irc_error_print(int ecode, const char *file, int line)
 	case IRT_E_OK:
 		msg = "No error";
 		break;
-	case IRT_E_NA:
-		msg = "Not Available";
+	case IRT_E_HV_UP:
+		msg = "HV Power-up Fail";
+		break;
+	case IRT_E_HV_DN:
+		msg = "HV Power-down Fail";
 		break;
 	case IRT_E_CMD_FORMAT:
 		msg = "Command Format Error";

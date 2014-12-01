@@ -14,6 +14,8 @@
 
 static volatile int irc_vmcomp_pulsed;
 
+#define DPS_BOARD_V1_2 1
+
 /*
 TRIG	PE2	OUT
 VMCOMP	PE3	IN
@@ -70,7 +72,7 @@ PA1		IS_GS1
 PA2		LV_EN
 PA3		HS_VS
 PE4		HS_EN
-PE5		HV_FS
+PE5		VS_EN//CHANGED FROM HV_FS
 PE6		HV_VS/IRTEST
 PE7		HV_EN/IRSTART
 
@@ -164,17 +166,23 @@ void bsp_gpio_set(int pin, int high)
 	case HS_EN:
 		if(high) GPIOE->BSRR = GPIO_Pin_4; else GPIOE->BRR = GPIO_Pin_4;
 		break;
-	case HV_FS:
-		if(high) GPIOE->BSRR = GPIO_Pin_5; else GPIOE->BRR = GPIO_Pin_5;
-		break;
-	case HV_EN:
-	case IRSTART:
-		if(high) GPIOE->BSRR = GPIO_Pin_7; else GPIOE->BRR = GPIO_Pin_7;
-		break;
 	case HV_VS:
-	case IRTEST:
 		if(high) GPIOE->BSRR = GPIO_Pin_6; else GPIOE->BRR = GPIO_Pin_6;
 		break;
+#ifdef DPS_BOARD_V1_2
+	case HV_EN:
+		break;
+	case VS_EN:
+		if(high) GPIOE->BSRR = GPIO_Pin_7; else GPIOE->BRR = GPIO_Pin_7;
+		break;
+#else
+	case HV_EN:
+		if(high) GPIOE->BSRR = GPIO_Pin_7; else GPIOE->BRR = GPIO_Pin_7;
+		break;
+	case VS_EN:
+		if(high) GPIOE->BSRR = GPIO_Pin_5; else GPIOE->BRR = GPIO_Pin_5;
+		break;
+#endif
 	default:
 	}
 }
@@ -184,20 +192,32 @@ int lv_adc_get(void)
 	return ADC1->JDR1 << 1;
 }
 
-int vs_adc_get(void)
-{
-	return ADC1->JDR2 << 1;
-}
-
 int hs_adc_get(void)
 {
 	return ADC1->JDR3 << 1;
 }
 
+#ifdef DPS_BOARD_V1_2
+int hv_adc_get(void)
+{
+	return 0;
+}
+
+int vs_adc_get(void) //warning: exchanged with hv_fb
+{
+	return ADC1->JDR4 << 1;
+}
+#else //normal
 int hv_adc_get(void)
 {
 	return ADC1->JDR4 << 1;
 }
+
+int vs_adc_get(void)
+{
+	return ADC1->JDR2 << 1;
+}
+#endif
 
 /*MBI_OE OUT PB10*/
 void oe_set(int high) {

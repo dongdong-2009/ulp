@@ -35,11 +35,14 @@ enum {
 	LV_EN,
 	HS_VS,
 	HS_EN,
-	HV_FS,
+	VS_EN,
 	HV_EN,
-	IRSTART,
 	HV_VS,
-	IRTEST,
+
+	//reserved pins
+	HV_FS = VS_EN,
+	IRSTART = HV_EN,
+	IRTEST = HV_VS,
 };
 
 void bsp_gpio_set(int pin, int high);

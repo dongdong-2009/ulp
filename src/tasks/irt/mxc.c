@@ -89,20 +89,20 @@ void mxc_update(void)
 		mxc_new = NULL;
 	}
 
+	int ping_is_done = 0;
 	list_for_each(pos, &mxc_list) {
 		q = list_entry(pos, mxc_s, list);
 		if(q->flag & (1 << MXC_INIT)) {
 			mxc_offline(q->slot);
 		}
-	}
 
-	list_for_each(pos, &mxc_list) {
-		q = list_entry(pos, mxc_s, list);
-		if(time_left(q->timer) < 0) {
-			q->timer = time_get(IRC_POL_MS);
-			q->nlost ++;
-			mxc_ping(q->slot, 0);
-			break;
+		if(!ping_is_done) { //ping once per-update
+			if(time_left(q->timer) < 0) {
+				q->timer = time_get(IRC_POL_MS);
+				q->nlost ++;
+				mxc_ping(q->slot, 0);
+				ping_is_done = 1;
+			}
 		}
 	}
 }
@@ -197,7 +197,7 @@ int mxc_ping(int slot, int ms)
 {
 	struct mxc_s *mxc = mxc_search(slot);
 	if(mxc == NULL) {
-		return -IRT_E_NA;
+		return -IRT_E_SLOT_LOST;
 	}
 
 	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
@@ -209,7 +209,7 @@ int mxc_ping(int slot, int ms)
 	if(!ecode) {
 		ecode = mxc->ecode;
 		if(ms > 0) {
-			ecode = -IRT_E_NA;
+			ecode = -IRT_E_SLOT_LOST;
 			time_t deadline = time_get(ms);
 			time_t backup = mxc->timer;
 			while(time_left(deadline) > 0) {

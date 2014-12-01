@@ -21,7 +21,6 @@
 #include "dps.h"
 
 static const can_bus_t *irc_bus = &can1;
-static int irc_update_called = 0;
 
 void irc_init(void)
 {
@@ -31,7 +30,6 @@ void irc_init(void)
 	rut_init();
 	mxc_init();
 	mxc_reset(MXC_SLOT_ALL);
-	irc_update_called = 0;
 }
 
 int irc_send(const can_msg_t *msg)
@@ -47,6 +45,8 @@ int irc_send(const can_msg_t *msg)
 			}
 		}
 	}
+
+	irc_error(ecode);
 	return ecode;
 }
 
@@ -75,16 +75,11 @@ void irc_update(void)
 {
 	sys_update();
 	dps_update();
-
-	irc_update_called ++;
-	if(irc_update_called == 1) {
-		mxc_update();
-		int n = mxc_scan(NULL, MXC_FAIL);
-		if(n > 0) {
-			irc_error(-IRT_E_SLOT_SCAN_FAIL);
-		}
+	mxc_update();
+	int n = mxc_scan(NULL, MXC_FAIL);
+	if(n > 0) {
+		irc_error(-IRT_E_SLOT_SCAN_FAIL);
 	}
-	irc_update_called --;
 }
 
 static int irc_is_opc(void)
