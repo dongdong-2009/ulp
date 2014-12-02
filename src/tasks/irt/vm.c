@@ -126,7 +126,8 @@ static void vm_emit(int can_id, int do_measure)
 			irc_error(ecode);
 
 			if(can_id == CAN_ID_CMD) {
-				mxc_latch();
+				ecode = mxc_latch();
+				irc_error(ecode);
 			}
 
 			if(do_measure) {

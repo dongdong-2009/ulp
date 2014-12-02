@@ -29,7 +29,8 @@ void irc_init(void)
 
 	rut_init();
 	mxc_init();
-	mxc_reset(MXC_SLOT_ALL);
+	int ecode = mxc_reset(MXC_SLOT_ALL);
+	irc_error(ecode);
 }
 
 int irc_send(const can_msg_t *msg)

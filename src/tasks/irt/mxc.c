@@ -1,6 +1,7 @@
 /*
 *
 *  miaofng@2014-6-6   separate mxc related operations from irc main routine
+*  mxc failure must be handled by the caller.
 *
 */
 #include "ulp/sys.h"
@@ -93,7 +94,8 @@ void mxc_update(void)
 	list_for_each(pos, &mxc_list) {
 		q = list_entry(pos, mxc_s, list);
 		if(q->flag & (1 << MXC_INIT)) {
-			mxc_offline(q->slot);
+			int ecode = mxc_offline(q->slot);
+			irc_error(ecode);
 		}
 
 		if(!ping_is_done) { //ping once per-update
@@ -167,7 +169,6 @@ int mxc_latch(void)
 		}
 	}
 
-	irc_error(ecode);
 	return ecode;
 }
 
@@ -185,7 +186,6 @@ int mxc_mode(int mode)
 	mxc_msg.id = CAN_ID_MXC | MXC_ALL;
 	mxc_msg.dlc = sizeof(mxc_cfg_t);
 	int ecode = irc_send(&mxc_msg);
-	irc_error(ecode);
 
 	//step 4, send le signal
 	if(!ecode) {
@@ -232,7 +232,6 @@ int mxc_reset(int slot)
 	mxc_msg.id = CAN_ID_MXC | MXC_NODE(slot);
 	mxc_msg.dlc = sizeof(mxc_cfg_t);
 	int ecode = irc_send(&mxc_msg);
-	irc_error(ecode);
 	return ecode;
 }
 
@@ -245,7 +244,6 @@ int mxc_offline(int slot)
 	mxc_msg.id = CAN_ID_MXC | MXC_NODE(slot);
 	mxc_msg.dlc = sizeof(mxc_cfg_t);
 	int ecode = irc_send(&mxc_msg);
-	irc_error(ecode);
 	return ecode;
 }
 
