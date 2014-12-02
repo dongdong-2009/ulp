@@ -11,15 +11,22 @@
 #include "dps.h"
 #include "bsp.h"
 #include <math.h>
+#include "common/debounce.h"
 
 static float dps_lv;
 static float dps_hv;
+static float dps_hs;
 
 static int dps_flag_gain_auto;
 static int dps_flag_enable;
 
 static int dps_is_g;
 static int dps_hv_g;
+
+static struct debounce_s dps_mon_lv;
+static struct debounce_s dps_mon_hs;
+static struct debounce_s dps_mon_hv;
+static time_t dps_mon_timer;
 
 //VREF=2V5 R89 = 100K R88=47K R50=47K R81=1K
 //VOUT = VREF * RATIO * DF = VMAX * DF
@@ -94,6 +101,7 @@ static int dps_is_set(float amp)
 
 static int dps_hs_set(float v)
 {
+	dps_hs = (v > 10.0) ? 13.0 : 7.0;
 	bsp_gpio_set(HS_VS, v > 10.0);
 	return 0;
 }
@@ -159,10 +167,44 @@ void dps_init(void)
 	dps_set(DPS_HS, 8.0);
 	dps_set(DPS_HV, 5.0);
 	dps_set(DPS_IS, 0.010);
+
+	dps_mon_timer = time_get(0);
 }
 
 void dps_update(void)
 {
+	float lv, hs, hv, delta, ref;
+	if(time_left(dps_mon_timer) > 0) {
+		return;
+	}
+
+	dps_mon_timer = time_get(100);
+
+	//monitor lv output
+	if(dps_flag_enable & (1 << DPS_LV)) {
+		ref = dps_lv;
+		lv = dps_lv_get();
+		delta = lv - ref;
+		delta = (delta > 0) ? delta : -delta;
+		if(debounce(&dps_mon_lv, delta > 2.0)) {
+			if(dps_mon_lv.on) {
+				irc_error(-IRT_E_LV);
+			}
+		}
+	}
+
+	//monitor hs output
+	if(dps_flag_enable & (1 << DPS_HS)) {
+		ref = dps_hs;
+		hs = dps_hs_get();
+		delta = hs - ref;
+		delta = (delta > 0) ? delta : -delta;
+		if(debounce(&dps_mon_hs, delta > 2.0)) {
+			if(dps_mon_hs.on) {
+				irc_error(-IRT_E_HS);
+			}
+		}
+	}
 }
 
 int dps_hv_start(void)
@@ -200,7 +242,7 @@ int dps_hv_stop(void)
 	while(time_left(deadline) > 0) {
 		irc_update();
 		hv = dps_vs_get();
-		if(hv < 10.0) { //OK
+		if(hv < 24.0) { //OK
 			ecode = 0;
 			break;
 		}
@@ -224,9 +266,11 @@ int dps_enable(int dps, int enable)
 
 	switch(dps) {
 	case DPS_LV:
+		debounce_init(&dps_mon_lv, 15, 0);
 		bsp_gpio_set(LV_EN, enable);
 		break;
 	case DPS_HS:
+		debounce_init(&dps_mon_hs, 15, 0);
 		bsp_gpio_set(HS_EN, enable);
 		break;
 	case DPS_IS:
@@ -235,6 +279,7 @@ int dps_enable(int dps, int enable)
 		bsp_gpio_set(VS_EN, enable);
 		break;
 	case DPS_HV:
+		debounce_init(&dps_mon_hv, 15, 0);
 		bsp_gpio_set(HV_EN, enable);
 		break;
 	default:
