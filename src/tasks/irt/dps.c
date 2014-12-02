@@ -13,9 +13,6 @@
 #include <math.h>
 
 static float dps_lv;
-static float dps_hs;
-static float dps_is;
-static float dps_vs;
 static float dps_hv;
 
 static int dps_flag_gain_auto;
@@ -66,9 +63,9 @@ static int dps_is_set(float amp)
 	float v; int pwm;
 	//AUTO RANGE ADJUST
 	if(dps_flag_gain_auto & (1 << DPS_IS)) {
-		if(v > 0.5*IS_RATIO_MAX) dps_is_g = IS_GSR50 | IS_GS025;
-		else if(v > 0.1*IS_RATIO_MAX) dps_is_g = IS_GSR50 | IS_GS100;
-		else if(v > 0.025*IS_RATIO_MAX) dps_is_g = IS_GSR1R | IS_GS025;
+		if(amp > 0.5*IS_RATIO_MAX) dps_is_g = IS_GSR50 | IS_GS025;
+		else if(amp > 0.1*IS_RATIO_MAX) dps_is_g = IS_GSR50 | IS_GS100;
+		else if(amp > 0.025*IS_RATIO_MAX) dps_is_g = IS_GSR1R | IS_GS025;
 		else dps_is_g = IS_GSR1R | IS_GS100;
 	}
 
@@ -178,7 +175,8 @@ int dps_hv_start(void)
 	while(time_left(deadline) > 0) {
 		irc_update();
 		hv = dps_vs_get();
-		delta = abs(hv - dps_hv);
+		delta = hv - dps_hv;
+		delta = (delta > 0) ? delta : -delta;
 		if(delta < 10.0) { //OK
 			ecode = 0;
 			break;
@@ -315,7 +313,7 @@ int dps_set(int dps, float v)
 	case DPS_HV:
 		ecode = dps_hv_set(v);
 		break;
-	default:
+	default:;
 	}
 
 	return ecode;
@@ -339,7 +337,7 @@ int dps_config(int dps, int key, void *p)
 	case DPS_G:
 		ecode = dps_gain(dps, iv, 0);
 		break;
-	default:
+	default:;
 	}
 
 	return ecode;
@@ -361,7 +359,7 @@ float dps_sense(int dps)
 	case DPS_HV:
 		v = dps_hv_get();
 		break;
-	default:
+	default:;
 	}
 
 	return v;
@@ -433,7 +431,7 @@ static int cmd_power_func(int argc, char *argv[])
 					ecode = dps_config(dps, DPS_E, &enable);
 				}
 				else {
-					int gain = (argc > 3) ? atof(argv[3]) : -1; //auto range
+					int gain = (argc > 3) ? atoi(argv[3]) : -1; //auto range
 					float v = atof(argv[2]);
 
 					ecode = dps_config(dps, DPS_G, &gain);
