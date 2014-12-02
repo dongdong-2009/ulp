@@ -15,55 +15,66 @@ static int irc_ecode = 0;
 static const char *irc_efile = NULL;
 static int irc_eline;
 
-#define DEBUG_ERR 0
+/*in case of any error occurs, main routine will
+be trapped until "*CLS" cmd is received
+*/
+static struct {
+	unsigned error; //if set, system enter into error state
+} irc_status;
 
 int irc_error_get(void)
 {
 	return irc_ecode;
 }
 
-int irc_error_set(int ecode, const char *file, int line)
+void irc_error_push(int ecode, const char *file, int line)
 {
-	ecode = (ecode > 0) ? -ecode : ecode;
-	if(ecode) {
-		if(irc_ecode == IRT_E_OK) {
-			led_error(ecode);
-			irc_ecode = ecode;
-			irc_efile = file;
-			irc_eline = line;
-#if DEBUG_ERR
-			_irc_error_print(ecode, irc_efile, irc_eline);
-
-			while(irc_ecode) {
-				irc_update();
-			}
-#endif
-		}
-	}
-	return irc_ecode;
+	irc_ecode = ecode;
+	irc_efile = file;
+	irc_eline = line;
 }
 
-int irc_error_clear(void)
+void irc_error_pop(void)
 {
-	led_flash(LED_GREEN);
 	irc_ecode = 0;
 	irc_efile = NULL;
 	irc_eline = 0;
-	return irc_ecode;
+}
+
+void irc_error_set(int ecode, const char *file, int line)
+{
+	/*!!!avoid re-entrant!!!*/
+	if(ecode && !irc_status.error) {
+		ecode = (ecode > 0) ? -ecode : ecode;
+		irc_error_push(ecode, file, line);
+
+		irc_status.error = 1;
+		led_error(ecode);
+		while(irc_status.error) {
+			irc_update();
+		}
+	}
+}
+
+void irc_error_clear(void)
+{
+	irc_error_pop();
+	irc_status.error = 0;
+	led_flash(LED_GREEN);
+}
+
+void irc_error_pop_print_history(void)
+{
+	_irc_error_print(irc_ecode, irc_efile, irc_eline);
+	irc_error_pop();
 }
 
 void _irc_error_print(int ecode, const char *file, int line)
 {
-	if(file == NULL) {
-		ecode = irc_ecode;
-		file = irc_efile;
-		line = irc_eline;
-	}
-
 	const char *msg = NULL;
 	switch(-ecode) {
 	case IRT_E_OK:
-		msg = "No error";
+		msg = NULL;
 		break;
 	case IRT_E_HV_UP:
 		msg = "HV Power-up Fail";
@@ -72,12 +83,12 @@ void _irc_error_print(int ecode, const char *file, int line)
 		msg = "HV Power-down Fail";
 		break;
 	case IRT_E_CMD_FORMAT:
-		msg = "Command Format Error";
+		msg = "Command Error";
 		break;
 	case IRT_E_CMD_PARA:
 		msg = "Command Para Incorrect";
 		break;
-	case IRT_E_OPQ_FULL:
+	case IRT_E_VM_OPQ_FULL:
 		msg = "Operation Queue Is Full";
 		break;
 	case IRT_E_MEM_OUT_OF_USE:
@@ -86,31 +97,28 @@ void _irc_error_print(int ecode, const char *file, int line)
 	case IRT_E_OP_REFUSED:
 		msg = "Operation is refused";
 		break;
-	case IRT_E_CAN:
-		msg = "CAN communication Fail";
+	case IRT_E_CAN_SEND:
+		msg = "CAN Message Send Fail";
 		break;
-	case IRT_E_SLOT_LOST:
-		msg = "SLOT Response Timeout";
+	case IRT_E_SLOT_NA_OR_LOST:
+		msg = "SLOT Timeout Or Not Available";
 		break;
-	case IRT_E_SLOT_LATCH_H:
+	case IRT_E_LATCH_H:
 		msg = "SLOT wait LE high Timeout";
 		break;
-	case IRT_E_SLOT_LATCH_L:
+	case IRT_E_LATCH_L:
 		msg = "SLOT wait LE low Timeout";
 		break;
-	case IRT_E_SLOT_OPCODE:
+	case IRT_E_OPCODE:
 		msg = "SLOT card opcode recognize Fail";
 		break;
 	case IRT_E_DMM:
 		msg = "DMM handshake Fail";
 		break;
-	case IRT_E_VM:
-		msg = "VM runtime Error";
-		break;
-	case IRT_E_SLOT_SCAN_FAIL:
+	case IRT_E_SLOT:
 		msg = "Some slots Fail or Not Response";
 		break;
-	case IRT_E_OP_REFUSED_ESYS:
+	case IRT_E_OP_REFUSED_DUETO_ESYS:
 		msg = "Operation Refused Due To System Has Error";
 		break;
 	default:
@@ -118,10 +126,16 @@ void _irc_error_print(int ecode, const char *file, int line)
 		break;
 	}
 
-	if(ecode && (file != NULL)) {
-		printf("<%+d,\"%s(%s:%d)\"\r\n", ecode, msg, strrchr(file, '\\')+1, line);
+	if(file == NULL) {
+		if(msg == NULL) {
+			printf("<%+d\r\n", ecode);
+		}
+		else {
+			printf("<%+d,\"%s\"\r\n", ecode, msg);
+		}
 	}
 	else {
-		printf("<%+d,\"%s\"\r\n", ecode, msg);
+		msg = (msg == NULL) ? "" : msg;
+		printf("<%+d,\"%s(%s:%d)\"\r\n", ecode, msg, strrchr(file, '\\')+1, line);
 	}
 }

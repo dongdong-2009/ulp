@@ -238,7 +238,7 @@ static int mxc_switch(int line, int bus, int opcode)
 		mxc_relay_set(line, bus, 0);
 		break;
 	default:
-		mxc_error(-IRT_E_SLOT_OPCODE);
+		mxc_error(-IRT_E_OPCODE);
 	}
 	return 0;
 }

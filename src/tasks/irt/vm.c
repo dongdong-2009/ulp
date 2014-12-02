@@ -122,7 +122,9 @@ static void vm_emit(int can_id, int do_measure)
 			sys_mdelay(1000);
 		}
 		else {
-			irc_send(&vm_msg);
+			int ecode = irc_send(&vm_msg);
+			irc_error(ecode);
+
 			if(can_id == CAN_ID_CMD) {
 				mxc_latch();
 			}
@@ -130,12 +132,11 @@ static void vm_emit(int can_id, int do_measure)
 			if(do_measure) {
 				if(vm_flag.hv) {
 					dps_hv_start();
-				}
-
-				vm_measure();
-
-				if(vm_flag.hv) {
+					vm_measure();
 					dps_hv_stop();
+				}
+				else {
+					vm_measure();
 				}
 			}
 		}
@@ -228,7 +229,7 @@ static void vm_prefetch(opcode_t *result)
 
 		if(opcode.type == VM_OPCODE_SCAN) {
 			if(x.bus != y.bus) {
-				irc_error(-IRT_E_VM);
+				irc_error(-IRT_E_OPCODE);
 				x.bus = y.bus;
 			}
 		}
@@ -261,7 +262,7 @@ void vm_update(void)
 				//only scan one bus - seq.bus
 				int n = vm_opcode_seq.line - vm_opcode.line + 1;
 				if(n < 0) {
-					irc_error(-IRT_E_VM);
+					irc_error(-IRT_E_OPCODE);
 				}
 
 				int scan_left = vm_scan_arm - vm_scan_cnt;
@@ -290,7 +291,7 @@ void vm_update(void)
 				target.type = vm_opcode.type;
 				int n = target.value - vm_opcode.value + 1;
 				if(n < 0) {
-					irc_error(-IRT_E_VM);
+					irc_error(-IRT_E_OPCODE);
 				}
 
 				int scan_left = vm_scan_arm - vm_scan_cnt;
@@ -328,7 +329,7 @@ void vm_update(void)
 	}
 	else {
 		if(vm_scan_cnt) {
-			irc_error(IRT_E_VM);
+			irc_error(IRT_E_OPCODE);
 			vm_scan_cnt = 0;
 		}
 		vm_execute(vm_opcode, vm_opcode_seq);
@@ -347,7 +348,7 @@ int __vm_opq_add(int tcode, int bus, int line)
 	opcode.bus = bus;
 	opcode.line = line;
 
-	int ecode = - IRT_E_OPQ_FULL;
+	int ecode = - IRT_E_VM_OPQ_FULL;
 	if(buf_left(&vm_opq) > sizeof(opcode)) {
 		buf_push(&vm_opq, &opcode.value, sizeof(opcode));
 		ecode = 0;
@@ -505,7 +506,7 @@ static int cmd_route_func(int argc, char *argv[])
 	match |= !strcmp(argv[1], "FSCN");
 	match |= !strcmp(argv[1], "ARM");
 	if(match && irc_error_get()) {
-		irc_error_print(-IRT_E_OP_REFUSED_ESYS);
+		irc_error_print(-IRT_E_OP_REFUSED_DUETO_ESYS);
 		return 0;
 	}
 

@@ -183,7 +183,7 @@ void bsp_gpio_set(int pin, int high)
 		if(high) GPIOE->BSRR = GPIO_Pin_5; else GPIOE->BRR = GPIO_Pin_5;
 		break;
 #endif
-	default:
+	default:;
 	}
 }
 

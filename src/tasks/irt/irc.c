@@ -34,7 +34,7 @@ void irc_init(void)
 
 int irc_send(const can_msg_t *msg)
 {
-	int ecode = -IRT_E_CAN;
+	int ecode = -IRT_E_CAN_SEND;
 	time_t deadline = time_get(IRC_CAN_MS);
 	irc_bus->flush();
 	if(!irc_bus->send(msg)) { //wait until message are sent
@@ -46,7 +46,6 @@ int irc_send(const can_msg_t *msg)
 		}
 	}
 
-	irc_error(ecode);
 	return ecode;
 }
 
@@ -78,7 +77,7 @@ void irc_update(void)
 	mxc_update();
 	int n = mxc_scan(NULL, MXC_FAIL);
 	if(n > 0) {
-		irc_error(-IRT_E_SLOT_SCAN_FAIL);
+		irc_error(-IRT_E_SLOT);
 	}
 }
 
@@ -126,8 +125,9 @@ int cmd_xxx_func(int argc, char *argv[])
 		"usage:\n"
 		"*IDN?		to read identification string\n"
 		"*OPC?		operation is completed?\n"
-		"*ERR?		error code & info\n"
+		"*ERR? [slot]	show error code & info\n"
 		"*RST		instrument reset\n"
+		"*CLS		clear status & error queue, excute continues\n"
 		"ABORT		abort current fail operation\n"
 	};
 
@@ -143,24 +143,18 @@ int cmd_xxx_func(int argc, char *argv[])
 	}
 	else if(!strcmp(argv[0], "*ERR?")) {
 		if(argc == 1) {
-			_irc_error_print(irc_error_get(), NULL, 0);
-			irc_error_clear();
+			irc_error_pop_print_history();
 			return 0;
 		}
 		else {
 			int slot = atoi(argv[1]);
 			struct mxc_s *mxc = mxc_search(slot);
-			if(mxc == NULL) {
-				irc_error_print(-IRT_E_CMD_PARA);
+			if(mxc == NULL || mxc->nlost >= IRC_POL_NL) {
+				irc_error_print(-IRT_E_SLOT_NA_OR_LOST);
 				return 0;
 			}
 
-			if(mxc->nlost >= IRC_POL_NL) {
-				irc_error_print(-IRT_E_SLOT_LOST);
-			}
-			else {
-				irc_error_print(mxc->ecode);
-			}
+			irc_error_print(mxc->ecode);
 			return 0;
 		}
 	}
@@ -168,9 +162,14 @@ int cmd_xxx_func(int argc, char *argv[])
 		mxc_reset(MXC_SLOT_ALL);
 		board_reset();
 	}
+	else if(!strcmp(argv[0], "*CLS")) {
+		irc_error_clear();
+		irc_error_print(IRT_E_OK);
+		return 0;
+	}
 	else if(!strcmp(argv[0], "ABORT")) {
 		irc_abort();
-		printf("<%+d\n\r", 0);
+		irc_error_print(IRT_E_OK);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*?")) {
@@ -199,7 +198,7 @@ static int cmd_mode_func(int argc, char *argv[])
 	}
 
 	if(irc_error_get()) {
-		irc_error_print(-IRT_E_OP_REFUSED_ESYS);
+		irc_error_print(-IRT_E_OP_REFUSED_DUETO_ESYS);
 		return 0;
 	}
 

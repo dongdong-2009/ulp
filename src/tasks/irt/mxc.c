@@ -149,7 +149,7 @@ int mxc_scan(void *image, int type)
 
 int mxc_latch(void)
 {
-	int ecode = -IRT_E_SLOT_LATCH_H;
+	int ecode = -IRT_E_LATCH_H;
 	time_t deadline = time_get(IRC_RLY_MS);
 	time_t suspend = time_get(IRC_UPD_MS);
 
@@ -185,6 +185,7 @@ int mxc_mode(int mode)
 	mxc_msg.id = CAN_ID_MXC | MXC_ALL;
 	mxc_msg.dlc = sizeof(mxc_cfg_t);
 	int ecode = irc_send(&mxc_msg);
+	irc_error(ecode);
 
 	//step 4, send le signal
 	if(!ecode) {
@@ -197,7 +198,7 @@ int mxc_ping(int slot, int ms)
 {
 	struct mxc_s *mxc = mxc_search(slot);
 	if(mxc == NULL) {
-		return -IRT_E_SLOT_LOST;
+		return -IRT_E_SLOT_NA_OR_LOST;
 	}
 
 	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
@@ -209,7 +210,7 @@ int mxc_ping(int slot, int ms)
 	if(!ecode) {
 		ecode = mxc->ecode;
 		if(ms > 0) {
-			ecode = -IRT_E_SLOT_LOST;
+			ecode = -IRT_E_SLOT_NA_OR_LOST;
 			time_t deadline = time_get(ms);
 			time_t backup = mxc->timer;
 			while(time_left(deadline) > 0) {
@@ -231,6 +232,7 @@ int mxc_reset(int slot)
 	mxc_msg.id = CAN_ID_MXC | MXC_NODE(slot);
 	mxc_msg.dlc = sizeof(mxc_cfg_t);
 	int ecode = irc_send(&mxc_msg);
+	irc_error(ecode);
 	return ecode;
 }
 
@@ -243,6 +245,7 @@ int mxc_offline(int slot)
 	mxc_msg.id = CAN_ID_MXC | MXC_NODE(slot);
 	mxc_msg.dlc = sizeof(mxc_cfg_t);
 	int ecode = irc_send(&mxc_msg);
+	irc_error(ecode);
 	return ecode;
 }
 
