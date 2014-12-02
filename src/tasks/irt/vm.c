@@ -36,6 +36,7 @@ static char vm_frame_counter;
 const char *vm_opcode_types;
 static can_msg_t vm_msg;
 static char vm_swdebug;
+static int vm_measure_delay;
 static struct {
 	unsigned char busy : 1;
 	unsigned char hv : 1;
@@ -69,6 +70,7 @@ void vm_init(void)
 	vm_frame_counter = 0;
 	vm_swdebug = 0;
 	vm_flag.busy = 0;
+	vm_measure_delay = 0;
 }
 
 void vm_abort(void)
@@ -80,10 +82,18 @@ void vm_abort(void)
 static int vm_measure(void)
 {
 	int ecode = -IRT_E_DMM;
-	time_t deadline = time_get(IRC_DMM_MS);
-	time_t suspend = time_get(IRC_UPD_MS);
+	time_t deadline, suspend;
+
+	if(vm_measure_delay) {
+		deadline = time_get(vm_measure_delay);
+		while(time_left(deadline) > 0) {
+			irc_update();
+		}
+	}
 
 	trig_set(1);
+	deadline = time_get(IRC_DMM_MS);
+	suspend = time_get(IRC_UPD_MS);
 	while(time_left(deadline) > 0) {
 		if(trig_get() == 1) { //vmcomp pulsed
 			trig_set(0);
@@ -497,6 +507,7 @@ static int cmd_route_func(int argc, char *argv[])
 		"usage:\n"
 		"ROUTE [CLOS|OPEN|SCAN|FSCN] (@bbllll:bbllll,bbllll,bbllll)\n"
 		"ROUTE ARM 2\n"
+		"ROUTE DELAY 16\n"
 		"ROUTE DUMP\n"
 		"ROUTE DEBUG\n"
 	};
@@ -506,6 +517,7 @@ static int cmd_route_func(int argc, char *argv[])
 	match |= !strcmp(argv[1], "SCAN");
 	match |= !strcmp(argv[1], "FSCN");
 	match |= !strcmp(argv[1], "ARM");
+	match |= !strcmp(argv[1], "DELAY");
 	if(match && irc_error_get()) {
 		irc_error_print(-IRT_E_OP_REFUSED_DUETO_ESYS);
 		return 0;
@@ -534,6 +546,13 @@ static int cmd_route_func(int argc, char *argv[])
 	}
 	else if(!strcmp(argv[1], "ARM?")) {
 		printf("<%+d\n\r", vm_scan_arm);
+		return 0;
+	}
+	else if(!strcmp(argv[1], "DELAY")) {
+		vm_measure_delay = atoi(argv[2]);
+	}
+	else if(!strcmp(argv[1], "DELAY?")) {
+		printf("<%+d\n\r", vm_measure_delay);
 		return 0;
 	}
 	else if(!strcmp(argv[1], "DUMP")) {
