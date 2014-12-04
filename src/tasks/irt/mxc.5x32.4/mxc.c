@@ -93,7 +93,7 @@ int mxc_execute(void)
 		}
 		if(mxc_le_timeout != 0) {
 			if(time_left(deadline) < 0) { //host error???
-				mxc_error(-IRT_E_SLOT_LATCH_H);
+				mxc_error(-IRT_E_LATCH_H);
 				break;
 			}
 		}
@@ -106,7 +106,7 @@ int mxc_execute(void)
 		}
 		if(mxc_le_timeout != 0) {
 			if(time_left(deadline) < 0) { //host error???
-				mxc_error(-IRT_E_SLOT_LATCH_L);
+				mxc_error(-IRT_E_LATCH_L);
 				break;
 			}
 		}
