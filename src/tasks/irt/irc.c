@@ -37,7 +37,7 @@ int irc_send(const can_msg_t *msg)
 {
 	int ecode = -IRT_E_CAN_SEND;
 	time_t deadline = time_get(IRC_CAN_MS);
-	irc_bus->flush();
+	irc_bus->flush_tx();
 	if(!irc_bus->send(msg)) { //wait until message are sent
 		while(time_left(deadline) > 0) {
 			if(irc_bus->poll(CAN_POLL_TBUF) == 0) {
