@@ -22,6 +22,8 @@ static int circle_number;
 #endif
 #endif
 
+static void can_flush(void);
+
 static int can_init(const can_cfg_t *cfg)
 {
 	GPIO_InitTypeDef	GPIO_InitStructure;
@@ -112,6 +114,7 @@ static int can_init(const can_cfg_t *cfg)
 	circle_number = 0;
 #endif
 
+	can_flush();
 	return 0;
 }
 
