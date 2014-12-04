@@ -300,7 +300,16 @@ void mxc_can_echo(int slot, int flag, int ecode)
 
 	msg.dlc = sizeof(mxc_echo_t);
 	msg.id = CAN_ID_MXC | MXC_NODE(slot);
-	mxc_can->send(&msg);
+
+	time_t deadline = time_get(IRC_CAN_MS);
+	mxc_can->flush_tx();
+	if(!mxc_can->send(&msg)) { //wait until message are sent
+		while(time_left(deadline) > 0) {
+			if(mxc_can->poll(CAN_POLL_TBUF) == 0) {
+				break;
+			}
+		}
+	}
 }
 
 static int cmd_mxc_func(int argc, char *argv[])
