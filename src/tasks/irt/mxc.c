@@ -21,6 +21,7 @@ static LIST_HEAD(mxc_list);
 static can_msg_t mxc_msg;
 static struct mxc_s mxc_tmp;
 static struct mxc_s *mxc_new;
+static int mxc_ping_enable;
 
 struct mxc_s *mxc_search(int slot)
 {
@@ -40,6 +41,7 @@ struct mxc_s *mxc_search(int slot)
 void mxc_init(void)
 {
 	mxc_new = NULL;
+	mxc_ping_enable = 0;
 
 	/*tricky, to bring slots back from deadlock on waiting le signal*/
 	le_set(1);
@@ -53,11 +55,17 @@ void mxc_init(void)
 2, do not share glvar like mxc_msg with main routine
 3, do not share hardware like can controller with main routine
 */
+
+static int ecode_slot[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
 void mxc_can_handler(can_msg_t *msg)
 {
 	mxc_echo_t *echo = (mxc_echo_t *) msg->data;
 	int node = CAN_NODE(msg->id);
 	int slot = MXC_SLOT(node);
+	if(echo->ecode > 0) {
+		ecode_slot[slot] = echo->ecode;
+	}
 
 	struct mxc_s *mxc = mxc_search(slot);
 	if(mxc != NULL) {
@@ -93,17 +101,26 @@ void mxc_update(void)
 	int ping_is_done = 0;
 	list_for_each(pos, &mxc_list) {
 		q = list_entry(pos, mxc_s, list);
-		if(q->flag & (1 << MXC_INIT)) {
-			int ecode = mxc_offline(q->slot);
-			irc_error(ecode);
+		if(!mxc_ping_enable) {
+			if(q->flag & (1 << MXC_INIT)) {
+				int ecode = mxc_offline(q->slot);
+				/* preset to offline state in advance
+				because periodically ping need a long time ..
+				in case of offline failure, slot will send req again
+				*/
+				q->flag &= ~(1 << MXC_INIT);
+				printf("offline slot %d, ecode=%d\n", q->slot, q->ecode);
+				irc_error(ecode);
+			}
 		}
-
-		if(!ping_is_done) { //ping once per-update
-			if(time_left(q->timer) < 0) {
-				q->timer = time_get(IRC_POL_MS);
-				q->nlost ++;
-				mxc_ping(q->slot, 0);
-				ping_is_done = 1;
+		else {
+			if(!ping_is_done) { //ping once per-update
+				if(time_left(q->timer) < 0) {
+					q->timer = time_get(IRC_POL_MS);
+					q->nlost += (q->nlost < IRC_POL_NL) ? 1 : 0;
+					mxc_ping(q->slot, 0);
+					ping_is_done = 1;
+				}
 			}
 		}
 	}
@@ -174,6 +191,7 @@ int mxc_latch(void)
 
 int mxc_mode(int mode)
 {
+	mxc_ping_enable = 1;
 	sys_assert((mode >= IRC_MODE_HVR) && (mode <= IRC_MODE_OFF));
 	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
 	mxc_cfg_t *cfg = (mxc_cfg_t *) mxc_msg.data;
