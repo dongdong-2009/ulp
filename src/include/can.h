@@ -54,6 +54,8 @@ typedef struct {
 	int (*recv)(can_msg_t *msg); //non block, check -> ?empty ret-> recv
 	int (*filt)(can_filter_t const *filter, int n);
 	void (*flush)(void); //flush tx & rx
+	void (*flush_tx)(void);
+	void (*flush_rx)(void);
 	int (*poll)(int fifo); //return nr_of can msg pending
 
 #ifdef CONFIG_CAN_ENHANCED
