@@ -173,9 +173,11 @@ static void mxc_ping(int slot)
 static void mxc_offline(can_msg_t *msg)
 {
 	//clean ecode
-	irc_mode = IRC_MODE_OFF;
-	mxc_ecode = 0;
-	mxc_status_change(MXC_STATUS_OFFLINE);
+	if(mxc_status == MXC_STATUS_INIT) {
+		irc_mode = IRC_MODE_OFF;
+		mxc_ecode = 0;
+		mxc_status_change(MXC_STATUS_OFFLINE);
+	}
 }
 
 static void mxc_can_cfg(can_msg_t *msg)
