@@ -44,7 +44,7 @@ void irc_error_pop(void)
 void irc_error_set(int ecode, const char *file, int line)
 {
 	/*!!!avoid re-entrant!!!*/
-	if(ecode && !irc_status.error) {
+	if(ecode && !irc_ecode) {
 		ecode = (ecode > 0) ? -ecode : ecode;
 		irc_error_push(ecode, file, line);
 
@@ -74,7 +74,7 @@ void _irc_error_print(int ecode, const char *file, int line)
 	const char *msg = NULL;
 	switch(-ecode) {
 	case IRT_E_OK:
-		msg = NULL;
+		msg = "No Error";
 		break;
 	case IRT_E_HV_UP:
 		msg = "HV Power-up Fail";
@@ -82,8 +82,17 @@ void _irc_error_print(int ecode, const char *file, int line)
 	case IRT_E_HV_DN:
 		msg = "HV Power-down Fail";
 		break;
+	case IRT_E_HV:
+		msg = "DPS HV Voltage Abnormal";
+		break;
+	case IRT_E_LV:
+		msg = "DPS LV Voltage Abnormal";
+		break;
+	case IRT_E_HS:
+		msg = "DPS HS Voltage Abnormal";
+		break;
 	case IRT_E_CMD_FORMAT:
-		msg = "Command Error";
+		msg = "Command Format Error";
 		break;
 	case IRT_E_CMD_PARA:
 		msg = "Command Para Incorrect";

@@ -144,7 +144,7 @@ static float dps_hv_get(void)
 static int dps_vs_set(float v)
 {
 	//vs only has switch on/off function
-	return 0;
+	return -IRT_E_OP_REFUSED;
 }
 
 static float dps_vs_get(void)
@@ -186,10 +186,9 @@ void dps_update(void)
 		lv = dps_lv_get();
 		delta = lv - ref;
 		delta = (delta > 0) ? delta : -delta;
-		if(debounce(&dps_mon_lv, delta > 2.0)) {
-			if(dps_mon_lv.on) {
-				irc_error(-IRT_E_LV);
-			}
+		debounce(&dps_mon_lv, delta > 2.0);
+		if(dps_mon_lv.on) {
+			irc_error(-IRT_E_LV);
 		}
 	}
 
@@ -199,10 +198,9 @@ void dps_update(void)
 		hs = dps_hs_get();
 		delta = hs - ref;
 		delta = (delta > 0) ? delta : -delta;
-		if(debounce(&dps_mon_hs, delta > 2.0)) {
-			if(dps_mon_hs.on) {
-				irc_error(-IRT_E_HS);
-			}
+		debounce(&dps_mon_hs, delta > 2.0);
+		if(dps_mon_hs.on) {
+			irc_error(-IRT_E_HS);
 		}
 	}
 }
@@ -273,8 +271,6 @@ int dps_enable(int dps, int enable)
 		debounce_init(&dps_mon_hs, 15, 0);
 		bsp_gpio_set(HS_EN, enable);
 		break;
-	case DPS_IS:
-		break;
 	case DPS_VS:
 		bsp_gpio_set(VS_EN, enable);
 		break;
@@ -282,6 +278,7 @@ int dps_enable(int dps, int enable)
 		debounce_init(&dps_mon_hv, 15, 0);
 		bsp_gpio_set(HV_EN, enable);
 		break;
+	case DPS_IS:
 	default:
 		ecode = IRT_E_OP_REFUSED;
 	}
@@ -294,10 +291,6 @@ int dps_gain(int dps, int gain, int execute)
 	int ecode = 0;
 
 	switch(dps) {
-	case DPS_LV:
-		break;
-	case DPS_HS:
-		break;
 	case DPS_IS:
 		if(execute) {
 			dps_is_g = gain;
@@ -314,8 +307,6 @@ int dps_gain(int dps, int gain, int execute)
 			}
 		}
 		break;
-	case DPS_VS:
-		break;
 	case DPS_HV:
 		if(execute) {
 			dps_hv_g = gain;
@@ -331,8 +322,13 @@ int dps_gain(int dps, int gain, int execute)
 			}
 		}
 		break;
+	case DPS_VS:
+	case DPS_LV:
+	case DPS_HS:
+		ecode = (gain == -1) ? 0 : -IRT_E_OP_REFUSED;
+		break;
 	default:
-		ecode = IRT_E_OP_REFUSED;
+		ecode = -IRT_E_OP_REFUSED;
 	}
 
 	return ecode;
@@ -358,7 +354,8 @@ int dps_set(int dps, float v)
 	case DPS_HV:
 		ecode = dps_hv_set(v);
 		break;
-	default:;
+	default:
+		ecode = -IRT_E_OP_REFUSED;
 	}
 
 	return ecode;
@@ -374,15 +371,15 @@ int dps_config(int dps, int key, void *p)
 	case DPS_V:
 		ecode = dps_set(dps, fv);
 		break;
-	case DPS_P:
-		break;
 	case DPS_E:
 		ecode = dps_enable(dps, iv);
 		break;
 	case DPS_G:
 		ecode = dps_gain(dps, iv, 0);
 		break;
-	default:;
+	case DPS_P:
+	default:
+		ecode = -IRT_E_OP_REFUSED;
 	}
 
 	return ecode;
@@ -468,20 +465,26 @@ static int cmd_power_func(int argc, char *argv[])
 			else {
 				int enable;
 				if(!strcmp(argv[2], "ON")) {
-					enable = 1;
-					ecode = dps_config(dps, DPS_E, &enable);
+					ecode = -IRT_E_OP_REFUSED_DUETO_ESYS;
+					if(!irc_error_get()) {
+						enable = 1;
+						ecode = dps_config(dps, DPS_E, &enable);
+					}
 				}
 				else if(!strcmp(argv[2], "OFF")) {
 					enable = 0;
 					ecode = dps_config(dps, DPS_E, &enable);
 				}
 				else {
-					int gain = (argc > 3) ? atoi(argv[3]) : -1; //auto range
-					float v = atof(argv[2]);
+					ecode = -IRT_E_OP_REFUSED_DUETO_ESYS;
+					if(!irc_error_get()) {
+						int gain = (argc > 3) ? atoi(argv[3]) : -1; //auto range
+						float v = atof(argv[2]);
 
-					ecode = dps_config(dps, DPS_G, &gain);
-					if(ecode == 0) {
-						ecode = dps_config(dps, DPS_V, &v);
+						ecode = dps_config(dps, DPS_G, &gain);
+						if(ecode == 0) {
+							ecode = dps_config(dps, DPS_V, &v);
+						}
 					}
 				}
 			}

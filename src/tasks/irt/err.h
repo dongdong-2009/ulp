@@ -19,6 +19,7 @@ enum {
 	IRT_E_OPCODE, //vm or slot runtime error
 	IRT_E_HV_UP,
 	IRT_E_HV_DN,
+	IRT_E_HV,
 	IRT_E_LV,
 	IRT_E_HS,
 	IRT_E_MEM_OUT_OF_USE,
