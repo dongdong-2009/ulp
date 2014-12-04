@@ -14,8 +14,6 @@
 
 static volatile int irc_vmcomp_pulsed;
 
-#define DPS_BOARD_V1_2 1
-
 /*
 TRIG	PE2	OUT
 VMCOMP	PE3	IN
@@ -187,37 +185,30 @@ void bsp_gpio_set(int pin, int high)
 	}
 }
 
-int lv_adc_get(void)
+int adc_pc0_get(void)
 {
 	return ADC1->JDR1 << 1;
 }
 
-int hs_adc_get(void)
+int adc_pc1_get(void)
+{
+	return ADC1->JDR2 << 1;
+}
+
+int adc_pc2_get(void)
 {
 	return ADC1->JDR3 << 1;
 }
 
-#ifdef DPS_BOARD_V1_2
-int hv_adc_get(void)
+int adc_pc3_get(void)
+{
+	return ADC1->JDR4 << 1;
+}
+
+int adc_nul_get(void)
 {
 	return 0;
 }
-
-int vs_adc_get(void) //warning: exchanged with hv_fb
-{
-	return ADC1->JDR4 << 1;
-}
-#else //normal
-int hv_adc_get(void)
-{
-	return ADC1->JDR4 << 1;
-}
-
-int vs_adc_get(void)
-{
-	return ADC1->JDR2 << 1;
-}
-#endif
 
 /*MBI_OE OUT PB10*/
 void oe_set(int high) {

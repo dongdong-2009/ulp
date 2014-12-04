@@ -9,6 +9,9 @@
 
 #include "config.h"
 
+#define DPS_BOARD_V1_2 1
+#define IRC_BOARD_V2_1 1
+
 void board_init(void);
 void board_reset(void);
 void trig_set(int high);
@@ -24,10 +27,33 @@ void oe_set(int high);
 #define vs_pwm_set pwm43.set
 #define hv_pwm_set pwm44.set
 
-int lv_adc_get(void);
-int vs_adc_get(void);
-int hs_adc_get(void);
-int hv_adc_get(void);
+#ifdef IRC_BOARD_V2_1
+	#define lv_adc_get adc_pc0_get
+	#define hs_adc_get adc_pc2_get
+	#ifdef DPS_BOARD_V1_2
+		#define hv_adc_get adc_nul_get
+		#define vs_adc_get adc_pc3_get
+	#else
+		#define hv_adc_get adc_pc3_get
+		#define vs_adc_get adc_pc1_get
+	#endif
+#else
+	#define lv_adc_get adc_pc3_get
+	#define hs_adc_get adc_pc1_get
+	#ifdef DPS_BOARD_V1_2
+		#define hv_adc_get adc_nul_get
+		#define vs_adc_get adc_pc0_get
+	#else
+		#define hv_adc_get adc_pc0_get
+		#define vs_adc_get adc_pc2_get
+	#endif
+#endif
+
+int adc_pc0_get(void);
+int adc_pc1_get(void);
+int adc_pc2_get(void);
+int adc_pc3_get(void);
+int adc_nul_get(void);
 
 enum {
 	IS_GS0,
