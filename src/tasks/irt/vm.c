@@ -351,7 +351,7 @@ void vm_update(void)
 	}
 }
 
-int __vm_opq_add(int tcode, int bus, int line)
+int __vm_opq_add(circbuf_t *opq, int tcode, int bus, int line)
 {
 	opcode_t opcode;
 	opcode.value = 0;
@@ -360,14 +360,14 @@ int __vm_opq_add(int tcode, int bus, int line)
 	opcode.line = line;
 
 	int ecode = - IRT_E_VM_OPQ_FULL;
-	if(buf_left(&vm_opq) > sizeof(opcode)) {
-		buf_push(&vm_opq, &opcode.value, sizeof(opcode));
+	if(buf_left(opq) > sizeof(opcode)) {
+		buf_push(opq, &opcode.value, sizeof(opcode));
 		ecode = 0;
 	}
 	return ecode;
 }
 
-int _vm_opq_add(int tcode, const char *relay)
+int _vm_opq_add(circbuf_t *opq, int tcode, const char *relay)
 {
 	int ecode = 0;
 
@@ -391,14 +391,14 @@ int _vm_opq_add(int tcode, const char *relay)
 
 	switch(relay[0]) {
 	case '@': //first one
-		__vm_opq_add(VM_OPCODE_GRUP, 0, 0);
-		ecode = __vm_opq_add(tcode, bus, line);
+		__vm_opq_add(opq, VM_OPCODE_GRUP, 0, 0);
+		ecode = __vm_opq_add(opq, tcode, bus, line);
 		break;
 	case ',': //list
-		ecode = __vm_opq_add(tcode, bus, line);
+		ecode = __vm_opq_add(opq, tcode, bus, line);
 		break;
 	case ':': //seq
-		ecode = __vm_opq_add(VM_OPCODE_SEQU, bus, line);
+		ecode = __vm_opq_add(opq, VM_OPCODE_SEQU, bus, line);
 		break;
 	default:
 		ecode = -IRT_E_CMD_FORMAT;
@@ -416,22 +416,23 @@ int vm_opq_add(int tcode, const char *relay_list)
 		return ecode;
 	}
 
-	circbuf_t backup;
-	memcpy(&backup, &vm_opq, sizeof(vm_opq));
+	circbuf_t opq_temp;
+	memcpy(&opq_temp, &vm_opq, sizeof(vm_opq));
 	for(i = 1; i + 7 < n; i += 7) {
-		ecode = _vm_opq_add(tcode, relay_list + i);
+		ecode = _vm_opq_add(&opq_temp, tcode, relay_list + i);
 		if(ecode) break;
 	}
 	if(!ecode) {
 		if(i + 1 != n) {
 			ecode = - IRT_E_CMD_FORMAT;
 		}
-
-		//group is over
-		ecode = __vm_opq_add(VM_OPCODE_GRUP, 0, 1);
-	}
-	if(ecode) { //restore in case of error accounts
-		memcpy(&vm_opq, &backup, sizeof(vm_opq));
+		else {
+			//group is over
+			ecode = __vm_opq_add(&opq_temp, VM_OPCODE_GRUP, 0, 1);
+			if(!ecode) { //ready? let's go!!!
+				memcpy(&vm_opq, &opq_temp, sizeof(vm_opq));
+			}
+		}
 	}
 	return ecode;
 }
