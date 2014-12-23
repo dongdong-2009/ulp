@@ -115,19 +115,27 @@ static float dps_hs_get(void)
 	return vout;
 }
 
-/////hv gain = 250 or 1000, vref=1.25v
+#define HV_VREF_INT 0.996
+#define HV_VREF_PWM 1.250
+#define VREF_ADC 2.500
+
 static int dps_hv_set(float v)
 {
 	dps_hv = v;
 	if(dps_flag_gain_auto & (1 << DPS_HV)) { //auto range adjust
-		if(v > 250.0) dps_hv_g = 1;
+		if(v > 100.0) dps_hv_g = 1;
 		else dps_hv_g = 0;
 	}
-
 	dps_gain(DPS_HV, dps_hv_g, 1);
-	v += (dps_hv_g & 0x01) ? 30 : 7;
-	v /= (dps_hv_g & 0x01) ? 1125.51 : 366.82;
-	int pwm = (int) (v * (1024/ 1.25));
+
+	/* vpwm + (hv - vpwm) / ratio = vint
+	vpwm * ratio + hv - vpwm = vint * ratio
+	vpwm = (vint * ratio - hv) / (ratio - 1)
+	*/
+	int ratio = (dps_hv_g) ? 9999/9 : 999/9; //unit: kohm
+	v = (HV_VREF_INT * ratio - v) / (ratio - 1);
+
+	int pwm = (int) (v * (1024/ HV_VREF_PWM));
 	pwm = (pwm > 1023) ? 1023 : pwm;
 	hv_pwm_set(pwm);
 	return 0;
@@ -136,8 +144,10 @@ static int dps_hv_set(float v)
 static float dps_hv_get(void)
 {
 	float vadc = hv_adc_get();
-	vadc *= 2.5 / 65536;
-	float vout = vadc * ((dps_hv_g & 0x01) ? 1125.51 : 366.82);
+	vadc *= VREF_ADC / 65536;
+
+	int ratio = (dps_hv_g) ? 9999/9 : 999/9; //unit: kohm
+	float vout = vadc * ratio;
 	return vout;
 }
 
@@ -150,8 +160,10 @@ static int dps_vs_set(float v)
 static float dps_vs_get(void)
 {
 	float vadc = vs_adc_get();
-	vadc *= 2.5 / 65536;
-	float vout = vadc * ((dps_hv_g & 0x01) ? 1125.51 : 366.82);
+	vadc *= VREF_ADC / 65536;
+
+	int ratio = (dps_hv_g) ? 9999/9 : 999/9; //unit: kohm
+	float vout = vadc * ratio;
 	return vout;
 }
 

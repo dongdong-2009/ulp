@@ -9,8 +9,7 @@
 
 #include "config.h"
 
-#define DPS_BOARD_V1_2 1
-#define IRC_BOARD_V2_1 1
+//#define IRC_BOARD_V2_1 1
 
 void board_init(void);
 void board_reset(void);
@@ -30,23 +29,13 @@ void oe_set(int high);
 #ifdef IRC_BOARD_V2_1
 	#define lv_adc_get adc_pc0_get
 	#define hs_adc_get adc_pc2_get
-	#ifdef DPS_BOARD_V1_2
-		#define hv_adc_get adc_nul_get
-		#define vs_adc_get adc_pc3_get
-	#else
-		#define hv_adc_get adc_pc3_get
-		#define vs_adc_get adc_pc1_get
-	#endif
+	#define hv_adc_get adc_pc3_get
+	#define vs_adc_get adc_pc1_get
 #else
 	#define lv_adc_get adc_pc3_get
 	#define hs_adc_get adc_pc1_get
-	#ifdef DPS_BOARD_V1_2
-		#define hv_adc_get adc_nul_get
-		#define vs_adc_get adc_pc0_get
-	#else
-		#define hv_adc_get adc_pc0_get
-		#define vs_adc_get adc_pc2_get
-	#endif
+	#define hv_adc_get adc_pc0_get
+	#define vs_adc_get adc_pc2_get
 #endif
 
 int adc_pc0_get(void);

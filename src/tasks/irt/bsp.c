@@ -167,20 +167,12 @@ void bsp_gpio_set(int pin, int high)
 	case HV_VS:
 		if(high) GPIOE->BSRR = GPIO_Pin_6; else GPIOE->BRR = GPIO_Pin_6;
 		break;
-#ifdef DPS_BOARD_V1_2
-	case HV_EN:
-		break;
-	case VS_EN:
-		if(high) GPIOE->BSRR = GPIO_Pin_7; else GPIOE->BRR = GPIO_Pin_7;
-		break;
-#else
 	case HV_EN:
 		if(high) GPIOE->BSRR = GPIO_Pin_7; else GPIOE->BRR = GPIO_Pin_7;
 		break;
 	case VS_EN:
 		if(high) GPIOE->BSRR = GPIO_Pin_5; else GPIOE->BRR = GPIO_Pin_5;
 		break;
-#endif
 	default:;
 	}
 }
