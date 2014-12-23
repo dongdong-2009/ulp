@@ -252,8 +252,6 @@ void probe_update(void)
 			switch(type) {
 			case 0:
 				probe_flag_key_msg_echo = 1;
-				leds_printf("\n----");
-				break;
 			case 1:
 				msg.data[4] = '\0'; //4 char at most
 				leds_printf("\n%s", msg.data);
