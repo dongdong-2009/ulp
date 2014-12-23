@@ -6,6 +6,7 @@
 
 choice 'application select'	" \
 	IRC		CONFIG_IRT_IRC \
+	PROBE		CONFIG_IRT_PROBE \
 	DPS		CONFIG_IRT_DPS \
 	MXC5324		CONFIG_IRT_MXC5324 \
 " IRC

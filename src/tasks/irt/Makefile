@@ -16,3 +16,6 @@ ifeq ($(CONFIG_IRT_MXC5324),y)
 	obj-y += mxc.5x32.4/
 endif
 
+ifeq ($(CONFIG_IRT_PROBE),y)
+	obj-y += probe.o
+endif

@@ -17,6 +17,7 @@
 #define CAN_ID_CMD 0x200 //0x200-20f
 #define CAN_ID_MXC 0x300
 #define CAN_ID_DPS 0x500
+#define CAN_ID_PRB 0x600
 
 #define CAN_TYPE(id) (id & 0x0F00)
 #define CAN_NODE(id) (id & 0x00FF) //who send(slot)/to recv(irc) the msg
