@@ -142,6 +142,7 @@ static int dps_hv_set(float v)
 
 	int pwm = (int) (v * (1024/ HV_VREF_PWM));
 	pwm = (pwm > 1023) ? 1023 : pwm;
+	pwm = (pwm < 0) ? 0 : pwm;
 	hv_pwm_set(pwm);
 	return 0;
 }
