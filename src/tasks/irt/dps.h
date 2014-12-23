@@ -9,7 +9,7 @@
 
 #include "config.h"
 
-#define DPS_HVUP_MS 200
+#define DPS_HVUP_MS 10
 #define DPS_HVDN_MS 10
 
 enum {

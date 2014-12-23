@@ -223,19 +223,40 @@ void dps_update(void)
 	}
 }
 
+static void dps_mdelay(int ms)
+{
+	if(ms > 0) {
+		time_t deadline = time_get(ms);
+		while(time_left(deadline) > 0) {
+			irc_update();
+		}
+	}
+}
+
 int dps_hv_start(void)
 {
 	int ecode = - IRT_E_HV_UP;
-	float hv, delta;
-	time_t deadline = time_get(DPS_HVUP_MS);
+	float vs, delta;
 
+	struct debounce_s vs_good;
+	debounce_init(&vs_good, 10, 0);
 	bsp_gpio_set(VS_EN, 1);
+
+	/*!!!2mS is enough for power-up
+	&over-current protection
+	*/
+	dps_mdelay(2);
+
+	time_t deadline = time_get(DPS_HVUP_MS);
 	while(time_left(deadline) > 0) {
 		irc_update();
-		hv = dps_vs_get();
-		delta = hv - dps_hv;
+		vs = dps_vs_get();
+		delta = vs - dps_hv;
 		delta = (delta > 0) ? delta : -delta;
-		if(delta < 10.0) { //OK
+
+		float delta_max = dps_hv * 0.1 + 5.0;
+		debounce(&vs_good, delta < delta_max);
+		if(vs_good.on) { //OK
 			ecode = 0;
 			break;
 		}
@@ -251,14 +272,18 @@ int dps_hv_start(void)
 int dps_hv_stop(void)
 {
 	int ecode = - IRT_E_HV_DN;
-	float hv;
-	time_t deadline = time_get(DPS_HVDN_MS);
+	float vs;
 
+	struct debounce_s vs_good;
+	debounce_init(&vs_good, 10, 0);
 	bsp_gpio_set(VS_EN, 0);
+
+	time_t deadline = time_get(DPS_HVDN_MS);
 	while(time_left(deadline) > 0) {
 		irc_update();
-		hv = dps_vs_get();
-		if(hv < 24.0) { //OK
+		vs = dps_vs_get();
+		debounce(&vs_good, vs < 24.0);
+		if(vs_good.on) { //OK
 			ecode = 0;
 			break;
 		}
@@ -450,6 +475,7 @@ static int cmd_power_func(int argc, char *argv[])
 		"POWER LV		sense LV output voltage\n"
 		"POWER IS 0.4		set IS=0.4A, auto range\n"
 		"POWER IS 0.4 0		set IS=0.4A, forced range = 0\n"
+		"POWER HV UPDN		hv_start+hv_stop\n"
 	};
 
 	int ecode = -IRT_E_CMD_FORMAT;
@@ -492,6 +518,18 @@ static int cmd_power_func(int argc, char *argv[])
 				else if(!strcmp(argv[2], "OFF")) {
 					enable = 0;
 					ecode = dps_config(dps, DPS_E, &enable);
+				}
+				else if(!strcmp(argv[2], "UPDN")) {
+					ecode = dps_hv_start();
+					if(!ecode) {
+						ecode = dps_hv_stop();
+						if(!ecode) {
+							ecode = dps_hv_start();
+							if(!ecode) {
+								ecode = dps_hv_stop();
+							}
+						}
+					}
 				}
 				else {
 					ecode = -IRT_E_OP_REFUSED_DUETO_ESYS;

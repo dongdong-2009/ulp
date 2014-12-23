@@ -78,18 +78,24 @@ void vm_abort(void)
 	irc_error_clear();
 }
 
+static void vm_mdelay(int ms)
+{
+	if(ms > 0) {
+		time_t deadline = time_get(ms);
+		while(time_left(deadline) > 0) {
+			irc_update();
+		}
+	}
+}
+
 /*trig dmm to do measurement and wait for operation finish*/
 static int vm_measure(void)
 {
 	int ecode = -IRT_E_DMM;
 	time_t deadline, suspend;
 
-	if(vm_measure_delay) {
-		deadline = time_get(vm_measure_delay);
-		while(time_left(deadline) > 0) {
-			irc_update();
-		}
-	}
+	//apply pre-trig delay
+	vm_mdelay(vm_measure_delay);
 
 	trig_set(1);
 	deadline = time_get(IRC_DMM_MS);
@@ -142,6 +148,12 @@ static void vm_emit(int can_id, int do_measure)
 
 			if(do_measure) {
 				if(vm_flag.hv) {
+					/*!!!do not power-up hv until relay settling down
+					1, vm_mdelay 5mS
+					2, mos gate delay 1mS
+					*/
+					vm_mdelay(5);
+
 					dps_hv_start();
 					vm_measure();
 					dps_hv_stop();
