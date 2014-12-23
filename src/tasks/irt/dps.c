@@ -128,6 +128,11 @@ static int dps_hv_set(float v)
 	}
 	dps_gain(DPS_HV, dps_hv_g, 1);
 
+	/* calibrated by fluke 15b
+	*/
+	v *= (dps_hv_g) ?  1.0026 : 1.0082;
+	v += (dps_hv_g) ? 21.7846 : 1.9759;
+
 	/* vpwm + (hv - vpwm) / ratio = vint
 	vpwm * ratio + hv - vpwm = vint * ratio
 	vpwm = (vint * ratio - hv) / (ratio - 1)
