@@ -21,9 +21,12 @@
 #include "dps.h"
 
 static const can_bus_t *irc_bus = &can1;
+static int irc_probe_flag_req;
 
 void irc_init(void)
 {
+	irc_probe_flag_req = 0;
+
 	board_init();
 	dps_init();
 
@@ -50,12 +53,26 @@ int irc_send(const can_msg_t *msg)
 	return ecode;
 }
 
+int irc_probe_send(int type, char *info)
+{
+	can_msg_t msg;
+	int n = strlen(info);
+	strcpy(msg.data, info);
+
+	msg.id = CAN_ID_PRB | type;
+	msg.dlc = n + 1;
+	return irc_send(&msg);
+}
+
 static int irc_can_dispatch(can_msg_t *msg)
 {
 	int id = CAN_TYPE(msg->id);
 	switch(id) {
 	case CAN_ID_MXC:
 		mxc_can_handler(msg);
+		break;
+	case CAN_ID_PRB:
+		irc_probe_flag_req = 1;
 		break;
 	default:
 		break;
@@ -130,6 +147,8 @@ int cmd_xxx_func(int argc, char *argv[])
 		"*RST		instrument reset\n"
 		"*CLS		clear status & error queue, excute continues\n"
 		"ABORT		abort current fail operation\n"
+		"*PROBE?	0=>no probe req\n"
+		"*PROBE 12	write probe result\n"
 	};
 
 	int ecode = 0;
@@ -165,6 +184,19 @@ int cmd_xxx_func(int argc, char *argv[])
 	}
 	else if(!strcmp(argv[0], "*CLS")) {
 		irc_error_clear();
+		irc_error_print(IRT_E_OK);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "*PROBE?")) {
+		printf("<%+d\n\r", irc_probe_flag_req);
+		if(irc_probe_flag_req) {
+			irc_probe_flag_req = 0;
+			irc_probe_send(0, "----");
+		}
+		return 0;
+	}
+	else if(!strcmp(argv[0], "*PROBE")) {
+		irc_probe_send(1, argv[1]);
 		irc_error_print(IRT_E_OK);
 		return 0;
 	}
@@ -235,4 +267,3 @@ static int cmd_mode_func(int argc, char *argv[])
 }
 const cmd_t cmd_mode = {"MODE", cmd_mode_func, "change irc work mode"};
 DECLARE_SHELL_CMD(cmd_mode)
-
