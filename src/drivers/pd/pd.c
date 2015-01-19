@@ -82,8 +82,8 @@ int pd_GetEvent(dot_t *p)
 #include "gui/gui_event.h"
 
 static time_t pd_timer = 0;
-static char pd_counter = 0;
-static char pd_pressed = 0;
+static signed char pd_counter = 0;
+static signed char pd_pressed = 0;
 
 /*for gui module usage*/
 int pd_get_event(int *x, int *y, int *z)

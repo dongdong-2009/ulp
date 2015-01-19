@@ -56,7 +56,12 @@ void SystemInit (void)
 	SetSysClock(SystemFrequency);
 #ifdef CONFIG_ADUC706X_VECTOR
 	IRQBASE = ((unsigned) vectors_irq) >> 7;
-	IRQCONN = 1;
+	IRQCONN = 3;
+	//IRQP0 = 0xFFFFFFFF; //lowest priority
+	//IRQP1 = 0xFFFFFFFF;
+	//IRQP2 = 0xFFFFFFFF;
 #endif
+	IRQCLR = 0xFFFF;
+	FIQCLR = 0xFFFF;
 	__enable_interrupt();
 }

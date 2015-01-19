@@ -33,6 +33,7 @@ static int cmd_pwm_func(int argc, char *argv[])
 		dc = atoi(argv[3]);
 
 		switch (temp) {
+#ifdef CONFIG_DRIVER_PWM3
 		case 31:
 			pwm = &pwm31;
 			result = 1;
@@ -49,6 +50,8 @@ static int cmd_pwm_func(int argc, char *argv[])
 			pwm = &pwm34;
 			result = 1;
 			break;
+#endif
+#ifdef CONFIG_DRIVER_PWM4
 		case 41:
 			pwm = &pwm41;
 			result = 1;
@@ -65,6 +68,7 @@ static int cmd_pwm_func(int argc, char *argv[])
 			pwm = &pwm44;
 			result = 1;
 			break;
+#endif
 		default:
 			break;
 		}

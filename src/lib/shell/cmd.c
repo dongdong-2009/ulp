@@ -94,6 +94,7 @@ void __cmd_preprocess(struct cmd_list_s *clst)
 			*p ++ = 0;
 			if(*p != 0) {
 				clst -> ms = atoi(p);
+				clst -> repeat = 1;
 			}
 			break;
 		}
@@ -201,6 +202,14 @@ enum {
 	__CMD_EXEC_FLAG_CLOSE,
 };
 
+__weak int cmd_xxx_func(int argc, char *argv[])
+{
+	return -1;
+}
+
+const cmd_t cmd_xxx = {"xxx", cmd_xxx_func, "default cmdline handler"};
+DECLARE_SHELL_CMD(cmd_xxx)
+
 static int __cmd_exec(struct cmd_list_s *clst, int flag)
 {
 	int argc, ret, n;
@@ -222,12 +231,14 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 	argc = __cmd_parse(clst -> cmdline, clst -> len, argv, CONFIG_SHELL_NR_PARA_MAX);
 	if(argc > 0) {
 		cmd = (cmd_queue->trap != NULL) ? cmd_queue->trap : __name2cmd(argv[0]);
+		cmd = (cmd == NULL) ? &cmd_xxx : cmd;
 		if(cmd != NULL) {
 #ifdef CONFIG_CMD_BKG
 			if(clst->repeat) {
 				clst -> deadline = time_get(clst -> ms);
 			}
 #endif
+/*
 			switch (flag) {
 			case __CMD_EXEC_FLAG_CLOSE:
 				_argv = NULL;
@@ -236,6 +247,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 			default:
 				break;
 			}
+*/
 
 			ret = cmd -> func(argc, _argv);
 #ifdef CONFIG_CMD_BKG
@@ -273,7 +285,7 @@ int cmd_queue_update(struct cmd_queue_s *cq)
 				continue;
 		}
 #endif
-		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) <= 0) {
+		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) < 0) {
 #ifdef CONFIG_CMD_BKG
 			//remove from queue
 			list_del(&clst -> list);
@@ -316,7 +328,7 @@ int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 		|| (clst -> repeat)
 #endif
 	) {
-#ifdef CONFIG_CMD_BKG
+#ifdef CONFIG_CMD_REPEAT
 		//repeat, add to cmd queue
 		struct list_head *pos;
 		list_for_each(pos, &cq -> cmd_list) {
@@ -353,6 +365,7 @@ int cmd_help_func(int argc, char *argv[])
 const cmd_t cmd_help = {"help", cmd_help_func, "list all commands"};
 DECLARE_SHELL_CMD(cmd_help)
 
+#if CONFIG_CMD_REPEAT == 1
 static int cmd_ListBgTasks(void)
 {
 	struct list_head *pos;
@@ -476,6 +489,7 @@ static int cmd_kill_func(int argc, char *argv[])
 
 const cmd_t cmd_kill = {"kill", cmd_kill_func, "kill a background task"};
 DECLARE_SHELL_CMD(cmd_kill)
+#endif
 
 static int cmd_echo_func(int argc, char *argv[])
 {

@@ -1,0 +1,16 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2013
+#
+
+choice 'application select'	" \
+	IRC		CONFIG_IRT_IRC \
+	PROBE		CONFIG_IRT_PROBE \
+	DPS		CONFIG_IRT_DPS \
+	MXC5324		CONFIG_IRT_MXC5324 \
+" IRC
+
+if [ "$CONFIG_IRT_IRC" = "y"]; then
+	int "irc instruction buffer words" CONFIG_IRC_INSWSZ 2048
+fi

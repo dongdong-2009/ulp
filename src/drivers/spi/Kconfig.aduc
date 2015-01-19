@@ -1,0 +1,28 @@
+#
+# bldc configuration written in linux configuration language
+#
+# Written by miaofng@2010
+#
+
+bool "spi bus enable?" CONFIG_DRIVER_SPI
+if [ "$CONFIG_DRIVER_SPI" = "y" ]; then
+	choice 'spi work mode'	" \
+		MASTER		CONFIG_SPI_MASTER \
+		VCHIP(SLAVE)	CONFIG_SPI_VCHIP \
+	" VCHIP(SLAVE)
+
+	if [ "$CONFIG_SPI_MASTER" = "y" ]; then
+		choice 'cs control method'	" \
+			NONE	CONFIG_SPI_CS_NONE \
+			HARD	CONFIG_SPI_CS_HARD \
+			SOFT	CONFIG_SPI_CS_SOFT \
+		" HARD
+	fi
+fi
+
+if [ "$CONFIG_SPI_CS_SOFT" = "y"]; then
+	mainmenu_option next_comment
+		comment 'soft cs config'
+	endmenu
+	bool "P0.0/SPI_NSS as CS" CONFIG_SPI_CS_P00
+fi

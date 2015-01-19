@@ -42,7 +42,7 @@ typedef const struct {
 	int (*putchar)(int data);
 	int (*getchar)(void);
 	int (*poll)(void); //return how many chars left in the rx buffer
-	
+
 #ifdef CONFIG_UART_KWP_SUPPORT
 	int (*wake)(int op);
 #endif
@@ -53,5 +53,26 @@ extern uart_bus_t uart0;
 extern uart_bus_t uart1;
 extern uart_bus_t uart2;
 extern uart_bus_t uart3;
+
+static inline void uart_send(uart_bus_t *uart, const void *frame, int n) {
+	const char *p = frame;
+	while(n > 0) {
+		uart->putchar(*p ++);
+		n --;
+	}
+}
+
+static inline void uart_puts(uart_bus_t *uart, char *str)
+{
+	while(*str) {
+		if(*str == '\n') uart->putchar('\r');
+		uart->putchar(*str ++);
+	}
+}
+
+static inline void uart_flush(uart_bus_t *uart)
+{
+	while(uart->poll()) uart->getchar();
+}
 
 #endif /* __UART_H_ */

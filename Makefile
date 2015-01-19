@@ -22,6 +22,11 @@ iar: iar_script detect_config iar_clr iar_cfg iar_inc iar_add icf_cfg
 	@echo "projects/bldc/bldc.ewp has been created!"
 
 icf_cfg:
+ifeq ($(CONFIG_CPU_ADUC706X),y)
+	@if test -r $(PRJ_ICF); then \
+		sed -i -r 's/\<symbol __ICFEDIT_size_irqstack__.*;/symbol __ICFEDIT_size_irqstack__ = 0x$(CONFIG_IRQSTACK_SIZE);/' $(PRJ_ICF); \
+	fi
+endif
 	@if test -r $(PRJ_ICF); then \
 		echo "apply settings to $(PRJ_ICF) ..."; \
 		sed -i -r 's/\<symbol __ICFEDIT_size_cstack__.*;/symbol __ICFEDIT_size_cstack__ = 0x$(CONFIG_STACK_SIZE);/' $(PRJ_ICF); \
@@ -120,7 +125,12 @@ PARSER = tkparse.exe
 
 export PARSER
 
-xconfig: $(PARSER)
+config_help:
+	@echo "#auto generated, please do not edit me!!!" > config.help
+	@echo "generationg file config.help, please wait ...";
+	@cat `find src/ -name config.help` >>  config.help
+
+xconfig: $(PARSER) config_help
 	@$(TKSCRIPTS_DIR)/$(PARSER) src/Kconfig > main.tk
 	@cat $(TKSCRIPTS_DIR)/header.tk main.tk $(TKSCRIPTS_DIR)/tail.tk > lconfig.tk
 	@chmod a+x lconfig.tk
@@ -137,6 +147,7 @@ xconfig: $(PARSER)
 			make icf_cfg; \
 		fi \
 	fi
+	@rm -rf config.help
 
 iar_script:
 	@cp $(ULP_DIR)/ulp.ewd $(PRJ_DIR)/bldc.ewd

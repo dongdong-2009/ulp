@@ -12,6 +12,11 @@
 	#define FLASH_PAGE_SZ	(2048)
 	#define FLASH_PAGE_NR	((*(unsigned short *)0x1ffff7e0) >> 1)
 	#define FLASH_ADDR(page)	(0x08000000 + (page << 11))
+#elif CONFIG_CPU_ADUC706X
+	/*ADUC7061 FLASH 16K X 16bit*/
+	#define FLASH_PAGE_SZ		512
+	#define FLASH_PAGE_NR		(64 - 4) /*upper 2k is reserved for aduc 'kernel'*/
+	#define FLASH_ADDR(page)	(0x00080000 + (page) * 512)
 #else
 	#error "flash driver not available!!!"
 #endif

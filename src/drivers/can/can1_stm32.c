@@ -22,6 +22,8 @@ static int circle_number;
 #endif
 #endif
 
+static void can_flush(void);
+
 static int can_init(const can_cfg_t *cfg)
 {
 	GPIO_InitTypeDef	GPIO_InitStructure;
@@ -112,6 +114,7 @@ static int can_init(const can_cfg_t *cfg)
 	circle_number = 0;
 #endif
 
+	can_flush();
 	return 0;
 }
 
@@ -253,6 +256,19 @@ void can_flush(void)
 #endif
 }
 
+void can_flush_tx(void)
+{
+	CAN_CancelTransmit(CAN1, 0);
+	CAN_CancelTransmit(CAN1, 1);
+	CAN_CancelTransmit(CAN1, 2);
+}
+
+void can_flush_rx(void)
+{
+	CAN_FIFORelease(CAN1, CAN_FIFO0);
+	CAN_FIFORelease(CAN1, CAN_FIFO1);
+}
+
 #if ENABLE_CAN_INT
 //for can1 receive FIFO 0 interrupt
 void USB_LP_CAN1_RX0_IRQHandler(void)
@@ -295,12 +311,53 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 }
 #endif
 
+int can_poll(int fifo)
+{
+	int n = 0;
+	int tsr = CAN1->TSR;
+	switch(fifo) {
+	case CAN_POLL_TBUF0:
+		n = (tsr & (1 << 26)) ? 0 : 1;
+		break;
+	case CAN_POLL_TBUF1:
+		n = (tsr & (1 << 27)) ? 0 : 1;
+		break;
+	case CAN_POLL_TBUF2:
+		n = (tsr & (1 << 28)) ? 0 : 1;
+		break;
+	case CAN_POLL_TBUF:
+		n = (tsr & (1 << 26)) ? 0 : 1;
+		n += (tsr & (1 << 26)) ? 0 : 1;
+		n += (tsr & (1 << 26)) ? 0 : 1;
+		break;
+
+	case CAN_POLL_RBUF0:
+		n = CAN1->RF0R & 0x03;
+		break;
+	case CAN_POLL_RBUF1:
+		n = CAN1->RF1R & 0x03;
+		break;
+	case CAN_POLL_RBUF:
+		n = CAN1->RF0R & 0x03;
+		n += CAN1->RF1R & 0x03;
+		break;
+
+	default:
+		break;
+	}
+
+	return n;
+}
+
 const can_bus_t can1 = {
 	.init = can_init,
 	.send = can_send,
 	.recv = can_recv,
 	.filt = can_filt,
 	.flush = can_flush,
+	.flush_tx = can_flush_tx,
+	.flush_rx = can_flush_rx,
+	.poll = can_poll,
 #ifdef CONFIG_CAN_ENHANCED
 	.efilt = can_efilt,
 	.erecv = can_erecv,

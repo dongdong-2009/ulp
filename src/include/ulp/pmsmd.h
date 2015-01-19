@@ -12,7 +12,7 @@ typedef struct {
 	int (*encoder_get)(void);
 	void (*svpwm_ctl)(int enable);
 	void (*time_set)(int utime, int vtime, int wtime);
-	void (*I_get)(int *Iu, int *Iv, int *Iw, int *Ia);
+	void (*I_get)(int *Iu, int *Iv);
 	void (*isr_ctl)(int enable);
 } pmsmd_ops_t;
 

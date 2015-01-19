@@ -22,56 +22,6 @@ enum {
 	STANDBY,
 };
 
-typedef struct {
-	int status;
-	int frq;
-	int crp;
-	int pid_update; //pid has been completed
-	int execute_update; //SVMWM module has executed the changes
-	pmsmd_ops_t pmsmd;
-	pmsm_t pmsm;
-
-	struct {
-		int theta_per_counter_q10;
-
-		int theta_before;
-		int theta_now;
-		int theta_expect;
-		int theta_next;
-		int theta_diff;
-
-		int speed_now;
-		int speed_expect;
-		int speed_calc_cnt;
-		int speed_calc_cnt_max;
-		int speed_theta_diff;
-
-		int acclr_now;
-		int acclr_expect;
-	} mech;
-
-	struct {
-		int theta;
-		int ia;
-		int ib;
-		int ic;
-		int id;
-		int iq;
-		int ud_expect;
-		int uq_expect;
-		int ualpha;
-		int ubeta;
-		int tpwm;
-		int tpwm_multi_sqrt3;
-	} elec;
-
-	struct pid_q15_s id_pid;
-	struct pid_q15_s iq_pid;
-	struct pid_q15_s speed_pid;
-	struct pid_q15_s theta_pid;
-	struct pid_q15_s acclr_pid;
-} foc_t;
-
 static const int sector_decide[8] = {0, 2, 6, 1, 4, 3, 5, 0};
 
 	/*
@@ -110,10 +60,17 @@ static void theta_set(foc_t *dev, int theta_mech)
 	dev->pmsmd.encoder_set(((theta_mech + 0x00008000) << 10) / dev->mech.theta_per_counter_q10);
 }
 
-static void speed_get(foc_t *dev, int ms)
+void speed_get(foc_t *dev, int ms)
 {
 	dev->mech.speed_now = dev->mech.theta_diff * 1875 / ms / (1 << 11); // dev->mech.theta_diff * 60000 / ms / (1 << 16);
 	dev->mech.theta_diff = 0;
+}
+
+static void I_get(foc_t *dev, int *iu, int *iv)
+{
+	dev->pmsmd.I_get(iu, iv);
+	*iu -= 2048;
+	*iv -= 2048;
 }
 
 /*
@@ -134,7 +91,7 @@ static void svpwm_set(foc_t *dev, int alpha, int beta)
 	 * 	u2 = sqrt(3)*alpha/2 - beta/2
 	 * 	u3 = -sqrt(3)*alpha/2 - beta/2
 	 *
-	 * 	sqrt(3)/2 = 0.86602540378444 = 0x00006ED9(Q15)
+	 * 	sqrt(3)/2 = 0.86602540378444 = 0x00006ED9(Q15) ×î´ó4E62 ?? sqrt(3)/2/sqrt(2)
 	 */
 
 	u1 = beta;
@@ -281,6 +238,7 @@ void foc_init(int handle)
 {
 	int temp[2];
 	foc_t *dev = (foc_t *)handle;
+	dev->pid_flag = 0;
 	dev->pmsmd.init(dev->pmsm.crp, dev->frq, &temp[0], &temp[1]);
 	dev->elec.tpwm = temp[0];
 	dev->crp = temp[1];
@@ -311,6 +269,7 @@ void foc_update(int handle)
 		svpwm_set(dev, 0, 0);
 		dev->pmsmd.isr_ctl(1);
 		dev->status = READY;
+		printf("ok!\n");
 		break;
 	case READY:
 		dev->status = RUN;
@@ -318,8 +277,9 @@ void foc_update(int handle)
 	case RUN:
 		break;
 	case STOP:
-		dev->pmsmd.svpwm_ctl(0);
 		svpwm_set(dev, 0, 0);
+		mdelay(1000);
+		dev->pmsmd.svpwm_ctl(0);
 		dev->pmsmd.isr_ctl(0);
 		dev->status = STANDBY;
 		break;
@@ -332,28 +292,29 @@ void foc_update(int handle)
 
 void foc_isr(int handle)
 {
-	static int i = 0;static int j = 0;
+	static int ud, uq;
+	static int cnt, iq_expect;
 	foc_t *dev = (foc_t *)handle;
 	int sinval, cosval;
-	int ud, uq, ualpha, ubeta;
+	int iu, iv;
+	int id, iq;
+	int ualpha, ubeta;
+	int ialpha, ibeta;
 
 	theta_get(dev);
 
-	if(++i == 200) {
-		speed_get(dev, 10);
-		dev->elec.uq_expect = pid_q15(&dev->speed_pid, dev->mech.speed_expect - dev->mech.speed_now);
-		i = 0;
-	}
-	if(++j == 20000) {
-		//printf("speed = %4d rpm\n", dev->mech.speed_now);
-		j = 0;
-	}
-
 	sin_cos_q15(dev->elec.theta, &sinval, &cosval);
 
-	ud = 0;//ud = dev->elec.ud_expect;
-	uq = dev->elec.uq_expect;
-
+	if(++cnt >= 20) {
+		speed_get(dev, 1);
+		//iq_expect = pid_q15(&dev->speed_pid, dev->mech.speed_expect - dev->mech.speed_now);
+		cnt = 0;
+	}
+	I_get(dev, &iu, &iv);
+	clarke_q15(iu, iv, &ialpha, &ibeta);
+	park_q15(ialpha, ibeta, &id, &iq, sinval, cosval);DAC_SetChannel1Data(DAC_Align_12b_R, 10*iq+2048);DAC_SetChannel2Data(DAC_Align_12b_R, 10*id+2048);
+	ud = dev->mech.speed_expect;//pid_q15(&dev->id_pid, -id);
+	uq = 0;//dev->mech.speed_expect;//pid_q15(&dev->iq_pid, dev->mech.speed_expect - iq);//uq = pid_q15(&dev->iq_pid, iq_expect - iq);
 	inv_park_q15(ud, uq, &ualpha, &ubeta, sinval, cosval);
 	svpwm_set(dev, ualpha, ubeta);
 }

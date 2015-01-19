@@ -42,7 +42,7 @@ void led_hwInit(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
-#elif CONFIG_TASK_PDI == 1
+#elif (CONFIG_TASK_PDI == 1) || (CONFIG_IRT_IRC == 1)
 	//PE0->red, PE1->green
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
 
@@ -50,6 +50,14 @@ void led_hwInit(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
+#elif (CONFIG_IRT_PROBE == 1)
+	//PB10->red, PB11->green
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10 | GPIO_Pin_11;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
 #elif CONFIG_MISC_ICT == 1
 	//PC8 led green
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
@@ -74,7 +82,7 @@ void led_hwInit(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
-#elif CONFIG_MISC_OID2 == 1
+#elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)
 	/*PC0 RLED, PC1 GLED*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 
@@ -114,15 +122,17 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_5, ba);
 #elif CONFIG_MISC_VHD == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_8, ba);
-#elif CONFIG_TASK_PDI == 1
+#elif (CONFIG_TASK_PDI == 1) || (CONFIG_IRT_IRC == 1)
 			GPIO_WriteBit(GPIOE, GPIO_Pin_1, ba);
+#elif CONFIG_IRT_PROBE == 1
+			GPIO_WriteBit(GPIOB, GPIO_Pin_11, ba);
 #elif CONFIG_MISC_ICT == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_8, ba);
 #elif CONFIG_BOARD_HY_SMART == 1
 			GPIO_WriteBit(GPIOB, GPIO_Pin_1, ba);
 #elif CONFIG_MISC_MATRIX == 1
 			GPIO_WriteBit(GPIOA, GPIO_Pin_1, ba);
-#elif CONFIG_MISC_OID2 == 1
+#elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_1, ba);
 #else
 			GPIO_WriteBit(GPIOG, GPIO_Pin_15, ba);
@@ -135,18 +145,25 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_4, ba);
 #elif CONFIG_MISC_VHD == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_6, ba);
-#elif CONFIG_TASK_PDI == 1
+#elif (CONFIG_TASK_PDI == 1) || (CONFIG_IRT_IRC == 1)
 			GPIO_WriteBit(GPIOE, GPIO_Pin_0, ba);
+#elif CONFIG_IRT_PROBE == 1
+			GPIO_WriteBit(GPIOB, GPIO_Pin_10, ba);
 #elif CONFIG_MISC_MATRIX == 1
 			GPIO_WriteBit(GPIOA, GPIO_Pin_0, ba);
-#elif CONFIG_MISC_OID2 == 1
+#elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_0, ba);
 #else
 			GPIO_WriteBit(GPIOG, GPIO_Pin_8, ba);
 #endif
 			break;
 		case LED_YELLOW:
+#if (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)
+			GPIO_WriteBit(GPIOC, GPIO_Pin_0, ba);
+			GPIO_WriteBit(GPIOC, GPIO_Pin_1, ba);
+#else
 			GPIO_WriteBit(GPIOC, GPIO_Pin_7, ba);
+#endif
 			break;
 		default:
 			break;

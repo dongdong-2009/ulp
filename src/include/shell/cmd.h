@@ -47,6 +47,9 @@ struct cmd_queue_s {
 void cmd_Init(void);
 void cmd_Update(void);
 
+/*implement me if you want add default handler*/
+int cmd_xxx_func(int argc, char *argv[]);
+
 /*cmd queue ops*/
 int cmd_queue_init(struct cmd_queue_s *);
 int cmd_queue_update(struct cmd_queue_s *);

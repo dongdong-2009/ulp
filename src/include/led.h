@@ -11,7 +11,8 @@
 #endif
 
 /*for led ecode use*/
-#define LED_IDLE_PERIOD		3
+#define LED_ERROR_PERIOD	200 /*unit: mS*/
+#define LED_ERROR_IDLE		10
 
 typedef enum {
 	LED_GREEN = 0,
@@ -32,7 +33,7 @@ void led_on(led_t led);
 void led_off(led_t led);
 void led_inv(led_t led);
 void led_flash(led_t led);
-void led_error(char ecode);
+void led_error(int ecode);
 
 /*hw led driver routines*/
 void led_hwInit(void);

@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "ulp_time.h"
+#include "ulp/ulib.h"
 
 /* ulp api for task related ops, such as:
  * void main(void) {
@@ -57,6 +58,10 @@ static inline int sys_align(int x, int base) {
 #include "ulp/debug.h"
 #define sys_assert	assert
 #define sys_dump	dump /*dump(unsigned addr, const void *p, int bytes)*/
+
+#include "common/error.h"
+#define sys_error	__error
+#define __sys_error	__error_printf
 
 /*obsolete*/
 #define sys_tick	task_tick /*be called periodly per 1mS*/

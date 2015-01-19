@@ -35,12 +35,28 @@ typedef struct {
 
 void can_msg_print(const can_msg_t *msg, char *str);
 
+enum {
+	CAN_POLL_TBUF0, //nr of can message inside tbuf0
+	CAN_POLL_TBUF1,
+	CAN_POLL_TBUF2,
+	CAN_POLL_TBUF,
+
+	CAN_POLL_RBUF0, //nr of can message inside rbuf0
+	CAN_POLL_RBUF1,
+	CAN_POLL_RBUF,
+
+	CAN_POLL_INVALID
+};
+
 typedef struct {
 	int (*init)(const can_cfg_t *cfg);
 	int (*send)(const can_msg_t *msg); //non block, check -> ?busy ret -> send
 	int (*recv)(can_msg_t *msg); //non block, check -> ?empty ret-> recv
 	int (*filt)(can_filter_t const *filter, int n);
 	void (*flush)(void); //flush tx & rx
+	void (*flush_tx)(void);
+	void (*flush_rx)(void);
+	int (*poll)(int fifo); //return nr_of can msg pending
 
 #ifdef CONFIG_CAN_ENHANCED
 	/*when enhanced mode is on, traditional recv is redirect to RBUF0 only*/

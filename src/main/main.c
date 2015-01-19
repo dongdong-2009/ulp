@@ -24,7 +24,7 @@
 * Output         : None
 * Return         : None
 *******************************************************************************/
-int main(void)
+__weak int main(void)
 {
 	task_Init();
 	while(1) {

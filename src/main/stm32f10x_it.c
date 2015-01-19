@@ -253,7 +253,7 @@ void EXTI2_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void EXTI3_IRQHandler(void)
+__weak void EXTI3_IRQHandler(void)
 {
 }
 

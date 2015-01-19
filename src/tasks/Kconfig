@@ -21,6 +21,7 @@ choice 'task select'	" \
 	YBS		CONFIG_TASK_YBS \
 	YBSREPEATER	CONFIG_TASK_YBSREPEATER \
 	OID		CONFIG_TASK_OID \
+	IRT		CONFIG_TASK_IRT \
 " NONE
 
 if [ "$CONFIG_TASK_APT" = "y" ]; then
@@ -104,5 +105,12 @@ if [ "$CONFIG_TASK_OID" = "y" ]; then
 	mainmenu_option next_comment
 		comment 'oid'
 		source src/tasks/oid/Kconfig
+	endmenu
+fi
+
+if [ "$CONFIG_TASK_IRT" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'irt'
+		source src/tasks/irt/Kconfig
 	endmenu
 fi
