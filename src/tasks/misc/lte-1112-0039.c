@@ -362,7 +362,7 @@ static void Ma_Indicator_Init()
 
 	/*	SCK	*/
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	/*	DATA	*/
