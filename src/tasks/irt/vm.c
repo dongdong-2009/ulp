@@ -24,6 +24,11 @@
 #include "bsp.h"
 #include "dps.h"
 
+/*scan queue over group boundary support
+to fixed cmdline too long issue in case of a big scan_arm such as 152
+*/
+#define VM_SCAN_OVER_GROUP 1
+
 static circbuf_t vm_opq = {.data = NULL}; /*virtual machine task queue*/
 static circbuf_t vm_odata = {.data = NULL};
 static opcode_t vm_opcode; //current opcode
@@ -171,12 +176,15 @@ static void vm_execute(opcode_t opcode, opcode_t seq)
 	int type = opcode.type;
 	int left = buf_left(&vm_odata);
 	static int opcode_type_saved;
+	int scan, canid;
 
 	vm_flag.busy = 1;
 
 	switch(type) {
 	case VM_OPCODE_GRUP:
-		vm_emit(CAN_ID_CMD, (opcode_type_saved == VM_OPCODE_SCAN) || (opcode_type_saved == VM_OPCODE_FSCN));
+		scan = (opcode_type_saved == VM_OPCODE_SCAN) || (opcode_type_saved == VM_OPCODE_FSCN);
+		canid = (VM_SCAN_OVER_GROUP && scan && vm_scan_cnt) ? CAN_ID_DAT : CAN_ID_CMD;
+		vm_emit(canid, scan);
 		break;
 
 	default:
@@ -263,7 +271,9 @@ static void vm_prefetch(opcode_t *result)
 
 void vm_update(void)
 {
+	/*indicates relay_list processing is finished*/
 	int finish = 1;
+
 	if(irc_error_get()) {
 		return;
 	}
@@ -352,8 +362,10 @@ void vm_update(void)
 	}
 	else {
 		if(vm_scan_cnt) {
-			irc_error(IRT_E_OPCODE);
-			vm_scan_cnt = 0;
+			if((!VM_SCAN_OVER_GROUP) || (type != VM_OPCODE_GRUP)) {
+				irc_error(IRT_E_OPCODE);
+				vm_scan_cnt = 0;
+			}
 		}
 		vm_execute(vm_opcode, vm_opcode_seq);
 	}
