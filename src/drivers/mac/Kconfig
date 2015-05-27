@@ -5,3 +5,11 @@
 #
 
 bool "general mac drivers?" CONFIG_DRIVER_MAC
+if [ "$CONFIG_DRIVER_MAC" = "y" ]; then
+	choice 'mac chip select'	" \
+		STM32		CONFIG_MAC_STM32 \
+		LM3S		CONFIG_MAC_LM3S \
+		ENC424J600(100M)	CONFIG_MAC_ENC424J600 \
+		ENC28J60(10M)	CONFIG_MAC_ENC28J60 \
+	" STM32
+fi
