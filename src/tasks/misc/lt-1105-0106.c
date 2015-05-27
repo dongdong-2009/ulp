@@ -1,0 +1,370 @@
+#include "config.h"
+#include "debug.h"
+#include "time.h"
+#include "nvm.h"
+#include "key.h"
+#include "osd/osd.h"
+#include "sys/task.h"
+#include "sys/sys.h"
+#include "led.h"
+#include "stm32f10x.h"
+
+enum {
+	STATUS_OFF = 0,
+	STATUS_ON
+};
+
+#define DELAY_MS 1000
+#define REPEAT_MS 10
+#define FLASH_MS 500
+
+//for valve head demo
+#define VH_OVERFLOW_STAGE_ONE	150*60 // 9s //1500*60	//1.5min
+#define VH_OVERFLOW_STAGE_TWO	200*60 // 12s//2000*60	//1.5min
+
+#define VH_ALARM_BUZZER_PIN		GPIO_Pin_9
+#define VH_PRODUCT_CTRL_PIN		GPIO_Pin_4
+#define VH_PRODUCT_FB_PIN		GPIO_Pin_5
+
+#define PUT_ALARM_BUZZER(ba)	GPIO_WriteBit(GPIOC,VH_ALARM_BUZZER_PIN,ba)
+#define PUT_PRODUCT_CTRL(ba)	GPIO_WriteBit(GPIOC,VH_PRODUCT_CTRL_PIN,ba)
+#define GET_PRODUCT_FB()		GPIO_ReadInputDataBit(GPIOC,VH_PRODUCT_FB_PIN)
+
+enum {
+	VHD_STATUS_IDLE,
+	VHD_STATUS_START,
+	VHD_STATUS_CHECK,
+	VHD_STATUS_ALARM,
+	VHD_STATUS_TOPLIMIT
+} vhd_status;
+static int start_flag;
+time_t vhd_overflow_timer;
+
+//for osd state
+static int loops_up_limit __nvm;
+static int loops_dn_limit __nvm;
+static int loops_counter = 0;
+
+static int vhd_status_flash;
+static time_t vhd_status_timer;
+
+const char str_up_limit[] = "1";
+const char str_dn_limit[] = "3";
+const char str_loops[] = "2";
+
+//display
+static int get_up_limit(void);
+static int get_dn_limit(void);
+static int get_loops(void);
+static int get_status(void);
+
+//modify settings
+static int sel_group(const osd_command_t *cmd);
+static int set_up_limit(const osd_command_t *cmd);
+static int set_dn_limit(const osd_command_t *cmd);
+static int vhd_play(const osd_command_t *cmd);
+static int vhd_goto_dnlimit(const osd_command_t *cmd);
+
+const osd_item_t items_up_limit[] = {
+	{0, 2, 1, 1, (int)str_up_limit, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{1, 2, 8, 1, (int)get_up_limit, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	NULL,
+};
+
+const osd_item_t items_dn_limit[] = {
+	{0, 1, 1, 1, (int)str_dn_limit, ITEM_DRAW_TXT, ITEM_ALIGN_LEFT, ITEM_UPDATE_NEVER, ITEM_RUNTIME_NONE},
+	{1, 1, 8, 1, (int)get_dn_limit, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	NULL,
+};
+
+const osd_item_t items_loops[] = {
+	{0, 0, 1, 1, (int)get_status, ITEM_DRAW_INT, ITEM_ALIGN_LEFT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	{1, 0, 8, 1, (int)get_loops, ITEM_DRAW_INT, ITEM_ALIGN_RIGHT, ITEM_UPDATE_ALWAYS, ITEM_RUNTIME_V},
+	NULL,
+};
+
+const osd_command_t cmds_up_limit[] = {
+	{.event = KEY_UP, .func = sel_group},
+	{.event = KEY_DOWN, .func = sel_group},
+	{.event = KEY_RIGHT, .func = set_up_limit},
+	{.event = KEY_LEFT, .func = set_up_limit},
+	{.event = KEY_RESET, .func = set_up_limit},
+	{.event = KEY_ENTER, .func = set_up_limit},
+	{.event = KEY_0, .func = set_up_limit},
+	{.event = KEY_1, .func = set_up_limit},
+	{.event = KEY_2, .func = set_up_limit},
+	{.event = KEY_3, .func = set_up_limit},
+	{.event = KEY_4, .func = set_up_limit},
+	{.event = KEY_5, .func = set_up_limit},
+	{.event = KEY_6, .func = set_up_limit},
+	{.event = KEY_7, .func = set_up_limit},
+	{.event = KEY_8, .func = set_up_limit},
+	{.event = KEY_9, .func = set_up_limit},
+	NULL,
+};
+
+const osd_command_t cmds_dn_limit[] = {
+	{.event = KEY_UP, .func = sel_group},
+	{.event = KEY_DOWN, .func = sel_group},
+	{.event = KEY_RIGHT, .func = set_dn_limit},
+	{.event = KEY_LEFT, .func = set_dn_limit},
+	{.event = KEY_RESET, .func = set_dn_limit},
+	{.event = KEY_ENTER, .func = set_dn_limit},
+	{.event = KEY_0, .func = set_dn_limit},
+	{.event = KEY_1, .func = set_dn_limit},
+	{.event = KEY_2, .func = set_dn_limit},
+	{.event = KEY_3, .func = set_dn_limit},
+	{.event = KEY_4, .func = set_dn_limit},
+	{.event = KEY_5, .func = set_dn_limit},
+	{.event = KEY_6, .func = set_dn_limit},
+	{.event = KEY_7, .func = set_dn_limit},
+	{.event = KEY_8, .func = set_dn_limit},
+	{.event = KEY_9, .func = set_dn_limit},
+	NULL,
+};
+
+const osd_command_t cmds_loops[] = {
+	{.event = KEY_UP, .func = sel_group},
+	{.event = KEY_DOWN, .func = sel_group},
+	{.event = KEY_PLAY, .func = vhd_play},
+	{.event = KEY_ENTER, .func = vhd_goto_dnlimit},
+	NULL,
+};
+
+const osd_group_t grps[] = {
+	{.items = items_up_limit, .cmds = cmds_up_limit, .order = 2, .option = GROUP_DRAW_FULLSCREEN},
+	{.items = items_loops, .cmds = cmds_loops, .order = 0, .option = GROUP_DRAW_FULLSCREEN},
+	{.items = items_dn_limit, .cmds = cmds_dn_limit, .order = 1, .option = GROUP_DRAW_FULLSCREEN},
+	NULL,
+};
+
+osd_dialog_t dlg = {
+	.grps = grps,
+	.cmds = NULL,
+	.func = NULL,
+	.option = 0,
+};
+
+static int sel_group(const osd_command_t *cmd)
+{
+	int result = -1;
+	nvm_init();
+
+	if(cmd->event == KEY_DOWN)
+		result = osd_SelectPrevGroup();
+	else
+		result = osd_SelectNextGroup();
+
+	return result;
+}
+
+static int get_up_limit(void)
+{
+	return loops_up_limit;
+}
+
+static int get_dn_limit(void)
+{
+	return loops_dn_limit;
+}
+
+static int get_loops(void)
+{
+	return loops_counter;
+}
+
+static int get_status(void)
+{
+	if ((vhd_status != VHD_STATUS_ALARM) && (vhd_status != VHD_STATUS_TOPLIMIT)) {
+		return 2;
+	}
+
+	if(time_left(vhd_status_timer) < 0) {
+		vhd_status_timer = FLASH_MS;
+		vhd_status_flash ^= 1;
+	}
+	return (vhd_status_flash * 2);
+}
+
+static int set_up_limit(const osd_command_t *cmd)
+{
+	int loops = loops_up_limit;
+
+	switch(cmd -> event){
+	case KEY_LEFT:
+		loops = (loops > 0) ? loops - 1 : 0;
+		loops_up_limit = loops;
+		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
+		break;
+	case KEY_RIGHT:
+		loops ++;
+		loops_up_limit = loops;
+		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
+		break;
+	case KEY_RESET:
+		break;
+	case KEY_ENTER:
+		nvm_save();
+		break;
+	default:
+		loops = key_SetEntryAndGetDigit();
+		loops_up_limit = loops;
+		break;
+	}
+
+	return 0;
+}
+
+static int set_dn_limit(const osd_command_t *cmd)
+{
+	int loops = loops_dn_limit;
+
+	switch(cmd -> event){
+	case KEY_LEFT:
+		loops = (loops > 0) ? loops - 1 : 0;
+		loops_dn_limit = loops;
+		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
+		break;
+	case KEY_RIGHT:
+		loops ++;
+		loops_dn_limit = loops;
+		key_SetKeyScenario(DELAY_MS, REPEAT_MS);
+		break;
+	case KEY_RESET:
+		break;
+	case KEY_ENTER:
+		nvm_save();
+		break;
+	default:
+		loops = key_SetEntryAndGetDigit();
+		loops_dn_limit = loops;
+		break;
+	}
+
+	return 0;
+}
+
+static int vhd_play(const osd_command_t *cmd)
+{
+	if (vhd_status == VHD_STATUS_IDLE) {
+		start_flag = STATUS_ON;
+	}
+
+	if ((vhd_status == VHD_STATUS_ALARM) || (vhd_status == VHD_STATUS_TOPLIMIT)) {
+		start_flag = STATUS_OFF;
+	}
+
+	return 0;
+}
+
+static int vhd_goto_dnlimit(const osd_command_t *cmd)
+{
+	if (vhd_status == VHD_STATUS_IDLE) {
+		loops_counter = loops_dn_limit;
+	}
+
+	return 0;
+}
+
+void vhd_Init(void)
+{
+	int hdlg;
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	//for dlg of osd
+	hdlg = osd_ConstructDialog(&dlg);
+	osd_SetActiveDialog(hdlg);
+
+	//for gpio init
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = VH_ALARM_BUZZER_PIN | VH_PRODUCT_CTRL_PIN;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+  
+	GPIO_InitStructure.GPIO_Pin = VH_PRODUCT_FB_PIN;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	//for init state
+	PUT_ALARM_BUZZER(STATUS_OFF);
+	PUT_PRODUCT_CTRL(STATUS_OFF);
+	led_off(LED_GREEN);
+	led_off(LED_RED);
+	led_off(LED_YELLOW);
+
+	//for related data init
+	vhd_status = VHD_STATUS_IDLE;
+	start_flag = STATUS_OFF;
+	loops_counter = loops_dn_limit;
+}
+
+void vhd_Update(void)
+{
+	switch (vhd_status) {
+		case VHD_STATUS_IDLE:
+			if (start_flag) {
+				PUT_PRODUCT_CTRL(STATUS_ON);
+				vhd_overflow_timer = time_get(VH_OVERFLOW_STAGE_ONE);
+				led_flash(LED_GREEN);
+				vhd_status = VHD_STATUS_START;
+			}
+			break;
+		case VHD_STATUS_START:
+			if(time_left(vhd_overflow_timer) < 0) {
+				PUT_PRODUCT_CTRL(STATUS_OFF);
+				sdelay(1);
+				vhd_overflow_timer = time_get(VH_OVERFLOW_STAGE_TWO);
+				vhd_status = VHD_STATUS_CHECK;
+			}
+			break;
+		case VHD_STATUS_CHECK:
+			if (GET_PRODUCT_FB() == 0) {
+				loops_counter ++;
+				PUT_PRODUCT_CTRL(STATUS_OFF);
+				sdelay(1);
+				if (loops_counter >= loops_up_limit) {
+					led_flash(LED_YELLOW);
+					led_off(LED_GREEN);
+					vhd_status = VHD_STATUS_TOPLIMIT;
+				} else {
+					vhd_status = VHD_STATUS_START;
+				}
+			}
+			if (time_left(vhd_overflow_timer) <0) {
+				//for alarm
+				PUT_ALARM_BUZZER(STATUS_ON);
+				led_on(LED_RED);
+				led_off(LED_GREEN);
+				vhd_status = VHD_STATUS_ALARM;
+			}
+			break;
+		case VHD_STATUS_ALARM:
+			if (start_flag == STATUS_OFF) {
+				PUT_ALARM_BUZZER(STATUS_OFF);
+				led_off(LED_RED);
+				vhd_status = VHD_STATUS_IDLE;
+			}
+			break;
+		case VHD_STATUS_TOPLIMIT:
+			if (start_flag == STATUS_OFF) {
+				led_off(LED_YELLOW);
+				vhd_status = VHD_STATUS_IDLE;
+			}
+			break;
+		default:
+			break;
+	}
+}
+
+void main(void)
+{
+	task_Init();
+	vhd_Init();
+	while(1) {
+		task_Update();
+		vhd_Update();
+	}
+}

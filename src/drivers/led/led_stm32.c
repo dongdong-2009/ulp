@@ -25,6 +25,15 @@ void led_hwInit(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+#elif CONFIG_MISC_VHD == 1
+	//PC6->red, PC7->yellow, PC8->green
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+  
+	/* Configure PC.6, PC.7, PC.8 as Output push-pull */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
 #else
 	/*led_r pg8, led_g pg15*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
@@ -53,6 +62,8 @@ void led_hwSetStatus(led_t led, led_status_t status)
 		case LED_GREEN:
 #if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_12, ba);
+#elif CONFIG_MISC_VHD == 1
+			GPIO_WriteBit(GPIOC, GPIO_Pin_8, ba);
 #else
 			GPIO_WriteBit(GPIOG, GPIO_Pin_15, ba);
 #endif
@@ -60,9 +71,14 @@ void led_hwSetStatus(led_t led, led_status_t status)
 		case LED_RED:
 #if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_10, ba);
+#elif CONFIG_MISC_VHD == 1
+			GPIO_WriteBit(GPIOC, GPIO_Pin_6, ba);
 #else
 			GPIO_WriteBit(GPIOG, GPIO_Pin_8, ba);
 #endif
+			break;
+		case LED_YELLOW:
+			GPIO_WriteBit(GPIOC, GPIO_Pin_7, ba);
 			break;
 		default:
 			break;

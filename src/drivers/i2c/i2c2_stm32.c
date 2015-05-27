@@ -34,8 +34,8 @@ static int i2c_Init(const i2c_cfg_t *i2c_cfg)
 	I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
 	I2C_InitStructure.I2C_ClockSpeed = i2c_cfg->speed;
   
-	I2C_Cmd(I2C2, ENABLE);
 	I2C_Init(I2C2, &I2C_InitStructure);
+	I2C_Cmd(I2C2, ENABLE);
 
 	return 0;
 }

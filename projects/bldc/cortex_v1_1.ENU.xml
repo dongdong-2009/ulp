@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<icf_annotations version="1.0">
+  <tab name="Vector Table">
+    <item name=".intvec start" type="Number">
+      <symbol>__ICFEDIT_intvec_start__</symbol>
+      <tooltip>The vector table start address</tooltip>
+    </item>
+  </tab>
+
+  <tab name="Memory Regions">
+    <itemHeaders>
+      <header>Start:</header>
+      <header>End:</header>
+    </itemHeaders>
+    <item name="ROM0" type="Range">
+      <symbol_1>__ICFEDIT_region_ROM0_start__</symbol_1>
+      <symbol_2>__ICFEDIT_region_ROM0_end__</symbol_2>
+      <tooltip_1>The start address of the ROM0 region</tooltip_1>
+      <tooltip_2>The end address of the ROM0 region</tooltip_2>
+    </item>
+    <item name="ROM1" type="Range">
+      <symbol_1>__ICFEDIT_region_ROM1_start__</symbol_1>
+      <symbol_2>__ICFEDIT_region_ROM1_end__</symbol_2>
+      <tooltip_1>The start address of the ROM1 region</tooltip_1>
+      <tooltip_2>The end address of the ROM1 region</tooltip_2>
+    </item>
+    <item name="RAM0" type="Range">
+      <symbol_1>__ICFEDIT_region_RAM0_start__</symbol_1>
+      <symbol_2>__ICFEDIT_region_RAM0_end__</symbol_2>
+      <tooltip_1>The start address of the RAM0 region</tooltip_1>
+      <tooltip_2>The end address of the RAM0 region</tooltip_2>
+    </item>
+    <item name="RAM1" type="Range">
+      <symbol_1>__ICFEDIT_region_RAM1_start__</symbol_1>
+      <symbol_2>__ICFEDIT_region_RAM1_end__</symbol_2>
+      <tooltip_1>The start address of the RAM1 region</tooltip_1>
+      <tooltip_2>The end address of the RAM1 region</tooltip_2>
+    </item>
+  </tab>
+
+  <tab name="Stack/Heap Sizes">
+    <item name="CSTACK" type="Number">
+      <symbol>__ICFEDIT_size_cstack__</symbol>
+      <tooltip>The size of the application stack</tooltip>
+    </item>
+    <item name="HEAP" type="Number">
+      <symbol>__ICFEDIT_size_heap__</symbol>
+      <tooltip>The size of the heap</tooltip>
+    </item>
+    <item name="NVM" type="Number">
+      <symbol>__ICFEDIT_size_nvm__</symbol>
+      <tooltip>The size of the nvm be emulated by flash</tooltip>
+    </item>
+  </tab>
+</icf_annotations>

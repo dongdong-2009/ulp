@@ -11,6 +11,7 @@ enum {
 	KEY_NONE,
 	KEY_RESET,
 	KEY_ENTER,
+	KEY_MINUS,
 	KEY_UP = 0x10, /*10*/
 	KEY_DOWN = 0x11,
 	KEY_MENU = 0x12,
@@ -42,6 +43,9 @@ enum {
 	KEY_TIMER = 0x6f,
 	KEY_AV = 0x78,
 	KEY_CC = 0x7a,
+	KEY_PLAY,
+	KEY_FORWARD,
+	KEY_BACKWARD,
 	KEY_DUMMY,
 };
 
@@ -64,6 +68,7 @@ typedef union {
 enum {
 	KEYBOARD_TYPE_LOCAL,
 	KEYBOARD_TYPE_REMOTE,
+	KEYBOARD_TYPE_ENCODER,
 };
 
 typedef struct {

@@ -70,9 +70,15 @@ void sdelay(int ss)
 #include "stm32f10x.h"
 #elif CONFIG_CPU_LM3S == 1
 #include "lm3s.h"
+#elif CONFIG_CPU_SAM3U == 1
+#include "sam3u.h"
 #endif
 
 void time_hwInit(void)
 {
+#if CONFIG_CPU_SAM3U == 1
+	SysTick_Config(CONFIG_MCK_VALUE / CONFIG_TICK_HZ);
+#else
 	SysTick_Config(SystemFrequency / CONFIG_TICK_HZ);
+#endif
 }

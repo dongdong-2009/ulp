@@ -56,7 +56,7 @@ widget_t widget_text = {
 int item_DrawInt(const osd_item_t *item, int status)
 {
 	int value;
-	char *buf;
+	char *buf, *buf2;
 	size_t len;
 	int x;
 	int (*get_value)(void);
@@ -70,18 +70,25 @@ int item_DrawInt(const osd_item_t *item, int status)
 	
 	//convert int to string & width limit
 	len = item->w + 1;
-	buf = sys_malloc(len);
+	buf = sys_malloc(len + len);
+	buf2 = buf + len;
 	snprintf(buf, len, "%d", value);
 	len = strlen(buf);
 	
 	//align
-	x = item->x;
-	x += (item->option & ITEM_ALIGN_MIDDLE) ? (item->w - len) >> 1 : 0;
-	x += (item->option & ITEM_ALIGN_RIGHT) ? (item->w - len) : 0;
+	//x = item->x;
+	//x += (item->option & ITEM_ALIGN_MIDDLE) ? (item->w - len) >> 1 : 0;
+	//x += (item->option & ITEM_ALIGN_RIGHT) ? (item->w - len) : 0;
+	x = (item->option & ITEM_ALIGN_MIDDLE) ? (item->w - len) >> 1 : 0;
+	x = (item->option & ITEM_ALIGN_RIGHT) ? (item->w - len) : 0;
+
+	memset(buf2, ' ', item -> w);
+	strcpy(buf2 + x, buf);
 	
 	//output to lcd
-	osd_eng_puts(x, item->y, buf);
-	
+	//osd_eng_puts(x, item->y, buf);
+	osd_eng_puts(item -> x, item -> y, buf2);
+
 	sys_free(buf);
 	return 0;
 }

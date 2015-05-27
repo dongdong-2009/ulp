@@ -1170,32 +1170,6 @@ void TestStart(void)
 	}
 	if(result != E_OK) ERROR_RETURN(CAN_FAIL, "Print S/W Version");
 
-#if 0
-//Leo Chen added for debug
-	//write basemodel number
-	buffer[0]=0x44,buffer[1]=0x4B,buffer[2]=0x32,buffer[3]=0x37;
-	result = Write_Memory(0X100009, &buffer, 4);
-	if( result != E_OK ) ERROR_RETURN(SN_FAIL, "write Sequency Number");
-	buffer[0]=0x31,buffer[1]=0x32,buffer[2]=0x32,buffer[3]=0x38;
-	result = Write_Memory(0X10000D, &buffer, 4);
-	if( result != E_OK ) ERROR_RETURN(SN_FAIL, "write Sequency Number");
-
-	//write PSV(pass)
-	psv_save = psv = ((0)|UserBlock.nest_num)&0xff;
-	result = Write_Memory(PSV_AMB_ADDR, &psv, 1);
-	if( result != E_OK ) ERROR_RETURN(PSV_FAIL, "Write CND PSV");
-
-	//write Model ID
-	buffer[0]=0xaa,buffer[1]=0x00;
-	result = Write_Memory(0x100018, &buffer, 2);
-	if( result != E_OK ) ERROR_RETURN(PSV_FAIL, "Write Model ID");
-
-	//write MT60.1 ID
-	buffer[0]=0x00;
-	result = Write_Memory(0x10001B, &buffer, 1);
-	if( result != E_OK ) ERROR_RETURN(PSV_FAIL, "Write MT60.1 ID");
-#endif
-
 	//Get DUT Serial Number
 	memset(fis.__id, '\0', sizeof(fis.__id));
 	result = Read_Memory(PCB_SEQ_ADDR, fis.__id, SEQ_NUM_SIZE);
@@ -1206,6 +1180,13 @@ void TestStart(void)
 		message("%c",fis.__id[cnt]);
 	}
 	message("\n");
+
+#if 0 //write amb psv
+	psv = 0x00;
+	result = Write_Memory(PSV_AMB_ADDR, &psv, 1);
+	if(result == E_OK)
+		message("Write AMB PSV Pass\n");
+#endif
 
 	//read and check AMB PSV
 	result = Read_Memory(PSV_AMB_ADDR, &psv, 1);

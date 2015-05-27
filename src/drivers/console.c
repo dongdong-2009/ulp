@@ -19,6 +19,10 @@ void console_Init(void)
 	cfg.baud = CONFIG_CONSOLE_BAUD;
 #endif
 
+#ifdef CONFIG_CONSOLE_UARTg
+	uartg.init(&cfg);
+	cnsl = (const struct console_s *) &uartg;
+#endif
 #ifdef CONFIG_CONSOLE_UART0
 	uart0.init(&cfg);
 	cnsl = (const struct console_s *) &uart0;

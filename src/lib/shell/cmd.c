@@ -89,10 +89,16 @@ static int __cmd_parse(char *cmdline, int len, char **argv, int n)
 	return argc;
 }
 
-static int __cmd_exec(struct cmd_list_s *clst)
+enum {
+	__CMD_EXEC_FLAG_INIT,
+	__CMD_EXEC_FLAG_UPDATE,
+	__CMD_EXEC_FLAG_CLOSE,
+};
+
+static int __cmd_exec(struct cmd_list_s *clst, int flag)
 {
 	int argc, ret;
-	char *argv[16];
+	char *argv[16], **_argv = argv;
 	cmd_t *cmd;
 
 	ret = 0;
@@ -102,14 +108,18 @@ static int __cmd_exec(struct cmd_list_s *clst)
 		if(cmd != NULL) {
 			if(clst -> ms >= 0) {
 				clst -> deadline = time_get(clst -> ms);
-				ret = cmd -> func(argc, argv);
 			}
-			else {
-				if(list_empty(&clst -> list))
-					ret = cmd -> func(argc, argv);
-				else //to keep compatibility with the old call style
-					ret = cmd -> func(0, argv);
+
+			switch (flag) {
+			case __CMD_EXEC_FLAG_CLOSE:
+				_argv = NULL;
+			case __CMD_EXEC_FLAG_UPDATE:
+				argc = 0;
+			default:
+				break;
 			}
+
+			ret = cmd -> func(argc, _argv);
 		}
 	}
 
@@ -141,7 +151,7 @@ int cmd_queue_update(struct cmd_queue_s *cq)
 				continue;
 		}
 
-		if( __cmd_exec(clst) <= 0) {
+		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) <= 0) {
 			//remove from queue
 			if(clst -> ms < 0) {
 				list_del(&clst -> list);
@@ -170,7 +180,7 @@ int cmd_queue_exec(struct cmd_queue_s *cq, const char *cl)
 
 	//exec clst
 	cmd_queue = cq;
-	if(__cmd_exec(clst) > 0 || clst -> ms >= 0) {
+	if(__cmd_exec(clst, __CMD_EXEC_FLAG_INIT) > 0 || clst -> ms >= 0) {
 		//repeat, add to cmd queue
 		list_add(&clst -> list, &cq -> cmd_list);
 	}
@@ -295,6 +305,7 @@ static int cmd_kill_func(int argc, char *argv[])
 				notfound = strcmp(argv[i], "all");
 
 			if(!notfound) { /*found*/
+				__cmd_exec(clst, __CMD_EXEC_FLAG_CLOSE);
 				list_del(&clst -> list);
 				sys_free(clst);
 				break;
