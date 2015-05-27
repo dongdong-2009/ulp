@@ -267,8 +267,13 @@ void EXTI3_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
+extern void eth_demo_isr(void);
 void EXTI4_IRQHandler(void)
 {
+#if CONFIG_TASK_ETHDEMO == 1
+	eth_demo_isr();
+	EXTI_ClearFlag(EXTI_Line4);
+#endif
 }
 
 /*******************************************************************************
@@ -643,7 +648,6 @@ void USBWakeUp_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-extern void eth_demo_isr(void);
 void ETH_IRQHandler(void)
 {
 #if CONFIG_TASK_ETHDEMO == 1
