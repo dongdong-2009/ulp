@@ -10,10 +10,11 @@
 #include "time.h"
 #include <stddef.h>
 
-#define DIGIT_ENTRY_TIMEOUT	500 /*unit: mS*/
+#define DIGIT_ENTRY_TIMEOUT	1000 /*unit: mS*/
 
 static const keyboard_t *key_local;
 static const keyboard_t *key_remote;
+static const keyboard_t *key_encoder;
 
 static const int *key_map; //for local keyboard usage
 static int key_map_len; //nr of keys, exclude KEY_NONE
@@ -22,6 +23,7 @@ static key_t key_previous;
 static time_t key_timer; //delay or repeat key timer
 static int key_time_repeat;
 static int key_digit;
+static char key_digit_minus;
 static time_t key_digit_timer;
 
 static struct {
@@ -38,12 +40,15 @@ int key_Init(void)
 	key_timer = 0;
 	key_time_repeat = 0;
 	key_digit = 0;
+	key_digit_minus = 0;
 	key_digit_timer = 0;
 
 	//hardware keyboard driver init
 	if(key_local != NULL)
 		key_local->init();
 	if(key_remote != NULL)
+		key_remote->init();
+	if(key_encoder != NULL)
 		key_remote->init();
 	return 0;
 }
@@ -85,6 +90,12 @@ int key_GetKey(void)
 			key = key_remote->getkey();
 	}
 
+	//fetch a new key from an encoder
+	if(key_encoder != NULL) {
+		if(key.flag_nokey)
+			key = key_encoder -> getkey();
+	}
+	
 	//key scenario handling
 	if(key.value == key_previous.value) { //held or repeated key
 		key_flag.firstkey = 0;
@@ -109,9 +120,10 @@ int key_GetKey(void)
 	//check digit key entry timeout
 	if(key_digit_timer != 0) {
 		if(time_left(key_digit_timer) < 0 || \
-			((!key.flag_nokey) && (key.code < KEY_0 || key.code > KEY_9)) ) {
+			((!key.flag_nokey) && (key.code < KEY_0 || key.code > KEY_9) && (key.code != KEY_MINUS)) ) {
 			key_digit_timer = 0;
 			key_digit = 0;
+			key_digit_minus = 0;
 		}
 	}
 	
@@ -139,26 +151,40 @@ int key_SetKeyScenario(int delay, int repeat)
 int key_SetEntryAndGetDigit(void)
 {
 	int key = key_previous.code;
-	
+	if(key == KEY_MINUS) {
+		key_digit_minus = 1;
+		return - key_digit;
+	}
+
 	key -= KEY_0;
 	key_digit *= 10;
 	key_digit += key;
 	key_digit_timer = time_get(DIGIT_ENTRY_TIMEOUT);
+	key_digit = (key_digit_minus) ? - key_digit : key_digit;
 	return key_digit;
 }
 
 int keyboard_Add(const keyboard_t *kb, int kt)
 {
-	if(kt == KEYBOARD_TYPE_LOCAL)
+	switch (kt) {
+	case KEYBOARD_TYPE_LOCAL:
 		key_local = kb;
-	else
+		break;
+	case KEYBOARD_TYPE_REMOTE:
 		key_remote = kb;
+		break;
+	case KEYBOARD_TYPE_ENCODER:
+		key_encoder = kb;
+		break;
+	default:
+		return -1;
+	}
 	
 	kb->init();
 	return 0;
 }
 
-#if 0
+#if 1
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>

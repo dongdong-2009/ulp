@@ -5,7 +5,7 @@
 #ifndef __NEST_POWER_H_
 #define __NEST_POWER_H_
 
-#ifndef CONFIG_NEST_MT60_OLD
+#if(!defined(CONFIG_NEST_MT60_OLD) && !defined(CONFIG_NEST_MT80_OLD))
 #define RELAY_BAT_SET(ON) do { \
 	if(ON) cncb_signal(BAT, LSD_OFF);  /*inverted on circuit*/ \
 	else cncb_signal(BAT, LSD_ON); \

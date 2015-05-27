@@ -29,6 +29,10 @@ void shell_Init(void)
 #endif
 
 	cmd_Init();
+#ifdef CONFIG_SHELL_UARTg
+	uartg.init(&cfg);
+	shell_register((const struct console_s *) &uartg);
+#endif
 #ifdef CONFIG_SHELL_UART0
 	uart0.init(&cfg);
 	shell_register((const struct console_s *) &uart0);

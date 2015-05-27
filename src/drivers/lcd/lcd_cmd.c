@@ -62,14 +62,14 @@ static int cmd_lcd_func(int argc, char *argv[])
 			sscanf(argv[2], "%x", &row);
 			sscanf(argv[3], "%x", &col);
 			lcd -> dev -> writereg(row, col);
-			printf("reg[0x%x] = 0x%x)\n", row, col);
+			printf("reg[0x%x] = 0x%x\n", row, col);
 			return 0;
 		}
 
-		if(argv[2][0] == 'r') {
+		if(argv[1][0] == 'r') {
 			sscanf(argv[2], "%x", &row);
 			col = lcd -> dev -> readreg(row);
-			printf("reg[0x%x] = 0x%x)\n", row, col);
+			printf("reg[0x%x] = 0x%x\n", row, col);
 			return 0;
 		}
 

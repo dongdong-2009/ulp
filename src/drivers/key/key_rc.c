@@ -26,15 +26,24 @@ timer setting:
 	Fapb1 = TIM_clk = 72Mhz
 	Tck_cnt = 1/(72Mhz/8) = 0.1111uS
 */
-
+#if CONFIG_RCKEY_PROTOCOL_PPM == 1
+#define T_div	16
+#else
 #define T_div	8
+#endif
 #define T		4000 //0.444mS/0.111uS
 #define T_err	(1 << 10) //max error +/-512, about 10%
 #define T_max	(16 * T) //note: Twidth_max = 8T
+#if CONFIG_RCKEY_PROTOCOL_PPM == 1
+#define N_idl	10 //note: N_idl * T_max > Tframe, Tframe = 108ms
+#else
 #define N_idl	20 //note: N_idl * T_max > Tframe(256T)
+#endif
+
 
 static int rckey_capture_init(void);
 static int rckey_capture_getpulsewidth(void);
+unsigned char bit_rev(unsigned char ch);
 
 static key_t rckey;
 static int rckey_bits_shift;
@@ -179,8 +188,131 @@ void rc5_rx_bits(int pulsewidth)
 	rckey_bits_shift >>= 1;
 	rckey.rc5.edata = rckey_bits_shift & 0x01; /*1bit extend data bit*/
 }
-#else
-#define rc5_rx_bits
+#elif CONFIG_RCKEY_PROTOCOL_PPM == 1
+//for PPM,38KHZ
+//1.12ms means 0, Fapb1 = 36MHz, Tck_cnt = (36/8 = 4.5)MHz, CC = 5040
+//2.24ms means 1, Fapb1 = 36MHz, Tck_cnt = (36/8 = 4.5)MHz, CC = 10080
+//9ms+4.5ms ,     Fapb1 = 36MHz, Tck_cnt = (36/8 = 4.5)MHz, CC = 60750
+#define TIMER_PPM_DECODING_DELIMIT		8000
+#define TIMER_PPM_PREAMBLE_DELIMIT		50000
+
+//for remote control, bit flow is from "low to high"
+#define RC_FEILE_CODE	0x00bf0000
+enum {
+	SM_IDLE,
+	PPM_PREAMBLE,
+	PPM_RECV,
+	SM_ERROR,
+	SM_READY,
+};
+
+
+const static unsigned char FEILE_CODE_TABLE[] = {
+	KEY_PLAY,  KEY_DOWN,       KEY_UP,       KEY_NONE,
+	KEY_ENTER, KEY_LEFT,       KEY_RIGHT,    KEY_NONE,
+	KEY_0,     KEY_BACKWARD,   KEY_FORWARD,  KEY_NONE,
+	KEY_1,     KEY_2,          KEY_3,        KEY_NONE,
+	KEY_4,     KEY_5,          KEY_6,        KEY_NONE,
+	KEY_7,     KEY_8,          KEY_9,        KEY_NONE
+};
+
+void ppm_rx_bits(int pulsewidth)
+{
+	int width;
+	int i;
+	width = pulsewidth;
+	unsigned char *bit_reverse;
+
+	//width = 3: preamble code
+	//width = 1: means 1.12ms
+	//width = 2: means 2.24ms
+	if (pulsewidth > 0) {
+		if (pulsewidth > TIMER_PPM_PREAMBLE_DELIMIT)
+			width = 3;
+		else
+			width = pulsewidth > TIMER_PPM_DECODING_DELIMIT ? 2:1;
+	}
+
+	switch (rckey_sm) {
+		case SM_IDLE:
+			if (width > 0)
+				rckey_sm = PPM_PREAMBLE;
+			break;
+
+		case PPM_PREAMBLE:
+			if (width == 3)
+				rckey_sm = PPM_RECV;
+			else
+				rckey_sm = SM_ERROR;
+			break;
+
+		case PPM_RECV:
+			if (width == 2) {
+				rckey_bits_shift <<= 1;
+				rckey_bits_shift |= 0x01;
+				rckey_bits ++;
+			} else if (width == 1) {
+				rckey_bits_shift <<= 1;
+				rckey_bits ++;
+			} else if (width == -1 && rckey_bits == 32) {
+				bit_reverse = (unsigned char *)&rckey_bits_shift;
+				for (i = 0; i < 4; i++)
+					bit_reverse[i] = bit_rev(bit_reverse[i]);
+				//feile rc validation check
+				if ((rckey_bits_shift & 0xffff0000) != RC_FEILE_CODE)
+					rckey_sm = SM_ERROR;
+				else {
+					//printf("%8x\n", rckey_bits_shift);
+					//for rckey process
+					rckey.value = 0;
+					rckey.code = FEILE_CODE_TABLE[bit_reverse[1]];
+					rckey.flag_nokey = 0;
+					rckey_sm = SM_READY;
+				}
+			} else {
+				rckey_sm = SM_ERROR;
+			}
+			break;
+
+		case SM_ERROR:
+			if (width < 0) {
+				rckey_idl ++;
+				if (rckey_idl > N_idl) {
+					rckey.value = 0;
+					rckey.flag_nokey = 1;
+					rckey_idl = 0;
+					rckey_bits_shift = 0;
+					rckey_bits = 0;
+					rckey_sm = SM_IDLE;
+				}
+			}
+			break;
+
+		case SM_READY:
+			//for successive key
+			if(width == 3) {
+				rckey_idl = 0;
+			}
+			if (width < 0) {
+				rckey_idl ++;
+				if(rckey_idl > N_idl) {
+					rckey.value = 0;
+					rckey.flag_nokey = 1;
+					rckey_idl = 0;
+					rckey_bits_shift = 0;
+					rckey_bits = 0;
+					rckey_sm = SM_IDLE;
+				}
+			}
+			break;
+
+		default:
+			rckey_sm = SM_IDLE;
+			break;
+	}
+
+	return;
+}
 #endif
 
 int rckey_init(void)
@@ -201,7 +333,11 @@ void rckey_isr(void)
 	int pulsewidth;
 	pulsewidth = rckey_capture_getpulsewidth();
 	if(pulsewidth != 0) {
+#if CONFIG_RCKEY_PROTOCOL_RC5 == 1
 		rc5_rx_bits(pulsewidth);
+#elif CONFIG_RCKEY_PROTOCOL_PPM == 1
+		ppm_rx_bits(pulsewidth);
+#endif
 	}
 }
 
@@ -269,6 +405,15 @@ static int rckey_capture_getpulsewidth(void)
 	TIM_ClearFlag(TIM4, TIM_FLAG_CC3);
 	TIM_ClearFlag(TIM4, TIM_FLAG_Update);
 	return width;
+}
+
+unsigned char bit_rev(unsigned char ch)
+{
+	ch = ((ch & 0xF0) >> 4) | ((ch & 0x0F) << 4);
+	ch = ((ch & 0xCC) >> 2) | ((ch & 0x33) << 2);
+	ch = ((ch & 0xAA) >> 1) | ((ch & 0x55) << 1);
+
+	return ch;
 }
 
 static const keyboard_t key_rc = {

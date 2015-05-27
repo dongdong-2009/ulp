@@ -38,3 +38,11 @@ if [ "$CONFIG_TASK_ETHDEMO" = "y" ]; then
 		source src/tasks/eth_demo/Kconfig
 	endmenu	
 fi
+
+if [ "$CONFIG_TASK_MISC" = "y" ]; then
+	mainmenu_option next_comment
+		comment 'misc applications select'
+		source src/tasks/misc/Kconfig
+	endmenu	
+fi
+

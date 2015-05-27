@@ -168,21 +168,19 @@ static int cmd_cncb_func(int argc, char *argv[])
 			if(!cncb_signal(sig, ops))
 				return 0;
 		}
-		
+
 		if(!strcmp(argv[1], "flash")) {
 			//flash all outputs
-			cncb_signal(SIG1, TOGGLE);
-			cncb_signal(SIG2, TOGGLE);
-			cncb_signal(SIG3, TOGGLE);
-			cncb_signal(SIG4, TOGGLE);
-			cncb_signal(SIG5, TOGGLE);
-			cncb_signal(SIG6, TOGGLE);
-			cncb_signal(BAT, TOGGLE);
-			cncb_signal(IGN, TOGGLE);
-			cncb_signal(LSD, TOGGLE);
-			cncb_signal(LED_F, TOGGLE);
-			cncb_signal(LED_R, TOGGLE);
-			cncb_signal(LED_P, TOGGLE);
+			for(int i = SIG1, j = LED_F; i <= LSD; i ++) {
+				cncb_signal(i, TOGGLE);
+				cncb_signal(j, TOGGLE);
+				nest_mdelay(300);
+				cncb_signal(i, TOGGLE);
+				cncb_signal(j, TOGGLE);
+				nest_mdelay(300);
+
+				j = ( j > LED_P) ? LED_F : (j + 1);
+			}
 			return 0;
 		}
 	}

@@ -56,6 +56,41 @@ static int ili_ReadData(void)
 	return (msb << 8) | lsb;
 }
 
+/*write graphic ram*/
+static int ili_WriteGRAM(const void *src, int n)
+{
+	int lsb, msb;
+	short *p = (short *)src;
+
+	while (n) {
+		lsb = *p & 0xff;
+		msb = (*p >> 8) & 0xff;
+		ili_bus -> write(DAT, msb);
+		ili_bus -> write(DAT, lsb);
+		p ++;
+		n --;
+	}
+
+	return 0;
+}
+
+/*write graphic ram*/
+static int ili_ReadGRAM(void *dest, int n)
+{
+	int lsb, msb;
+	short *p = dest;
+
+	while (n) {
+		msb = ili_bus -> read(DAT);
+		lsb = ili_bus -> read(DAT);
+		*p = (msb << 8) | lsb;
+		p ++;
+		n --;
+	}
+
+	return 0;
+}
+
 /*write indexed register*/
 static int ili_WriteRegister(int index, int dat)
 {
@@ -77,7 +112,7 @@ void ili_SetCursor(int x, int y)
 	ili_WriteRegister(0x21, v);
 }
 
-void ili_SetWindow(int x0, int y0, int x1, int y1)
+int ili_SetWindow(int x0, int y0, int x1, int y1)
 {
 	int x, y;
 	x = (x1 << 8) | x0;
@@ -86,6 +121,9 @@ void ili_SetWindow(int x0, int y0, int x1, int y1)
 	ili_SetCursor(x0, y0);
 	ili_WriteRegister(0x16, x);
 	ili_WriteRegister(0x17, y);
+
+	ili_WriteIndex(0x22);
+	return 0;
 }
 
 /*clear the screen with the default bkcolor*/
@@ -155,16 +193,18 @@ int ili_WriteString(int x, int y, const char *s)
 	return 0;
 }
 
-int ili_set_color(int fg, int bg)
-{
-	fgcolor = (unsigned short) fg;
-	bgcolor = (unsigned short) bg;
-	return 0;
-}
 
-int ili_Initializtion(void)
+int ili_Initializtion(const struct lcd_cfg_s *cfg)
 {
 	int id;
+
+	//lpt port init
+	struct lpt_cfg_s lpt_cfg = LPT_CFG_DEF;
+	lpt_cfg.mode = LPT_MODE_I80;
+	lpt_cfg.t = 0;
+	lpt_cfg.tp = 0;
+	ili_bus = cfg -> bus;
+	ili_bus -> init(&lpt_cfg);
 
 	//start oscillator
 	ili_WriteRegister(0x00, 0x0001);
@@ -249,25 +289,24 @@ int ili_Initializtion(void)
 	return 0;
 }
 
-static const lcd_t ili = {
-	.w = 8,
-	.h = 5,
+static const struct lcd_dev_s ili = {
+	.xres = 128,
+	.yres = 160,
 	.init = ili_Initializtion,
 	.puts = ili_WriteString,
-	.clear_all = ili_Clear,
-	.clear_rect = NULL,
-	.scroll = NULL,
-	.set_color = ili_set_color,
+
+	.setwindow = ili_SetWindow,
+	.rgram = ili_ReadGRAM,
+	.wgram = ili_WriteGRAM,
+
 	.writereg = ili_WriteRegister,
 	.readreg = ili_ReadRegister,
 };
 
 static void ili_reg(void)
 {
-	fgcolor = (unsigned short) COLOR_FG_DEF;
-	bgcolor = (unsigned short) COLOR_BG_DEF;
-	ili_bus = &lpt;
-	ili_bus -> init();
-	lcd_add(&ili);
+	fgcolor = (unsigned short) LCD_FGCOLOR_DEF;
+	bgcolor = (unsigned short) LCD_BGCOLOR_DEF;
+	lcd_add(&ili, "ili9161", LCD_TYPE_PIXEL);
 }
 driver_init(ili_reg);

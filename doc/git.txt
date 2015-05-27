@@ -1,0 +1,8 @@
+windows develop platform setup: <s:\share\soft\EDA\Tools\git\>
+1, install msysgit
+2, install msys
+3, install python 2.7
+4, install lxml
+5, copy all files in C:\MinGW\msys\1.0\bin to C:\Program Files\Git\bin folder to avoid some strange fault
+6, setup environment variables as following, btw do not have space in contents of $PATH:
+====> C:\Program Files\Git\cmd;C:\Python27;C:\MinGW\bin;C:\MinGW\msys\1.0\bin;
