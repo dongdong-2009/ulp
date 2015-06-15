@@ -501,3 +501,15 @@ static int cmd_echo_func(int argc, char *argv[])
 
 const cmd_t cmd_echo = {"echo", cmd_echo_func, "echo the cmdline"};
 DECLARE_SHELL_CMD(cmd_echo)
+
+static int cmd_fault_func(int argc, char *argv[])
+{
+	typedef void (*pfunc_t)(void);
+	int bad_instr = 0xFFFFFFFF;
+	pfunc_t pfunc = (pfunc_t) &bad_instr;
+	pfunc();
+	return 0;
+}
+
+const cmd_t cmd_fault = {"fault", cmd_fault_func, "to generate a hardware fault"};
+DECLARE_SHELL_CMD(cmd_fault)

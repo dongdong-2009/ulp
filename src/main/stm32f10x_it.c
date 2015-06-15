@@ -53,12 +53,17 @@ void NMIException(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void HardFaultException(void)
+void hangup(void)
 {
-  /* Go to infinite loop when Hard Fault exception occurs */
-  while (1)
-  {
-  }
+	while(1);
+}
+
+void HardFault_Handler(void)
+{
+	long msp = __get_MSP();
+	msp += 0x18; //shift to PC pointer position
+
+	*(unsigned *) msp = (unsigned) hangup;
 }
 
 /*******************************************************************************
