@@ -82,7 +82,7 @@ iar_add:
 	@for dir in $(obj-y); do\
 		if [ -d $(M)$$dir ];\
 		then \
-			make -s -C $(TOP_DIR) M=$(M)$$dir $@; \
+			cd $(TOP_DIR) && $(MAKE) -s M=$(M)$$dir $@; \
 		fi \
 	done
 	@for icf in $(icf-y); do \
