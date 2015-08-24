@@ -81,6 +81,7 @@ void mxc_init(void);
 void mxc_update(void);
 int mxc_latch(void);
 int mxc_mode(int mode);
+int mxc_is_busy(void);
 
 struct mxc_s *mxc_search(int slot);
 int mxc_scan(void *image, int type); //return nr of working slots&slot list

@@ -11,6 +11,10 @@
 * miaofng@2014-8-24
 * 1, replace api vm_fetch => vm_update to solve the complex introduced by can frame.
 * 2, add new cmd "ROUTE FSCN"
+*
+* miaofng@2015-8-25
+* 1, mv vm_execute to mxc
+*
 */
 
 #include "ulp/sys.h"
@@ -21,33 +25,28 @@
 #include <ctype.h>
 #include "irc.h"
 #include "mxc.h"
-#include "bsp.h"
-#include "dps.h"
-
-/*scan queue over group boundary support
-to fixed cmdline too long issue in case of a big scan_arm such as 152
-*/
-#define VM_SCAN_OVER_GROUP 1
 
 static circbuf_t vm_opq = {.data = NULL}; /*virtual machine task queue*/
-static circbuf_t vm_odata = {.data = NULL};
 static opcode_t vm_opcode; //current opcode
 static opcode_t vm_opcode_seq; //contain line_stop of seq type
 static opcode_t vm_opcode_nxt; //used by vm_prefetch only
 static opcode_t vm_opcode_nul = {.type = VM_OPCODE_NULL}; //used by vm_prefetch only
 static int vm_scan_arm;
 static int vm_scan_cnt;
-static char vm_frame_counter;
 const char *vm_opcode_types;
-static can_msg_t vm_msg;
-static char vm_swdebug;
-static int vm_measure_delay;
-static struct {
-	unsigned char busy : 1;
-	unsigned char hv : 1;
-} vm_flag;
+int vm_measure_delay;
 
-static void vm_opcode_print(opcode_t opcode)
+int vm_get_scan_cnt(void)
+{
+	return vm_scan_cnt;
+}
+
+int vm_get_measure_delay(void)
+{
+	return vm_measure_delay;
+}
+
+void vm_opcode_print(opcode_t opcode)
 {
 	static const char *names[] = {
 		"OPEN", "CLOS", "SCAN", "FSCN", "SEQU", "GRUP", "NULL"
@@ -64,162 +63,29 @@ static void vm_opcode_print(opcode_t opcode)
 void vm_init(void)
 {
 	buf_free(&vm_opq);
-	buf_free(&vm_odata);
 	buf_init(&vm_opq, CONFIG_IRC_INSWSZ);
-	buf_init(&vm_odata, 8);
+
 	vm_opcode = vm_opcode_nul;
 	vm_opcode_nxt = vm_opcode_nul;
 	vm_opcode_seq = vm_opcode_nul;
 	vm_scan_arm = 1;
 	vm_scan_cnt = 0;
-	vm_frame_counter = 0;
-	vm_swdebug = 0;
-	vm_flag.busy = 0;
 	vm_measure_delay = 0;
 }
 
 void vm_abort(void)
 {
-	irc_error_clear();
 }
 
-static void vm_mdelay(int ms)
+int vm_is_busy(void)
 {
-	if(ms > 0) {
-		time_t deadline = time_get(ms);
-		while(time_left(deadline) > 0) {
-			irc_update();
-		}
-	}
-}
-
-/*trig dmm to do measurement and wait for operation finish*/
-static int vm_measure(void)
-{
-	int ecode = -IRT_E_DMM;
-	time_t deadline, suspend;
-
-	//apply pre-trig delay
-	vm_mdelay(vm_measure_delay);
-
-	trig_set(1);
-	deadline = time_get(IRC_DMM_MS);
-	suspend = time_get(IRC_UPD_MS);
-	while(time_left(deadline) > 0) {
-		if(trig_get() == 1) { //vmcomp pulsed
-			trig_set(0);
-			ecode = 0;
-			break;
-		}
-
-		if(time_left(suspend) < 0) {
-			irc_update();
-		}
-	}
-
-	irc_error(ecode);
-	return ecode;
-}
-
-static void vm_emit(int can_id, int do_measure)
-{
-	memset(&vm_msg, 0x00, sizeof(vm_msg));
-	vm_msg.dlc = buf_size(&vm_odata);
-	vm_msg.id = can_id;
-	vm_msg.id += vm_frame_counter & 0x0F;
-	if(vm_msg.dlc > 0) {
-		vm_frame_counter = (can_id == CAN_ID_CMD) ? 0 : vm_frame_counter + 1;
-		buf_pop(&vm_odata, &vm_msg.data, buf_size(&vm_odata));
-
-		if(vm_swdebug) {
-			printf("\n%s: ", (can_id == CAN_ID_CMD) ? "CAN_ID_CMD":"CAN_ID_DAT");
-			for(int i = 0; i < vm_msg.dlc; i += sizeof(opcode_t)) {
-				opcode_t opcode;
-				memcpy(&opcode.value, vm_msg.data+i, sizeof(opcode_t));
-				vm_opcode_print(opcode);
-				printf(" ");
-			}
-			printf("\n");
-			sys_mdelay(1000);
-		}
-		else {
-			int ecode = irc_send(&vm_msg);
-			irc_error(ecode);
-
-			if(can_id == CAN_ID_CMD) {
-				ecode = mxc_latch();
-				irc_error(ecode);
-			}
-
-			if(do_measure) {
-				if(vm_flag.hv) {
-					/*!!!do not power-up hv until relay settling down
-					1, vm_mdelay 5mS
-					2, mos gate delay 1mS
-					*/
-					vm_mdelay(5);
-
-					dps_hv_start();
-					vm_measure();
-					dps_hv_stop();
-				}
-				else {
-					vm_measure();
-				}
-			}
-		}
-	}
-}
-
-static void vm_execute(opcode_t opcode, opcode_t seq)
-{
-	int type = opcode.type;
-	int left = buf_left(&vm_odata);
-	static int opcode_type_saved;
-	int scan, canid;
-
-	vm_flag.busy = 1;
-
-	switch(type) {
-	case VM_OPCODE_GRUP:
-		scan = (opcode_type_saved == VM_OPCODE_SCAN) || (opcode_type_saved == VM_OPCODE_FSCN);
-		canid = (VM_SCAN_OVER_GROUP && scan && vm_scan_cnt) ? CAN_ID_DAT : CAN_ID_CMD;
-		vm_emit(canid, scan);
-		break;
-
-	default:
-		left -= sizeof(opcode_t);
-		left -= (type == VM_OPCODE_SEQU) ? sizeof(opcode_t) : 0;
-		if(left < 0) {
-			//send out the data
-			vm_emit(CAN_ID_DAT, 0);
-		}
-
-		//space is enough now
-		opcode_type_saved = opcode.type;
-		buf_push(&vm_odata, &opcode, sizeof(opcode_t));
-		if(type == VM_OPCODE_SEQU) {
-			opcode_type_saved = seq.type;
-			buf_push(&vm_odata, &seq, sizeof(opcode_t));
-		}
-	}
-
-	vm_flag.busy = 0;
-}
-
-int vm_is_opc(void)
-{
-	int n = (vm_flag.busy) ? 1 : 0;
-	if(n == 0) {
-		n += buf_size(&vm_opq);
-		n += buf_size(&vm_odata);
-		n += (vm_opcode.type != VM_OPCODE_NULL) ? 1 : 0;
-		n += (vm_opcode_seq.type != VM_OPCODE_NULL) ? 1 : 0;
-		n += (vm_opcode_nxt.type != VM_OPCODE_NULL) ? 1 : 0;
-		n += vm_scan_cnt;
-	}
-
-	return !n;
+	int busy = 0;
+	busy += buf_size(&vm_opq);
+	busy += (vm_opcode.type != VM_OPCODE_NULL) ? 1 : 0;
+	busy += (vm_opcode_seq.type != VM_OPCODE_NULL) ? 1 : 0;
+	busy += (vm_opcode_nxt.type != VM_OPCODE_NULL) ? 1 : 0;
+	busy += vm_scan_cnt;
+	return busy;
 }
 
 /*
@@ -467,7 +333,7 @@ static int vm_scan_set_arm(int arm)
 {
 	int ecode = 0;
 	ecode = (arm < 1) ? -IRT_E_CMD_PARA : ecode;
-	ecode = (!vm_is_opc()) ? -IRT_E_OP_REFUSED : ecode;
+	ecode = (vm_is_busy()) ? -IRT_E_OP_REFUSED : ecode;
 	if(!ecode) {
 		vm_scan_arm = arm;
 	}
@@ -476,32 +342,12 @@ static int vm_scan_set_arm(int arm)
 
 int vm_mode(int mode)
 {
-	int ecode = vm_scan_set_arm(1);
-	if(!ecode) {
-		vm_flag.hv = 0;
-		if(mode == IRC_MODE_HVR) {
-			vm_flag.hv = 1;
-		}
-	}
-	return ecode;
+	return vm_scan_set_arm(1);
 }
 
 void vm_dump(void)
 {
-	//odata
-	const char *id_type = ((vm_msg.id & 0xFF0) == CAN_ID_CMD) ? "CAN_ID_CMD":"CAN_ID_???";
-	id_type = ((vm_msg.id & 0xFF0) == CAN_ID_DAT) ? "CAN_ID_DAT": id_type;
-
 	printf("ARM: %d/%d\r\n", vm_scan_cnt, vm_scan_arm);
-	printf("CAN: %s(0x%03x) ", id_type, vm_msg.id);
-	for(int i = 0; i < vm_msg.dlc; i += sizeof(opcode_t)) {
-		opcode_t opcode;
-		memcpy(&opcode.value, vm_msg.data+i, sizeof(opcode_t));
-		vm_opcode_print(opcode);
-		printf(" ");
-	}
-	printf("\n");
-
 	printf("CUR: "); vm_opcode_print(vm_opcode); printf("\r\n");
 	printf("SEQ: "); vm_opcode_print(vm_opcode_seq); printf("\r\n");
 	printf("NXT: "); vm_opcode_print(vm_opcode_nxt); printf("\r\n");
@@ -533,8 +379,6 @@ static int cmd_route_func(int argc, char *argv[])
 		"ROUTE [CLOS|OPEN|SCAN|FSCN] (@bbllll:bbllll,bbllll,bbllll)\n"
 		"ROUTE ARM 2\n"
 		"ROUTE DELAY 16\n"
-		"ROUTE DUMP\n"
-		"ROUTE DEBUG\n"
 	};
 
 	int match = !strcmp(argv[1], "OPEN");
@@ -578,15 +422,6 @@ static int cmd_route_func(int argc, char *argv[])
 	}
 	else if(!strcmp(argv[1], "DELAY?")) {
 		printf("<%+d\n\r", vm_measure_delay);
-		return 0;
-	}
-	else if(!strcmp(argv[1], "DUMP")) {
-		vm_dump();
-		return 0;
-	}
-	else if(!strcmp(argv[1], "DEBUG")) {
-		vm_swdebug = !vm_swdebug;
-		printf("vm_swdebug is %s\r\n", vm_swdebug ? "on" : "off");
 		return 0;
 	}
 	else {

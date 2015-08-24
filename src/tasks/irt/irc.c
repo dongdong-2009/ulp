@@ -99,15 +99,18 @@ void irc_update(void)
 	}
 }
 
-static int irc_is_opc(void)
+/*no busy return 0*/
+static int irc_is_busy(void)
 {
-	int opc = vm_is_opc();
-	return opc;
+	int busy = mxc_is_busy();
+	if(!busy) busy += vm_is_busy();
+	return busy;
 }
 
 static void irc_abort(void)
 {
 	vm_abort();
+	irc_error_clear();
 }
 
 static int irc_mode(int mode)
@@ -157,7 +160,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*OPC?")) {
-		int opc = irc_is_opc();
+		int opc = !irc_is_busy();
 		printf("<%+d\n\r", opc);
 		return 0;
 	}
@@ -256,7 +259,7 @@ static int cmd_mode_func(int argc, char *argv[])
 		if(!strcmp(argv[1], name[i])) {
 			int mode = mode_list[i];
 			ecode = -IRT_E_OP_REFUSED;
-			if(irc_is_opc()) {
+			if(!irc_is_busy()) {
 				ecode = irc_mode(mode);
 				break;
 			}

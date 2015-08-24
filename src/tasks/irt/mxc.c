@@ -15,13 +15,158 @@
 #include "shell/cmd.h"
 #include "vm.h"
 #include "common/bitops.h"
+#include "common/circbuf.h"
 #include "irc.h"
+#include "bsp.h"
+#include "dps.h"
 
 static LIST_HEAD(mxc_list);
 static can_msg_t mxc_msg;
 static struct mxc_s mxc_tmp;
 static struct mxc_s *mxc_new;
 static int mxc_ping_enable;
+
+/*var for vm_execute*/
+static int opcode_type_saved;
+static circbuf_t mxc_odata = {.data = NULL};
+static char mxc_frame_counter;
+static can_msg_t mxc_msg;
+static char mxc_swdebug;
+static struct {
+	unsigned char busy : 1;
+	unsigned char hv : 1;
+} mxc_flag;
+
+
+static void mxc_mdelay(int ms)
+{
+	if(ms > 0) {
+		time_t deadline = time_get(ms);
+		while(time_left(deadline) > 0) {
+			irc_update();
+		}
+	}
+}
+
+/*trig dmm to do measurement and wait for operation finish*/
+static int mxc_measure(void)
+{
+	int ecode = -IRT_E_DMM;
+	time_t deadline, suspend;
+
+	//apply pre-trig delay
+	mxc_mdelay(vm_get_measure_delay());
+
+	trig_set(1);
+	deadline = time_get(IRC_DMM_MS);
+	suspend = time_get(IRC_UPD_MS);
+	while(time_left(deadline) > 0) {
+		if(trig_get() == 1) { //vmcomp pulsed
+			trig_set(0);
+			ecode = 0;
+			break;
+		}
+
+		if(time_left(suspend) < 0) {
+			irc_update();
+		}
+	}
+
+	irc_error(ecode);
+	return ecode;
+}
+
+static void mxc_emit(int can_id, int do_measure)
+{
+	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
+	mxc_msg.dlc = buf_size(&mxc_odata);
+	mxc_msg.id = can_id;
+	mxc_msg.id += mxc_frame_counter & 0x0F;
+	if(mxc_msg.dlc > 0) {
+		mxc_frame_counter = (can_id == CAN_ID_CMD) ? 0 : mxc_frame_counter + 1;
+		buf_pop(&mxc_odata, &mxc_msg.data, buf_size(&mxc_odata));
+
+		if(mxc_swdebug) {
+			printf("\n%s: ", (can_id == CAN_ID_CMD) ? "CAN_ID_CMD":"CAN_ID_DAT");
+			for(int i = 0; i < mxc_msg.dlc; i += sizeof(opcode_t)) {
+				opcode_t opcode;
+				memcpy(&opcode.value, mxc_msg.data+i, sizeof(opcode_t));
+				vm_opcode_print(opcode);
+				printf(" ");
+			}
+			printf("\n");
+			sys_mdelay(1000);
+		}
+		else {
+			int ecode = irc_send(&mxc_msg);
+			irc_error(ecode);
+
+			if(can_id == CAN_ID_CMD) {
+				ecode = mxc_latch();
+				irc_error(ecode);
+			}
+
+			if(do_measure) {
+				if(mxc_flag.hv) {
+					/*!!!do not power-up hv until relay settling down
+					1, mxc_mdelay 5mS
+					2, mos gate delay 1mS
+					*/
+					mxc_mdelay(5);
+
+					dps_hv_start();
+					mxc_measure();
+					dps_hv_stop();
+				}
+				else {
+					mxc_measure();
+				}
+			}
+		}
+	}
+}
+
+void vm_execute(opcode_t opcode, opcode_t seq)
+{
+	int type = opcode.type;
+	int left = buf_left(&mxc_odata);
+	int scan, canid;
+
+	mxc_flag.busy = 1;
+
+	switch(type) {
+	case VM_OPCODE_GRUP:
+		scan = (opcode_type_saved == VM_OPCODE_SCAN) || (opcode_type_saved == VM_OPCODE_FSCN);
+		canid = (VM_SCAN_OVER_GROUP && scan && vm_get_scan_cnt()) ? CAN_ID_DAT : CAN_ID_CMD;
+		mxc_emit(canid, scan);
+		break;
+
+	default:
+		left -= sizeof(opcode_t);
+		left -= (type == VM_OPCODE_SEQU) ? sizeof(opcode_t) : 0;
+		if(left < 0) {
+			//send out the data
+			mxc_emit(CAN_ID_DAT, 0);
+		}
+
+		//space is enough now
+		opcode_type_saved = opcode.type;
+		buf_push(&mxc_odata, &opcode, sizeof(opcode_t));
+		if(type == VM_OPCODE_SEQU) {
+			opcode_type_saved = seq.type;
+			buf_push(&mxc_odata, &seq, sizeof(opcode_t));
+		}
+	}
+
+	mxc_flag.busy = 0;
+}
+
+int mxc_is_busy(void)
+{
+	int busy = (mxc_flag.busy) ? 1 : 0;
+	busy += buf_size(&mxc_odata);
+	return busy;
+}
 
 struct mxc_s *mxc_search(int slot)
 {
@@ -40,6 +185,13 @@ struct mxc_s *mxc_search(int slot)
 
 void mxc_init(void)
 {
+	mxc_flag.busy = 0;
+	mxc_swdebug = 0;
+	mxc_frame_counter = 0;
+	buf_free(&mxc_odata);
+	buf_init(&mxc_odata, 8);
+	opcode_type_saved = VM_OPCODE_NULL;
+
 	mxc_new = NULL;
 	mxc_ping_enable = 0;
 
@@ -56,16 +208,11 @@ void mxc_init(void)
 3, do not share hardware like can controller with main routine
 */
 
-static int ecode_slot[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-
 void mxc_can_handler(can_msg_t *msg)
 {
 	mxc_echo_t *echo = (mxc_echo_t *) msg->data;
 	int node = CAN_NODE(msg->id);
 	int slot = MXC_SLOT(node);
-	if(echo->ecode > 0) {
-		ecode_slot[slot] = echo->ecode;
-	}
 
 	struct mxc_s *mxc = mxc_search(slot);
 	if(mxc != NULL) {
@@ -191,6 +338,12 @@ int mxc_latch(void)
 
 int mxc_mode(int mode)
 {
+	//high voltage mode?
+	mxc_flag.hv = 0;
+	if(mode == IRC_MODE_HVR) {
+		mxc_flag.hv = 1;
+	}
+
 	mxc_ping_enable = 1;
 	sys_assert((mode >= IRC_MODE_HVR) && (mode <= IRC_MODE_OFF));
 	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
@@ -272,6 +425,8 @@ static int cmd_mxc_func(int argc, char *argv[])
 		"MXC PING <slot>		ping specified slot\n"
 		"MXC SCAN GOOD			list [ALL|GOOD|FAIL|SELF|DCFM] slots\n"
 		"MXC HELP\n"
+		"MXC DEBUG				MXC SOFTWARE DEBUG SWITCH\n"
+		"MXC DUMP\n"
 	};
 
 	if((argc > 1) && !strcmp(argv[1], "PING")) {
@@ -307,6 +462,28 @@ static int cmd_mxc_func(int argc, char *argv[])
 			}
 		}
 		printf("\"\n\r");
+	}
+	else if((argc > 1) && !strcmp(argv[1], "DEBUG")) {
+		mxc_swdebug = !mxc_swdebug;
+		printf("mxc_swdebug is %s\r\n", mxc_swdebug ? "on" : "off");
+		return 0;
+	}
+	else if(!strcmp(argv[1], "DUMP")) {
+		//dump odata
+		const char *id_type = ((mxc_msg.id & 0xFF0) == CAN_ID_CMD) ? "CAN_ID_CMD":"CAN_ID_???";
+		id_type = ((mxc_msg.id & 0xFF0) == CAN_ID_DAT) ? "CAN_ID_DAT": id_type;
+		printf("CAN: %s(0x%03x) ", id_type, mxc_msg.id);
+		for(int i = 0; i < mxc_msg.dlc; i += sizeof(opcode_t)) {
+			opcode_t opcode;
+			memcpy(&opcode.value, mxc_msg.data+i, sizeof(opcode_t));
+			vm_opcode_print(opcode);
+			printf(" ");
+		}
+		printf("\n");
+
+		//dump matrix vitrual machine
+		vm_dump();
+		return 0;
 	}
 	else if((argc > 0) && !strcmp(argv[1], "HELP")) {
 		printf("%s", usage);

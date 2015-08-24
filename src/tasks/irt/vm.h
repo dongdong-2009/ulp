@@ -15,6 +15,16 @@
 #define NR_OF_LINE_MAX 2048
 #define NR_OF_BUS_MAX 0004
 
+/*scan queue over group boundary support
+to fixed ulp shell cmdline short issue, such as in irt high
+voltage test, scan_arm could be 20+ and one cmd cann't hold
+the whole point list, then it should be seprate into several
+ROUTE ARM 20
+ROUTE SCAN XXXXXXXXX
+ROUTE SCAN XXXXXXXXX
+*/
+#define VM_SCAN_OVER_GROUP 1
+
 enum {
 	VM_OPCODE_OPEN,
 	VM_OPCODE_CLOS,
@@ -40,12 +50,29 @@ typedef union opcode_u {
 	unsigned short value;
 } opcode_t;
 
+/*delay before send dmm_trig signal
+set by command ROUTE DELAY
+to be used by mxc if mxc dmm trig function is supported
+*/
+int vm_get_measure_delay(void);
+
+/*for VM_SCAN_OVER_GROUP support
+return 0 in case scan list is over
+*/
+int vm_get_scan_cnt(void);
+
 void vm_init(void);
 void vm_update(void);
 
-/*return nr of uncompleted events or 0 if all operation is completed*/
-int vm_is_opc(void);
+int vm_is_busy(void);
 void vm_abort(void);
 int vm_mode(int mode);
+
+/*to be realized by matrix driver*/
+extern void vm_execute(opcode_t opcode, opcode_t seq);
+
+//vm debug support
+void vm_opcode_print(opcode_t opcode);
+void vm_dump(void);
 
 #endif
