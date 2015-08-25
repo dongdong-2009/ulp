@@ -23,8 +23,6 @@
 #include "common/circbuf.h"
 #include "err.h"
 #include <ctype.h>
-#include "irc.h"
-#include "mxc.h"
 
 static circbuf_t vm_opq = {.data = NULL}; /*virtual machine task queue*/
 static opcode_t vm_opcode; //current opcode
@@ -100,14 +98,14 @@ static void vm_prefetch(opcode_t *result)
 
 	if(opcode.type == VM_OPCODE_NULL) {
 		while(buf_size(&vm_opq) == 0) {
-			irc_update();
+			vm_wait(0);
 		}
 		buf_pop(&vm_opq, &opcode, sizeof(opcode_t));
 	}
 
 	if(opcode.type != VM_OPCODE_GRUP) { //prefectch next
 		while(buf_size(&vm_opq) == 0) {
-			irc_update();
+			vm_wait(0);
 		}
 		buf_pop(&vm_opq, &vm_opcode_nxt, sizeof(opcode_t));
 	}

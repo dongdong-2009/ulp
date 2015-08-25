@@ -99,6 +99,14 @@ void irc_update(void)
 	}
 }
 
+void vm_wait(int ms)
+{
+	time_t deadline = time_get(ms);
+	do {
+		irc_update();
+	} while(time_left(deadline) > 0);
+}
+
 /*no busy return 0*/
 static int irc_is_busy(void)
 {

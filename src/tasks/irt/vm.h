@@ -70,6 +70,7 @@ int vm_mode(int mode);
 
 /*to be realized by matrix driver*/
 extern void vm_execute(opcode_t opcode, opcode_t seq);
+extern void vm_wait(int ms);
 
 //vm debug support
 void vm_opcode_print(opcode_t opcode);
