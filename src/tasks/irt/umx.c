@@ -70,6 +70,7 @@ void vm_execute(opcode_t opcode, opcode_t seq)
 	}
 
 	/*save current opcode type for later use*/
+        type = (type == VM_OPCODE_SEQU) ? seq.type : type;
 	scan = (type == VM_OPCODE_SCAN) || (type == VM_OPCODE_FSCN);
 
 	opcode_t target = (type == VM_OPCODE_SEQU) ? seq : opcode;
@@ -79,7 +80,7 @@ void vm_execute(opcode_t opcode, opcode_t seq)
 
 		for(int fscn = min; fscn <= max; fscn ++) {
 			opcode.fscn.fscn = fscn;
-			mxc_switch(opcode.line, opcode.bus, target.type);
+			mxc_switch(opcode.line, opcode.bus, type);
 		}
 	}
 	else {
@@ -87,7 +88,7 @@ void vm_execute(opcode_t opcode, opcode_t seq)
 		int max = target.line;
 
 		for(int line = min; line <= max; line ++) {
-			mxc_switch(line, opcode.bus, target.type);
+			mxc_switch(line, opcode.bus, type);
 		}
 	}
 
