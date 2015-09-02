@@ -148,6 +148,14 @@ void mxc_relay_clr_all(void)
 void mxc_relay_set(int line, int bus, int on)
 {
 	int n = (line << 2) + bus;
+
+#if 1 //sjc's hardware bug
+	if(n & 0x10) {
+		int nshift = n & 0x0f;
+		n = (n & 0xfff0) + (15 - nshift);
+	}
+#endif
+
 	if(on) {
 		bit_set(n, mxc_image);
 	}
