@@ -46,12 +46,14 @@ static int umx_measure(void)
 void vm_execute(opcode_t opcode, opcode_t seq)
 {
 	static int scan = 0;
+	static int opnr = 0;
 	int type = opcode.type;
 	umx_busy = 1;
 
 	if(type == VM_OPCODE_GRUP) {
 		int bypass = VM_SCAN_OVER_GROUP && scan && vm_get_scan_cnt();
-		if(!bypass) {
+		if(opnr > 0 && !bypass) {
+			opnr = 0;
 			mxc_execute();
 			if(!scan) {
 				mxc_image_store();
@@ -70,7 +72,7 @@ void vm_execute(opcode_t opcode, opcode_t seq)
 	}
 
 	/*save current opcode type for later use*/
-        type = (type == VM_OPCODE_SEQU) ? seq.type : type;
+	type = (type == VM_OPCODE_SEQU) ? seq.type : type;
 	scan = (type == VM_OPCODE_SCAN) || (type == VM_OPCODE_FSCN);
 
 	opcode_t target = (type == VM_OPCODE_SEQU) ? seq : opcode;
@@ -81,6 +83,7 @@ void vm_execute(opcode_t opcode, opcode_t seq)
 		for(int fscn = min; fscn <= max; fscn ++) {
 			opcode.fscn.fscn = fscn;
 			mxc_switch(opcode.line, opcode.bus, type);
+			opnr ++;
 		}
 	}
 	else {
@@ -89,6 +92,7 @@ void vm_execute(opcode_t opcode, opcode_t seq)
 
 		for(int line = min; line <= max; line ++) {
 			mxc_switch(line, opcode.bus, type);
+			opnr ++;
 		}
 	}
 
