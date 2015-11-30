@@ -147,6 +147,10 @@ void mxc_relay_clr_all(void)
 //bus 0..3	v+/v-/i+/i-
 void mxc_relay_set(int line, int bus, int on)
 {
+	if((line > 31) || (bus > 3))
+		//not my card :(
+		return;
+
 	int n = (line << 2) + bus;
 
 #if 1 //sjc's hardware bug
