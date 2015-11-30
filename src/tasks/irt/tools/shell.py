@@ -6,6 +6,7 @@ import os, sys, signal
 from server import Server
 import json
 import shlex
+import time
 
 class Cmd:
 	def __init__(self):
@@ -60,6 +61,7 @@ class Shell(Cmd):
 		Cmd.__init__(self)
 
 	def update(self):
+		time.sleep(0.01)
 		req = {}
 		# line = self._nbsr.readline()
 		# if line:
