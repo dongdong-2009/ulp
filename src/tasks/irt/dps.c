@@ -13,6 +13,8 @@
 #include <math.h>
 #include "common/debounce.h"
 
+#define DPS_HV_V2 1
+
 static float dps_lv;
 static float dps_hv;
 static float dps_hs;
@@ -115,6 +117,54 @@ static float dps_hs_get(void)
 	return vout;
 }
 
+#if DPS_HV_V2
+#define HV_VREF_PWM 1.250
+#define VREF_ADC 2.500
+
+static int dps_hv_set(float v)
+{
+	dps_hv = v;
+	if(dps_flag_gain_auto & (1 << DPS_HV)) { //auto range adjust
+		if(v > 99.0) dps_hv_g = 1;
+		else dps_hv_g = 0;
+	}
+	dps_gain(DPS_HV, dps_hv_g, 1);
+
+	v /= (dps_hv_g) ? 1000 : 100;
+
+	int pwm = (int) (v * (1024/ HV_VREF_PWM));
+	pwm = (pwm > 1023) ? 1023 : pwm;
+	pwm = (pwm < 0) ? 0 : pwm;
+	hv_pwm_set(pwm);
+	return 0;
+}
+
+static float dps_hv_get(void)
+{
+	float vadc = hv_adc_get();
+	vadc *= VREF_ADC / 65536;
+
+	int ratio = (dps_hv_g) ? 1000 : 100;
+	float vout = vadc * ratio;
+	return vout;
+}
+
+static int dps_vs_set(float v)
+{
+	//vs only has switch on/off function
+	return -IRT_E_OP_REFUSED;
+}
+
+static float dps_vs_get(void)
+{
+	float vadc = vs_adc_get();
+	vadc *= VREF_ADC / 65536;
+
+	int ratio = (dps_hv_g) ? 1000 : 100;
+	float vout = vadc * ratio;
+	return vout;
+}
+#else
 #define HV_VREF_INT 0.996
 #define HV_VREF_PWM 1.250
 #define VREF_ADC 2.500
@@ -172,6 +222,7 @@ static float dps_vs_get(void)
 	float vout = vadc * ratio;
 	return vout;
 }
+#endif
 
 void dps_init(void)
 {
