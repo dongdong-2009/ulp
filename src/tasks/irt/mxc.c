@@ -93,22 +93,22 @@ static void mxc_emit(int can_id, int do_measure)
 			if(can_id == CAN_ID_CMD) {
 				ecode = mxc_latch();
 				irc_error(ecode);
-			}
 
-			if(do_measure) {
-				if(mxc_flag.hv) {
-					/*!!!do not power-up hv until relay settling down
-					1, vm_wait 5mS
-					2, mos gate delay 1mS
-					*/
-					vm_wait(5);
+				if(do_measure) {
+					if(mxc_flag.hv) {
+						/*!!!do not power-up hv until relay settling down
+						1, vm_wait 5mS
+						2, mos gate delay 1mS
+						*/
+						vm_wait(5);
 
-					dps_hv_start();
-					mxc_measure();
-					dps_hv_stop();
-				}
-				else {
-					mxc_measure();
+						dps_hv_start();
+						mxc_measure();
+						dps_hv_stop();
+					}
+					else {
+						mxc_measure();
+					}
 				}
 			}
 		}
