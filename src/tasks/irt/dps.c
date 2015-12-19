@@ -284,6 +284,14 @@ static void dps_mdelay(int ms)
 	}
 }
 
+#if DPS_HV_V2
+int dps_hv_start(void)
+{
+	//no needs to monitor vs now
+	//instead, over-current is monitored from dmm
+	bsp_gpio_set(VS_EN, 1);
+}
+#else
 int dps_hv_start(void)
 {
 	int ecode = - IRT_E_HV_UP;
@@ -319,6 +327,7 @@ int dps_hv_start(void)
 	}
 	return ecode;
 }
+#endif
 
 int dps_hv_stop(void)
 {
@@ -326,7 +335,7 @@ int dps_hv_stop(void)
 	float vs;
 
 	struct debounce_s vs_good;
-	debounce_init(&vs_good, 10, 0);
+	debounce_init(&vs_good, 2, 0);
 	bsp_gpio_set(VS_EN, 0);
 
 	time_t deadline = time_get(DPS_HVDN_MS);
@@ -345,6 +354,7 @@ int dps_hv_stop(void)
 	}
 	return ecode;
 }
+
 
 int dps_enable(int dps, int enable)
 {
