@@ -19,6 +19,7 @@ static int pwm_init(const pwm_cfg_t *cfg)
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 
 	RCC_GetClocksFreq(&clks);
 	f = clks.PCLK1_Frequency;
