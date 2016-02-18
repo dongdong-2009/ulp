@@ -18,4 +18,5 @@ choice 'misc project configuration'	" \
 	GSM_DEMO			CONFIG_MISC_GSM \
 	PMSM_TEST			CONFIG_MISC_PMSM \
 	O2PT				CONFIG_MISC_O2PT \
+	LEDCAP				CONFIG_MISC_LEDCAP \
 " VALVE_HEAD_DEMO
