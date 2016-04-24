@@ -9,8 +9,9 @@ choice 'application select'	" \
 	PROBE		CONFIG_IRT_PROBE \
 	DPS		CONFIG_IRT_DPS \
 	MXC5324		CONFIG_IRT_MXC5324 \
+	UMX		CONFIG_IRT_UMX \
 " IRC
 
-if [ "$CONFIG_IRT_IRC" = "y"]; then
+if [ "$CONFIG_IRT_IRC" = "y" -o "$CONFIG_IRT_UMX" = "y"]; then
 	int "irc instruction buffer words" CONFIG_IRC_INSWSZ 2048
 fi

@@ -8,6 +8,13 @@ ifeq ($(CONFIG_IRT_IRC),y)
 	obj-y += rut.o
 endif
 
+ifeq ($(CONFIG_IRT_UMX),y)
+	obj-y += err.o
+	obj-y += vm.o
+	obj-y += umx.o
+	obj-y += umx_bsp.o
+endif
+
 ifeq ($(CONFIG_IRT_DPS),y)
 	obj-y += dps/
 endif

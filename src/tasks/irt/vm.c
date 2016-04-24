@@ -340,7 +340,7 @@ static int vm_scan_set_arm(int arm)
 
 int vm_mode(int mode)
 {
-	return vm_scan_set_arm(1);
+	return 0; //vm_scan_set_arm(1);
 }
 
 void vm_dump(void)

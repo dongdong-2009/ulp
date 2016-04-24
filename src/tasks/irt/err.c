@@ -51,7 +51,7 @@ void irc_error_set(int ecode, const char *file, int line)
 		irc_status.error = 1;
 		led_error(ecode);
 		while(irc_status.error) {
-			irc_update();
+			vm_wait(0);
 		}
 	}
 }
