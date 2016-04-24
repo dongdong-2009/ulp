@@ -18,4 +18,5 @@ choice 'misc project configuration'	" \
 	GSM_DEMO			CONFIG_MISC_GSM \
 	PMSM_TEST			CONFIG_MISC_PMSM \
 	O2PT				CONFIG_MISC_O2PT \
+	O2PTV2				CONFIG_MISC_O2PTV2 \
 " VALVE_HEAD_DEMO
