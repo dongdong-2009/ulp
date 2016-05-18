@@ -61,7 +61,10 @@ static int mxc_measure(void)
 		}
 	}
 
-	irc_error(ecode);
+	if(ecode) {
+		dps_enable(DPS_HV, 0);
+		irc_error(ecode);
+	}
 	return ecode;
 }
 
@@ -101,10 +104,10 @@ static void mxc_emit(int can_id, int do_measure)
 						2, mos gate delay 1mS
 						*/
 						vm_wait(5);
-
 						dps_hv_start();
 						mxc_measure();
 						dps_hv_stop();
+                                                //vm_wait(5);
 					}
 					else {
 						mxc_measure();

@@ -12,6 +12,7 @@
 #include "bsp.h"
 #include <math.h>
 #include "common/debounce.h"
+#include "vm.h"
 
 #define DPS_HV_V2 1
 
@@ -304,7 +305,7 @@ int dps_hv_start(void)
 	/*!!!2mS is enough for power-up
 	&over-current protection
 	*/
-	dps_mdelay(2);
+	//dps_mdelay(2);
 
 	time_t deadline = time_get(DPS_HVUP_MS);
 	while(time_left(deadline) > 0) {
@@ -337,6 +338,7 @@ int dps_hv_stop(void)
 	struct debounce_s vs_good;
 	debounce_init(&vs_good, 2, 0);
 	bsp_gpio_set(VS_EN, 0);
+	vm_wait(5);
 
 	time_t deadline = time_get(DPS_HVDN_MS);
 	while(time_left(deadline) > 0) {
@@ -350,6 +352,7 @@ int dps_hv_stop(void)
 	}
 
 	if(ecode) {
+		dps_enable(DPS_HV, 0);
 		irc_error(ecode);
 	}
 	return ecode;
