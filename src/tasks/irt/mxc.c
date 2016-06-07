@@ -337,7 +337,7 @@ int mxc_mode(int mode)
 	}
 
 	mxc_ping_enable = 1;
-	sys_assert((mode >= IRC_MODE_HVR) && (mode <= IRC_MODE_OFF));
+	sys_assert((mode >= IRC_MODE_HVR) && (mode <= IRC_MODE_END));
 	memset(&mxc_msg, 0x00, sizeof(mxc_msg));
 	mxc_cfg_t *cfg = (mxc_cfg_t *) mxc_msg.data;
 	cfg->cmd = MXC_CMD_MODE;
