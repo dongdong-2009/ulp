@@ -37,5 +37,7 @@ int dps_enable(int dps, int enable);
 int dps_config(int dps, int key, void *p);
 int dps_hv_start(void);
 int dps_hv_stop(void);
+int dps_is_start(void);
+int dps_is_stop(void);
 
 #endif

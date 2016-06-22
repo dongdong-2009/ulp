@@ -68,6 +68,17 @@ static float dps_lv_get(void)
 /*NOTE:  2.5V*0.95 = 2.375*/
 #define IS_RATIO_MAX 0.90
 
+static int dps_is_pwm = 0;
+int dps_is_start(void)
+{
+	is_pwm_set(dps_is_pwm);
+}
+
+int dps_is_stop(void)
+{
+	is_pwm_set(0);
+}
+
 static int dps_is_set(float amp)
 {
 	float v; int pwm;
@@ -99,6 +110,7 @@ static int dps_is_set(float amp)
 	pwm = (int) (v * (1024 / 2.5));
 	pwm = (pwm > 1023) ? 1023 : pwm;
 	is_pwm_set(pwm);
+	dps_is_pwm = pwm;
 	return 0;
 }
 

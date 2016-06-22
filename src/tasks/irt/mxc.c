@@ -103,14 +103,19 @@ static void mxc_emit(int can_id, int do_measure)
 						1, vm_wait 5mS
 						2, mos gate delay 1mS
 						*/
-						vm_wait(5);
+						//vm_wait(3);
 						dps_hv_start();
+						vm_wait(10);
 						mxc_measure();
 						dps_hv_stop();
-                                                //vm_wait(5);
+						vm_wait(5);
 					}
 					else {
+						vm_wait(8);
+						dps_is_start();
 						mxc_measure();
+						dps_is_stop();
+						vm_wait(8);
 					}
 				}
 			}
@@ -314,7 +319,9 @@ int mxc_latch(void)
 	le_set(1);
 	while(time_left(deadline) > 0) {
 		if(le_get() > 0) { //ok? break
+			vm_wait(1);
 			le_set(0);
+			vm_wait(1);
 			ecode = 0;
 			break;
 		}
