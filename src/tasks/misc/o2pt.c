@@ -59,6 +59,7 @@ void o2pt_gpio_init(void)
 		GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
 	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11;
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
 
@@ -403,6 +404,7 @@ int cmd_buck_func(int argc, char *argv[])
 		v = atof(argv[2]);
 		i = atof(argv[3]);
 		buck_set(ch, v, i);
+		printf("<+0\n\r");
 		return 0;
 	}
 
@@ -450,6 +452,7 @@ int cmd_o2pt_func(int argc, char *argv[])
 		i = atof(argv[2]);
 		hz = atof(argv[3]);
 		o2pt_pulse(ch, i, hz);
+		printf("<+0\n\r");
 		return 0;
 	}
 
@@ -470,6 +473,41 @@ const cmd_t cmd_vload = {"vload", cmd_o2pt_func, "o2pt loaded voltage measure"};
 DECLARE_SHELL_CMD(cmd_vload)
 const cmd_t cmd_pulse = {"pulse", cmd_o2pt_func, "o2pt apply pulsed current"};
 DECLARE_SHELL_CMD(cmd_pulse)
+
+int cmd_key_func(int argc, char *argv[])
+{
+	int idr = ~ GPIOD->IDR;
+	idr &= 0xff;
+	printf("<+%d\n\r", idr);
+	return 0;
+}
+
+const cmd_t cmd_key = {"key", cmd_key_func, "keyboard input monitor"};
+DECLARE_SHELL_CMD(cmd_key)
+
+int cmd_rly_func(int argc, char *argv[])
+{
+	//rly 0 1
+	if(argc > 2) {
+		int rly = atoi(argv[1]);
+		int val = atoi(argv[2]);
+		if(rly >= 0 && rly < 8) {
+			if(val) GPIOD->BSRR = 1 << (rly + 8);
+			else GPIOD->BRR = 1 << (rly + 8);
+			printf("<+0\n\r");
+			return 0;
+		}
+	}
+
+	printf( \
+		"usage:\n" \
+		"rly 0 1	switch on rly 0\n" \
+	);
+	return 0;
+}
+
+const cmd_t cmd_rly = {"rly", cmd_rly_func, "relay output drive"};
+DECLARE_SHELL_CMD(cmd_rly)
 
 int cmd_xxx_func(int argc, char *argv[])
 {

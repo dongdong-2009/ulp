@@ -11,3 +11,4 @@ obj-$(CONFIG_MISC_MATRIX) += ybs_matrix.o
 obj-$(CONFIG_MISC_GSM) += gsm.o
 obj-$(CONFIG_MISC_PMSM) += pmsm.o
 obj-$(CONFIG_MISC_O2PT) += o2pt.o
+obj-$(CONFIG_MISC_O2PTV2) += o2ptv2.o
