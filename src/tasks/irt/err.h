@@ -10,28 +10,39 @@
 #include "config.h"
 
 enum {
+	/*0 - 3*/
 	IRT_E_OK,
 	IRT_E_DMM,
 	IRT_E_CAN_SEND,
 	IRT_E_SLOT, //slot lost or has error
+
+	/*4 - 7*/
 	IRT_E_LATCH_H, //normally held by some fail slots
 	IRT_E_LATCH_L,
 	IRT_E_OPCODE, //vm or slot runtime error
 	IRT_E_HV_UP,
+
+	/*8 - 11*/
 	IRT_E_HV_DN,
 	IRT_E_HV,
 	IRT_E_LV,
 	IRT_E_HS,
-	IRT_E_MEM_OUT_OF_USE,
 
+	/*12 - 15*/
+	IRT_E_MEM_OUT_OF_USE,
 	//host cmd return value
 	IRT_E_SLOT_NA_OR_LOST,
 	IRT_E_CMD_FORMAT, /*command syntax error*/
 	IRT_E_CMD_PARA, /*command syntax OK, but is illegal*/
+
+	/*16 - 19*/
 	IRT_E_VM_OPQ_FULL,
 	IRT_E_VM_OPQ_DATA_ERROR,
 	IRT_E_OP_REFUSED,
 	IRT_E_OP_REFUSED_DUETO_ESYS,
+
+	/*20-23*/
+	IRT_E_OP_REFUSED_DUETO_BUSY,
 };
 
 #define irc_error(ecode) do { \

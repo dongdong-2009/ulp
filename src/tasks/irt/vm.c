@@ -331,7 +331,7 @@ static int vm_scan_set_arm(int arm)
 {
 	int ecode = 0;
 	ecode = (arm < 1) ? -IRT_E_CMD_PARA : ecode;
-	ecode = (vm_is_busy()) ? -IRT_E_OP_REFUSED : ecode;
+	ecode = (vm_is_busy()) ? -IRT_E_OP_REFUSED_DUETO_BUSY : ecode;
 	if(!ecode) {
 		vm_scan_arm = arm;
 	}
