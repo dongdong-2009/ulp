@@ -6,13 +6,13 @@
 
 #pragma section=".sys.task" 4
 #define DECLARE_TASK(init, update) \
-	void (*##init##_entry)(void)@".sys.task" = &##init; \
-	void (*##update##_entry)(void)@".sys.task" = &##update;
+	void (*init##_entry)(void)@".sys.task" = &init; \
+	void (*update##_entry)(void)@".sys.task" = &update;
 
 #pragma section=".sys.lib" 4
 #define DECLARE_LIB(init, update) \
-	void (*##init##_entry)(void)@".sys.lib" = &##init; \
-	void (*##update##_entry)(void)@".sys.lib" = &##update;
+	void (*init##_entry)(void)@".sys.lib" = &init; \
+	void (*update##_entry)(void)@".sys.lib" = &update;
 
 #define ulp_init task_Init
 #define ulp_update task_Update

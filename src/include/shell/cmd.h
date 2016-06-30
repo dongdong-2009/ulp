@@ -41,7 +41,7 @@ struct cmd_queue_s {
 
 #pragma section=".shell.cmd" 4
 #define DECLARE_SHELL_CMD(cmd) \
-	const cmd_t *##cmd##_entry@".shell.cmd" = &##cmd;
+	const cmd_t *cmd##_entry@".shell.cmd" = &cmd;
 	
 /*cmd module i/f*/
 void cmd_Init(void);
