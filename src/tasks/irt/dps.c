@@ -340,6 +340,7 @@ void dps_update(void)
 
 	dps_mon_timer = time_get(100);
 
+/*
 	//monitor lv output
 	if(dps_flag_enable & (1 << DPS_LV)) {
 		ref = dps_lv;
@@ -351,7 +352,7 @@ void dps_update(void)
 			irc_error(-IRT_E_LV);
 		}
 	}
-
+*/
 	//monitor hs output
 	if(dps_flag_enable & (1 << DPS_HS)) {
 		ref = dps_hs;
