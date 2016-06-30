@@ -39,5 +39,7 @@ int dps_hv_start(void);
 int dps_hv_stop(void);
 int dps_is_start(void);
 int dps_is_stop(void);
+int dps_lv_start(int ms);
+int dps_lv_stop(void);
 
 #endif

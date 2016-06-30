@@ -325,6 +325,29 @@ int vm_opq_add(int tcode, const char *relay_list)
 	return ecode;
 }
 
+int vm_opq_add_wait(const char *wait_ms)
+{
+	int ecode = - IRT_E_CMD_FORMAT;
+	int ms = atoi(wait_ms);
+	if ((ms > 0) && (ms < 8192)) {
+		opcode_t opcode;
+		opcode.value = 0;
+		opcode.wait.type = VM_OPCODE_WAIT;
+		opcode.wait.ms = ms;
+
+		circbuf_t opq_temp;
+		memcpy(&opq_temp, &vm_opq, sizeof(vm_opq));
+
+		ecode = - IRT_E_VM_OPQ_FULL;
+		if(buf_left(&opq_temp) > sizeof(opcode)) {
+			buf_push(&opq_temp, &opcode.value, sizeof(opcode));
+			memcpy(&vm_opq, &opq_temp, sizeof(vm_opq));
+			ecode = 0;
+		}
+	}
+	return ecode;
+}
+
 /*arm is used to notify the group length in scan operation,
 op will fail if  vm_opq_is_not_empty*/
 static int vm_scan_set_arm(int arm)
@@ -377,7 +400,8 @@ static int cmd_route_func(int argc, char *argv[])
 		"usage:\n"
 		"ROUTE [CLOS|OPEN|SCAN|FSCN] (@bbllll:bbllll,bbllll,bbllll)\n"
 		"ROUTE ARM 2\n"
-		"ROUTE DELAY 16\n"
+		"ROUTE DELAY 16 measurement delay ms\n"
+		"ROUTE WAIT 16 relay(LV) power-up delay ms\n"
 	};
 
 	int match = !strcmp(argv[1], "OPEN");
@@ -407,6 +431,9 @@ static int cmd_route_func(int argc, char *argv[])
 	else if(!strcmp(argv[1], "FSCN")) {
 		tcode = VM_OPCODE_FSCN;
 		ecode = vm_opq_add(tcode, argv[2]);
+	}
+	else if(!strcmp(argv[1], "WAIT")) {
+		ecode = vm_opq_add_wait(argv[2]);
 	}
 	else if(!strcmp(argv[1], "ARM")) {
 		int arm = atoi(argv[2]);

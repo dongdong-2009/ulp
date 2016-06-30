@@ -71,6 +71,23 @@ static float dps_lv_get(void)
 	return vout;
 }
 
+int dps_lv_start(int ms)
+{
+	if(dps_flag_enable & (1 << DPS_LV)) {
+		//already started
+	}
+	else {
+		dps_enable(DPS_LV, 1); //19uS@2A
+		vm_wait(ms);
+	}
+	return 0;
+}
+
+int dps_lv_stop(void)
+{
+	dps_enable(DPS_LV, 0); //400uS@2A
+	return 0;
+}
 #else
 //VREF=2V5 R89 = 100K R88=47K R50=47K R81=1K
 //VOUT = VREF * RATIO * DF = VMAX * DF

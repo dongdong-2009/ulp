@@ -25,6 +25,7 @@ static can_msg_t mxc_msg;
 static struct mxc_s mxc_tmp;
 static struct mxc_s *mxc_new;
 static int mxc_ping_enable;
+static int mxc_wait_ms = 0;
 
 /*var for vm_execute*/
 static int opcode_type_saved;
@@ -98,24 +99,23 @@ static void mxc_emit(int can_id, int do_measure)
 				irc_error(ecode);
 
 				if(do_measure) {
+					vm_wait(5); //wait for relay stable
+					dps_lv_start(mxc_wait_ms);
+					mxc_wait_ms = 0;
+
 					if(mxc_flag.hv) {
-						/*!!!do not power-up hv until relay settling down
-						1, vm_wait 5mS
-						2, mos gate delay 1mS
-						*/
-						//vm_wait(3);
 						dps_hv_start();
-						vm_wait(10);
+						vm_wait(5);
 						mxc_measure();
 						dps_hv_stop();
 						vm_wait(5);
 					}
 					else {
-						vm_wait(8);
 						dps_is_start();
+						vm_wait(5);//wait for is up
 						mxc_measure();
 						dps_is_stop();
-						vm_wait(8);
+						vm_wait(5); //wait for is reach 0A
 					}
 				}
 			}
@@ -132,12 +132,22 @@ void vm_execute(opcode_t opcode, opcode_t seq)
 	mxc_flag.busy = 1;
 
 	switch(type) {
+	case VM_OPCODE_WAIT:
+		mxc_wait_ms = opcode.wait.ms;
+		break;
+
 	case VM_OPCODE_GRUP:
 		scan = (opcode_type_saved == VM_OPCODE_SCAN) || (opcode_type_saved == VM_OPCODE_FSCN);
 		canid = (VM_SCAN_OVER_GROUP && scan && vm_get_scan_cnt()) ? CAN_ID_DAT : CAN_ID_CMD;
 		mxc_emit(canid, scan);
 		break;
 
+	case VM_OPCODE_OPEN:
+	case VM_OPCODE_CLOS:
+		if(opcode.bus > 1) {
+			//GFT UmGn Command
+			dps_lv_stop(); //to be start when scan(/measure), avoid mxc relay damage
+		}
 	default:
 		left -= sizeof(opcode_t);
 		left -= (type == VM_OPCODE_SEQU) ? sizeof(opcode_t) : 0;
