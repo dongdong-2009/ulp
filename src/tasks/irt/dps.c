@@ -1,7 +1,17 @@
 /*
 *
 *  miaofng@2014-6-4   initial version
-*
+*  miaofng@2016-6-22  add dps lv board v2.0 support
+*  DPS_LV:
+*    pwm turn on = 1.5mS (note: vout at least = 1.225v)
+*    pwm turn off = ... (determined by cout & load)
+*    buck on = 19uS@2A, Surge = 192uS@3A(out is shorten)
+*    buck off = 400uS(2A -> 0A)
+*    so: buck on/off method is adopted!!!
+*  DPS_IS:
+*    pwm on = pwm off = 3mS(47K||10NF)
+*    bank0: IS_GS0 = 0&IS_GS1 = 1, 0.12mA-122.5mA (1.225v/10ohm)
+*    bank1: IS_GS0 = 1&IS_GS1 = 0, 2.04mA-2.085A (1.225V / (4.7ohm / 4) * 2)
 */
 #include "ulp/sys.h"
 #include "irc.h"
@@ -15,6 +25,7 @@
 #include "vm.h"
 
 #define DPS_HV_V2 1
+#define DPS_LV_V2 1 /*XL4015*/
 
 static float dps_lv;
 static float dps_hv;
@@ -31,6 +42,36 @@ static struct debounce_s dps_mon_hs;
 static struct debounce_s dps_mon_hv;
 static time_t dps_mon_timer;
 
+#if DPS_LV_V2 == 1
+/*
+vout = 1.25v + is * 10Kohm = 1.25v + vset / 0.5K * 10K
+=> vset = ( vout - 1.25v ) / 20
+*/
+static int dps_lv_set(float v)
+{
+	dps_lv = v;
+	if(v < 1.25) v = 1.25; //at least 1.225v
+
+	float vset = (v - 1.25) / 20;
+	int pwm = (int) (vset * 1024 / 1.225);
+	pwm = (pwm > 1023) ? 1023 : pwm;
+	lv_pwm_set(pwm);
+	return 0;
+}
+
+/*
+vfb = vout * 3K / (27K + 3K)
+vout = vfb * 10
+*/
+static float dps_lv_get(void)
+{
+	float vfb = lv_adc_get();
+	vfb *= 2.5 / 65536;
+	float vout = vfb * 10;
+	return vout;
+}
+
+#else
 //VREF=2V5 R89 = 100K R88=47K R50=47K R81=1K
 //VOUT = VREF * RATIO * DF = VMAX * DF
 //=> DF = VOUT / VMAX
@@ -53,7 +94,54 @@ static float dps_lv_get(void)
 	float vout = vadc / (8 * (0.15 / (20 + 0.15 + 4.7)));
 	return vout;
 }
+#endif
 
+static int dps_is_pwm = 0;
+int dps_is_start(void)
+{
+	is_pwm_set(dps_is_pwm);
+}
+
+int dps_is_stop(void)
+{
+	is_pwm_set(0);
+}
+
+#if DPS_LV_V2 == 1
+//bank0: IS_GS0 = 0&IS_GS1 = 1, 0.12mA-122.5mA (1.225v/10ohm)
+//bank1: IS_GS0 = 1&IS_GS1 = 0, 2.04mA-2.085A (1.225V / (4.7ohm / 4) * 2)
+#define IS_BANK_100MA 0x02
+#define IS_BANK_2A 0x01
+static int dps_is_set(float amp)
+{
+	float v; int pwm;
+	//AUTO RANGE ADJUST
+	if(dps_flag_gain_auto & (1 << DPS_IS)) {
+		if(amp > 0.101) dps_is_g = IS_BANK_2A;
+		else dps_is_g = IS_BANK_100MA;
+	}
+
+	//is_pwm_set(0);
+	//wait ... 3mS
+	dps_gain(DPS_IS, dps_is_g, 1);
+
+	switch(dps_is_g) {
+	case IS_BANK_2A: //RS = 4.7R / 4 / 2
+		v = amp * 4.7 / 8;
+		break;
+	case IS_BANK_100MA: //RS = 10R
+	default:
+		v = amp * 10;
+		break;
+	}
+
+	pwm = (int) (v * (1024 / 1.225));
+	pwm = (pwm > 1023) ? 1023 : pwm;
+	is_pwm_set(pwm);
+	dps_is_pwm = pwm;
+	return 0;
+}
+#else
 /*GS0 INA225 GAIN, GS1 RELAY */
 #define IS_GSR50 (1 << 1)
 #define IS_GSR1R 0
@@ -67,17 +155,6 @@ static float dps_lv_get(void)
 
 /*NOTE:  2.5V*0.95 = 2.375*/
 #define IS_RATIO_MAX 0.90
-
-static int dps_is_pwm = 0;
-int dps_is_start(void)
-{
-	is_pwm_set(dps_is_pwm);
-}
-
-int dps_is_stop(void)
-{
-	is_pwm_set(0);
-}
 
 static int dps_is_set(float amp)
 {
@@ -113,6 +190,7 @@ static int dps_is_set(float amp)
 	dps_is_pwm = pwm;
 	return 0;
 }
+#endif
 
 static int dps_hs_set(float v)
 {
@@ -398,6 +476,9 @@ int dps_enable(int dps, int enable)
 		bsp_gpio_set(HV_EN, enable);
 		break;
 	case DPS_IS:
+		if(enable) dps_is_start();
+		else dps_is_stop();
+		break;
 	default:
 		ecode = IRT_E_OP_REFUSED;
 	}
