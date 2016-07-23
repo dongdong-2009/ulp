@@ -272,64 +272,6 @@ static float dps_vs_get(void)
 	float vout = vadc * ratio;
 	return vout;
 }
-#else
-#define HV_VREF_INT 0.996
-#define HV_VREF_PWM 1.250
-#define VREF_ADC 2.500
-
-static int dps_hv_set(float v)
-{
-	dps_hv = v;
-	if(dps_flag_gain_auto & (1 << DPS_HV)) { //auto range adjust
-		if(v > 100.0) dps_hv_g = 1;
-		else dps_hv_g = 0;
-	}
-	dps_gain(DPS_HV, dps_hv_g, 1);
-
-	/* calibrated by fluke 15b
-	*/
-	v *= (dps_hv_g) ?  1.0026 : 1.0082;
-	v += (dps_hv_g) ? 21.7846 : 1.9759;
-
-	/* vpwm + (hv - vpwm) / ratio = vint
-	vpwm * ratio + hv - vpwm = vint * ratio
-	vpwm = (vint * ratio - hv) / (ratio - 1)
-	*/
-	int ratio = (dps_hv_g) ? 9999/9 : 999/9; //unit: kohm
-	v = (HV_VREF_INT * ratio - v) / (ratio - 1);
-
-	int pwm = (int) (v * (1024/ HV_VREF_PWM));
-	pwm = (pwm > 1023) ? 1023 : pwm;
-	pwm = (pwm < 0) ? 0 : pwm;
-	hv_pwm_set(pwm);
-	return 0;
-}
-
-static float dps_hv_get(void)
-{
-	float vadc = hv_adc_get();
-	vadc *= VREF_ADC / 65536;
-
-	int ratio = (dps_hv_g) ? 9999/9 : 999/9; //unit: kohm
-	float vout = vadc * ratio;
-	return vout;
-}
-
-static int dps_vs_set(float v)
-{
-	//vs only has switch on/off function
-	return -IRT_E_OP_REFUSED;
-}
-
-static float dps_vs_get(void)
-{
-	float vadc = vs_adc_get();
-	vadc *= VREF_ADC / 65536;
-
-	int ratio = (dps_hv_g) ? 9999/9 : 999/9; //unit: kohm
-	float vout = vadc * ratio;
-	return vout;
-}
 #endif
 
 void dps_init(void)
@@ -399,42 +341,6 @@ int dps_hv_start(void)
 	//no needs to monitor vs now
 	//instead, over-current is monitored from dmm
 	bsp_gpio_set(VS_EN, 1);
-}
-#else
-int dps_hv_start(void)
-{
-	int ecode = - IRT_E_HV_UP;
-	float vs, delta;
-
-	struct debounce_s vs_good;
-	debounce_init(&vs_good, 10, 0);
-	bsp_gpio_set(VS_EN, 1);
-
-	/*!!!2mS is enough for power-up
-	&over-current protection
-	*/
-	//dps_mdelay(2);
-
-	time_t deadline = time_get(DPS_HVUP_MS);
-	while(time_left(deadline) > 0) {
-		irc_update();
-		vs = dps_vs_get();
-		delta = vs - dps_hv;
-		delta = (delta > 0) ? delta : -delta;
-
-		float delta_max = dps_hv * 0.1 + 5.0;
-		debounce(&vs_good, delta < delta_max);
-		if(vs_good.on) { //OK
-			ecode = 0;
-			break;
-		}
-	}
-
-	if(ecode) {
-		dps_hv_stop();
-		irc_error(ecode);
-	}
-	return ecode;
 }
 #endif
 
