@@ -134,6 +134,12 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			GPIO_WriteBit(GPIOA, GPIO_Pin_1, ba);
 #elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)  || (CONFIG_IRT_UMX == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_1, ba);
+#elif CONFIG_MISC_NPS ==1
+			#if CONFIG_HW_V1P0 == 1
+			GPIO_WriteBit(GPIOE, GPIO_Pin_5, ba);
+			#else
+			GPIO_WriteBit(GPIOE, GPIO_Pin_1, ba);
+			#endif
 #else
 			GPIO_WriteBit(GPIOG, GPIO_Pin_15, ba);
 #endif
@@ -153,6 +159,12 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			GPIO_WriteBit(GPIOA, GPIO_Pin_0, ba);
 #elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)  || (CONFIG_IRT_UMX == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_0, ba);
+#elif CONFIG_MISC_NPS ==1
+			#if CONFIG_HW_V1P0 == 1
+			GPIO_WriteBit(GPIOC, GPIO_Pin_3, ba);
+			#else
+			GPIO_WriteBit(GPIOE, GPIO_Pin_0, ba);
+			#endif
 #else
 			GPIO_WriteBit(GPIOG, GPIO_Pin_8, ba);
 #endif
