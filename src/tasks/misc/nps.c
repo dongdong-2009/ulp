@@ -84,7 +84,8 @@ void nps_init(void)
 	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
 
 	//DAC
-	dac_ch1.init(NULL);
+	const dac_cfg_t cfg = {.option = DAC_OPT_OBUFOFF};
+	dac_ch1.init(&cfg);
 }
 
 void nps_udelay(float uS)
@@ -122,27 +123,15 @@ void nps_enable(int yes)
 
 int nps_vcc_set(float vcc)
 {
-	float gain, vofs;
-	float vref = 2.500; //unit: V
-	float vdac = 0;
+	float gain, dofs;
+	//float vref = 2.500; //unit: V
+	//float vdac = 0;
 	int ddac = 0;
 
-#if CONFIG_HW_V1P0 == 1
-	// gain = 14K/1K OPA170
-	// vofs = 2.5V * 3K / (22K + 3K) = 0.300V
-	gain = 14.00;
-	vofs = 0.300;
-#else
-	//gain = 14K/1K OPA551
-	//vofs = 2.5V * 1K / (6.8K + 1K) = 0.320V
-	gain = 14.00;
-	vofs = 0.320;
-#endif
+	gain = 94.959514610; //99
+	dofs = 548.44226856 + 0.1 * gain; //offset to 0.1v
 
-	vdac = vcc / gain + vofs;
-	vdac = vdac / vref * 4096;
-
-	ddac = (int) vdac;
+	ddac = (int) (vcc * gain + dofs);
 	ddac = (ddac < 0) ? 0 : ddac;
 	ddac = (ddac > 4095) ? 4095 : ddac;
 
@@ -192,21 +181,16 @@ int nps_write(int keycode, int blow)
 	#define vpm 15.0 //mid voltage during programming
 	#define vph 29.0 //high voltage during programming
 
-	blow_ms = (blow) ? blow_ms * 2.5 : 0; //min * 2.5
-#if CONFIG_HW_V1P0 == 1
-	pulw_us = 90; //pulse width
-#else
-	//slow down to solve pulse slewrate issue
+	blow_ms = (blow) ? blow_ms * 1.5 : 0; //min * 2.5
 	pulw_us = 200; //pulse width
-#endif
 
 	//reset last write cycle
-	nps_vcc_set(0.0);
-	nps_mdelay(100.0); //interframe delay
+	//nps_vcc_set(0.0);
+	//nps_mdelay(100.0); //interframe delay
 
 	//current write cycle start
 	nps_vcc_set(vpl);
-	nps_mdelay(1.0);
+	nps_mdelay(2.0);
 
 	//write key
 	nps_vcc_set(vph);
@@ -239,7 +223,10 @@ int nps_write(int keycode, int blow)
 		nps_vcc_set(vpl);
 	}
 
-	nps_mdelay(1.0);
+	nps_mdelay(2.0);
+	nps_vcc_set(0.0);
+
+	nps_mdelay(10.0); //interframe delay
 	return 0;
 }
 
@@ -265,6 +252,7 @@ void main(void)
 {
 	nps_init();
 	sys_init();
+	nps_vcc_set(0.0);
 	while(1) {
 		sys_update();
 	}
@@ -275,9 +263,10 @@ static int cmd_nps_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"allegro relay on		enable allegro signal link\n"
-		"allegro step n		customized labview api\n"
-		"allegro burn key val [!]		key code try set, add ! to burn\n"
-		"allegro dac 1.00		dac output debug, unit: V\n"
+		"allegro step n			customized labview api\n"
+		"allegro burn key val [!]	key code try set, add ! to burn\n"
+		"allegro ddac 0-4095		dac out d setting, for vofs debug\n"
+		"allegro vdac 0-32.0		dac out v setting, for vofs debug\n"
 	};
 
 	int ecode = -1;
@@ -301,7 +290,16 @@ static int cmd_nps_func(int argc, char *argv[])
 		}
 		break;
 
-	case 'd': //dac
+	case 'd': //ddac
+		n = sscanf(argv[2], "%d", &code);
+		if(n == 1) {
+			//ecode = nps_vcc_set(v);
+			ecode = 0;
+			dac_ch1.write(code);
+		}
+		break;
+
+	case 'v': //vdac
 		n = sscanf(argv[2], "%f", &v);
 		if(n == 1) {
 			ecode = nps_vcc_set(v);
@@ -310,7 +308,8 @@ static int cmd_nps_func(int argc, char *argv[])
 
 	case 'r': //relay
 	case 'R':
-		yes = strcmp(argv[1], "on") == 0;
+		nps_vcc_set(0.0);
+		yes = strcmp(argv[2], "on") == 0;
 		nps_enable(yes);
 		ecode = 0;
 		break;
@@ -319,6 +318,8 @@ static int cmd_nps_func(int argc, char *argv[])
 		n = sscanf(argv[2], "%d", &step);
 		if(n > 0) {
 			ecode = nps_step(step);
+			if((step == 2) && (argc == 3))
+				nps_enable(0);
 		}
 		break;
 
@@ -333,3 +334,5 @@ static int cmd_nps_func(int argc, char *argv[])
 
 cmd_t cmd_allegro = {"allegro", cmd_nps_func, "commands for allegro programing"};
 DECLARE_SHELL_CMD(cmd_allegro)
+cmd_t cmd_nps = {"nps", cmd_nps_func, "= allegro command"};
+DECLARE_SHELL_CMD(cmd_nps)
