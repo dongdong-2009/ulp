@@ -11,7 +11,7 @@
 #define PWM_FS_DEF	100
 
 typedef struct {
-	int hz; //desired output pwm frequency, Fclk/fs at most
+	float hz; //desired output pwm frequency, Fclk/fs at most
 	int fs; //pwm full scale value, range: 0x0000~0xFFFF
 } pwm_cfg_t;
 
