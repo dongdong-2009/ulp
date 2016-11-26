@@ -657,12 +657,39 @@ static int cmd_shell_func(int argc, char *argv[])
 		}
 	}
 
-	if(e)
-		printf("%s", usage);
-
+	if(argv[0][0] == 'S') {
+		if(e) printf("<-1, cmd para error\n");
+		else printf("<+0, OK\n");
+	}
+	else {
+		if(e)
+			printf("%s", usage);
+	}
 	return 0;
 }
 
 const cmd_t cmd_shell = {"shell", cmd_shell_func, "shell management commands"};
 DECLARE_SHELL_CMD(cmd_shell)
 #endif
+
+#include "stm32f10x.h"
+
+int cmd_xxx_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"*IDN?		to read identification string\n"
+		"*RST		instrument reset\n"
+	};
+
+	int ecode = 0;
+	if(!strcmp(argv[0], "*IDN?")) {
+		printf("<+0, ULICAR Technology,%s,%s\n\r", __DATE__, __TIME__);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "*RST")) {
+		printf("<+0, OK\n");
+		NVIC_SystemReset();
+	}
+	return 0;
+}
