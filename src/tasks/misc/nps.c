@@ -181,8 +181,8 @@ int nps_write(int keycode, int blow)
 	#define vpm 15.0 //mid voltage during programming
 	#define vph 29.0 //high voltage during programming
 
-	blow_ms = (blow) ? blow_ms * 1.5 : 0; //min * 2.5
-	pulw_us = 200; //pulse width
+	blow_ms = (blow) ? blow_ms * 1.5 * 2 : 0; //min * 2.5
+	pulw_us = 400; //pulse width
 
 	//reset last write cycle
 	//nps_vcc_set(0.0);
@@ -226,7 +226,7 @@ int nps_write(int keycode, int blow)
 	nps_mdelay(2.0);
 	nps_vcc_set(0.0);
 
-	nps_mdelay(10.0); //interframe delay
+	nps_mdelay(40.0); //interframe delay
 	return 0;
 }
 
