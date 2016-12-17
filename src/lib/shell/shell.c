@@ -182,7 +182,7 @@ static struct shell_s *shell_get(const struct console_s *cnsl)
 		}
 	}
 #else
-	if(shell != NULL && shell->console == cnsl)
+	if(shell != NULL) //only 1 cnsl, always return default shell
 		return shell;
 #endif
 	return NULL;
@@ -631,7 +631,6 @@ const cmd_t cmd_autorun = {"autorun", cmd_autorun_func, "autorun a specified cmd
 DECLARE_SHELL_CMD(cmd_autorun)
 #endif
 
-#ifdef CONFIG_CMD_SHELL
 static int cmd_shell_func(int argc, char *argv[])
 {
 	const char *usage = {
@@ -665,4 +664,3 @@ static int cmd_shell_func(int argc, char *argv[])
 
 const cmd_t cmd_shell = {"shell", cmd_shell_func, "shell management commands"};
 DECLARE_SHELL_CMD(cmd_shell)
-#endif
