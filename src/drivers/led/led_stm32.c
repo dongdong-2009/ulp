@@ -82,7 +82,7 @@ void led_hwInit(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
-#elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1) || (CONFIG_IRT_UMX == 1)
+#elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1) || (CONFIG_IRT_UMX == 1) || (CONFIG_MISC_HUBCTRL == 1)
 	/*PC0 RLED, PC1 GLED*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 
@@ -132,7 +132,7 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			GPIO_WriteBit(GPIOB, GPIO_Pin_1, ba);
 #elif CONFIG_MISC_MATRIX == 1
 			GPIO_WriteBit(GPIOA, GPIO_Pin_1, ba);
-#elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)  || (CONFIG_IRT_UMX == 1)
+#elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)  || (CONFIG_IRT_UMX == 1) || (CONFIG_MISC_HUBCTRL == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_1, ba);
 #else
 			GPIO_WriteBit(GPIOG, GPIO_Pin_15, ba);
@@ -151,14 +151,14 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			GPIO_WriteBit(GPIOB, GPIO_Pin_10, ba);
 #elif CONFIG_MISC_MATRIX == 1
 			GPIO_WriteBit(GPIOA, GPIO_Pin_0, ba);
-#elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)  || (CONFIG_IRT_UMX == 1)
+#elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)  || (CONFIG_IRT_UMX == 1) || (CONFIG_MISC_HUBCTRL == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_0, ba);
 #else
 			GPIO_WriteBit(GPIOG, GPIO_Pin_8, ba);
 #endif
 			break;
 		case LED_YELLOW:
-#if (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)  || (CONFIG_IRT_UMX == 1)
+#if (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)  || (CONFIG_IRT_UMX == 1) || (CONFIG_MISC_HUBCTRL == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_0, ba);
 			GPIO_WriteBit(GPIOC, GPIO_Pin_1, ba);
 #else
