@@ -65,5 +65,13 @@ extern const pwm_bus_t pwm43;
 extern const pwm_bus_t pwm44;
 #endif
 
+#ifdef CONFIG_DRIVER_PWM8
+extern const pwm_bus_t pwm8;
+extern const pwm_bus_t pwm81;
+extern const pwm_bus_t pwm82;
+extern const pwm_bus_t pwm83;
+extern const pwm_bus_t pwm84;
+#endif
+
 #endif /*__PWM_H_*/
 
