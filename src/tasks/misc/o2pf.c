@@ -914,7 +914,7 @@ static int cmd_o2if_func(int argc, char *argv[])
 			printf("<-3, test is busy\n");
 			return 0;
 		}
-		if(v < 1.0) { //open load
+		if((v < 1.0) || (v > 1.0e6)) { //open load
 			load_500R_n();
 			load_30kR_n();
 		}
