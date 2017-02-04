@@ -23,6 +23,7 @@
 #include "common/debounce.h"
 
 #define CONFIG_DMM_TRIG 0
+#define CONFIG_PUMP_EN 0 //hw v1.2 not support when r11 not exist
 
 #define GAS_ALARM_WARN_MS 3000
 #define GAS_ALARM_OFF_MS 15000
@@ -267,10 +268,17 @@ void o2pf_bsp_init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10|GPIO_Pin_11|GPIO_Pin_15;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
+
 	#define load_500R_y() GPIOB->BSRR = GPIO_Pin_11
 	#define load_500R_n() GPIOB->BRR = GPIO_Pin_11
+	#define load_30kR_y() GPIOB->BRR  = GPIO_Pin_15
+	#define load_30kR_n() GPIOB->BSRR = GPIO_Pin_15
+
+#if CONFIG_PUMP_EN == 1
 	#define pump_vofs_y() GPIOB->BSRR = GPIO_Pin_15
 	#define pump_vofs_n() GPIOB->BRR  = GPIO_Pin_15
+#endif
+
 	#define mcu_vo2_y() GPIOB->BSRR = GPIO_Pin_10
 	#define mcu_vo2_n() GPIOB->BRR = GPIO_Pin_10
 
@@ -871,7 +879,7 @@ static int cmd_o2if_func(int argc, char *argv[])
 		return 0;
 	}
 
-	int delta1, delta2, n = strlen(argv[1]);
+	int n = strlen(argv[1]);
 	char key = argv[1][n - 1]; //last char
 	float v = 0.0;
 
@@ -906,11 +914,25 @@ static int cmd_o2if_func(int argc, char *argv[])
 			printf("<-3, test is busy\n");
 			return 0;
 		}
-		delta1 = abs(500 - (int) v);
-		delta2 = abs(30000 - (int) v);
-		if(delta1 < delta2) load_500R_y();
-		else load_500R_n();
+		if(v < 1.0) { //open load
+			load_500R_n();
+			load_30kR_n();
+		}
+		else {
+			int rset = (int) v;
+			int delta_500 = (rset > 500) ? (rset - 500) : (500 - rset);
+			int delta_30k = (rset > 30000) ? (rset - 30000) : (30000 - rset);
+			if(delta_500 < delta_30k) {
+				load_500R_y();
+				load_30kR_n();
+			}
+			else {
+				load_500R_n();
+				load_30kR_y();
+			}
+		}
 		break;
+#if CONFIG_PUMP_EN == 1
 	case 'p': //pump
 		if(o2pf_config.test) {
 			printf("<-3, test is busy\n");
@@ -919,6 +941,7 @@ static int cmd_o2if_func(int argc, char *argv[])
 		if(v > 0.5) pump_vofs_y();
 		else pump_vofs_n();
 		break;
+#endif
 	default:
 		printf("<-1, sub cmd not supported\n");
 		return 0;
