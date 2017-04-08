@@ -79,5 +79,16 @@ if [ "$CONFIG_DRIVER_UART3" = "y" ]; then
 fi
 fi
 
+#uart4
+bool "enable uart4" CONFIG_DRIVER_UART4
+if [ "$CONFIG_DRIVER_UART4" = "y" ]; then
+	bool "enable uart4 as console" CONFIG_SHELL_UART4
+	if [ "$CONFIG_CPU_STM32" = "y" ]; then
+		int "tx fifo size" CONFIG_UART4_TF_SZ 64
+		int "rx fifo size" CONFIG_UART4_RF_SZ 32
+	fi
+fi
+fi
+
 bool "add md204l module" CONFIG_DEVICE_MD204L
 bool "add ls1203 module" CONFIG_DEVICE_LS1203

@@ -1,28 +1,29 @@
 /*
  * 	miaofng@2009 initial version
  *	miaofng@2010 update to new api format
+ *  miaofng@2017 port to uart4
  */
 
 #include "config.h"
 #include "uart.h"
 #include "stm32f10x.h"
 
-#define uart USART3
-#define dma_ch_tx DMA1_Channel2
-#define dma_ch_rx DMA1_Channel3
+#define uart UART4
+#define dma_ch_tx DMA2_Channel5
+#define dma_ch_rx DMA2_Channel3
 
-#if CONFIG_UART3_TF_SZ > 0
+#if CONFIG_UART4_TF_SZ > 0
 #define ENABLE_TX_DMA 1
-#define TX_FIFO_SZ CONFIG_UART3_TF_SZ
+#define TX_FIFO_SZ CONFIG_UART4_TF_SZ
 static char uart_fifo_tx[TX_FIFO_SZ];
 static short uart_fifo_tn; //nr of bytes to send
 static short uart_fifo_tp; //pos of tx fifo start
 static void uart_SetupTxDMA(void *p, int n);
 #endif
 
-#if CONFIG_UART3_RF_SZ > 0
+#if CONFIG_UART4_RF_SZ > 0
 #define ENABLE_RX_DMA 1
-#define RX_FIFO_SZ CONFIG_UART3_RF_SZ
+#define RX_FIFO_SZ CONFIG_UART4_RF_SZ
 static char uart_fifo_rx[RX_FIFO_SZ];
 static short uart_fifo_rn;
 static void uart_SetupRxDMA(void *p, int n);
@@ -33,17 +34,17 @@ static int uart_Init(const uart_cfg_t *cfg)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef uartinfo;
 
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
-	/*configure PB10<uart3.tx>, PB11<uart3.rx>*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
+	/*configure PC10<uart4.tx>, PC11<uart4.rx>*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
 	/*init serial port*/
 	USART_StructInit(&uartinfo);
@@ -51,7 +52,7 @@ static int uart_Init(const uart_cfg_t *cfg)
 	USART_Init(uart, &uartinfo);
 
 #ifdef ENABLE_TX_DMA
-	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA2, ENABLE);
 	uart_SetupTxDMA(uart_fifo_tx, 0);
 	USART_DMACmd(uart, USART_DMAReq_Tx, ENABLE);
 	uart_fifo_tn = 0;
@@ -59,7 +60,7 @@ static int uart_Init(const uart_cfg_t *cfg)
 #endif
 
 #ifdef ENABLE_RX_DMA
-	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA2, ENABLE);
 	uart_SetupRxDMA(uart_fifo_rx, RX_FIFO_SZ);
 	USART_DMACmd(uart, USART_DMAReq_Rx, ENABLE);
 	uart_fifo_rn = 0;
@@ -74,11 +75,11 @@ static int uart_wake(int op)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_TypeDef* GPIOx;
-	
+
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
-	GPIOx = GPIOB;
+	GPIOx = GPIOC;
 
 	switch (op) {
 	case WAKE_EN:
@@ -97,7 +98,7 @@ static int uart_wake(int op)
 	default:
 		break;
 	}
-	
+
 	return 0;
 }
 #endif
@@ -107,12 +108,12 @@ static int uart_putchar(int data)
 	char c = (char) data;
 #ifdef ENABLE_TX_DMA
 	int i, j, n;
-	
+
 	//wait ... no enough fifo space to use
 	do {
 		n = DMA_GetCurrDataCounter(dma_ch_tx);
 	} while(TX_FIFO_SZ - n < 1);
-	
+
 	//copy
 	DMA_Cmd(dma_ch_tx, DISABLE);
 	n = DMA_GetCurrDataCounter(dma_ch_tx);
@@ -127,10 +128,10 @@ static int uart_putchar(int data)
 	else {
 		i = uart_fifo_tp + n;
 	}
-	
+
 	uart_fifo_tx[i ++] = c;
 	n ++;
-	
+
 	uart_fifo_tn = n;
 	uart_SetupTxDMA(uart_fifo_tx + uart_fifo_tp, n);
 #else
@@ -220,7 +221,7 @@ static void uart_SetupRxDMA(void *p, int n)
 }
 #endif
 
-uart_bus_t uart3 = {
+uart_bus_t uart4 = {
 	.init = uart_Init,
 	.putchar = uart_putchar,
 	.getchar = uart_getch,
