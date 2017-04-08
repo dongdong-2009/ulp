@@ -61,6 +61,14 @@ void shell_Init(void)
 	uart2.init(&cfg);
 	shell_register((const struct console_s *) &uart2);
 #endif
+#ifdef CONFIG_SHELL_UART3
+	uart3.init(&cfg);
+	shell_register((const struct console_s *) &uart3);
+#endif
+#ifdef CONFIG_SHELL_UART4
+	uart4.init(&cfg);
+	shell_register((const struct console_s *) &uart4);
+#endif
 }
 
 void shell_Update(void)
@@ -191,12 +199,28 @@ static struct shell_s *shell_get(const struct console_s *cnsl)
 int shell_mute_set(const struct console_s *cnsl, int enable)
 {
 	int ret = -1;
-	struct shell_s *s = shell_get(cnsl);
-	if(s != NULL) {
-		enable = (enable) ? SHELL_CONFIG_MUTE : 0;
-		s->config &= ~SHELL_CONFIG_MUTE;
-		s->config |= enable;
-		ret = 0;
+	struct shell_s *s;
+
+	if(cnsl == NULL) { //mute all console
+#ifdef CONFIG_SHELL_MULTI
+		struct list_head *pos;
+		list_for_each(pos, &shell_queue) {
+			s = list_entry(pos, shell_s, list);
+			enable = (enable) ? SHELL_CONFIG_MUTE : 0;
+			s->config &= ~SHELL_CONFIG_MUTE;
+			s->config |= enable;
+		}
+		return 0;
+#endif
+	}
+	else {
+		s = shell_get(cnsl);
+		if(s != NULL) {
+			enable = (enable) ? SHELL_CONFIG_MUTE : 0;
+			s->config &= ~SHELL_CONFIG_MUTE;
+			s->config |= enable;
+			ret = 0;
+		}
 	}
 	return ret;
 }
