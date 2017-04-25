@@ -41,8 +41,12 @@ int irc_send(const can_msg_t *msg)
 	int ecode = -IRT_E_CAN_SEND;
 	time_t deadline = time_get(IRC_CAN_MS);
 	irc_bus->flush_tx();
-	if(!irc_bus->send(msg)) { //wait until message are sent
-		while(time_left(deadline) > 0) {
+	int not_sent = 1;
+	while(time_left(deadline) > 0) {
+		if(not_sent) {
+			not_sent = irc_bus->send(msg);
+		}
+		else { //wait until message are sent
 			if(irc_bus->poll(CAN_POLL_TBUF) == 0) {
 				ecode = 0;
 				break;
@@ -50,6 +54,7 @@ int irc_send(const can_msg_t *msg)
 		}
 	}
 
+	irc_error(ecode);
 	return ecode;
 }
 
@@ -190,6 +195,10 @@ int cmd_xxx_func(int argc, char *argv[])
 		}
 	}
 	else if(!strcmp(argv[0], "*RST")) {
+		dps_set(DPS_HV, 0.0);
+		dps_enable(DPS_VS, 0);
+		vm_wait(5);
+
 		mxc_reset(MXC_SLOT_ALL);
 		board_reset();
 	}

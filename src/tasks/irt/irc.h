@@ -22,8 +22,8 @@
 #define CAN_TYPE(id) (id & 0x0F00)
 #define CAN_NODE(id) (id & 0x00FF) //who send(slot)/to recv(irc) the msg
 
-#define IRC_CAN_MS 5 //can communication timeout setting
-#define IRC_RLY_MS 10 //LE wait ms at most
+#define IRC_CAN_MS 20 //can communication timeout setting
+#define IRC_RLY_MS 20 //LE wait ms at most
 #define IRC_DMM_MS 10000 //DMM finish pulse wait at most
 #define IRC_UPD_MS 2 //longest system suspend time
 #define IRC_POL_MS 500 //POLL MS

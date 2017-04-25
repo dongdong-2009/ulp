@@ -105,17 +105,17 @@ static void mxc_emit(int can_id, int do_measure)
 
 					if(mxc_flag.hv) {
 						dps_hv_start();
-						vm_wait(5);
+						//vm_wait(5);
 						mxc_measure();
 						dps_hv_stop();
-						vm_wait(5);
+						//vm_wait(5);
 					}
 					else {
 						dps_is_start();
-						vm_wait(5);//wait for is up
+						vm_wait(1);//wait for is up
 						mxc_measure();
 						dps_is_stop();
-						vm_wait(5); //wait for is reach 0A
+						vm_wait(1); //wait for is reach 0A
 					}
 				}
 			}
@@ -323,13 +323,14 @@ int mxc_scan(void *image, int type)
 int mxc_latch(void)
 {
 	int ecode = -IRT_E_LATCH_H;
-	time_t deadline = time_get(IRC_RLY_MS);
-	time_t suspend = time_get(IRC_UPD_MS);
+	time_t deadline = time_get(IRC_RLY_MS*2);
+	//time_t suspend = time_get(IRC_UPD_MS); //update() maybe too long
 
 	le_set(1);
 	while(time_left(deadline) > 0) {
 		if(le_get() > 0) { //ok? break
-			vm_wait(1);
+			//vm_wait(1);
+			mdelay(1);
 			le_set(0);
 			vm_wait(1);
 			ecode = 0;
@@ -337,11 +338,14 @@ int mxc_latch(void)
 		}
 
 		//update if waiting too long ... to avoid system suspend
-		if(time_left(suspend) < 0) {
+		/*if(time_left(suspend) < 0) {
 			sys_update();
-		}
+		}*/
 	}
 
+	if (ecode) {
+		irc_error(ecode);
+	}
 	return ecode;
 }
 
@@ -436,6 +440,7 @@ static int cmd_mxc_func(int argc, char *argv[])
 		"MXC HELP\n"
 		"MXC DEBUG				MXC SOFTWARE DEBUG SWITCH\n"
 		"MXC DUMP\n"
+		"MXC STATUS\n			show mxc current handshake gpio level\n"
 	};
 
 	if((argc > 1) && !strcmp(argv[1], "PING")) {
@@ -492,6 +497,12 @@ static int cmd_mxc_func(int argc, char *argv[])
 
 		//dump matrix vitrual machine
 		vm_dump();
+		return 0;
+	}
+	else if((argc > 0) && !strcmp(argv[1], "STATUS")) {
+		int le = le_get();
+		int vm = trig_level_get();
+		printf("le = %d, vm = %d\n", le, vm);
 		return 0;
 	}
 	else if((argc > 0) && !strcmp(argv[1], "HELP")) {
