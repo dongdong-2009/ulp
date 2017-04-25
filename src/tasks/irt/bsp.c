@@ -12,13 +12,15 @@
 #include "bsp.h"
 #include "shell/cmd.h"
 
+#define DMM_POLAR_POS 0
+
 static volatile int irc_vmcomp_pulsed;
 
 /*
 TRIG	PE2	OUT
 VMCOMP	PE3	IN
-LE_D	PC6	OUT
-LE_R	PC7	IN
+LE_D	PC7	OUT
+LE_R	PC6	IN
 MBI_OE	PB10	OUT
 */
 static void gpio_init(void)
@@ -59,7 +61,11 @@ static void gpio_init(void)
 	GPIO_EXTILineConfig(GPIO_PortSourceGPIOE, GPIO_PinSource3);
 	EXTI_InitStruct.EXTI_Line = EXTI_Line3;
 	EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
+#if DMM_POLAR_POS == 1
 	EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
+#else
+	EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Falling;
+#endif
 	EXTI_InitStruct.EXTI_LineCmd = ENABLE;
 	EXTI_Init(&EXTI_InitStruct);
 }
@@ -213,7 +219,15 @@ void oe_set(int high) {
 }
 
 /*TRIG PE2 OUT*/
-void trig_set(int high) {
+void trig_set(int yes) {
+	int high;  //phy level
+
+#if DMM_POLAR_POS == 1
+	high = yes;
+#else
+	high = !yes;
+#endif
+
 	irc_vmcomp_pulsed = 0;
 	if(high) {
 		GPIOE->BSRR = GPIO_Pin_2;
@@ -226,6 +240,10 @@ void trig_set(int high) {
 /*VMCOMP PE3 IN*/
 int trig_get(void) {
 	return irc_vmcomp_pulsed;
+}
+
+int trig_level_get(void) { //PE3
+	return (GPIOE->IDR & GPIO_Pin_3) ? 1 : 0;
 }
 
 /*LE_txd PC7*/

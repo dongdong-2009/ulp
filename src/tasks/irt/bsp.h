@@ -13,8 +13,9 @@
 
 void board_init(void);
 void board_reset(void);
-void trig_set(int high);
+void trig_set(int yes); //enable trig signal, high or low level depends on configuration
 int trig_get(void); //vmcomp pulsed
+int trig_level_get(void); //vmcomp physical level
 void le_set(int high);
 int le_get(void);
 void rly_set(int mode);
