@@ -18,7 +18,12 @@
 *  - polar config & fast discharge (1kV->1A@1kohm)
 *  miaofng@2016-8-18  add dps hv board v4.2 support
 *  - add dps_hv(not vs) fast discharge support!
-*
+*  miaofng@2016-8-26  add dps lv board v2.1 support
+*  - add dps is fast start/stop
+*  miaofng@2016-8-29 unify dps_set() regular
+*  - dps_hv_set() <=0 turn off hv_en, >0 turn on hv_en and keep vs_en
+*  - dps_lv_set() <=0 turn off lv_en, >0 keep lv_en
+*  - dps_is_set() <=0 turn off is_en, >0 keep is_en
 */
 #include "ulp/sys.h"
 #include "irc.h"
@@ -32,8 +37,13 @@
 #include "vm.h"
 
 #define DPS_HV_V4 1
-#define DPS_HV_AC 1 /*AUTO SWITCH HV POLAR*/
-#define DPS_LV_V2 1 /*XL4015*/
+#define DPS_HV_AC 0 /*AUTO SWITCH HV POLAR*/
+#define DPS_LV_2754 1 /*XL4015*/
+
+#if DPS_LV_2754 == 1
+#define IS_GS IS_GS0
+#define IS_EN IS_GS1
+#endif
 
 static float dps_lv;
 static float dps_hv;
@@ -46,7 +56,7 @@ static int dps_is_g;
 static int dps_hv_g;
 
 #if DPS_HV_V4 == 1
-static char dps_hv_polar = '+';
+static char dps_hv_polar = 0;
 #endif
 
 static struct debounce_s dps_mon_lv;
@@ -55,25 +65,28 @@ static struct debounce_s dps_mon_hv;
 
 #define VREF_ADC 2.500
 
-#if DPS_LV_V2 == 1
+#if DPS_LV_2754 == 1
 /*
 vout = 1.25v + is * 10Kohm = 1.25v + vset / 0.5K * 10K
 => vset = ( vout - 1.25v ) / 20
 */
 static int dps_lv_set(float v)
 {
-	dps_enable(DPS_LV, 0); //FAST DISCHARGE
-	vm_wait(3); //1.4mS in the scope
+	int lv_enabled = dps_flag_enable & (1 << DPS_LV);
+	if(lv_enabled) {
+		dps_enable(DPS_LV, 0); //FAST DISCHARGE
+		vm_wait(3); //1.4mS in the scope
+	}
 
 	dps_lv = v;
 	if(v > 1.5) {
+		dps_enable(DPS_LV, lv_enabled);
+
 		float vset = (v - 1.25) / 20;
 		int pwm = (int) (vset * 1024 / 1.225);
 		pwm = (pwm > 1023) ? 1023 : pwm;
 		lv_pwm_set(pwm);
 		vm_wait(3); //2mS in the scope
-
-		dps_enable(DPS_LV, 1);
 	}
 	return 0;
 }
@@ -96,8 +109,10 @@ int dps_lv_start(int ms)
 		//already started
 	}
 	else {
-		dps_enable(DPS_LV, 1); //19uS@2A
-		vm_wait(ms);
+		if(dps_lv > 1.5) {
+			dps_enable(DPS_LV, 1); //19uS@2A
+			vm_wait(ms);
+		}
 	}
 	return 0;
 }
@@ -108,143 +123,58 @@ int dps_lv_stop(void)
 	return 0;
 }
 #endif
-#if DPS_LV_V1 == 1
-//VREF=2V5 R89 = 100K R88=47K R50=47K R81=1K
-//VOUT = VREF * RATIO * DF = VMAX * DF
-//=> DF = VOUT / VMAX
-static int dps_lv_set(float v)
-{
-	dps_lv = v;
-	#define lv_vmax (2.5 * 47/(100+47) * (47+1) / 1) //38v
-	int pwm = (int) (v * (1024/ lv_vmax));
-	pwm = (pwm > 1023) ? 1023 : pwm;
-	lv_pwm_set(pwm);
-	return 0;
-}
 
-//R76=20K R91=0.15 R90=4.7K GAIN = 8
-//VADC = VOUT * RATIO * 8 => VOUT = VADC / 8 / RATIO
-static float dps_lv_get(void)
-{
-	float vadc = lv_adc_get();
-	vadc *= 2.5 / 65536;
-	float vout = vadc / (8 * (0.15 / (20 + 0.15 + 4.7)));
-	return vout;
-}
-#endif
-
-static int dps_is_pwm = 0;
 int dps_is_start(void)
 {
-	is_pwm_set(dps_is_pwm);
+	dps_enable(DPS_IS, 1);
+	vm_wait(1);
 	return 0;
 }
 
 int dps_is_stop(void)
 {
-	is_pwm_set(0);
+	dps_enable(DPS_IS, 1);
+	vm_wait(1);
 	return 0;
 }
 
-#if DPS_LV_V2 == 1
-//bank0: IS_GS0 = 0&IS_GS1 = 1, 0.12mA-122.5mA (1.225v/10ohm)
-//bank1: IS_GS0 = 1&IS_GS1 = 0, 2.04mA-2.085A (1.225V / (4.7ohm / 4) * 2)
-#define IS_BANK_100MA 0x02
-#define IS_BANK_2A 0x01
+#if DPS_LV_2754 == 1
+//bank_LO: IS_GS = 0, 0.245mA-24.5mA (1.225v/50ohm)
+//bank_HI: IS_GS = 1, 24.50mA-2450mA (1.225V/0.5ohm)
+#define IS_BANK_LO 0x00 //0.2-100mA
+#define IS_BANK_HI 0x01 //100-2000mA
 static int dps_is_set(float amp)
 {
 	float v; int pwm;
+
 	//AUTO RANGE ADJUST
 	if(dps_flag_gain_auto & (1 << DPS_IS)) {
-		if(amp > 0.101) dps_is_g = IS_BANK_2A;
-		else dps_is_g = IS_BANK_100MA;
+		if(amp > 0.120) dps_is_g = IS_BANK_HI;
+		else if(amp < 0.080) dps_is_g = IS_BANK_LO;
 	}
 
-	//is_pwm_set(0);
-	//wait ... 3mS
 	dps_gain(DPS_IS, dps_is_g, 1);
-
-	switch(dps_is_g) {
-	case IS_BANK_2A: //RS = 4.7R / 4 / 2
-		v = amp * 4.7 / 8;
-		break;
-	case IS_BANK_100MA: //RS = 10R
-	default:
-		v = amp * 10;
-		break;
-	}
+	float Rsense = (dps_is_g == IS_BANK_HI) ? 0.5 : 10;
+	v = amp * Rsense;
 
 	pwm = (int) (v * (1024 / 1.225));
 	pwm = (pwm > 1023) ? 1023 : pwm;
 	is_pwm_set(pwm);
-	dps_is_pwm = pwm;
-	return 0;
-}
-#endif
-#if DPS_LV_V1 == 1
-/*GS0 INA225 GAIN, GS1 RELAY */
-#define IS_GSR50 (1 << 1)
-#define IS_GSR1R 0
-#define IS_GS100 (1 << 0)
-#define IS_GS025 0
 
-#define IS_RSH  1.000 //ohm
-#define IS_RSL  0.050 //ohm
-#define IS_GH   100 //INA225 GAIN
-#define IS_GL   25
-
-/*NOTE:  2.5V*0.95 = 2.375*/
-#define IS_RATIO_MAX 0.90
-
-static int dps_is_set(float amp)
-{
-	float v; int pwm;
-	//AUTO RANGE ADJUST
-	if(dps_flag_gain_auto & (1 << DPS_IS)) {
-		if(amp > 0.5*IS_RATIO_MAX) dps_is_g = IS_GSR50 | IS_GS025;
-		else if(amp > 0.1*IS_RATIO_MAX) dps_is_g = IS_GSR50 | IS_GS100;
-		else if(amp > 0.025*IS_RATIO_MAX) dps_is_g = IS_GSR1R | IS_GS025;
-		else dps_is_g = IS_GSR1R | IS_GS100;
+	//IS OFF?
+	if(amp < 1.0e-6) {
+		dps_enable(DPS_IS, 0);
+		vm_wait(1);
 	}
-
-	dps_gain(DPS_IS, dps_is_g, 1);
-	switch(dps_is_g) {
-	case 0: //1R GAIN = 25
-		v = amp * (IS_RSH * IS_GL);
-		break;
-	case 1: //1R GAIN = 100
-		v = amp * (IS_RSH * IS_GH);
-		break;
-	case 2: //50mR, GAIN = 25
-		v = amp * (IS_RSL * IS_GL);
-		break;
-	case 3:	//50mR, GAIN = 100
-	default:
-		v = amp * (IS_RSL * IS_GH);
-		break;
-	}
-
-	pwm = (int) (v * (1024 / 2.5));
-	pwm = (pwm > 1023) ? 1023 : pwm;
-	is_pwm_set(pwm);
-	dps_is_pwm = pwm;
 	return 0;
 }
 #endif
 
-#if DPS_LV_V2 == 1
+#if DPS_LV_2754 == 1
 static int dps_hs_set(float v)
 {
 	//hs always 12v
 	dps_hs = 12.0;
-	return 0;
-}
-#endif
-#if DPS_LV_V1 == 1
-static int dps_hs_set(float v)
-{
-	dps_hs = (v > 10.0) ? 13.0 : 7.0;
-	bsp_gpio_set(HS_VS, v > 10.0);
 	return 0;
 }
 #endif
@@ -305,29 +235,28 @@ static float dps_vs_get(void)
 }
 #endif
 #if DPS_HV_V4 == 1
-
+/*HV_EN is controled automaticly*/
 #define HV_VREF_PWM 1.225
 static int dps_hv_set(float v)
 {
-	//too low, turn off
-	if(v <= 10.0) {
-		v = 0.0;
-	}
+	v = (v <= 20.0) ? 0.0 : v; //too low ? turn off
+	int hv_enabled = dps_flag_enable & (1 << DPS_HV);
+	int vs_enabled = dps_flag_enable & (1 << DPS_VS);
 
-	if(v < dps_hv) {
+	if(hv_enabled && v < dps_hv) {
 		//fast discharge
 		dps_enable(DPS_HV, 0);
 
 		bsp_gpio_set(VS_UP, 1);
 		bsp_gpio_set(VS_DN, 1);
-		vm_wait(300); //123mS@(1kv,6mA)
+		vm_wait(250); //123mS@(1kv,6mA)
 
 		//resume vs settings
-		dps_enable(DPS_VS, dps_flag_enable & (1 << DPS_VS));
+		dps_enable(DPS_VS, vs_enabled);
 	}
 
 	dps_hv = v;
-	if(v > 0) {
+	if(v > 0.0) {
 		dps_enable(DPS_HV, 1);
 		v /= 1000; //1000:1
 
@@ -357,7 +286,7 @@ static float dps_vs_get(void)
 {
 	float vadc = vs_adc_get();
 	vadc *= VREF_ADC / 65536;
-	float vout = vadc * 1000;
+	float vout = vadc * 100; //1000:1 * 10(G: adum3190)
 	return vout;
 }
 #endif
@@ -370,10 +299,9 @@ void dps_init(void)
 	dps_enable(DPS_VS, 0);
 
 	//set default value
-	dps_set(DPS_LV, 12.0);
-	dps_set(DPS_HS, 8.0);
-	dps_set(DPS_HV, 5.0);
-	dps_set(DPS_IS, 0.010);
+	dps_set(DPS_LV, 0.0);
+	dps_set(DPS_HV, 0.0);
+	dps_set(DPS_IS, 0.0);
 
 	dps_hv_stop();
 }
@@ -405,6 +333,7 @@ void dps_update(void)
 		delta = (delta > 0) ? delta : -delta;
 		debounce(&dps_mon_lv, delta > 3.0);
 		if(dps_mon_lv.on) {
+			dps_set(DPS_LV, 0.0); //turn off
 			irc_error(-IRT_E_LV);
 		}
 	}
@@ -417,6 +346,7 @@ void dps_update(void)
 		delta = (delta > 0) ? delta : -delta;
 		debounce(&dps_mon_hs, delta > 2.0);
 		if(dps_mon_hs.on) {
+			dps_set(DPS_HS, 0.0); //turn off
 			irc_error(-IRT_E_HS);
 		}
 	}
@@ -454,7 +384,7 @@ int dps_hv_stop(void)
 	while(time_left(deadline) > 0) {
 		irc_update();
 		vs = dps_vs_get();
-		debounce(&vs_good, vs < 24.0);
+		debounce(&vs_good, vs < 49.0); //to avoid adum3190 vos issue (0.049v)
 		if(vs_good.on) { //OK
 			ecode = 0;
 			break;
@@ -467,14 +397,20 @@ int dps_hv_stop(void)
 	}
 
 	/*switch polar*/
+	char polar = '+';
 #if DPS_HV_V4 == 1
 	#if DPS_HV_AC == 1
-	if(dps_hv_polar == '+') dps_hv_polar = '-';
-	else dps_hv_polar = '+';
+	if(dps_hv_polar == '+') polar = '-';
+	else polar = '+';
+	#else
+	polar = (dps_hv_polar == '+') ? dps_hv_polar : '+';
 	#endif
 
-	bsp_gpio_set(VS_POL, dps_hv_polar == '+');
-	vm_wait(5); //relay response 5mS
+	if(polar != dps_hv_polar) {
+		dps_hv_polar = polar;
+		bsp_gpio_set(VS_POL, dps_hv_polar == '-');
+		vm_wait(5); //relay response 5mS
+	}
 #endif
 
 	return ecode;
@@ -492,7 +428,7 @@ int dps_enable(int dps, int enable)
 
 	switch(dps) {
 	case DPS_LV:
-		debounce_t_init(&dps_mon_lv, 100, 0); //max 100mS, no error
+		debounce_t_init(&dps_mon_lv, 1000, 0); //max 1000mS, no error
 		bsp_gpio_set(LV_EN, enable);
 		break;
 	case DPS_HS:
@@ -512,8 +448,7 @@ int dps_enable(int dps, int enable)
 		bsp_gpio_set(HV_EN, enable);
 		break;
 	case DPS_IS:
-		if(enable) dps_is_start();
-		else dps_is_stop();
+		bsp_gpio_set(IS_EN, enable);
 		break;
 	default:
 		ecode = IRT_E_OP_REFUSED;
@@ -530,8 +465,8 @@ int dps_gain(int dps, int gain, int execute)
 	case DPS_IS:
 		if(execute) {
 			dps_is_g = gain;
-			bsp_gpio_set(IS_GS0, gain & 0x01);
-			bsp_gpio_set(IS_GS1, gain & 0x02);
+			bsp_gpio_set(IS_GS, gain);
+			vm_wait(1); //t = q/i = cu / i = 100N * 5v / 8mA = 62uS
 		}
 		else {
 			if(gain < 0) {
