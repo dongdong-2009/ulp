@@ -327,8 +327,8 @@ int can_poll(int fifo)
 		break;
 	case CAN_POLL_TBUF:
 		n = (tsr & (1 << 26)) ? 0 : 1;
-		n += (tsr & (1 << 26)) ? 0 : 1;
-		n += (tsr & (1 << 26)) ? 0 : 1;
+		n += (tsr & (1 << 27)) ? 0 : 1;
+		n += (tsr & (1 << 28)) ? 0 : 1;
 		break;
 
 	case CAN_POLL_RBUF0:
