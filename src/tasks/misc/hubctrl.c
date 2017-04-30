@@ -230,6 +230,10 @@ void hub_init(void)
 	GPIO_BIND(PA0, DG_S0, 0);
 	GPIO_BIND(PA1, DG_S1, 0);
 	GPIO_BIND(PA2, DG_S2, 0);
+
+	/*HUB RESET*/
+	GPIO_BIND(PC2, HUB0_RST, 0);
+	GPIO_BIND(PC3, HUB1_RST, 0);
 }
 
 void hub_update(void)
@@ -254,6 +258,14 @@ void main()
 	sys_init();
 	shell_mute(NULL);
 	hub_init();
+
+	//FE1.1S RESET
+	GPIO_SET(HUB0_RST, 1);
+	GPIO_SET(HUB1_RST, 1);
+	sys_mdelay(2);
+	GPIO_SET(HUB0_RST, 0);
+	GPIO_SET(HUB1_RST, 0);
+
 	printf("hubctrl sw v2.x, build: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
 		sys_update();
