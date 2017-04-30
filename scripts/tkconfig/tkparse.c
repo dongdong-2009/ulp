@@ -74,12 +74,12 @@ static void syntax_error( const char * msg )
 
 
 /*
- * Find index of a specyfic variable in the symbol table.
+ * Find index of a specific variable in the symbol table.
  * Create a new entry if it does not exist yet.
  */
-#define VARTABLE_SIZE 2048
-struct variable vartable[VARTABLE_SIZE];
+struct variable *vartable;
 int max_varnum = 0;
+static int vartable_size = 0;
 
 int get_varnum( char * name )
 {
@@ -88,8 +88,13 @@ int get_varnum( char * name )
     for ( i = 1; i <= max_varnum; i++ )
 	if ( strcmp( vartable[i].name, name ) == 0 )
 	    return i;
-    if (max_varnum > VARTABLE_SIZE-1)
-	syntax_error( "Too many variables defined." );
+    while (max_varnum+1 >= vartable_size) {
+	vartable = realloc(vartable, (vartable_size += 1000)*sizeof(*vartable));
+	if (!vartable) {
+	    fprintf(stderr, "tkparse realloc vartable failed\n");
+	    exit(1);
+	}
+    }
     vartable[++max_varnum].name = malloc( strlen( name )+1 );
     strcpy( vartable[max_varnum].name, name );
     return max_varnum;
@@ -735,22 +740,17 @@ static void tokenize_line( const char * pnt )
 }
 
 
-static char *genv;
-static char *genv_extra;
 
 /*
  * Implement the "source" command.
  */
 static void do_source( const char * filename )
 {
-    char buffer[2048], buffer2[1024], buffer3[1024];
-    FILE * infile, *hfile, *ofile;
+    char buffer [2048];
+    FILE * infile;
     const char * old_file;
     int old_lineno;
     int offset;
-    static first = 0, first2 = 0, first3 = 0;
-
-    strcpy(buffer, filename);
 
     /* open the file */
     if ( strcmp( filename, "-" ) == 0 )
@@ -758,75 +758,17 @@ static void do_source( const char * filename )
     else
 	infile = fopen( filename, "r" );
 
-    /* if that failed, try second argument as path */
-    if (( infile == NULL ) && (genv))
+    /* if that failed, try ../filename */
+    if ( infile == NULL )
     {
-	sprintf( buffer, "%s/%s", genv, filename );
-	infile = fopen( buffer, "r" );
-    }
-
-    /* if that failed, try third argument as path */
-    if (( infile == NULL ) && (genv_extra))
-    {
-	sprintf( buffer, "%s/%s", genv_extra, filename );
+	sprintf( buffer, "../%s", filename );
 	infile = fopen( buffer, "r" );
     }
 
     if ( infile == NULL )
     {
-	sprintf( buffer, "unable to open %s", buffer );
+	sprintf( buffer, "unable to open %s", filename );
 	syntax_error( buffer );
-    } else {
-	strcpy(buffer2, buffer);
-	strcpy(buffer3, buffer);
-	strcat(buffer, ".h");
-	hfile = fopen( buffer, "r" );
-	if (hfile != NULL) {
-	  if (first)
-	    ofile = fopen( "tkconfig.h", "a" );
-	  else {
-	    ofile = fopen( "tkconfig.h", "w" );
-	    first = 1;
-	  }
-	  while (!feof(hfile)) {
-	    offset = fread(buffer, 1, 1024, hfile);
-	    fwrite(buffer, 1, offset, ofile);
-	  }
-	  fclose( hfile );
-	  fclose( ofile );
-	}
-	strcat(buffer2, ".help");
-	hfile = fopen( buffer2, "r" );
-	if (hfile != NULL) {
-	  if (first2)
-	    ofile = fopen( "config.help", "a" );
-	  else {
-	    ofile = fopen( "config.help", "w" );
-	    first2 = 1;
-	  }
-	  while (!feof(hfile)) {
-	    offset = fread(buffer, 1, 1024, hfile);
-	    fwrite(buffer, 1, offset, ofile);
-	  }
-	  fclose( hfile );
-	  fclose( ofile );
-	}
-	strcat(buffer3, ".vhd");
-	hfile = fopen( buffer3, "r" );
-	if (hfile != NULL) {
-	  if (first3)
-	    ofile = fopen( "config.vhd.h", "a" );
-	  else {
-	    ofile = fopen( "config.vhd.h", "w" );
-	    first3 = 1;
-	  }
-	  while (!feof(hfile)) {
-	    offset = fread(buffer, 1, 1024, hfile);
-	    fwrite(buffer, 1, offset, ofile);
-	  }
-	  fclose( hfile );
-	  fclose( ofile );
-	}
     }
 
     /* push the new file name and line number */
@@ -876,12 +818,11 @@ static void do_source( const char * filename )
 /*
  * Main program.
  */
-int main( int argc, char * argv [] )
+int main( int argc, const char * argv [] )
 {
-    if (argc >= 3) genv = argv[2];
-    if (argc == 4) genv_extra = argv[3];
     do_source        ( argv[1]         );
     fix_conditionals ( config_list );
     dump_tk_script   ( config_list );
+    free(vartable);
     return 0;
 }
