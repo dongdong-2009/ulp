@@ -5,6 +5,8 @@
  *
  */
 
+#include "common/bitops.h"
+
 int htoi(char s[])
 {
 	int i;
@@ -34,4 +36,21 @@ int htoi(char s[])
 	return n;
 }
 
+//return how many 1 in para x
+int bitcount(int x)
+{
+	const int nbits[] = {
+		0, 1, 1, 2, /*0-3*/
+		1, 2, 2, 3, /*4-7*/
+		1, 2, 2, 3, /*8-11*/
+		2, 3, 3, 4, /*12-15*/
+	};
 
+	int n = 0, subx;
+	while(x > 0) {
+		subx = x & 0xff;
+		x >>= 4;
+		n += nbits[subx];
+	}
+	return n;
+}
