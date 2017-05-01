@@ -11,7 +11,7 @@
 
 #include "bsp.h"
 #include "pdi.h"
-#include "ecu.h"
+#include "../ecu/ecu.h"
 
 const char *pdi_fixture_id = "R035";
 

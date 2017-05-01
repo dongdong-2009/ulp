@@ -23,7 +23,7 @@ obj-$(CONFIG_PDI_HZH) += HZH.o
 obj-$(CONFIG_PDI_TL_NEW) += TL_NEW.o
 
 #RSU4
-inc-$(CONFIG_PDI_RSU4) += ecu/
+inc-$(CONFIG_PDI_RSU4) += rsu4/
 obj-$(CONFIG_PDI_RSU4) += rsu4/bsp.o
 obj-$(CONFIG_PDI_RSU4) += rsu4/pdi.o
 obj-$(CONFIG_PDI_RSU4) += ecu/ecu.o
