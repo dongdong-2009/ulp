@@ -13,6 +13,7 @@
 #include "bsp.h"
 #include "pdi.h"
 
+const can_bus_t *bsp_can_bus = &can1;
 static const mbi5025_t bsp_mbi = {.bus = &spi1, .load_pin = SPI_1_NSS};
 static char bsp_mxc_image[6];
 

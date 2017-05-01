@@ -44,31 +44,13 @@ typedef struct {
 extern const char *pdi_fixture_id;
 extern int pdi_test(int pos, int mask, pdi_report_t *report); //pass return 0
 
+int pdi_can_tx(const can_msg_t *msg);
+int pdi_can_rx(can_msg_t *msg);
+
 /*led_mask = --|-- RY|LY RG|LG RR|LR*/
 void pdi_led_y(int led_mask);
 void pdi_led_n(int led_mask);
 void pdi_led_flash(int led_mask);
 void pdi_mdelay(int ms);
 void pdi_CalculateKey(unsigned char accessLevel, unsigned char seed[8], unsigned char key[3]);
-
-static inline int pdi_can_tx(const can_msg_t *msg) {
-	hexdump("CAN_TX: ", msg->data, msg->dlc);
-	bsp_can_bus.flush();
-	return bsp_can_bus.send(msg);
-}
-
-static inline int pdi_can_rx(can_msg_t *msg) {
-	time_t deadline = time_get(PDI_ECU_MS);
-	while(1) {
-		pdi_mdelay(10);
-		if(!bsp_can_bus.recv(msg)) {
-			hexdump("CAN_RX: ", msg->data, msg->dlc);
-			return 0;
-		}
-
-		if(time_left(deadline) < 0) { //timeout
-			return -1;
-		}
-	}
-}
 #endif

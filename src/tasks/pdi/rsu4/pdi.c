@@ -5,7 +5,6 @@
 #include "ulp/sys.h"
 #include "shell/cmd.h"
 #include "stdio.h"
-#include "common/bitops.h"
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
@@ -35,39 +34,6 @@ static int pdi_scan_pos; //current host scan pos
 static int pdi_scan_mask[2];
 static char pdi_host_buf[128];
 static int pdi_host_itac; //flag of itac "OO" or "NN" cmd received cmd received
-
-void hexdump(const char *prefix, const void *data, int nbytes)
-{
-#if PDI_DEBUG == 1
-	unsigned i, j, v;
-	const char *p = (const char *) data;
-	char *hex = (char *) sys_malloc(64);
-	char *txt = (char *) sys_malloc(64);
-	char *all = (char *) sys_malloc(128);
-
-	for(i = 0; i < nbytes; i += 8) {
-		hex[0] = '\0';
-		txt[0] = '\0';
-		for(j = 0; j < 8; j ++) {
-			if(i + j < nbytes) {
-				v = (unsigned) p[i + j];
-				v &= 0xff;
-				sprintf(hex, "%s%02x ", hex, v);
-
-				v = isprint(v) ? v : '.';
-				sprintf(txt, "%s%c", txt, v);
-			}
-		}
-
-		sprintf(all, "%s%s", prefix, hex);
-		printf("%-40s%s\n", all, txt);
-		//printf("%s%-28s%s\n", prefix, hex, txt);
-	}
-	sys_free(hex);
-	sys_free(txt);
-	sys_free(all);
-#endif
-}
 
 static int led_status;
 static int led_flash;
@@ -113,6 +79,27 @@ void pdi_led_flash(int led_mask)
 	led_status |= led_flash;
 	bsp_led(LED_ALL, led_status);
 	led_timer = time_get(PDI_LED_MS);
+}
+
+int pdi_can_tx(const can_msg_t *msg) {
+	hexdump("CAN_TX: ", msg->data, msg->dlc);
+	bsp_can_bus->flush();
+	return bsp_can_bus->send(msg);
+}
+
+int pdi_can_rx(can_msg_t *msg) {
+	time_t deadline = time_get(PDI_ECU_MS);
+	while(1) {
+		pdi_mdelay(10);
+		if(!bsp_can_bus->recv(msg)) {
+			hexdump("CAN_RX: ", msg->data, msg->dlc);
+			return 0;
+		}
+
+		if(time_left(deadline) < 0) { //timeout
+			return -1;
+		}
+	}
 }
 
 static void pdi_host_send(const char *data, int nbytes)

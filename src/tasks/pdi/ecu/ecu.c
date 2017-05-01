@@ -8,10 +8,12 @@
 #include "priv/usdt.h"
 #include "shell/cmd.h"
 #include <string.h>
-
-#include "bsp.h"
 #include "ecu.h"
-#include "pdi.h"
+
+//will be implemented by bsp.c & pdi.c
+extern const can_bus_t *bsp_can_bus;
+extern int pdi_can_tx(const can_msg_t *msg);
+extern int pdi_can_rx(can_msg_t *msg);
 
 //to be filled by ecu_can_init
 int can_id_tx = 0;
@@ -36,8 +38,8 @@ int ecu_can_init(int txid, int rxid) {
 	const can_cfg_t cfg = {.baud = ECU_BAUD, .silent = 0};
 	can_filter_t filter = {.id = can_id_rx, .mask = 0xffff, .flag = 0};
 
-	bsp_can_bus.init(&cfg);
-	bsp_can_bus.filt(&filter, 1);
+	bsp_can_bus->init(&cfg);
+	bsp_can_bus->filt(&filter, 1);
 	return 0;
 }
 

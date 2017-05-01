@@ -1,8 +1,8 @@
 #ifndef __PDI_BSP_H_
 #define __PDI_BSP_H_
 
+extern const can_bus_t *bsp_can_bus;
 #define bsp_host_bus uart3
-#define bsp_can_bus can1
 
 enum {
 	//U6
