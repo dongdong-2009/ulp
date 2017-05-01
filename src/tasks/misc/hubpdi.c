@@ -11,16 +11,18 @@
 #include "common/bitops.h"
 #include "stm32f10x.h"
 
+#define CONFIG_OC_MS 500 //UPx_ERR# overcurrent protection delay
 #define CONFIG_CMD_WIMG 1
 
 #define HASH_EMPTY 0xff
 #define HASH_CONFLICT 0xfe
-#define HASH_N_ENTRY 64
+#define HASH_N_ENTRY 32
 static int hash_table[HASH_N_ENTRY][3];
 
 #define LOAD_TIMER_MS 10000 //pulse width
 static time_t usb1_load_timer = 0; //auto off to avoid overheat
-static time_t usb2_load_timer = 0; //auto off to avoid overheat
+/* static time_t usb2_load_timer = 0; //auto off to avoid overheat */
+static time_t pdi_oc_timer = 0;
 
 #if CONFIG_CMD_WIMG == 1
 int iomap_size = 0;
@@ -31,6 +33,12 @@ void gpio_bind(const char *gpio, const char *name, int level);
 int gpio_set(const char *name, int high);
 #define GPIO_BIND(gpio, name, level) gpio_bind(#gpio, #name, level)
 #define GPIO_SET(name, level) gpio_set(#name, level)
+
+static float pdi_vdd = 0;
+static float pdi_ifb = 0;
+static float pdi_v_dn1 = 0;
+static float pdi_v_err = 0;
+static float pdi_v_rdy4tst = 0;
 
 int hash1(const char *name)
 {
@@ -121,6 +129,7 @@ GPIO_TypeDef *gpio_port(int gpio_handle)
 	case 'B': return GPIOB;
 	case 'C': return GPIOC;
 	case 'D': return GPIOD;
+	case 'E': return GPIOE;
 	default: assert(1 == 0);
 	}
 	return NULL;
@@ -156,15 +165,15 @@ void gpio_bind(const char *gpio, const char *name, int level)
 
 int gpio_set(const char *name, int high)
 {
-	if (!strcmp(name, "USB1_LOAD_EN")) {
+	if (!strcmp(name, "DN1_LOAD_EN")) {
 		if(high) usb1_load_timer = time_get(LOAD_TIMER_MS);
 		else usb1_load_timer = 0;
 	}
 
-	if (!strcmp(name, "USB2_LOAD_EN")) {
+/* 	if (!strcmp(name, "DN2_LOAD_EN")) {
 		if(high) usb2_load_timer = time_get(LOAD_TIMER_MS);
 		else usb2_load_timer = 0;
-	}
+	} */
 
 	int ecode = -1;
 	int handle = hash_get(name);
@@ -189,6 +198,8 @@ void hub_init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 
 	hash_init();
@@ -196,61 +207,135 @@ void hub_init(void)
 	iomap_size = 0;
 	#endif
 
-	/*passmark power settings*/
-	GPIO_BIND(PC8 , USB0_VPM_EN, 0);
-	GPIO_BIND(PC9 , USB1_VPM_EN, 0);
-	GPIO_BIND(PA8 , USB2_VPM_EN, 0);
+	GPIO_BIND(PE10, UPx_VCC_EN, 0);
+	GPIO_BIND(PE8 , UPx_IMEN, 0);
+	GPIO_BIND(PB1 , DN1_VPM_EN, 0);
+	GPIO_BIND(PB0 , DN1_LOAD_EN, 0);
 
-	/*VBAT*/
-	GPIO_BIND(PC4, VBAT_EN, 0);
-	GPIO_BIND(PC7 , USB0_VCC_EN, 0);
-	GPIO_BIND(PB11, CDP_EN, 0);
+	GPIO_BIND(PA7 , EXT_RO, 0);
+	GPIO_BIND(PA6 , EXT_GO, 0);
+	GPIO_BIND(PA5 , EXT_YO, 0);
+	GPIO_BIND(PA4 , EXT_BO, 0);
 
-	/*usb0, upstream*/
-	GPIO_BIND(PB1, FSUSB30_EN#, 1);
-	GPIO_BIND(PB2, USB0_S0, 0);
-	GPIO_BIND(PB10, USB0_S1, 0);
+	GPIO_BIND(PE13, HUB_RST, 0);
 
-	/*usb1&2, downstream*/
-	GPIO_BIND(PB12, FSUSB74_EN#, 1);
-	GPIO_BIND(PB13, USB1_S0, 0);
-	GPIO_BIND(PB14, USB1_S1, 0);
-	GPIO_BIND(PB15, USB2_S0, 0);
-	GPIO_BIND(PC6 , USB2_S1, 0);
+	/*
+	PE9 IN UPx_ERR#
+	PA3 IN RDY4TST
+	*/
+	GPIO_InitTypeDef GPIO_InitStructure;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_9;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_3;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	/*load settings*/
-	GPIO_BIND(PA4 , USB1_LOAD_EN, 0);
-	GPIO_BIND(PA5 , USB2_LOAD_EN, 0);
-	GPIO_BIND(PA6 , USB1_SCP_EN, 0);
-	GPIO_BIND(PA7 , USB2_SCP_EN, 0);
+	#define err_upx_oc() ((GPIOE->IDR & GPIO_Pin_9) ? 0 : 1)
+	#define rdy4tst() ((GPIOA->IDR & GPIO_Pin_3) ? 0 : 1)
 
-	/*DMM*/
-	GPIO_BIND(PB0, DMM_VMEN, 0);
-	GPIO_BIND(PC5, DMM_IMEN, 0);
-	GPIO_BIND(PA0, DG_S0, 0);
-	GPIO_BIND(PA1, DG_S1, 0);
-	GPIO_BIND(PA2, DG_S2, 0);
+	/*
+	PC0  ADC VDD_+5V @ADC123_IN10
+	PC1  ADC DN1_VCC @ADC123_IN11
+	PC2  ADC UPx_IFB @ADC123_IN12
+	*/
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	/*HUB RESET*/
-	GPIO_BIND(PC2, HUB0_RST, 0);
-	GPIO_BIND(PC3, HUB1_RST, 0);
+	//ADC INIT, ADC1 INJECTED CH, CONT SCAN MODE
+	ADC_InitTypeDef ADC_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+	RCC_ADCCLKConfig(RCC_PCLK2_Div6); /*72Mhz/6 = 12Mhz, note: 14MHz at most*/
+	ADC_DeInit(ADC1);
+
+	ADC_StructInit(&ADC_InitStructure);
+	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
+	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
+	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
+	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Left;
+	ADC_InitStructure.ADC_NbrOfChannel = 0;
+	ADC_Init(ADC1, &ADC_InitStructure);
+
+	ADC_InjectedSequencerLengthConfig(ADC1, 3); //!!!length must be configured at first
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_10, 1, ADC_SampleTime_239Cycles5); //12Mhz / (12.5 + 239.5) = 47Khz
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_11, 2, ADC_SampleTime_239Cycles5);
+	ADC_InjectedChannelConfig(ADC1, ADC_Channel_12, 3, ADC_SampleTime_239Cycles5);
+
+	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_None);
+	ADC_AutoInjectedConvCmd(ADC1, ENABLE); //!!!must be set because inject channel do not support CONT mode independently
+
+	ADC_Cmd(ADC1, ENABLE);
+	ADC_ResetCalibration(ADC1);
+	while(ADC_GetResetCalibrationStatus(ADC1));
+	ADC_StartCalibration(ADC1);
+	while(ADC_GetCalibrationStatus(ADC1)); //WARNNING: DEAD LOOP!!!
+	ADC_SoftwareStartConvCmd(ADC1, ENABLE);
+
+	#define adc_vdd_get() (ADC1->JDR1 << 1)
+	#define adc_dn1_get() (ADC1->JDR2 << 1)
+	#define adc_ifb_get() (ADC1->JDR3 << 1)
 }
 
 void hub_update(void)
 {
-	if(usb1_load_timer) {
-		if(time_left(usb1_load_timer) < 0) {
-			usb1_load_timer = 0;
-			GPIO_SET(USB1_LOAD_EN, 0);
+	int d;
+	float vref = 3.0;
+
+	/* vdd_+5v
+	100K+100K,100N => 10000 uS = 10mS
+	*/
+	d = adc_vdd_get();
+	d = d << 1;
+	pdi_vdd = d * (vref / 65536);
+
+	/* dn1_vcc
+	100K+100K,100N => 10000 uS = 10mS
+	*/
+	d = adc_dn1_get();
+	d = d << 1;
+	pdi_v_dn1 = d * (vref / 65536);
+
+	/* upx_ifb
+	INA193(20V/V), Rsense = 1R
+	100K*100N = 10000uS = 10mS
+	*/
+	d = adc_ifb_get();
+	d = d / 20 / 1;
+	pdi_ifb = d * (vref / 65536);
+
+	//gpio emulated pin level
+	pdi_v_err = err_upx_oc() ? 0.0 : 3.3;
+	pdi_v_rdy4tst = rdy4tst() ? 0.0 : 3.3;
+
+	if (err_upx_oc()) {
+		pdi_oc_timer = time_get(CONFIG_OC_MS);
+	}
+
+	if(pdi_oc_timer) {
+		if(!err_upx_oc()) pdi_oc_timer = 0;
+		else {
+			if(time_left(pdi_oc_timer) < 0) {
+				pdi_oc_timer = 0;
+				GPIO_SET(UPx_VCC_EN, 0);
+				GPIO_SET(UPx_IMEN, 0);
+			}
 		}
 	}
 
-	if(usb2_load_timer) {
-		if(time_left(usb2_load_timer) < 0) {
-			usb2_load_timer = 0;
-			GPIO_SET(USB2_LOAD_EN, 0);
+	if(usb1_load_timer) {
+		if(time_left(usb1_load_timer) < 0) {
+			usb1_load_timer = 0;
+			GPIO_SET(DN1_LOAD_EN, 0);
 		}
 	}
+
+/* 	if(usb2_load_timer) {
+		if(time_left(usb2_load_timer) < 0) {
+			usb2_load_timer = 0;
+			GPIO_SET(DN2_LOAD_EN, 0);
+		}
+	} */
 }
 
 void main()
@@ -258,14 +343,6 @@ void main()
 	sys_init();
 	shell_mute(NULL);
 	hub_init();
-
-	//FE1.1S RESET
-	GPIO_SET(HUB0_RST, 1);
-	GPIO_SET(HUB1_RST, 1);
-	sys_mdelay(2);
-	GPIO_SET(HUB0_RST, 0);
-	GPIO_SET(HUB1_RST, 0);
-
 	printf("hubctrl sw v2.x, build: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
 		sys_update();
@@ -273,53 +350,48 @@ void main()
 	}
 }
 
-char** split(char* a_str, const char a_delim)
+static int cmd_pdi_func(int argc, char *argv[])
 {
-    char** result    = 0;
-    size_t count     = 0;
-    char* tmp        = a_str;
-    char* last_comma = 0;
-    char delim[2];
-    delim[0] = a_delim;
-    delim[1] = 0;
+	const char *usage = {
+		"usage:\n"
+		"pdi vdd		read VDD_+5V\n"
+		"pdi dn1		read DN1_VCC\n"
+		"pdi ifb		read UPx_IFB\n"
+		"pdi err		read UPx_ERR#(GPIO)\n"
+		"pdi rdy		read RDY4TST(GPIO)\n"
+	};
 
-    /* Count how many elements will be extracted. */
-    while (*tmp)
-    {
-        if (a_delim == *tmp)
-        {
-            count++;
-            last_comma = tmp;
-        }
-        tmp++;
-    }
+	if(argc < 2) {
+		printf("%s", usage);
+		return 0;
+	}
 
-    /* Add space for trailing token. */
-    count += last_comma < (a_str + strlen(a_str) - 1);
+	switch(argv[1][0]) {
+	case 'v':
+		printf("<%+.3f, VDD_+5V(unit: V)\n", pdi_vdd);
+		break;
+	case 'd':
+		printf("<%+.3f, DN1_VCC(unit: V)\n", pdi_v_dn1);
+		break;
+	case 'i':
+		printf("<%+.3f, UPx_IFB(unit: V)\n", pdi_ifb);
+		break;
+	case 'e':
+		printf("<%+.3f, UPx_ERR#(unit: V, GPIO)\n", pdi_v_err);
+		break;
+	case 'r':
+		printf("<%+.3f, RDY4TST(unit: V, GPIO)\n", pdi_v_rdy4tst);
+		break;
+	default:
+		printf("<-1, sub cmd not supported\n");
+		break;
+	}
 
-    /* Add space for terminating null string so caller
-       knows where the list of returned strings ends. */
-    count++;
-
-    result = malloc(sizeof(char*) * count);
-
-    if (result)
-    {
-        size_t idx  = 0;
-        char* token = strtok(a_str, delim);
-
-        while (token)
-        {
-            assert(idx < count);
-            *(result + idx++) = strdup(token);
-            token = strtok(0, delim);
-        }
-        assert(idx == count - 1);
-        *(result + idx) = 0;
-    }
-
-    return result;
+	return 0;
 }
+
+cmd_t cmd_pdi = {"pdi", cmd_pdi_func, "pdi i/f commands"};
+DECLARE_SHELL_CMD(cmd_pdi)
 
 char *trim(char *str)
 {
@@ -447,7 +519,7 @@ int cmd_xxx_func(int argc, char *argv[])
 	};
 
 	if(!strcmp(argv[0], "*IDN?")) {
-		printf("<0,Ulicar Technology,HubCtrl V2.x,%s,%s\n\r", __DATE__, __TIME__);
+		printf("<0,Ulicar Technology,HUBPDI V1.x,%s,%s\n\r", __DATE__, __TIME__);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*RST")) {
