@@ -5,9 +5,12 @@
  *
  */
 
+#include "ulp/sys.h"
 #include "common/bitops.h"
+#include <string.h>
+#include <ctype.h>
 
-int htoi(char s[])
+int htoi(const char *s)
 {
 	int i;
 	int c, n;
@@ -53,4 +56,35 @@ int bitcount(int x)
 		n += nbits[subx];
 	}
 	return n;
+}
+
+void hexdump(const char *prefix, const void *data, int nbytes)
+{
+	unsigned i, j, v;
+	const char *p = (const char *) data;
+	char *hex = (char *) sys_malloc(64);
+	char *txt = (char *) sys_malloc(64);
+	char *all = (char *) sys_malloc(128);
+
+	for(i = 0; i < nbytes; i += 8) {
+		hex[0] = '\0';
+		txt[0] = '\0';
+		for(j = 0; j < 8; j ++) {
+			if(i + j < nbytes) {
+				v = (unsigned) p[i + j];
+				v &= 0xff;
+				sprintf(hex, "%s%02x ", hex, v);
+
+				v = isprint(v) ? v : '.';
+				sprintf(txt, "%s%c", txt, v);
+			}
+		}
+
+		sprintf(all, "%s%s", prefix, hex);
+		printf("%-40s%s\n", all, txt);
+		//printf("%s%-28s%s\n", prefix, hex, txt);
+	}
+	sys_free(hex);
+	sys_free(txt);
+	sys_free(all);
 }

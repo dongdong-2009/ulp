@@ -33,6 +33,4 @@ static inline int bit_get(int n, const void *addr)
 	return (*p & mask) ? 1 : 0;
 }
 
-int bitcount(int n); //return how many 1 in para n
-
 #endif
