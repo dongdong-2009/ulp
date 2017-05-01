@@ -123,7 +123,11 @@ void led_hwSetStatus(led_t led, led_status_t status)
 #elif CONFIG_MISC_VHD == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_8, ba);
 #elif (CONFIG_TASK_PDI == 1) || (CONFIG_IRT_IRC == 1) || (CONFIG_MISC_O2PT == 1) || (CONFIG_MISC_O2PTV2 == 1)
+			#if CONFIG_PDI_RSU4 == 1
+			GPIO_WriteBit(GPIOE, GPIO_Pin_15, ba);
+			#else
 			GPIO_WriteBit(GPIOE, GPIO_Pin_1, ba);
+			#endif
 #elif CONFIG_IRT_PROBE == 1
 			GPIO_WriteBit(GPIOB, GPIO_Pin_11, ba);
 #elif CONFIG_MISC_ICT == 1
@@ -135,7 +139,7 @@ void led_hwSetStatus(led_t led, led_status_t status)
 #elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)  || (CONFIG_IRT_UMX == 1) || (CONFIG_MISC_HUBCTRL == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_1, ba);
 #else
-			GPIO_WriteBit(GPIOG, GPIO_Pin_15, ba);
+			GPIO_WriteBit(GPIOE, GPIO_Pin_15, ba);
 #endif
 			break;
 		case LED_RED:
@@ -146,7 +150,11 @@ void led_hwSetStatus(led_t led, led_status_t status)
 #elif CONFIG_MISC_VHD == 1
 			GPIO_WriteBit(GPIOC, GPIO_Pin_6, ba);
 #elif (CONFIG_TASK_PDI == 1) || (CONFIG_IRT_IRC == 1) || (CONFIG_MISC_O2PT == 1) || (CONFIG_MISC_O2PTV2 == 1)
+			#if CONFIG_PDI_RSU4 == 1
+			GPIO_WriteBit(GPIOE, GPIO_Pin_14, ba);
+			#else
 			GPIO_WriteBit(GPIOE, GPIO_Pin_0, ba);
+			#endif
 #elif CONFIG_IRT_PROBE == 1
 			GPIO_WriteBit(GPIOB, GPIO_Pin_10, ba);
 #elif CONFIG_MISC_MATRIX == 1
@@ -154,7 +162,7 @@ void led_hwSetStatus(led_t led, led_status_t status)
 #elif (CONFIG_OID_HWV2 == 1) || (CONFIG_YBS_MON == 1) || (CONFIG_IRT_MXC5324 == 1)  || (CONFIG_IRT_UMX == 1) || (CONFIG_MISC_HUBCTRL == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_0, ba);
 #else
-			GPIO_WriteBit(GPIOG, GPIO_Pin_8, ba);
+			GPIO_WriteBit(GPIOE, GPIO_Pin_14, ba);
 #endif
 			break;
 		case LED_YELLOW:
