@@ -7,6 +7,7 @@
 bool "spi bus 1?" CONFIG_DRIVER_SPI1
 if [ "$CONFIG_DRIVER_SPI1" = "y" ]; then
 	bool "enable dma support" CONFIG_SPI1_DMA
+	bool "enable MISO pin" CONFIG_SPI1_MISO
 	choice 'cs control method'	" \
 		NONE	CONFIG_SPI1_CS_NONE \
 		HARD	CONFIG_SPI1_CS_HARD \
@@ -17,6 +18,7 @@ fi
 bool "spi bus 2?" CONFIG_DRIVER_SPI2
 if [ "$CONFIG_DRIVER_SPI2" = "y" ]; then
 	bool "enable dma support" CONFIG_SPI2_DMA
+	bool "enable MISO pin" CONFIG_SPI2_MISO
 	choice 'cs control method'	" \
 		NONE	CONFIG_SPI2_CS_NONE \
 		HARD	CONFIG_SPI2_CS_HARD \
@@ -27,6 +29,7 @@ fi
 bool "spi bus 3?" CONFIG_DRIVER_SPI3
 if [ "$CONFIG_DRIVER_SPI3" = "y" ]; then
 	bool "enable dma support" CONFIG_SPI3_DMA
+	bool "enable MISO pin" CONFIG_SPI3_MISO
 	bool "remap to PC10..12" CONFIG_SPI3_REMAP
 	choice 'cs control method'	" \
 		NONE	CONFIG_SPI3_CS_NONE \

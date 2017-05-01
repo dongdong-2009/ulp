@@ -38,7 +38,10 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_15;
+#if CONFIG_SPI2_MISO == 1
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_14;
+#endif
 #ifdef CONFIG_SPI2_CS_HARD
 	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_12;
 #endif

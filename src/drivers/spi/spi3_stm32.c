@@ -40,11 +40,17 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 #ifdef CONFIG_SPI3_REMAP
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10 | GPIO_Pin_12;
+	#if CONFIG_SPI3_MISO == 1
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_11;
+	#endif
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 #else
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_5;
+	#if CONFIG_SPI3_MISO == 1
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_4;
+	#endif
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 #endif
