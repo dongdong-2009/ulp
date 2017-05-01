@@ -83,8 +83,12 @@ void shell_Update(void)
 			console_set(shell -> console);
 			cmd_queue_update(&shell -> cmd_queue);
 			ok = shell_ReadLine(shell->prompt, NULL);
-			if(ok)
+			if(ok) {
 				cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
+				if(shell->prompt != NULL) {
+					shell_print("%s", shell->prompt);
+				}
+			}
 		}
 #ifdef CONFIG_SHELL_MULTI
 		console_set(NULL); //restore system default console
@@ -143,6 +147,9 @@ int shell_register(const struct console_s *console)
 	#endif
 	cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
 #endif
+	if(shell->prompt != NULL) {
+		shell_print("%s", shell->prompt);
+	}
 	console_set(NULL);
 	return 0;
 }
@@ -281,9 +288,11 @@ int shell_ReadLine(const char *prompt, char *str)
 
 	assert(shell != NULL);
 	if(shell -> cmd_idx < 0) {
+		/*
 		if(prompt != NULL) {
 			shell_print("%s", prompt);
 		}
+		*/
 		memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
 		shell -> cmd_idx ++;
 #if CONFIG_SHELL_LEN_HIS_MAX > 0
