@@ -28,3 +28,4 @@ obj-$(CONFIG_PDI_RSU4) += rsu4/bsp.o
 obj-$(CONFIG_PDI_RSU4) += rsu4/pdi.o
 obj-$(CONFIG_PDI_RSU4) += ecu/ecu.o
 obj-$(CONFIG_RSU_P71A) += rsu4/p71a.o
+obj-$(CONFIG_RSU_KP108) += rsu4/kp108.o
