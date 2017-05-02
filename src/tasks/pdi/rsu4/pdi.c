@@ -341,7 +341,7 @@ static void pdi_wait_push(void)
 	while(push_timer < PDI_PUSH_MS) {
 		pdi_mdelay(10);
 		if(pdi_scan_mask[pdi_pos] > 0) {
-			int ready = bsp_pos_status(pdi_pos);
+			int ready = bsp_rdy_status(pdi_pos);
 			push_timer += (ready) ? 10 : -10;
 			push_timer = (push_timer < 0) ? 0 : push_timer;
 		}
@@ -446,7 +446,7 @@ static void pdi_verify(void)
 			}
 
 			//fixture is pulled out???
-			int ready = bsp_pos_status(pdi_pos);
+			int ready = bsp_rdy_status(pdi_pos);
 			if(!ready) {
 				pdi_ecode = ERROR_BACHU;
 				break;

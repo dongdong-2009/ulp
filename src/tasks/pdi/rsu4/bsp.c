@@ -208,7 +208,7 @@ void bsp_select_can(int ecu)
 }
 
 //pos: 0=left, 1=right, return ready(pushed) or not
-int bsp_pos_status(int pos)
+int bsp_rdy_status(int pos)
 {
 	//PE13 GPI MCU_RDY_L
 	//PE12 GPI MCU_RDY_R
@@ -333,13 +333,18 @@ int bsp_rsu_status(int pos, int *mV)
 		memcpy(mV, mv, sizeof(mv));
 	}
 
-	//threshold voltage when pt204 is in dark
-	const int vth = 2500; //unit: mV
+	/*threshold voltage when pt204 is in dark
+	2669 2614 2421 2525 n-uut n-push @50KOHM
+	2702 2660 2898 2888 y-uut n-push @50KOHM
+	2638 2657 2999 2999 y-uut y-push @50KOHM
+	2638 2658 2999 2999 y-uut y-push @50KOHM
+	2651 2668 2999 2999 y-uut y-push @50KOHM
+	*/
+	const int vth = 2998; //unit: mV(range: 2.999-3.300)
 
 	int status = 0;
 	for(int i = 0; i < 4; i ++) {
-		status = status << 1;
-		status |= (mv[i] > vth) ? 1 : 0;
+		status |= (mv[i] > vth) ? (1 << i) : 0;
 	}
 	return status;
 }
@@ -377,9 +382,10 @@ static int cmd_bsp_func(int argc, char *argv[])
 		"bsp beep [0/1]		beeper on/off\n"
 		"bsp adc [pos]		rsu status, pos=0/1\n"
 		"bsp vbat [0/1]		vbat set & measure\n"
-		"bsp rsu [0..1]		rsu left/right sel\n"
+		"bsp rsu [0..1]		left/right fixture rsu sel\n"
 		"bsp can [0..3]		can ecu sel\n"
 		"bsp ecu [0..4]		matrix ecu sel\n"
+		"bsp rdy			probe switch status\n"
 	};
 
 	if (argc < 2) {
@@ -423,7 +429,7 @@ static int cmd_bsp_func(int argc, char *argv[])
 		int mv[4];
 
 		int status = bsp_rsu_status(pos, mv);
-		printf("\rrsu status = 0x%02x(%04d %04d %04d %04d)", status, mv[0], mv[1], mv[2], mv[3]);
+		printf("rsu status = 0x%02x[0:%04d 1:%04d 2:%04d 3:%04d]\n", status, mv[0], mv[1], mv[2], mv[3]);
 	}
 	else if (!strcmp(argv[1], "vbat")) {
 		if(argc >= 3) {
@@ -446,6 +452,11 @@ static int cmd_bsp_func(int argc, char *argv[])
 	else if (!strcmp(argv[1], "ecu")) {
 		int ecu = (argc >= 3) ? atoi(argv[2]) : 0;
 		bsp_select_ecu(ecu);
+	}
+	else if (!strcmp(argv[1], "rdy")) {
+		int rdy_l = bsp_rdy_status(0);
+		int rdy_r = bsp_rdy_status(1);
+		printf("ready for test: %d@left, %d@right\n", rdy_l, rdy_r);
 	}
 
 	return 0;

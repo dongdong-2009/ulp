@@ -40,7 +40,7 @@ void bsp_select_rsu(int pos);
 void bsp_select_can(int ecu);
 
 //i sense
-int bsp_pos_status(int pos);
+int bsp_rdy_status(int pos);
 int bsp_rsu_status(int pos, int *mV);
 int bsp_vbat(void);
 
