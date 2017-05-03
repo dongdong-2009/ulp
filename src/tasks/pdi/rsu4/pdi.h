@@ -3,7 +3,7 @@
 
 #define PDI_HOST 1 //undef if no host exist
 #define PDI_ITAC_MS 3000
-#define PDI_PUSH_MS 500 //jitter cancel + pt204 integrate
+#define PDI_PUSH_MS 800 //jitter cancel + pt204 integrate
 #define PDI_HOST_MS 50 //interframe delay
 #define PDI_LED_MS 300 //led flash ms
 #define PDI_ECU_MS 100 //ECU ACK MS
@@ -27,10 +27,10 @@ enum {
 
 typedef union {
 	struct {
-		unsigned char rsu1 : 2; //0b00 indiates no err
-		unsigned char rsu2 : 2;
+		unsigned char rsu4 : 2; //0b00 indiates no err
 		unsigned char rsu3 : 2;
-		unsigned char rsu4 : 2;
+		unsigned char rsu2 : 2;
+		unsigned char rsu1 : 2;
 	};
 	unsigned char byte;
 } pdi_result_t;

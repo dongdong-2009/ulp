@@ -121,6 +121,7 @@ static int pdi_host_printf(const char *fmt, ...)
 	va_end(ap);
 
 	pdi_host_send(pstr, n);
+	sys_free(pstr);
 	return n;
 }
 
@@ -145,11 +146,11 @@ static void pdi_start_action(void)
 {
 	if(pdi_pos == 0) {
 		pdi_led_n(LED_LA);
-		pdi_led_flash(LED_LY);
+		pdi_led_flash(pdi_mask << 16);
 	}
 	else {
 		pdi_led_n(LED_RA);
-		pdi_led_flash(LED_RY);
+		pdi_led_flash(pdi_mask << 20);
 	}
 }
 
@@ -164,6 +165,7 @@ static void pdi_stop_action(int passed)
 		break;
 	default:
 		r = 0x0f; //all failed
+		g = 0x00;
 		break;
 	}
 
@@ -428,11 +430,22 @@ static void pdi_verify(void)
 		bsp_select_rsu(pdi_pos);
 		pdi_start_action();
 
-		for(int try = 0; try < 2; try ++) {
-			//power on
-			bsp_swbat(1);
-			pdi_mdelay(7000);
+		//power on
+		bsp_swbat(1);
 
+		//wait demo ecu power-up
+		time_t deadline = time_get(5000);
+		while(time_left(deadline) > 0) {
+			pdi_mdelay(1);
+			int ready = bsp_rdy_status(pdi_pos);
+			if(!ready) {
+				pdi_ecode = ERROR_BACHU;
+				break;
+			}
+		}
+
+		//test
+		if(pdi_ecode == 0) {
 			ecode = pdi_test(pdi_pos, pdi_mask, &pdi_report);
 			if(ecode) pdi_ecode = ERROR_ECUNG;
 			else pdi_ecode = pdi_analysis_report();
@@ -440,25 +453,10 @@ static void pdi_verify(void)
 			//power off
 			bsp_swbat(0);
 
-			//test passed?
-			if(pdi_ecode == ERROR_NO) {
-				break;
-			}
-
 			//fixture is pulled out???
 			int ready = bsp_rdy_status(pdi_pos);
 			if(!ready) {
 				pdi_ecode = ERROR_BACHU;
-				break;
-			}
-
-			//retry ...
-			pdi_mdelay(1000);
-			pdi_host_itac = 0;
-			pdi_host_printf("%sNG", UUTx);
-			pdi_wait_host_itac();
-			if(pdi_ecode != ERROR_ITAC) {
-				break;
 			}
 		}
 	}
@@ -485,7 +483,9 @@ static void pdi_verify(void)
 		break;
 	case ERROR_FUNC:
 		pdi_pos_new = !pdi_pos;
-		//already sent to host during retry ...
+		pdi_host_itac = 0;
+		pdi_host_printf("%sNG", UUTx);
+		pdi_wait_host_itac();
 		break;
 	case ERROR_NO:
 		pdi_pos_new = !pdi_pos;

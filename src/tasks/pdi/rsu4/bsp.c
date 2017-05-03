@@ -465,3 +465,32 @@ static int cmd_bsp_func(int argc, char *argv[])
 const cmd_t cmd_bsp = {"bsp", cmd_bsp_func, "bsp debug cmds"};
 DECLARE_SHELL_CMD(cmd_bsp)
 #endif
+
+void board_reset(void)
+{
+	NVIC_SystemReset();
+}
+
+int cmd_xxx_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"*IDN?		to read identification string\n"
+		"*RST		instrument reset\n"
+	};
+
+	int ecode = 0;
+	if(!strcmp(argv[0], "*IDN?")) {
+		printf("<ULICAR Technology,%s,%s\n\r", __DATE__, __TIME__);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "*RST")) {
+		board_reset();
+	}
+	else if(!strcmp(argv[0], "*?")) {
+		printf("%s", usage);
+		return 0;
+	}
+
+	return 0;
+}

@@ -13,7 +13,7 @@
 #include "pdi.h"
 #include "../ecu/ecu.h"
 
-const char *pdi_fixture_id = "R035";
+const char *pdi_fixture_id = "R512";
 
 //diag ecu is used
 int pdi_test(int pos, int mask, pdi_report_t *report)
@@ -30,28 +30,34 @@ int pdi_test(int pos, int mask, pdi_report_t *report)
 		return -1;
 	}
 
-	int temp = 0;
-	temp |= rxdata[0] << 16;
-	temp |= rxdata[1] << 8;
-	temp |= rxdata[0] << 0;
-	temp >>= 7;
+	/*
+	NOK	5A0 2a aa 80 00 00 00 00 00    0010 1010 1010 1010
+	1OK	5A0 0a aa 80 00 00 00 00 00    0000 1010 1010 1010
+	2OK	5A0 22 aa 80 00 00 00 00 00    0010 0010 1010 1010
+	3OK	5A0 28 aa 80 00 00 00 00 00    0010 1000 1010 1010
+	4OK	5A0 2a 2a 80 00 00 00 00 00    0010 1010 0010 1010
+	*/
 
-	//ECU_NG L1 L2 L3 L4 R1 R2 R3 R4
+	int temp = 0;
+	temp |= rxdata[0] << 8;
+	temp |= rxdata[1] << 0;
+	temp >>= 6;
+
+	//ECU_NG 1 2 3 4
 	debug("PDI: rsu diag result = 0x%04x\n", temp);
 	if(temp & (1 << 16)) { //ECU_NG
 		return -2;
 	}
 
 	//fill the report
-	temp >>= (pos == 0) ? 8 : 0;
 	report->result.byte = (unsigned char) (temp & 0xff);
 	report->datalog[0] = rxdata[0];
 	report->datalog[1] = rxdata[1];
 	report->datalog[2] = rxdata[2];
-	report->datalog[3] = rxdata[3] + 1; //+1??? jiamao.gu do not remember why now
-	report->datalog[4] = rxdata[4] + 1;
-	report->datalog[5] = rxdata[5] + 1;
-	report->datalog[6] = rxdata[6] + 1;
-	report->datalog[7] = rxdata[7] + 1;
+	report->datalog[3] = rxdata[3];
+	report->datalog[4] = rxdata[4];
+	report->datalog[5] = rxdata[5];
+	report->datalog[6] = rxdata[6];
+	report->datalog[7] = rxdata[7];
 	return 0;
 }
