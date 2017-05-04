@@ -104,7 +104,7 @@ int pdi_can_rx(can_msg_t *msg) {
 
 static void pdi_host_send(const char *data, int nbytes)
 {
-	hexdump("HOST_TX: ", data, nbytes);
+	hexdump("PDI_TX: ", data, nbytes);
 	for(int i = 0; i < nbytes; i ++) {
 		bsp_host_bus.putchar(data[i]);
 	}
@@ -214,7 +214,7 @@ static int pdi_host_get(void)
 			bytes = host_bytes;
 			host_bytes = 0;
 			host_deadline = time_get(0);
-			hexdump("HOST_RX: ", pdi_host_buf, bytes);
+			hexdump("PDI_RX: ", pdi_host_buf, bytes);
 		}
 	}
 
@@ -311,7 +311,7 @@ static void pdi_init(void)
 	bsp_host_bus.putchar('!'); //for test the usart
 
 	//default
-	bsp_select_ecu(0);
+	bsp_select_grp(0);
 	bsp_select_can(0);
 	bsp_select_rsu(pdi_pos);
 

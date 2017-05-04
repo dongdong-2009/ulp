@@ -31,7 +31,7 @@ enum {
 #define LED_LY		0x000F0000 //ALL LEFT YELLOW
 #define LED_RY		0x00F00000 //ALL RIGHT YELLOW
 void bsp_led(int mask, int status);
-void bsp_select_ecu(int ecu); //ecu = 0..3, 4 = #A4B4C4D4
+void bsp_select_grp(int grp); //ecu grp = 0..4
 
 //o ctrl
 void bsp_swbat(int yes);

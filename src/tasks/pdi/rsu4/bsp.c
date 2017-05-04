@@ -107,7 +107,7 @@ void bsp_led(int mask, int status)
 	bsp_mxc_wimg();
 }
 
-void bsp_select_ecu(int ecu) //ecu = 0..3, 4 = #A4B4C4D4
+void bsp_select_grp(int grp)
 {
 	int relay_map[5][4] = {
 		{K_A0, K_A1, K_A2, K_A3},
@@ -117,7 +117,7 @@ void bsp_select_ecu(int ecu) //ecu = 0..3, 4 = #A4B4C4D4
 		{K_A4, K_B4, K_C4, K_D4},
 	};
 
-	if((ecu >= 0) && (ecu <= 4)) {
+	if((grp >= 0) && (grp <= 4)) {
 		//clear all matrix settings
 		for(int j = 0; j < 5; j ++) {
 			for(int i = 0; i < 4; i ++) {
@@ -125,9 +125,9 @@ void bsp_select_ecu(int ecu) //ecu = 0..3, 4 = #A4B4C4D4
 			}
 		}
 
-		//enable matrix of selected ecu
+		//enable matrix of selected ecu grp
 		for(int i = 0; i < 4; i ++) {
-			bsp_mxc_switch(relay_map[ecu][i], 1);
+			bsp_mxc_switch(relay_map[grp][i], 1);
 		}
 		bsp_mxc_wimg();
 	}
@@ -384,7 +384,7 @@ static int cmd_bsp_func(int argc, char *argv[])
 		"bsp vbat [0/1]		vbat set & measure\n"
 		"bsp rsu [0..1]		left/right fixture rsu sel\n"
 		"bsp can [0..3]		can ecu sel\n"
-		"bsp ecu [0..4]		matrix ecu sel\n"
+		"bsp grp [0..4]		matrix ecu group sel\n"
 		"bsp rdy			probe switch status\n"
 	};
 
@@ -449,9 +449,9 @@ static int cmd_bsp_func(int argc, char *argv[])
 		int ecu = (argc >= 3) ? atoi(argv[2]) : 0;
 		bsp_select_can(ecu);
 	}
-	else if (!strcmp(argv[1], "ecu")) {
-		int ecu = (argc >= 3) ? atoi(argv[2]) : 0;
-		bsp_select_ecu(ecu);
+	else if (!strcmp(argv[1], "grp")) {
+		int grp = (argc >= 3) ? atoi(argv[2]) : 0;
+		bsp_select_grp(grp);
 	}
 	else if (!strcmp(argv[1], "rdy")) {
 		int rdy_l = bsp_rdy_status(0);
