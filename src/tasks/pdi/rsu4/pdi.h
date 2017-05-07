@@ -43,6 +43,7 @@ typedef struct {
 /*pls implement it in your own prj_name.c*/
 extern const char *pdi_fixture_id;
 extern int pdi_test(int pos, int mask, pdi_report_t *report); //pass return 0
+extern int pdi_host_update_ex(const char *cmd, int cmd_len); //optional
 
 int pdi_can_tx(const can_msg_t *msg);
 int pdi_can_rx(can_msg_t *msg);

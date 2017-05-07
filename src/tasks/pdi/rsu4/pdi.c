@@ -82,7 +82,7 @@ void pdi_led_flash(int led_mask)
 }
 
 int pdi_can_tx(const can_msg_t *msg) {
-	hexdump("CAN_TX: ", msg->data, msg->dlc);
+	hexdump("CAN_TX", msg->data, msg->dlc);
 	bsp_can_bus->flush();
 	return bsp_can_bus->send(msg);
 }
@@ -92,7 +92,7 @@ int pdi_can_rx(can_msg_t *msg) {
 	while(1) {
 		pdi_mdelay(10);
 		if(!bsp_can_bus->recv(msg)) {
-			hexdump("CAN_RX: ", msg->data, msg->dlc);
+			hexdump("CAN_RX", msg->data, msg->dlc);
 			return 0;
 		}
 
@@ -104,7 +104,7 @@ int pdi_can_rx(can_msg_t *msg) {
 
 static void pdi_host_send(const char *data, int nbytes)
 {
-	hexdump("PDI_TX: ", data, nbytes);
+	hexdump("PDI_TX", data, nbytes);
 	for(int i = 0; i < nbytes; i ++) {
 		bsp_host_bus.putchar(data[i]);
 	}
@@ -214,11 +214,16 @@ static int pdi_host_get(void)
 			bytes = host_bytes;
 			host_bytes = 0;
 			host_deadline = time_get(0);
-			hexdump("PDI_RX: ", pdi_host_buf, bytes);
+			hexdump("PDI_RX", pdi_host_buf, bytes);
 		}
 	}
 
 	return bytes;
+}
+
+__weak int pdi_host_update_ex(const char *cmd, int cmd_len)
+{
+	return -1;
 }
 
 static void pdi_host_update(void)
@@ -277,6 +282,9 @@ static void pdi_host_update(void)
 	}
 	else if(!strncmp(pdi_host_buf, "RE", 2)) { //Read ECU Error Code
 		pdi_host_send(pdi_report.datalog, 8);
+	}
+	else {
+		pdi_host_update_ex(pdi_host_buf, nbytes);
 	}
 }
 
