@@ -81,7 +81,7 @@ void hexdump(const char *prefix, const void *data, int nbytes)
 		}
 
 		prefix = (prefix == NULL) ? "" : prefix;
-		if((i > 8) || (nbytes > i + j)) { //multi line add addr counter
+		if((i >= 8) || (nbytes > i + j)) { //multi line add addr counter
 			sprintf(all, "%s %04X: %s", prefix, i, hex);
 		}
 		else { //single line
