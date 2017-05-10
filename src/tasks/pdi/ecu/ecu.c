@@ -14,10 +14,11 @@
 extern const can_bus_t *bsp_can_bus;
 extern int pdi_can_tx(const can_msg_t *msg);
 extern int pdi_can_rx(can_msg_t *msg);
+extern void pdi_mdelay(int ms);
 
 //to be filled by ecu_can_init
-int can_id_tx = 0;
-int can_id_rx = 0;
+static int can_id_tx = 0;
+static int can_id_rx = 0;
 
 //to be filled by ecu_probe_algo
 int ecu_session = 0;
@@ -556,10 +557,10 @@ static int cmd_probe_func(int argc, char *argv[])
 		}
 
 		if(j > 0) {
-			hexdump("probe: session = ", session_list, j);
+			hexdump("probed session", session_list, j);
 		}
 		else {
-			printf("probe: session = none\n");
+			printf("probed session: none\n");
 		}
 	}
 
@@ -609,8 +610,11 @@ static int cmd_did_func(int argc, char *argv[])
 		}
 
 		char *text = (char *) sys_malloc(512);
+		memset(text, 0x00, 512);
 		int nread = ecu_did_read(addr, text, 512);
-		hexdump("DID: ", text, nread);
+		if(nread > 0) {
+			hexdump("DID", text, nread);
+		}
 		sys_free(text);
 	}
 
@@ -645,7 +649,7 @@ static int cmd_dtc_func(int argc, char *argv[])
 
 		char *text = (char *) sys_malloc(512);
 		int nread = ecu_dtc_read(addr, text, 512);
-		hexdump("DTC: ", text, nread);
+		hexdump("DTC", text, nread);
 		sys_free(text);
 	}
 
@@ -660,6 +664,11 @@ static int cmd_dtc_func(int argc, char *argv[])
 const cmd_t cmd_dtc = {"dtc", cmd_dtc_func, "ecu dtc mem access"};
 DECLARE_SHELL_CMD(cmd_dtc)
 
+__weak int cmd_ecu_func_ex(int argc, char *argv[])
+{
+	return 0;
+}
+
 static int cmd_ecu_func(int argc, char *argv[])
 {
 	const char *usage = {
@@ -669,16 +678,16 @@ static int cmd_ecu_func(int argc, char *argv[])
 
 	if (argc < 2) {
 		printf("%s", usage);
-		return 0;
+	}
+	else {
+		if (!strcmp(argv[1], "reset")) {
+			ecu_reset();
+		}
 	}
 
-	if (!strcmp(argv[1], "reset")) {
-		ecu_reset();
-	}
-
+	cmd_ecu_func_ex(argc, argv);
 	return 0;
 }
 
-const cmd_t cmd_ecu = {"ecu", cmd_ecu_func, "general ecu cmds"};
+const cmd_t cmd_ecu = {"ecu", cmd_ecu_func, "ecu related cmds"};
 DECLARE_SHELL_CMD(cmd_ecu)
-
