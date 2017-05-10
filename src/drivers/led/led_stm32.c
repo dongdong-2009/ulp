@@ -91,12 +91,12 @@ void led_hwInit(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 #else
-	/*led_r pg8, led_g pg15*/
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8|GPIO_Pin_15;
+	/*led_r PE14, led_g PE15*/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14|GPIO_Pin_15;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOG, &GPIO_InitStructure);
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
 #endif
 }
 
