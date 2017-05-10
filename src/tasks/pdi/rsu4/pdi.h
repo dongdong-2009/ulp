@@ -53,5 +53,6 @@ void pdi_led_y(int led_mask);
 void pdi_led_n(int led_mask);
 void pdi_led_flash(int led_mask);
 void pdi_mdelay(int ms);
+int pdi_mdelay_with_pull_detection(int ms);
 void pdi_CalculateKey(unsigned char accessLevel, unsigned char seed[8], unsigned char key[3]);
 #endif
