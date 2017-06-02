@@ -45,7 +45,7 @@ int pdi_test(int pos, int mask, pdi_report_t *report)
 
 	//ECU_NG 1 2 3 4
 	debug("PDI: rsu diag result = 0x%04x\n", temp);
-	if(temp & (1 << 16)) { //ECU_NG
+	if(rxdata[0] & 0xc0) { //ECU_NG
 		return -2;
 	}
 
