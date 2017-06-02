@@ -479,7 +479,6 @@ int cmd_xxx_func(int argc, char *argv[])
 		"*RST		instrument reset\n"
 	};
 
-	int ecode = 0;
 	if(!strcmp(argv[0], "*IDN?")) {
 		printf("<ULICAR Technology,%s,%s\n\r", __DATE__, __TIME__);
 		return 0;

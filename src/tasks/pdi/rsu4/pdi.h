@@ -43,6 +43,7 @@ typedef struct {
 /*pls implement it in your own prj_name.c*/
 extern const char *pdi_fixture_id;
 extern int pdi_test(int pos, int mask, pdi_report_t *report); //pass return 0
+extern int pdi_host_update_ex(const char *cmd, int cmd_len); //optional
 
 int pdi_can_tx(const can_msg_t *msg);
 int pdi_can_rx(can_msg_t *msg);
@@ -52,5 +53,6 @@ void pdi_led_y(int led_mask);
 void pdi_led_n(int led_mask);
 void pdi_led_flash(int led_mask);
 void pdi_mdelay(int ms);
+int pdi_mdelay_with_pull_detection(int ms);
 void pdi_CalculateKey(unsigned char accessLevel, unsigned char seed[8], unsigned char key[3]);
 #endif

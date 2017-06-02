@@ -20,6 +20,7 @@ static int pdi_mask; //bitor, indicates which rsu is to be test
 static int pdi_passed; //bitor, indicates which rsu passed the test
 static pdi_report_t pdi_report;
 static int pdi_vbat_mv = 13500;
+static int pdi_swdebug = 0x00;
 
 /*in order to speeding up the test, host will scan position B
 during pdi is tesing A, so pdi_scan_pos is async with pdi_pos
@@ -82,7 +83,7 @@ void pdi_led_flash(int led_mask)
 }
 
 int pdi_can_tx(const can_msg_t *msg) {
-	hexdump("CAN_TX: ", msg->data, msg->dlc);
+	hexdump("CAN_TX", msg->data, msg->dlc);
 	bsp_can_bus->flush();
 	return bsp_can_bus->send(msg);
 }
@@ -92,7 +93,7 @@ int pdi_can_rx(can_msg_t *msg) {
 	while(1) {
 		pdi_mdelay(10);
 		if(!bsp_can_bus->recv(msg)) {
-			hexdump("CAN_RX: ", msg->data, msg->dlc);
+			hexdump("CAN_RX", msg->data, msg->dlc);
 			return 0;
 		}
 
@@ -104,7 +105,7 @@ int pdi_can_rx(can_msg_t *msg) {
 
 static void pdi_host_send(const char *data, int nbytes)
 {
-	hexdump("PDI_TX: ", data, nbytes);
+	hexdump("PDI_TX", data, nbytes);
 	for(int i = 0; i < nbytes; i ++) {
 		bsp_host_bus.putchar(data[i]);
 	}
@@ -214,11 +215,16 @@ static int pdi_host_get(void)
 			bytes = host_bytes;
 			host_bytes = 0;
 			host_deadline = time_get(0);
-			hexdump("PDI_RX: ", pdi_host_buf, bytes);
+			hexdump("PDI_RX", pdi_host_buf, bytes);
 		}
 	}
 
 	return bytes;
+}
+
+__weak int pdi_host_update_ex(const char *cmd, int cmd_len)
+{
+	return -1;
 }
 
 static void pdi_host_update(void)
@@ -278,10 +284,16 @@ static void pdi_host_update(void)
 	else if(!strncmp(pdi_host_buf, "RE", 2)) { //Read ECU Error Code
 		pdi_host_send(pdi_report.datalog, 8);
 	}
+	else {
+		pdi_host_update_ex(pdi_host_buf, nbytes);
+	}
 }
 
 static void pdi_wait_host_itac(void)
 {
+	if(pdi_swdebug)
+		return;
+
 #if PDI_HOST == 1
 	time_t deadline = time_get(PDI_ITAC_MS);
 	while(pdi_host_itac == 0) {
@@ -334,10 +346,29 @@ void pdi_mdelay(int ms)
 	}
 }
 
+int pdi_mdelay_with_pull_detection(int ms)
+{
+	int ecode = 0;
+	time_t deadline = time_get(ms);
+	while(time_left(deadline) > 0) {
+		pdi_mdelay(1);
+		if(!pdi_swdebug) {
+			int ready = bsp_rdy_status(pdi_pos);
+			if(!ready) {
+				pdi_ecode = ecode = ERROR_BACHU;
+				printf("warning: fixture has been pulled out!!!\n");
+				break;
+			}
+		}
+	}
+	return ecode;
+}
+
 static void pdi_wait_push(void)
 {
 	int push_timer = 0;
 	pdi_busy = 0;
+	pdi_swdebug = 0;
 
 	/*wait for host config & fixture push*/
 	while(push_timer < PDI_PUSH_MS) {
@@ -346,6 +377,9 @@ static void pdi_wait_push(void)
 			int ready = bsp_rdy_status(pdi_pos);
 			push_timer += (ready) ? 10 : -10;
 			push_timer = (push_timer < 0) ? 0 : push_timer;
+		}
+		if(pdi_swdebug) {
+			break;
 		}
 	}
 
@@ -364,41 +398,41 @@ static int pdi_analysis_report(void)
 
 	if(pdi_mask & 0x01) {
 		if(result.rsu1 != 0) {
-			debug("%s-RSU1: %d, FAIL!\n",  pos, result.rsu1);
+			debug("%s-RSU#1: ecode = %d, FAIL!\n",  pos, result.rsu1);
 		}
 		else {
 			passed |= 0x01;
-			debug("%s-RSU1: %d, PASS!\n",  pos, result.rsu1);
+			debug("%s-RSU#1: ecode = %d, PASS!\n",  pos, result.rsu1);
 		}
 	}
 
 	if(pdi_mask & 0x02) {
 		if(result.rsu2 != 0) {
-			debug("%s-RSU2: %d, FAIL!\n",  pos, result.rsu2);
+			debug("%s-RSU#2: ecode = %d, FAIL!\n",  pos, result.rsu2);
 		}
 		else {
 			passed |= 0x02;
-			debug("%s-RSU2: %d, PASS!\n",  pos, result.rsu2);
+			debug("%s-RSU#2: ecode = %d, PASS!\n",  pos, result.rsu2);
 		}
 	}
 
 	if(pdi_mask & 0x04) {
 		if(result.rsu3 != 0) {
-			debug("%s-RSU3: %d, FAIL!\n",  pos, result.rsu3);
+			debug("%s-RSU#3: ecode = %d, FAIL!\n",  pos, result.rsu3);
 		}
 		else {
 			passed |= 0x04;
-			debug("%s-RSU3: %d, PASS!\n",  pos, result.rsu3);
+			debug("%s-RSU#3: ecode = %d, PASS!\n",  pos, result.rsu3);
 		}
 	}
 
 	if(pdi_mask & 0x08) {
 		if(result.rsu4 != 0) {
-			debug("%s-RSU4: %d, FAIL!\n",  pos, result.rsu4);
+			debug("%s-RSU#4: ecode = %d, FAIL!\n",  pos, result.rsu4);
 		}
 		else {
 			passed |= 0x08;
-			debug("%s-RSU4: %d, PASS!\n",  pos, result.rsu4);
+			debug("%s-RSU#4: ecode = %d, PASS!\n",  pos, result.rsu4);
 		}
 	}
 
@@ -416,7 +450,9 @@ static void pdi_verify(void)
 	const char *UUTx = (pdi_pos == 0) ? "UUTA" : "UUTB";
 
 	//check the rsu placement
-	status = bsp_rsu_status(pdi_pos, pt204_mv);
+	if(pdi_swdebug) status = pdi_mask;
+	else status = bsp_rsu_status(pdi_pos, pt204_mv);
+
 	if(status != pdi_mask) {
 		int ns = bitcount(status);
 		int nm = bitcount(pdi_mask);
@@ -434,30 +470,18 @@ static void pdi_verify(void)
 		bsp_swbat(1);
 
 		//wait demo ecu power-up
-		time_t deadline = time_get(5000);
-		while(time_left(deadline) > 0) {
-			pdi_mdelay(1);
-			int ready = bsp_rdy_status(pdi_pos);
-			if(!ready) {
-				pdi_ecode = ERROR_BACHU;
-				break;
-			}
-		}
+		pdi_mdelay_with_pull_detection(7000);
 
 		//test
 		if(pdi_ecode == 0) {
 			ecode = pdi_test(pdi_pos, pdi_mask, &pdi_report);
-			if(ecode) pdi_ecode = ERROR_ECUNG;
-			else pdi_ecode = pdi_analysis_report();
+			if(pdi_ecode == 0) { //maybe fixture is pulled out
+				if(ecode) pdi_ecode = ERROR_ECUNG;
+				else pdi_ecode = pdi_analysis_report();
+			}
 
 			//power off
 			bsp_swbat(0);
-
-			//fixture is pulled out???
-			int ready = bsp_rdy_status(pdi_pos);
-			if(!ready) {
-				pdi_ecode = ERROR_BACHU;
-			}
 		}
 	}
 
@@ -556,7 +580,7 @@ static int cmd_pdi_func(int argc, char *argv[])
 
 		pdi_pos = pos;
 		pdi_scan_mask[pos] = msk;
-		//push the fixture, then .. go!
+		pdi_swdebug = 1;
 	}
 
 	if (!strcmp(argv[1], "ledy")) {

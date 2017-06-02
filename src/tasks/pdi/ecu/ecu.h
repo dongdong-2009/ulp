@@ -3,8 +3,9 @@
 
 #define ECU_BAUD 500000
 
-//project may provide its specific start session function
-int ecu_start_session(void);
+//project must provide its specific start session function
+extern int ecu_start_session(void);
+extern int cmd_ecu_func_ex(int argc, char *argv[]); //optional
 
 int ecu_can_init(int txid, int rxid);
 int ecu_transceive(const can_msg_t *txmsg, can_msg_t *rxmsg);

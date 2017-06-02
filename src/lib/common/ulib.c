@@ -80,7 +80,13 @@ void hexdump(const char *prefix, const void *data, int nbytes)
 			}
 		}
 
-		sprintf(all, "%s%s", prefix, hex);
+		prefix = (prefix == NULL) ? "" : prefix;
+		if((i >= 8) || (nbytes > i + j)) { //multi line add addr counter
+			sprintf(all, "%s %04X: %s", prefix, i, hex);
+		}
+		else { //single line
+			sprintf(all, "%s: %s", prefix, hex);
+		}
 		printf("%-40s%s\n", all, txt);
 		//printf("%s%-28s%s\n", prefix, hex, txt);
 	}
