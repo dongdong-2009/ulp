@@ -83,17 +83,21 @@ void pdi_led_flash(int led_mask)
 }
 
 int pdi_can_tx(const can_msg_t *msg) {
-	hexdump("CAN_TX", msg->data, msg->dlc);
+	char prefix[16];
+	sprintf(prefix, "CAN_TX 0X%03X", msg->id);
+	hexdump(prefix, msg->data, msg->dlc);
 	bsp_can_bus->flush();
 	return bsp_can_bus->send(msg);
 }
 
 int pdi_can_rx(can_msg_t *msg) {
+	char prefix[16];
 	time_t deadline = time_get(PDI_ECU_MS);
 	while(1) {
 		pdi_mdelay(10);
 		if(!bsp_can_bus->recv(msg)) {
-			hexdump("CAN_RX", msg->data, msg->dlc);
+			sprintf(prefix, "CAN_RX 0X%03X", msg->id);
+			hexdump(prefix, msg->data, msg->dlc);
 			return 0;
 		}
 
