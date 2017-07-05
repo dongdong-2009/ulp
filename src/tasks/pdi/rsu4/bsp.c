@@ -244,7 +244,13 @@ static void bsp_adc_init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 
+#if (CONFIG_RSU_P71A == 1) || (CONFIG_RSU_KP108 == 1)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+#else
+	//use stm32 gpio internal weak-up, about 40-50KOHM
+	//no need to mount on board RP1 & RP6 now!!!
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+#endif
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
