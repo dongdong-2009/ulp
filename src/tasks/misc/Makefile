@@ -14,3 +14,4 @@ obj-$(CONFIG_MISC_O2PT) += o2pt.o
 obj-$(CONFIG_MISC_O2PTV2) += o2ptv2.o
 obj-$(CONFIG_MISC_HUBCTRL) += hubctrl.o
 obj-$(CONFIG_MISC_HUBPDI) += hubpdi.o
+obj-$(CONFIG_MISC_COMPASS) += compass.o
