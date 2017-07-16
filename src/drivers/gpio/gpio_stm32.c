@@ -1,6 +1,9 @@
 /*
 *
 *  miaofng@2016-09-12 routine for usbhub ctrl board v2.x
+*  miaofng@2017-07-15 remove hash algo
+*  limit:
+*  at most support 32 gpio lines
 *
 */
 #include "ulp/sys.h"
@@ -12,103 +15,41 @@
 #include "stm32f10x.h"
 #include "gpio.h"
 
-#define CONFIG_CMD_WIMG 1
-#define CONFIG_CMD_GPIO 1
+#define GPIO_N 31
 
-#define HASH_EMPTY 0xff
-#define HASH_CONFLICT 0xfe
-#define HASH_N_ENTRY 32
-static int hash_table[HASH_N_ENTRY][3];
+typedef struct {
+	const char *name;
+	int mode;
+	int handle;
+} gpio_t;
 
-#if CONFIG_CMD_WIMG == 1
-int iomap_size = 0;
-const char *iomap[32]; //at most 32 gpio
-#endif
+static int gpio_n = 0;
+static gpio_t gpios[GPIO_N];
 
-int hash1(const char *name)
+static gpio_t *gpio_search(const char *name)
 {
-	int sum = 0; char x;
-	while((x = *name ++) != 0) {
-		sum += x;
-	};
-
-	int hash = sum % HASH_N_ENTRY;
-	return hash;
-}
-
-int hash2(const char *name)
-{
-	int i = 1, sum = 0; char x;
-	while((x = *name ++) != 0) {
-		sum += x * i;
-		i ++;
-	};
-
-	int hash = sum % HASH_N_ENTRY;
-	return hash;
-}
-
-void hash_init(void)
-{
-	for(int i = 0; i < HASH_N_ENTRY; i ++) {
-		hash_table[i][0] = HASH_EMPTY;
-		hash_table[i][1] = HASH_EMPTY;
+	gpio_t *p = NULL;
+	for(int i = 0; i < gpio_n; i ++) {
+		if(!strcmp(gpios[i].name, name)) {
+			p = &gpios[i];
+			break;
+		}
 	}
+	return p;
 }
 
-/*never die!!!*/
-int hash_get(const char *name)
-{
-	int h, v;
-	h = hash1(name);
-	v = hash_table[h][0];
-	if(v == HASH_CONFLICT) {
-		h = hash2(name);
-		v = hash_table[h][1];
-	}
-	return v;
-}
-
-void hash_add(const char *name, int value)
-{
-	int h, v, old;
-	h = hash1(name);
-	v = hash_table[h][0];
-	if(v == HASH_EMPTY) {
-		hash_table[h][0] = value;
-		hash_table[h][2] = hash2(name);
-	}
-	else {
-		assert(v != HASH_CONFLICT);
-		old = hash_table[h][0];
-		hash_table[h][0] = HASH_CONFLICT;
-
-		//try store the old data to new location
-		h = hash_table[h][2];
-		v = hash_table[h][1];
-		assert(v == HASH_EMPTY);
-		hash_table[h][1] = old;
-
-		//try to store new data
-		h = hash2(name);
-		v = hash_table[h][1];
-		assert(v == HASH_EMPTY);
-		hash_table[h][1] = value;
-	}
-}
-
-int gpio_handle(const char *gpio_name)
+static int gpio_handle(const char *gpio)
 {
 	//gpio = PA0 or PB10
-	char port = gpio_name[1];
-	int pin = atoi(&gpio_name[2]);
+	char port = gpio[1];
+	int pin = atoi(&gpio[2]);
 	int handle = (port << 8) | pin;
 	return handle;
 }
 
-GPIO_TypeDef *gpio_port(int gpio_handle)
+GPIO_TypeDef *gpio_port(int handle)
 {
-	char port = (gpio_handle >> 8) & 0xff;
+	char port = (handle >> 8) & 0xff;
 	switch(port){
 	case 'A': return GPIOA;
 	case 'B': return GPIOB;
@@ -122,21 +63,30 @@ GPIO_TypeDef *gpio_port(int gpio_handle)
 	return NULL;
 }
 
-int gpio_pin(int gpio_handle)
+int gpio_pin(int handle)
 {
-	int pin = gpio_handle & 0xff;
+	int pin = handle & 0xff;
 	int mask = 1 << pin;
 	return mask;
 }
 
-int gpio_bind(int mode, const char *gpio, const char *name )
+void gpio_init(void)
 {
-	#if CONFIG_CMD_WIMG == 1
-	iomap[iomap_size ++] = name;
-	#endif
+	gpio_n = 0;
+}
 
+int gpio_bind(int mode, const char *gpio, const char *name)
+{
 	int handle = gpio_handle(gpio);
-	hash_add(name, handle);
+	gpio_t *p = gpio_search(name);
+
+	sys_assert(p == NULL); //name should not identify
+	sys_assert(gpio_n < GPIO_N);
+
+	p = & gpios[gpio_n ++];
+	p->name = name;
+	p->mode = mode;
+	p->handle = handle;
 
 	GPIO_TypeDef *GPIOn = gpio_port(handle);
 	int pin = gpio_pin(handle);
@@ -183,7 +133,7 @@ int gpio_bind(int mode, const char *gpio, const char *name )
 		level = 1;
 		break;
 	default:
-		return -2; //gpio mode unsupport
+		sys_assert(1 == 0); //gpio mode unsupport
 	}
 
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -195,49 +145,118 @@ int gpio_bind(int mode, const char *gpio, const char *name )
 	if(level >= 0) {
 		gpio_set(name, level);
 	}
-	return 0;
+
+	//return the index of current gpio, 0 - 30
+	return gpio_n - 1;
 }
 
 int gpio_set(const char *name, int high)
 {
 	int ecode = -1;
-	int handle = hash_get(name);
-	if((handle != HASH_CONFLICT) &&(handle != HASH_EMPTY)) {
+	gpio_t *gpio = gpio_search(name);
+	if(gpio != NULL) {
 		ecode = 0;
-
+		int handle = gpio->handle;
 		GPIO_TypeDef *GPIOn = gpio_port(handle);
 		int pin = gpio_pin(handle);
-		if(high) GPIOn->BSRR = (uint16_t) pin;
-		else GPIOn->BRR = (uint16_t) pin;
+
+		switch(gpio->mode) {
+		case GPIO_PP0:
+		case GPIO_PP1:
+		case GPIO_OD0:
+		case GPIO_OD1:
+			if(high) GPIOn->BSRR = (uint16_t) pin;
+			else GPIOn->BRR = (uint16_t) pin;
+			break;
+		default:
+			ecode = -1;
+		}
 	}
 	return ecode;
 }
 
 int gpio_get(const char *name)
 {
-	int result = -1;
-	int handle = hash_get(name);
+	int level, ecode = -1;
+	gpio_t *gpio = gpio_search(name);
+	if(gpio != NULL) {
+		ecode = 0;
 
-	//sys_assert(handle != HASH_CONFLICT);
-	//sys_assert(handle != HASH_EMPTY);
-
-	if((handle != HASH_CONFLICT) &&(handle != HASH_EMPTY)) {
+		int handle = gpio->handle;
 		GPIO_TypeDef *GPIOn = gpio_port(handle);
 		int pin = gpio_pin(handle);
-		result = (GPIOn->IDR & pin) ? 1 : 0;
+		level = (GPIOn->IDR & pin) ? 1 : 0;
 	}
-	return result;
+
+	return ecode ? ecode : level;
 }
 
-void gpio_init(void)
+int gpio_wimg(int img, int msk)
 {
-	hash_init();
-	#if CONFIG_CMD_WIMG == 1
-	iomap_size = 0;
-	#endif
+	int ecode = 0;
+	for(int i = 0; i < gpio_n; i ++) {
+		if (bit_get(i, &msk)) {
+			gpio_t *gpio = &gpios[i];
+			int handle = gpio->handle;
+			GPIO_TypeDef *GPIOn = gpio_port(handle);
+			int pin = gpio_pin(handle);
+			int high = bit_get(i, &img);
+
+			switch(gpio->mode) {
+			case GPIO_PP0:
+			case GPIO_PP1:
+			case GPIO_OD0:
+			case GPIO_OD1:
+				if(high) GPIOn->BSRR = (uint16_t) pin;
+				else GPIOn->BRR = (uint16_t) pin;
+				break;
+			default:
+				ecode = -1;
+			}
+		}
+	}
+	return ecode;
 }
 
-#if CONFIG_CMD_GPIO == 1
+int gpio_rimg(int msk)
+{
+	int img = 0;
+	for(int i = 0; i < gpio_n; i ++) {
+		if (bit_get(i, &msk)) {
+			int handle = gpios[i].handle;
+			GPIO_TypeDef *GPIOn = gpio_port(handle);
+			int pin = gpio_pin(handle);
+
+			int high = (GPIOn->IDR & pin) ? 1 : 0;
+			if(high) bit_set(i, &img);
+			else bit_clr(i, &img);
+		}
+	}
+	return img;
+}
+
+void gpio_dumps(void)
+{
+	for(int i = 0; i < gpio_n; i ++) {
+		const char *mode;
+		switch(gpios[i].mode) {
+		case GPIO_AIN: mode = "AIN"; break;
+		case GPIO_DIN: mode = "DIN"; break;
+		case GPIO_IPD: mode = "IPD"; break;
+		case GPIO_IPU: mode = "IPU"; break;
+		case GPIO_PP0: mode = "PP0"; break;
+		case GPIO_PP1: mode = "PP1"; break;
+		case GPIO_OD0: mode = "OD0"; break;
+		case GPIO_OD1: mode = "OD1"; break;
+		default: mode = "???";
+		}
+
+		char port = gpios[i].handle >> 8;
+		char pin = gpios[i].handle & 0xff;
+		printf("%02d: %s, gpio = P%c%02d, name = %s\n", i, mode, port, pin, gpios[i].name);
+	}
+}
+
 static char *trim(char *str)
 {
 	char *p = str;
@@ -256,108 +275,111 @@ static int cmd_gpio_func(int argc, char *argv[])
 		"usage:\n"
 		"GPIO USB0_VCC_EN=0\n"
 		"GPIO USB0_VCC_EN=0 USB1_VPM_EN=1\n"
+		"GPIO HELP\n"
+		"GPIO LIST\n"
+
 	};
 
-	if((argc == 2) && !strcmp(argv[1], "help")) {
+	if((argc == 2) && !strcmp(argv[1], "HELP")) {
 		printf("%s", usage);
 		return 0;
 	}
 
-	int read = 0, ecode = 0;
+	if((argc == 2) && !strcmp(argv[1], "LIST")) {
+		gpio_dumps();
+		return 0;
+	}
+
+	int e, ecode = 0;
 	for(int i = 1; i < argc; i ++) {
-		ecode = -2;
-		if(strlen(argv[i]) >=3) {
-			/*char** tokens = split(argv[i], '=');
-			if(tokens) {
-				char *pname = tokens[0];
-				char *level = tokens[1];
-			*/
-			char *p = strchr(argv[i], '=');
-			if(p != NULL) {
-				*p = '\0';
-				char *pname = argv[i];
-				char *level = p + 1;
-				if(pname) pname = trim(pname);
-				if(level) level = trim(level);
-				if(pname && level && (strlen(pname) > 0) && (strlen(level) > 0)) {
-					ecode = gpio_set(pname, atoi(level));
-					if(ecode) {
-						printf("<%+d, pin %s not exist\n\r", ecode, pname);
-						return 0;
-					}
-				}
+		char *p = strchr(argv[i], '=');
+		if(p != NULL) { //write
+			e = -1;
+
+			*p = '\0';
+			char *pname = argv[i];
+			char *level = p + 1;
+			if(pname) pname = trim(pname);
+			if(level) level = trim(level);
+
+			int high, n = sscanf(level, "%d", &high);
+			if(n == 1) {
+				e = gpio_set(pname, high);
 			}
-			else { //read
+
+			ecode += e;
+		}
+		else { //read, only support 1
+			if(ecode == 0) { //write error may exist
 				char *pname = trim(argv[i]);
-				int level = gpio_get(pname);
-				if(level < 0) {
-					printf("<%+d, %s not exist\n\r", level, pname);
+				if(gpio_search(pname) == NULL) {
+					printf("<-2, pin %s not exist\n", pname);
 				}
 				else {
-					printf("<%+d, %s=%d\n", level, pname, level);
+					int level = gpio_get(pname);
+					printf("<%+d, %s = %d\n", level, pname, level);
 				}
-				ecode = 0;
-				read = 1;
+				return 0;
 			}
-		}
-
-		if(ecode) {
-			printf("<%+d, equation error\n\r", ecode);
-			return 0;
 		}
 	}
 
-	if(read == 0) printf("<+0, No Error\n\r");
+	if(ecode) printf("<%+d, undefined error\n", ecode);
 	return 0;
 }
 
 const cmd_t cmd_gpio = {"GPIO", cmd_gpio_func, "gpio setting commands"};
 DECLARE_SHELL_CMD(cmd_gpio)
-#endif
 
-#if CONFIG_CMD_WIMG == 1
 static int cmd_wimg_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"usage:\n"
-		"WIMG HEX MSK CKSUM		CKSUM = HEX & MSK !!!\n"
+		"WIMG HEX MSK CKSUM		CKSUM = HEX & MSK, optional\n"
+		"WIMG HEX MSK			note: input pin write op is ignored\n"
+		"WIMG MSK			read masked gpio status\n"
 	};
 
-	int ecode = -1;
 	const char *emsg = "<-1, command format error\n\r";
-	const char *pname;
+	int img, msk, cksum, nok;
 
 	if((argc == 2) && !strcmp(argv[1], "help")) {
 		printf("%s", usage);
 		return 0;
 	}
 
-	if(argc == 4) {
-		int img, msk, cksum, nok;
+	if(argc == 2) {
+		nok = sscanf(argv[1], "%x", &msk);
+		if(nok == 1) {
+			int status = gpio_rimg(msk);
+			printf("<%+d, 0x%08x@msk=0x%08x\n\r", status, status, msk);
+			return 0;
+		}
+	}
+
+	if(argc >= 3) {
 		nok = sscanf(argv[1], "%x", &img);
 		nok += sscanf(argv[2], "%x", &msk);
-		nok += sscanf(argv[3], "%x", &cksum);
+		if(argc == 4) nok += sscanf(argv[3], "%x", &cksum);
+		else {
+			cksum = img & msk;
+			nok ++;
+		}
 
 		if((nok != 3) || (cksum != (img & msk))) {
 			printf(emsg);
 			return 0;
 		}
 
-		img = cksum; //cksum == img & msk
-		for(int i = 0; i < iomap_size; i ++) {
-			if (bit_get(i, &msk)) {
-				int level = bit_get(i, &img);
-				pname = iomap[i];
-				ecode = gpio_set(pname, level);
-				if(ecode) {
-					printf("<%d, pin %s not exist\n\r", ecode, pname);
-					return 0;
-				}
-			}
+		int ecode = gpio_wimg(img, msk);
+		if(!ecode) {
+			printf("<+0, No Error\n\r");
+			return 0;
 		}
-
-		printf("<+0, No Error\n\r");
-		return 0;
+		else {
+			printf("<+0, wimg to input pin is ignored\n\r");
+			return 0;
+		}
 	}
 
 	printf(emsg);
@@ -366,5 +388,4 @@ static int cmd_wimg_func(int argc, char *argv[])
 
 const cmd_t cmd_wimg = {"WIMG", cmd_wimg_func, "write gpio image"};
 DECLARE_SHELL_CMD(cmd_wimg)
-#endif
 

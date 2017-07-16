@@ -33,6 +33,8 @@ enum {
 int gpio_bind(int mode, const char *gpio, const char *name);
 int gpio_set(const char *name, int high);
 int gpio_get(const char *name);
+int gpio_wimg(int img, int msk);
+int gpio_rimg(int msk);
 
 /*usage demo:
 
