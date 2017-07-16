@@ -11,6 +11,14 @@
 #define dma_ch_tx DMA1_Channel7
 #define dma_ch_rx DMA1_Channel6
 
+/*txdma mode has bugs!! in case of 115200bps
+send 100bytes = 8.6mS
+send 1000bytes = 86mS
+you could also increase the uart speed to 921600bps
+*/
+#undef CONFIG_UART2_TF_SZ
+#define CONFIG_UART2_TF_SZ 0
+
 #if CONFIG_UART2_TF_SZ > 0
 #define ENABLE_TX_DMA 1
 #define TX_FIFO_SZ CONFIG_UART2_TF_SZ
