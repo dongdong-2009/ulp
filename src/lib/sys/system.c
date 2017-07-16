@@ -9,6 +9,7 @@
 #include "spi.h"
 #include "nvm.h"
 #include "wdt.h"
+#include "gpio.h"
 
 __weak void bsp_init(void)
 {
@@ -30,6 +31,9 @@ void sys_Init(void)
 #endif
 #if (CONFIG_FLASH_NVM == 1)
 	nvm_init();
+#endif
+#if (CONFIG_DRIVER_GPIO == 1)
+	gpio_init();
 #endif
 }
 

@@ -12,6 +12,7 @@ choice 'default console select'	" \
 " UART2
 int 'console baudrate' CONFIG_CONSOLE_BAUD 115200
 bool 'rtc driver' CONFIG_DRIVER_RTC
+bool 'gpio driver' CONFIG_DRIVER_GPIO
 
 mainmenu_option next_comment
 	comment 'uart config'

@@ -30,3 +30,4 @@ obj-y += wdt/
 obj-y += dac/
 obj-$(CONFIG_DRIVER_RTC) += rtc/
 obj-y += pmsmd/
+obj-$(CONFIG_DRIVER_GPIO) += gpio/
