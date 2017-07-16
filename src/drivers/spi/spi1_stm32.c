@@ -145,7 +145,7 @@ static int spi_Write(int addr, int val)
 
 static int spi_Read(int addr)
 {
-	return spi_Write(addr, 0xff);
+	return spi_Write(addr, CONFIG_SPI_READ_DUMMY);
 }
 
 #ifdef CONFIG_SPI1_DMA
