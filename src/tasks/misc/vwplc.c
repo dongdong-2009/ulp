@@ -16,6 +16,7 @@
 #include "common/bitops.h"
 #include "stm32f10x.h"
 #include "gpio.h"
+#include <stdlib.h>
 
 #define CAN_BAUD 500000
 #define CAN_ID_HOST 0x100 //0x101..120 is test unit
@@ -53,6 +54,8 @@ static int vwplc_sql_id; //>= 0: rdy4tst
 static int vwplc_test_end;
 static int vwplc_test_ng;
 static int vwplc_sensors;
+static unsigned vwplc_guid;
+static time_t vplc_mpc_on_timer;
 
 static void vwplc_can_handler(void)
 {
@@ -143,7 +146,7 @@ void vwplc_gpio_init(void)
 	GPIO_BIND(GPIO_IPU, PC12, RSEL)
 	GPIO_BIND(GPIO_IPU, PC11, CSEL)
 
-	GPIO_BIND(GPIO_PP0, PC6, MPC_ON)
+	GPIO_BIND(GPIO_PP0, PA8, MPC_ON)
 
 	GPIO_BIND(GPIO_AIN, PC2, VMPC)
 	GPIO_BIND(GPIO_AIN, PC3, VBST)
@@ -151,6 +154,13 @@ void vwplc_gpio_init(void)
 
 void vwplc_update(void)
 {
+	if (vplc_mpc_on_timer) {
+		if(time_left(vplc_mpc_on_timer) < 0) {
+			vplc_mpc_on_timer = 0;
+			gpio_set("MPC_ON", 1);
+		}
+	}
+
 	static time_t flash_timer = 0;
 	if(vwplc_sql_id >= 0) {
 		vwplc_test_end = 0;
@@ -186,6 +196,14 @@ void vwplc_init(void)
 	vwplc_test_ng = 0;
 
 	vwplc_gpio_init();
+
+	//minpc power-on
+	vwplc_guid = *(unsigned *)(0X1FFFF7E8);
+	srand(vwplc_guid);
+	int mdelay = rand() % 1000;
+	printf("mpc_on delay = %03d mS\n", mdelay);
+	vplc_mpc_on_timer = time_get(mdelay);
+
 	vwplc_sensors = gpio_rimg(0xffffffff);
 	vwplc_can->init(&cfg);
 	vwplc_can->filt(&filter, 1);
@@ -232,6 +250,7 @@ static int cmd_vwplc_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"VWPLC ID?			return test unit id\n"
+		"VWPLC GUID?		return test unit GUID\n"
 		"VWPLC READY?		return -1 or mysql test record id\n"
 		"VWPLC PASS\n"
 		"VWPLC FAIL\n"
@@ -249,6 +268,9 @@ static int cmd_vwplc_func(int argc, char *argv[])
 			vwplc_txmsg.dlc = 8;
 		}
 		printf("<%+d\n", vwplc_id);
+	}
+	else if(!strcmp(argv[1], "GUID?")) {
+		printf("<%+d\n", vwplc_guid);
 	}
 	else if(!strcmp(argv[1], "READY?")) {
 		printf("<%+d\n", vwplc_sql_id);
