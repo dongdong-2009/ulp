@@ -22,8 +22,8 @@
 #define CAN_ID_HOST 0x100 //0x101..120 is test unit
 
 enum {
-	VWPLC_CMD_GET_STATUS, //host: txmsg -> slave: response status
-	VWPLC_CMD_ASSIGN_ID, //host: rsel+csel_txmsg -> slave: response status
+	VWPLC_CMD_POLL, //host: txmsg -> slave: response status
+	VWPLC_CMD_SCAN, //host: rsel+csel_txmsg -> slave: response status
 	VWPLC_CMD_MOVE, //host: txmsg -> slave: response status
 	VWPLC_CMD_TEST, //host: txmsg + mysql_record_id -> slave: response status
 };
@@ -38,10 +38,10 @@ typedef struct {
 
 typedef struct {
 	char id; //test unit id, assign by host, range: 1-18
-	char reserved; //
-	char test_end;
-	char test_ng;
-	int sensors;
+	char reserved1; //
+	char reserved2;
+	char reserved3;
+	int sensors; //bit31: end, bit30: ng
 } txdat_t;
 
 static const can_bus_t *vwplc_can = &can1;
@@ -57,18 +57,31 @@ static int vwplc_sensors;
 static unsigned vwplc_guid;
 static time_t vplc_mpc_on_timer;
 
+static int vwplc_rimg(void)
+{
+	int img = gpio_rimg(0xffffffff);
+	int msk = 0x0300ffff; //input
+	img ^= msk;
+	return img;
+}
+
+static void vwplc_wimg(int msk, int img)
+{
+	gpio_wimg(img, msk);
+}
+
 static void vwplc_can_handler(void)
 {
 	int rsel, csel, img, msk;
 	if(vwplc_rxdat->target != 0) {
 		if(vwplc_rxdat->target != vwplc_id) {
-			if(vwplc_rxdat->cmd != VWPLC_CMD_ASSIGN_ID)
+			if(vwplc_rxdat->cmd != VWPLC_CMD_SCAN)
 				return;
 		}
 	}
 
 	switch(vwplc_rxdat->cmd) {
-	case VWPLC_CMD_ASSIGN_ID:
+	case VWPLC_CMD_SCAN:
 		rsel = gpio_get("RSEL");
 		csel = gpio_get("CSEL");
 		if((rsel == 0) && (csel == 0)) {
@@ -79,31 +92,30 @@ static void vwplc_can_handler(void)
 		break;
 
 	case VWPLC_CMD_MOVE:
-		img = 0 | vwplc_rxdat->img;
-		msk = 0 | vwplc_rxdat->msk;
-		img <<= 16;
-		msk <<= 16;
-		gpio_wimg(img, msk);
+		img = vwplc_rxdat->img;
+		msk = vwplc_rxdat->msk;
+		vwplc_wimg(msk << 16, img << 16);
 		break;
 
 	case VWPLC_CMD_TEST:
 		vwplc_sql_id = vwplc_rxdat->sql_id;
 		break;
 
-	case VWPLC_CMD_GET_STATUS:
+	case VWPLC_CMD_POLL:
+		if(vwplc_id) {
+			int sensors = vwplc_sensors;
+			sensors |= vwplc_test_end ? (1 << 31) : 0;
+			sensors |= vwplc_test_ng ? (1 << 30) : 0;
+
+			vwplc_txdat->id = vwplc_id;
+			vwplc_txdat->sensors = sensors;
+			vwplc_can->send(&vwplc_txmsg);
+		}
 		break;
 
 	default:
 		//only identified cmd to be responsed
 		return;
-	}
-
-	if(vwplc_txmsg.id) {
-		vwplc_txdat->id = vwplc_id;
-		vwplc_txdat->test_end = vwplc_test_end;
-		vwplc_txdat->test_ng = vwplc_test_ng;
-		vwplc_txdat->sensors = vwplc_sensors;
-		vwplc_can->send(&vwplc_txmsg);
 	}
 }
 
@@ -126,7 +138,7 @@ void vwplc_gpio_init(void)
 	GPIO_BIND(GPIO_IPU, PC5, SM+) //GPI#12
 	GPIO_BIND(GPIO_IPU, PB0, SM-) //GPI#13
 
-	GPIO_BIND(GPIO_IPU, PB1, GPI#14) //GPI#14
+	GPIO_BIND(GPIO_IPU, PB1, UE) //GPI#14
 	GPIO_BIND(GPIO_IPU, PB2, GPI#15) //GPI#15
 	GPIO_BIND(GPIO_IPU, PB10, GPI#16) //GPI#16
 	GPIO_BIND(GPIO_IPU, PB11, GPI#17) //GPI#17
@@ -162,6 +174,7 @@ void vwplc_update(void)
 	}
 
 	static time_t flash_timer = 0;
+
 	if(vwplc_sql_id >= 0) {
 		vwplc_test_end = 0;
 		vwplc_test_ng = 0;
@@ -175,13 +188,7 @@ void vwplc_update(void)
 		}
 	}
 
-	if(vwplc_test_end) {
-		flash_timer = 0;
-		gpio_set("LR", vwplc_test_ng ? 1 : 0);
-		gpio_set("LG", vwplc_test_ng ? 0 : 1);
-	}
-
-	vwplc_sensors = gpio_rimg(0xffffffff);
+	vwplc_sensors = vwplc_rimg();
 }
 
 void vwplc_init(void)
@@ -204,7 +211,7 @@ void vwplc_init(void)
 	printf("mpc_on delay = %03d mS\n", mdelay);
 	vplc_mpc_on_timer = time_get(mdelay);
 
-	vwplc_sensors = gpio_rimg(0xffffffff);
+	vwplc_sensors = vwplc_rimg();
 	vwplc_can->init(&cfg);
 	vwplc_can->filt(&filter, 1);
 
@@ -254,6 +261,8 @@ static int cmd_vwplc_func(int argc, char *argv[])
 		"VWPLC READY?		return -1 or mysql test record id\n"
 		"VWPLC PASS\n"
 		"VWPLC FAIL\n"
+		"VWPLC RIMG?\n"
+		"VWPLC WIMG MSK HEX\n"
 	};
 
 	if(argc < 2) {
@@ -279,13 +288,35 @@ static int cmd_vwplc_func(int argc, char *argv[])
 		vwplc_sql_id = -1;
 		vwplc_test_ng = 0;
 		vwplc_test_end = 1;
+		gpio_set("LR", vwplc_test_ng ? 1 : 0);
+		gpio_set("LG", vwplc_test_ng ? 0 : 1);
 		printf("<%+d, OK\n", 0);
 	}
 	else if(!strcmp(argv[1], "FAIL")) {
 		vwplc_sql_id = -1;
 		vwplc_test_ng = 1;
 		vwplc_test_end = 1;
+		gpio_set("LR", vwplc_test_ng ? 1 : 0);
+		gpio_set("LG", vwplc_test_ng ? 0 : 1);
 		printf("<%+d, OK\n", 0);
+	}
+	else if(!strcmp(argv[1], "RIMG?")) {
+		printf("<%+d, OK\n", vwplc_sensors);
+	}
+	else if(!strcmp(argv[1], "WIMG")) {
+		int msk = 0;
+		int img = 0;
+		if(argc > 3) {
+			int n = 0;
+			if((argv[2][1] == 'x') || (argv[2][1] == 'X')) n += sscanf(argv[2], "%x", &msk);
+			else n += sscanf(argv[2], "%d", &msk);
+			if((argv[3][1] == 'x') || (argv[3][1] == 'X')) n += sscanf(argv[3], "%x", &img);
+			else n += sscanf(argv[3], "%d", &img);
+			if(n == 2) {
+				vwplc_wimg(msk, img);
+				printf("<%+d, OK\n", 0);
+			}
+		}
 	}
 
 	return 0;
