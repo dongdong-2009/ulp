@@ -28,7 +28,9 @@ void led_Init(void)
 	led_estep = 0;
 #endif
 
+#if CONFIG_LED_HWDRV == 1
 	led_hwInit();
+#endif
 	led_flash(LED_GREEN);
 }
 
