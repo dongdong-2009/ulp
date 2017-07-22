@@ -136,15 +136,16 @@ int gpio_bind(int mode, const char *gpio, const char *name)
 		sys_assert(1 == 0); //gpio mode unsupport
 	}
 
+	//set before port init
+	if(level >= 0) {
+		gpio_set(name, level);
+	}
+
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = (GPIOMode_TypeDef) mode;
 	GPIO_InitStructure.GPIO_Pin = (uint16_t) pin;
 	GPIO_Init(GPIOn, &GPIO_InitStructure);
-
-	if(level >= 0) {
-		gpio_set(name, level);
-	}
 
 	//return the index of current gpio, 0 - 30
 	return gpio_n - 1;
