@@ -27,3 +27,4 @@ int "mbi5025 clock(unit: KHz, <25MHz)" CONFIG_MBI5025_KHZ 1000
 fi
 bool "chip mcp23s17 (io expander)" CONFIG_DRIVER_MCP23S17
 bool "chip ad5663 16bit dac" CONFIG_DRIVER_AD5663
+bool "chip TM770x (16/24BIT ΣΔ ADC)" CONFIG_DRIVER_TM770X
