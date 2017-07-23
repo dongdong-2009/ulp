@@ -36,6 +36,11 @@ int gpio_get(const char *name);
 int gpio_wimg(int img, int msk);
 int gpio_rimg(int msk);
 
+//gpio is returned by gpio_bind()
+#define GPIO_NONE -1
+int gpio_set_h(int gpio, int high);
+int gpio_get_h(int gpio);
+
 /*usage demo:
 
 void main(void) {

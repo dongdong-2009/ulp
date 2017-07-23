@@ -151,29 +151,50 @@ int gpio_bind(int mode, const char *gpio, const char *name)
 	return gpio_n - 1;
 }
 
+static int gpio_set_hw(const gpio_t *gpio, int high)
+{
+	int ecode = 0;
+	int handle = gpio->handle;
+	GPIO_TypeDef *GPIOn = gpio_port(handle);
+	int msk = gpio_pin(handle);
+
+	switch(gpio->mode) {
+	case GPIO_PP0:
+	case GPIO_PP1:
+	case GPIO_OD0:
+	case GPIO_OD1:
+		if(high) GPIOn->BSRR = (uint16_t) msk;
+		else GPIOn->BRR = (uint16_t) msk;
+		break;
+	default:
+		ecode = -1;
+	}
+	return ecode;
+}
+
 int gpio_set(const char *name, int high)
 {
 	int ecode = -1;
 	gpio_t *gpio = gpio_search(name);
 	if(gpio != NULL) {
-		ecode = 0;
-		int handle = gpio->handle;
-		GPIO_TypeDef *GPIOn = gpio_port(handle);
-		int pin = gpio_pin(handle);
-
-		switch(gpio->mode) {
-		case GPIO_PP0:
-		case GPIO_PP1:
-		case GPIO_OD0:
-		case GPIO_OD1:
-			if(high) GPIOn->BSRR = (uint16_t) pin;
-			else GPIOn->BRR = (uint16_t) pin;
-			break;
-		default:
-			ecode = -1;
-		}
+		ecode = gpio_set_hw(gpio, high);
 	}
 	return ecode;
+}
+
+int gpio_set_h(int hgpio, int high)
+{
+	sys_assert(hgpio < GPIO_N);
+	gpio_t *gpio = &gpios[hgpio];
+	return gpio_set_hw(gpio, high);
+}
+
+static int gpio_get_hw(const gpio_t *gpio)
+{
+	int handle = gpio->handle;
+	GPIO_TypeDef *GPIOn = gpio_port(handle);
+	int msk = gpio_pin(handle);
+	return (GPIOn->IDR & msk) ? 1 : 0;
 }
 
 int gpio_get(const char *name)
@@ -182,14 +203,17 @@ int gpio_get(const char *name)
 	gpio_t *gpio = gpio_search(name);
 	if(gpio != NULL) {
 		ecode = 0;
-
-		int handle = gpio->handle;
-		GPIO_TypeDef *GPIOn = gpio_port(handle);
-		int pin = gpio_pin(handle);
-		level = (GPIOn->IDR & pin) ? 1 : 0;
+		level = gpio_get_hw(gpio);
 	}
 
 	return ecode ? ecode : level;
+}
+
+int gpio_get_h(int hgpio)
+{
+	sys_assert(hgpio < GPIO_N);
+	gpio_t *gpio = &gpios[hgpio];
+	return gpio_get_hw(gpio);
 }
 
 int gpio_wimg(int img, int msk)
