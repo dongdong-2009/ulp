@@ -89,13 +89,15 @@ void __cmd_preprocess(struct cmd_list_s *clst)
 	clst -> ms = 0;
 	for( i = clst -> len; i > 0; i --) {
 		p = clst -> cmdline + i;
-		if(*p == '&') {
+		if(*p == '&') { //"read &" or "read &100" or "read &100,10" for 10 loops
 			clst -> len = i; //new clst cmdline length
-			*p ++ = 0;
-			if(*p != 0) {
-				clst -> ms = atoi(p);
-				clst -> repeat = 1;
-			}
+			*p ++ = 0; //'&'->'\0'
+
+			int ms = 0;
+			int loops = -1;
+			sscanf(p, "%d,%d", &ms, &loops);
+			clst->ms = ms;
+			clst->repeat = loops - 1; //minus 1st loop
 			break;
 		}
 	}
@@ -285,13 +287,21 @@ int cmd_queue_update(struct cmd_queue_s *cq)
 				continue;
 		}
 #endif
-		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) < 0) {
 #ifdef CONFIG_CMD_BKG
+		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) < 0) {
 			//remove from queue
 			list_del(&clst -> list);
 			sys_free(clst);
-#endif
 		}
+
+		if(clst->repeat > 0) {
+			clst->repeat --;
+			if(clst->repeat == 0) {
+				list_del(&clst -> list);
+				sys_free(clst);
+			}
+		}
+#endif
 	}
 	return 0;
 }
