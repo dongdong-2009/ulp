@@ -288,17 +288,20 @@ int cmd_queue_update(struct cmd_queue_s *cq)
 		}
 #endif
 #ifdef CONFIG_CMD_BKG
-		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) < 0) {
-			//remove from queue
+		int ecode = __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE);
+		if( ecode < 0) {
+			//error occurs, remove from queue
 			list_del(&clst -> list);
 			sys_free(clst);
 		}
 
-		if(clst->repeat > 0) {
-			clst->repeat --;
-			if(clst->repeat == 0) {
-				list_del(&clst -> list);
-				sys_free(clst);
+		if(ecode == 0) {
+			if(clst->repeat > 0) {
+				clst->repeat --;
+				if(clst->repeat == 0) {
+					list_del(&clst -> list);
+					sys_free(clst);
+				}
 			}
 		}
 #endif
