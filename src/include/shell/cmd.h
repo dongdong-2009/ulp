@@ -46,6 +46,7 @@ struct cmd_queue_s {
 /*cmd module i/f*/
 void cmd_Init(void);
 void cmd_Update(void);
+int cmd_is_repeated(void);
 
 /*implement me if you want add default handler*/
 int cmd_xxx_func(int argc, char *argv[]);

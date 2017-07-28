@@ -10,8 +10,15 @@
 #include "sys/sys.h"
 #include "ulp/debug.h"
 
+enum {
+	__CMD_EXEC_FLAG_INIT,
+	__CMD_EXEC_FLAG_UPDATE,
+	__CMD_EXEC_FLAG_CLOSE,
+};
+
 /*private*/
 static struct cmd_queue_s *cmd_queue;
+static int cmd_exec_flag;
 
 void cmd_Init(void)
 {
@@ -20,6 +27,11 @@ void cmd_Init(void)
 
 void cmd_Update(void)
 {
+}
+
+int cmd_is_repeated(void)
+{
+	return cmd_exec_flag == __CMD_EXEC_FLAG_UPDATE ? 1 : 0;
 }
 
 #ifdef CONFIG_CMD_PATTERN
@@ -198,12 +210,6 @@ static int __cmd_parse(char *cmdline, int len, char **argv, int n)
 	return argc;
 }
 
-enum {
-	__CMD_EXEC_FLAG_INIT,
-	__CMD_EXEC_FLAG_UPDATE,
-	__CMD_EXEC_FLAG_CLOSE,
-};
-
 __weak int cmd_xxx_func(int argc, char *argv[])
 {
 	return -1;
@@ -224,6 +230,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 		if(strncmp(clst->cmdline, cmd->name, n)) {
 			argc = 1;
 			argv[0] = clst->cmdline;
+			cmd_exec_flag = flag;
 			ret = cmd->func(argc, argv);
 			return ret;
 		}
@@ -250,7 +257,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 				break;
 			}
 */
-
+			cmd_exec_flag = flag;
 			ret = cmd -> func(argc, _argv);
 #ifdef CONFIG_CMD_BKG
 			clst->cmd = cmd;
