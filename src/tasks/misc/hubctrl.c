@@ -260,10 +260,10 @@ void main()
 	hub_init();
 
 	//FE1.1S RESET
-	GPIO_SET(HUB0_RST, 1);
+	//GPIO_SET(HUB0_RST, 1);
 	GPIO_SET(HUB1_RST, 1);
 	sys_mdelay(2);
-	GPIO_SET(HUB0_RST, 0);
+	//GPIO_SET(HUB0_RST, 0);
 	GPIO_SET(HUB1_RST, 0);
 
 	printf("hubctrl sw v2.x, build: %s %s\n\r", __DATE__, __TIME__);
