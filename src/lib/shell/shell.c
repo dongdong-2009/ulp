@@ -697,4 +697,3 @@ static int cmd_shell_func(int argc, char *argv[])
 
 const cmd_t cmd_shell = {"shell", cmd_shell_func, "shell management commands"};
 DECLARE_SHELL_CMD(cmd_shell)
-#endif
