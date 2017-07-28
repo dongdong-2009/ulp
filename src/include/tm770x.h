@@ -8,8 +8,20 @@
 #include "spi.h"
 
 enum {
-	TM_AIN1,
+	TM_AIN1 = 0,
 	TM_AIN2,
+};
+
+#define TM_GAIN(g) (g)
+
+enum {
+	TM_BIPOLAR = 0,
+	TM_UNIPOLAR,
+};
+
+enum {
+	TM_BUF_N,
+	TM_BUF_Y,
 };
 
 typedef struct {

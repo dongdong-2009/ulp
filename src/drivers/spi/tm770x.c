@@ -68,6 +68,10 @@ void tm770x_init(const tm770x_t *chip, int notch_hz)
 
 	tm_chip = chip;
 	int code = chip->mclk_hz / 128 / notch_hz;
+	code = (code < 19) ? 19 : code;
+	code = (code > 4000) ? 4000 : code;
+	notch_hz = chip->mclk_hz / 128 / code;
+	printf("tm770x: notch = %d Hz\n", notch_hz);
 	wreg(REG5_FILL, code >> 0);
 	wreg(REG2_FILH, code >> 8);
 	tm770x_config(chip, 1, 0, 1);
