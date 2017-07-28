@@ -17,15 +17,18 @@
 #include "gpio.h"
 #include "pwm.h"
 #include "tm770x.h"
+#include "nvm.h"
 
 typedef struct {
 	const pwm_bus_t *pwm;
 	const char *ELOADx_EN;
 	const char *ELOADx_R1K;
 	int imax;
+	int cal;
 } eload_t;
 
 typedef struct {
+	int cal;
 	char dg408;
 	char dg409;
 	struct {
@@ -51,11 +54,29 @@ static tm770x_t *vw_dmm;
 static fifo_t vw_dmm_fifo;
 static const vw_ch_t *vw_ch_current = NULL;
 
+enum {
+	VW_CAL_IBAT,
+	VW_CAL_IELOAD1,
+	VW_CAL_IELOAD2,
+	VW_CAL_IELOAD3,
+	VW_CAL_ELOAD1,
+	VW_CAL_ELOAD2,
+	VW_CAL_ELOAD3,
+	NR_OF_CALS,
+};
+
+typedef struct { //y = g*x + d
+	float g;
+	float d;
+} vw_cal_t;
+
+static vw_cal_t vw_cals[NR_OF_CALS] __nvm;
+
 #define NR_OF_ELOADS (sizeof(vw_eloads) / sizeof(vw_eloads[0]))
 static const eload_t vw_eloads[] = {
-	{.pwm = &pwm42, .imax = 3500, .ELOADx_EN = "ELOAD1_EN", .ELOADx_R1K = "ELOAD1_R1K"}, //ELOAD1
-	{.pwm = &pwm43, .imax = 3500, .ELOADx_EN = "ELOAD2_EN", .ELOADx_R1K = "ELOAD2_R1K"}, //ELOAD2
-	{.pwm = &pwm44, .imax = 1500, .ELOADx_EN = "ELOAD3_EN", .ELOADx_R1K = "ELOAD3_R1K"}, //ELOAD3
+	{.cal = VW_CAL_ELOAD1, .pwm = &pwm42, .imax = 3500, .ELOADx_EN = "ELOAD1_EN", .ELOADx_R1K = "ELOAD1_R1K"}, //ELOAD1
+	{.cal = VW_CAL_ELOAD2, .pwm = &pwm43, .imax = 3500, .ELOADx_EN = "ELOAD2_EN", .ELOADx_R1K = "ELOAD2_R1K"}, //ELOAD2
+	{.cal = VW_CAL_ELOAD3, .pwm = &pwm44, .imax = 1500, .ELOADx_EN = "ELOAD3_EN", .ELOADx_R1K = "ELOAD3_R1K"}, //ELOAD3
 };
 
 void __sys_init(void)
@@ -117,15 +138,20 @@ void led_hwSetStatus(led_t led, led_status_t status)
 static void vw_eload_set(int idx, int iset)
 {
 	sys_assert((idx >= 0) && (idx < NR_OF_ELOADS));
-	gpio_set(vw_eloads[idx].ELOADx_R1K, iset == 5 ? 1 : 0);
+	const eload_t *eload = &vw_eloads[idx];
+	gpio_set(eload->ELOADx_R1K, iset == 5 ? 1 : 0);
 
 	//due to current sense factor, imax of eload3 = 1500mA
-	int imax = vw_eloads[idx].imax;
+	int imax = eload->imax;
 	iset = (iset > imax) ? imax : iset;
 	iset = (iset == 5) ? 0 : iset; //R1K special process
 
 	const int iref = (vref_eload_mv * 1000 / 100);
-	gpio_set(vw_eloads[idx].ELOADx_EN, iset > 0 ? 1 : 0);
+	gpio_set(eload->ELOADx_EN, iset > 0 ? 1 : 0);
+	if(eload->cal >= 0) {
+		const vw_cal_t *cal = &vw_cals[eload->cal];
+		iset = (int) (cal->g * iset + cal->d);
+	}
 	vw_eloads[idx].pwm->set(1000 * iset / iref);
 }
 
@@ -145,20 +171,20 @@ static void vw_eload_init(void)
 static const vw_ch_t *vw_ch_search(const char *name)
 {
 	static const vw_ch_t vw_chs[] = {
-		{.dg408 = 0, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .name = "VBAT"},
-		{.dg408 = 1, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .name = "VUSB1"},
-		{.dg408 = 2, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .name = "VUSB2"},
-		{.dg408 = 3, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .name = "VUSB3"},
-		{.dg408 = 4, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .name = "VREF_ELOAD"},
-		{.dg408 = 5, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 4}, .name = "VREF"},
-		{.dg408 = 6, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .name = "VSHIELD"},
-		{.dg408 = 7, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .name = "VZREN"},
+		{.dg408 = 0, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VBAT"},
+		{.dg408 = 1, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VUSB1"},
+		{.dg408 = 2, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VUSB2"},
+		{.dg408 = 3, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VUSB3"},
+		{.dg408 = 4, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VREF_ELOAD"},
+		{.dg408 = 5, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 4}, .cal = -1, .name = "VREF"},
+		{.dg408 = 6, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VSHIELD"},
+		{.dg408 = 7, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VZREN"},
 
 		//0-4A *0.1R = 0.4v, gain = 4
-		{.dg408 = 0, .dg409 = 0, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .name = "IBAT"},
-		{.dg408 = 0, .dg409 = 1, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .name = "IELOAD1"},
-		{.dg408 = 0, .dg409 = 2, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .name = "IELOAD2"},
-		{.dg408 = 0, .dg409 = 3, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .name = "IELOAD3"},
+		{.dg408 = 0, .dg409 = 0, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .cal = VW_CAL_IBAT, .name = "IBAT"},
+		{.dg408 = 0, .dg409 = 1, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .cal = VW_CAL_IELOAD1, .name = "IELOAD1"},
+		{.dg408 = 0, .dg409 = 2, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .cal = VW_CAL_IELOAD2, .name = "IELOAD2"},
+		{.dg408 = 0, .dg409 = 3, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .cal = VW_CAL_IELOAD3, .name = "IELOAD3"},
 	};
 
 	int nr_of_ch = sizeof(vw_chs) / sizeof(vw_chs[0]);
@@ -196,9 +222,23 @@ static int vw_dmm_read(const vw_ch_t *ch, float *result)
 	int d, n = fifo_pop(&vw_dmm_fifo, &d);
 	if(n > 0) {
 		d = d / ch->tm770x.gain;
-		float v = (vref_mv/1000.0 * d) / (1 << 24);
-		if(ch->tm770x.ainx == TM_AIN1) *result = V2V(v);
-		else *result = V2I(v);
+		float i, v = (vref_mv/1000.0 * d) / (1 << 24);
+		if(ch->tm770x.ainx == TM_AIN1) {
+			v = V2V(v);
+			if(ch->cal >= 0) {
+				const vw_cal_t *cal = &vw_cals[ch->cal];
+				v = cal->g * v + cal->d;
+			}
+			*result = v;
+		}
+		else {
+			i = V2I(v);
+			if(ch->cal >= 0) {
+				const vw_cal_t *cal = &vw_cals[ch->cal];
+				i = cal->g * i + cal->d;
+			}
+			*result = i;
+		}
 	}
 	return n;
 }
@@ -287,8 +327,20 @@ static void vw_dmm_init(void)
 #endif
 }
 
+static void vw_cal_init(void)
+{
+	if(nvm_is_null()) {
+		for(int i = 0; i < NR_OF_CALS; i ++) {
+			vw_cals[i].g = 1.0;
+			vw_cals[i].d = 0.0;
+		}
+	}
+	hexdump("cal", vw_cals, sizeof(vw_cals));
+}
+
 void vw_init(void)
 {
+	vw_cal_init();
 	vw_eload_init();
 	vw_dmm_init();
 }
@@ -317,6 +369,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		"*RST		instrument reset\n"
 		"ELOAD 1 100	eload1=100mA, eload=1-3\n"
 		"MEASURE VBAT	measure specified channel, optional N samples\n"
+		"CALIBRATE hex		cal = hex2bin(hex)\n"
 	};
 
 	if(!strcmp(argv[0], "*?")) {
@@ -376,6 +429,24 @@ int cmd_xxx_func(int argc, char *argv[])
 
 		if(e) printf("<%+d, ERROR!\n", e);
 		return e;
+	}
+	else if(!strncmp(argv[0], "CAL", 3)) {
+		//warning: hex = 8bytes * NR_OF_CALS * 2 = 112bytes!!!
+		int e = -1;
+		if(argc > 1) {
+			int n = strlen(argv[1]) >> 1;
+			if(n == sizeof(vw_cals)) {
+				hex2bin(argv[1], vw_cals);
+				e = 0;
+			}
+		}
+		else {
+			hexdump("CAL", vw_cals, sizeof(vw_cals));
+			return 0;
+		}
+
+		if(e) printf("<%+d, CAL PARA ERROR!\n", e);
+		else printf("<%+d, OK!\n", e);
 	}
 	else if(!strcmp(argv[0], "*IDN?")) {
 		printf("<+0, Ulicar Technology, vwhost V1.x,%s,%s\n\r", __DATE__, __TIME__);
