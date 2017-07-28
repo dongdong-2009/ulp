@@ -40,10 +40,7 @@ static int ch1_init(const pwm_cfg_t *cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
-	pwm_cfg_t def = PWM_CFG_DEF;
-
-	cfg = (cfg == NULL) ? &def : cfg;
-	pwm_init(cfg);
+	if(cfg != NULL) pwm_init(cfg);
 
 	/*config pin*/
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
@@ -52,12 +49,13 @@ static int ch1_init(const pwm_cfg_t *cfg)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	/*config ch*/
+	TIM_OCStructInit(&TIM_OCInitStructure);
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = cfg -> fs >> 1; //default to 50%
+	TIM_OCInitStructure.TIM_Pulse = 0;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OC1Init(TIMn, &TIM_OCInitStructure);
-	TIM_OC1PreloadConfig(TIMn, TIM_OCPreload_Enable);
+	TIM_OC1PreloadConfig(TIMn, TIM_OCPreload_Disable);
 	return 0;
 }
 
@@ -65,10 +63,7 @@ static int ch2_init(const pwm_cfg_t *cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
-	pwm_cfg_t def = PWM_CFG_DEF;
-
-	cfg = (cfg == NULL) ? &def : cfg;
-	pwm_init(cfg);
+	if(cfg != NULL) pwm_init(cfg);
 
 	/*config pin*/
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
@@ -77,12 +72,13 @@ static int ch2_init(const pwm_cfg_t *cfg)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	/*config ch*/
+	TIM_OCStructInit(&TIM_OCInitStructure);
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = cfg -> fs >> 1; //default to 50%
+	TIM_OCInitStructure.TIM_Pulse = 0;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OC2Init(TIMn, &TIM_OCInitStructure);
-	TIM_OC2PreloadConfig(TIMn, TIM_OCPreload_Enable);
+	TIM_OC2PreloadConfig(TIMn, TIM_OCPreload_Disable);
 	return 0;
 }
 
@@ -90,10 +86,7 @@ static int ch3_init(const pwm_cfg_t *cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
-	pwm_cfg_t def = PWM_CFG_DEF;
-
-	cfg = (cfg == NULL) ? &def : cfg;
-	pwm_init(cfg);
+	if(cfg != NULL) pwm_init(cfg);
 
 	/*config pin*/
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
@@ -102,12 +95,13 @@ static int ch3_init(const pwm_cfg_t *cfg)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	/*config ch*/
+	TIM_OCStructInit(&TIM_OCInitStructure);
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = cfg -> fs >> 1; //default to 50%
+	TIM_OCInitStructure.TIM_Pulse = 0;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OC3Init(TIMn, &TIM_OCInitStructure);
-	TIM_OC3PreloadConfig(TIMn, TIM_OCPreload_Enable);
+	TIM_OC3PreloadConfig(TIMn, TIM_OCPreload_Disable);
 	return 0;
 }
 
@@ -115,10 +109,7 @@ static int ch4_init(const pwm_cfg_t *cfg)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
-	pwm_cfg_t def = PWM_CFG_DEF;
-
-	cfg = (cfg == NULL) ? &def : cfg;
-	pwm_init(cfg);
+	if(cfg != NULL) pwm_init(cfg);
 
 	/*config pin*/
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
@@ -127,12 +118,13 @@ static int ch4_init(const pwm_cfg_t *cfg)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	/*config ch*/
+	TIM_OCStructInit(&TIM_OCInitStructure);
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = cfg -> fs >> 1; //default to 50%
+	TIM_OCInitStructure.TIM_Pulse = 0;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OC4Init(TIMn, &TIM_OCInitStructure);
-	TIM_OC4PreloadConfig(TIMn, TIM_OCPreload_Enable);
+	TIM_OC4PreloadConfig(TIMn, TIM_OCPreload_Disable);
 	return 0;
 }
 

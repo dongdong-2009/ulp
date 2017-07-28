@@ -690,9 +690,9 @@ static int cmd_shell_func(int argc, char *argv[])
 
 	if(e)
 		printf("%s", usage);
-
 	return 0;
 }
 
 const cmd_t cmd_shell = {"shell", cmd_shell_func, "shell management commands"};
 DECLARE_SHELL_CMD(cmd_shell)
+#endif

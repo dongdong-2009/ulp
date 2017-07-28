@@ -146,6 +146,8 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			#else
 			GPIO_WriteBit(GPIOE, GPIO_Pin_1, ba);
 			#endif
+#elif CONFIG_MISC_O2PF == 1
+			GPIO_WriteBit(GPIOE, GPIO_Pin_15, ba);
 #else
 			GPIO_WriteBit(GPIOE, GPIO_Pin_15, ba);
 #endif
@@ -176,6 +178,8 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			#else
 			GPIO_WriteBit(GPIOE, GPIO_Pin_0, ba);
 			#endif
+#elif CONFIG_MISC_O2PF == 1
+			GPIO_WriteBit(GPIOE, GPIO_Pin_14, ba);
 #else
 			GPIO_WriteBit(GPIOE, GPIO_Pin_14, ba);
 #endif
