@@ -17,3 +17,4 @@ obj-$(CONFIG_MISC_HUBPDI) += hubpdi.o
 obj-$(CONFIG_MISC_COMPASS) += compass.o
 obj-$(CONFIG_MISC_VWPLC) += vwplc.o
 obj-$(CONFIG_MISC_VWHOST) += vwhost.o
+obj-$(CONFIG_MISC_VWSIG) += vwsig.o

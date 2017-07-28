@@ -113,10 +113,10 @@ int nvm_save(void)
 /*clear nvm strorage to default state*/
 int nvm_clear(void)
 {
-	char *src, *dest, *bak;
+	char *dest, *bak;
 	int sz_ram, pages;
 
-	src = __section_begin(".nvm.ram");
+	//src = __section_begin(".nvm.ram");
 	sz_ram = (int)__section_end(".nvm.ram") - (int)__section_begin(".nvm.ram");
 	if(sz_ram == 0)
 		return 0;
@@ -156,11 +156,13 @@ int cmd_nvm_func(int argc, char *argv[])
 
 	if((argc == 2) && (!strncmp("save", argv[1], 2))) {
 		nvm_save();
+		printf("<+0, OK!\n");
 		return 0;
 	}
 
 	if((argc == 2) && (!strncmp("clear", argv[1], 2))) {
 		nvm_clear();
+		printf("<+0, OK!\n");
 		return 0;
 	}
 

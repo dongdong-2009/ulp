@@ -18,6 +18,9 @@ __weak void bsp_init(void)
 void sys_Init(void)
 {
 	SystemInit();
+#if (CONFIG_DRIVER_GPIO == 1)
+	gpio_init();
+#endif
 #if CONFIG_DRIVER_WDT == 1
 	wdt_init(CONFIG_WDT_PERIOD);
 #endif
@@ -31,9 +34,6 @@ void sys_Init(void)
 #endif
 #if (CONFIG_FLASH_NVM == 1)
 	nvm_init();
-#endif
-#if (CONFIG_DRIVER_GPIO == 1)
-	gpio_init();
 #endif
 }
 

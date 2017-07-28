@@ -24,11 +24,11 @@ static int pwm_init(const pwm_cfg_t *cfg)
 	RCC_GetClocksFreq(&clks);
 	f = clks.PCLK1_Frequency;
 	f <<= (clks.HCLK_Frequency == clks.PCLK1_Frequency) ? 0 : 1;
-	div = f / cfg->hz / cfg -> fs;
+	div = f / cfg->hz / (cfg -> fs + 1);
 
 	/* time base configuration */
 	TIM_TimeBaseStructure.TIM_Period = cfg->fs;
-	TIM_TimeBaseStructure.TIM_Prescaler = div - 1;
+	TIM_TimeBaseStructure.TIM_Prescaler = (div > 1) ? div - 1 : 0;
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
 	TIM_TimeBaseInit(TIMn, &TIM_TimeBaseStructure);
