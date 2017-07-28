@@ -1131,3 +1131,23 @@ static int cmd_test_func(int argc, char *argv[])
 
 cmd_t cmd_test = {"test", cmd_test_func, "o2pf test cmds"};
 DECLARE_SHELL_CMD(cmd_test)
+
+int cmd_xxx_func(int argc, char *argv[])
+{
+	const char *usage = {
+		"usage:\n"
+		"*IDN?		to read identification string\n"
+		"*RST		instrument reset\n"
+	};
+
+	int ecode = 0;
+	if(!strcmp(argv[0], "*IDN?")) {
+		printf("<+0, ULICAR Technology,%s,%s\n\r", __DATE__, __TIME__);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "*RST")) {
+		printf("<+0, OK\n");
+		NVIC_SystemReset();
+	}
+	return 0;
+}
