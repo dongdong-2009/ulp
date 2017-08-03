@@ -21,10 +21,13 @@
 #define CAN_ID_HOST 0x100 //0x101..120 is test unit
 
 enum {
-	VW_CMD_POLL, //host: txmsg -> slave: response status
-	VW_CMD_SCAN, //host: rsel+csel_txmsg -> slave: response status
-	VW_CMD_MOVE, //host: txmsg -> slave: response status
-	VW_CMD_TEST, //host: txmsg + mysql_record_id -> slave: response status
+	VW_CMD_POLL, //host: cmd -> slave: response status
+	VW_CMD_SCAN, //host: cmd+rsel+csel
+	VW_CMD_MOVE, //host: cmd
+	VW_CMD_TEST, //host: cmd + mysql_record_id
+	VW_CMD_PASS, //host: cmd, identical with cmd "TEST PASS", only for debug purpose
+	VW_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL", only for debug purpose
+	VW_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
 };
 
 typedef struct {
@@ -95,50 +98,53 @@ void vw_gpio_init(void)
 }
 
 /*id range: [1, 9]*/
-int vw_assign(int id)
+int vw_assign(int idx)
 {
-	static int last_id = 0;
-	if(last_id) {
+	sys_assert((idx >= 0) && (idx < 9));
+	const int slaves[] = { //operator view
+		0x3011, 0x6012, 0x9014,
+		0x2021, 0x5022, 0x8024,
+		0x1041, 0x4042, 0x7044,
+	};
+
+	//convert idx to id
+	int id = slaves[idx] >> 12;
+	id &= 0x0f;
+
+	static int last_idx = -1;
+	if(last_idx >= 0) {
 		//csel/rsel signals need stable time
-		vw_txdat->target = last_id;
+		vw_txdat->target = id;
 		vw_txdat->cmd = VW_CMD_SCAN;
 		vw_can->send(&vw_txmsg);
 
-		last_id = 0;
+		last_idx = -1;
 		return 0; //id been assigned
 	}
 
-	const char slaves[] = {
-		0x00, //= host itself, illeague
-		0x11, 0x12, 0x14,
-		0x21, 0x22, 0x24,
-		0x41, 0x42, 0x44,
-	};
-
-	sys_assert((id > 0) && (id < 10));
-	char rsel = (slaves[id] >> 4) & 0x0f;
-	char csel = (slaves[id] >> 0) & 0x0f;
+	char rsel = (slaves[idx] >> 4) & 0x0f;
+	char csel = (slaves[idx] >> 0) & 0x0f;
 	gpio_set("RSEL0", rsel & 0x01);
 	gpio_set("RSEL1", rsel & 0x02);
 	gpio_set("RSEL2", rsel & 0x04);
 	gpio_set("CSEL0", csel & 0x01);
 	gpio_set("CSEL1", csel & 0x02);
 	gpio_set("CSEL2", csel & 0x04);
-	last_id = id;
+	last_idx = idx;
 	return id;
 }
 
 void vw_update(void)
 {
 	//so boring .. assign the vwplc id :(
-	static int id_scan = 1;
-	static int id_scan_timer = 0;
+	static int idx_scan = 0;
+	static int idx_scan_timer = 0;
 
-	if((id_scan_timer == 0) || (time_left(id_scan_timer) < 0)) {
-		id_scan_timer = time_get(100);
-		int id = vw_assign(id_scan);
-		id_scan += (id == 0) ? 1 : 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ;
-		id_scan = (id_scan > 9) ? 1 : id_scan;
+	if((idx_scan_timer == 0) || (time_left(idx_scan_timer) < 0)) {
+		idx_scan_timer = time_get(100);
+		int idx = vw_assign(idx_scan);
+		idx_scan += (idx == 0) ? 1 : 0;
+		idx_scan = (idx_scan > 8) ? 0 : idx_scan;
 	}
 
 	//poll result?
@@ -185,6 +191,9 @@ int cmd_xxx_func(int argc, char *argv[])
 		"POLL id		read then update vwplc status, id = 0..9, 0=>ALL\n"
 		"MOVE id msk img	move vplc 1-9 cylinders\n"
 		"TEST id sql_id	start test of unit 1-9\n"
+		"PASS id		debug, identical with cmd 'VWPLC PASS'\n"
+		"FAIL id		debug, identical with cmd 'VWPLC FAIL'\n"
+		"ENDC id		handshake with TEST_END signal\n"
 	};
 
 	int i, n, e, v, bytes;
@@ -299,6 +308,54 @@ int cmd_xxx_func(int argc, char *argv[])
 				vw_txdat->target = id;
 				vw_txdat->cmd = VW_CMD_TEST;
 				vw_txdat->sql_id = sql;
+				e = vw_can->send(&vw_txmsg);
+			}
+		}
+
+		const char *emsg = e ? "Error" : "OK";
+		printf("<%+d, %s\n", e, emsg);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "PASS")) {
+		e = -1;
+		if(argc > 1) {
+			n = sscanf(argv[1], "%d", &id);
+
+			if((n == 1) && (id >= 1) && (id <= 9)) {
+				vw_txdat->target = id;
+				vw_txdat->cmd = VW_CMD_PASS;
+				e = vw_can->send(&vw_txmsg);
+			}
+		}
+
+		const char *emsg = e ? "Error" : "OK";
+		printf("<%+d, %s\n", e, emsg);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "FAIL")) {
+		e = -1;
+		if(argc > 1) {
+			n = sscanf(argv[1], "%d", &id);
+
+			if((n == 1) && (id >= 1) && (id <= 9)) {
+				vw_txdat->target = id;
+				vw_txdat->cmd = VW_CMD_FAIL;
+				e = vw_can->send(&vw_txmsg);
+			}
+		}
+
+		const char *emsg = e ? "Error" : "OK";
+		printf("<%+d, %s\n", e, emsg);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "ENDC")) {
+		e = -1;
+		if(argc > 1) {
+			n = sscanf(argv[1], "%d", &id);
+
+			if((n == 1) && (id >= 1) && (id <= 9)) {
+				vw_txdat->target = id;
+				vw_txdat->cmd = VW_CMD_ENDC;
 				e = vw_can->send(&vw_txmsg);
 			}
 		}
