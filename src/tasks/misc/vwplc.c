@@ -22,10 +22,13 @@
 #define CAN_ID_HOST 0x100 //0x101..120 is test unit
 
 enum {
-	VWPLC_CMD_POLL, //host: txmsg -> slave: response status
-	VWPLC_CMD_SCAN, //host: rsel+csel_txmsg -> slave: response status
-	VWPLC_CMD_MOVE, //host: txmsg -> slave: response status
-	VWPLC_CMD_TEST, //host: txmsg + mysql_record_id -> slave: response status
+	VWPLC_CMD_POLL, //host: cmd -> slave: response status
+	VWPLC_CMD_SCAN, //host: cmd+rsel+csel
+	VWPLC_CMD_MOVE, //host: cmd
+	VWPLC_CMD_TEST, //host: cmd + mysql_record_id
+	VWPLC_CMD_PASS, //host: cmd, identical with cmd "TEST PASS", only for debug purpose
+	VWPLC_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL", only for debug purpose
+	VWPLC_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
 };
 
 typedef struct {
@@ -99,6 +102,20 @@ static void vwplc_can_handler(void)
 
 	case VWPLC_CMD_TEST:
 		vwplc_sql_id = vwplc_rxdat->sql_id;
+		break;
+
+	case VWPLC_CMD_PASS:
+		vwplc_test_ng = 0;
+		vwplc_test_end = 1;
+		break;
+
+	case VWPLC_CMD_FAIL:
+		vwplc_test_ng = 1;
+		vwplc_test_end = 1;
+		break;
+
+	case VWPLC_CMD_ENDC:
+		vwplc_test_end = 0;
 		break;
 
 	case VWPLC_CMD_POLL:
@@ -175,6 +192,14 @@ void vwplc_update(void)
 
 	static time_t flash_timer = 0;
 
+	//test end
+	if(vwplc_test_end) {
+		vwplc_sql_id = -1;
+		gpio_set("LR", vwplc_test_ng ? 1 : 0);
+		gpio_set("LG", vwplc_test_ng ? 0 : 1);
+	}
+
+	//test start
 	if(vwplc_sql_id >= 0) {
 		vwplc_test_end = 0;
 		vwplc_test_ng = 0;
@@ -197,10 +222,8 @@ void vwplc_init(void)
 	const can_filter_t filter = {.id = CAN_ID_HOST, .mask = 0xffff, .flag = 0};
 	memset(&vwplc_rxmsg, 0x00, sizeof(vwplc_rxmsg));
 	memset(&vwplc_txmsg, 0x00, sizeof(vwplc_txmsg));
-	vwplc_id = 0;
-	vwplc_sql_id = -1;
-	vwplc_test_end = 1;
-	vwplc_test_ng = 0;
+	vwplc_can->init(&cfg);
+	vwplc_can->filt(&filter, 1);
 
 	vwplc_gpio_init();
 
@@ -210,10 +233,6 @@ void vwplc_init(void)
 	int mdelay = rand() % 1000;
 	printf("mpc_on delay = %03d mS\n", mdelay);
 	vplc_mpc_on_timer = time_get(mdelay);
-
-	vwplc_sensors = vwplc_rimg();
-	vwplc_can->init(&cfg);
-	vwplc_can->filt(&filter, 1);
 
 	/*!!! to usePreemptionPriority, group must be config first
 	systick priority !must! use  NVIC_SetPriority() to set
@@ -230,6 +249,20 @@ void vwplc_init(void)
 
 	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
 	CAN_ITConfig(CAN1, CAN_IT_FMP0, ENABLE);
+
+	//fixture init action
+	vwplc_id = 0;
+	vwplc_sql_id = -1;
+	vwplc_test_ng = 0;
+	vwplc_test_end = 1;
+	vwplc_sensors = vwplc_rimg();
+
+	gpio_set("CC", 0);
+	gpio_set("CR", 0);
+	gpio_set("CF", 0);
+	gpio_set("CB", 0);
+	gpio_set("CP", 0);
+	gpio_set("CM", 0);
 }
 
 void main()
@@ -285,19 +318,13 @@ static int cmd_vwplc_func(int argc, char *argv[])
 		printf("<%+d\n", vwplc_sql_id);
 	}
 	else if(!strcmp(argv[1], "PASS")) {
-		vwplc_sql_id = -1;
 		vwplc_test_ng = 0;
 		vwplc_test_end = 1;
-		gpio_set("LR", vwplc_test_ng ? 1 : 0);
-		gpio_set("LG", vwplc_test_ng ? 0 : 1);
 		printf("<%+d, OK\n", 0);
 	}
 	else if(!strcmp(argv[1], "FAIL")) {
-		vwplc_sql_id = -1;
 		vwplc_test_ng = 1;
 		vwplc_test_end = 1;
-		gpio_set("LR", vwplc_test_ng ? 1 : 0);
-		gpio_set("LG", vwplc_test_ng ? 0 : 1);
 		printf("<%+d, OK\n", 0);
 	}
 	else if(!strcmp(argv[1], "RIMG?")) {
