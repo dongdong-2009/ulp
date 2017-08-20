@@ -19,15 +19,21 @@
 #include <stdlib.h>
 
 #define CAN_BAUD 500000
+#define CAN_ID_SCAN 0x200 //!low priority
 #define CAN_ID_HOST 0x100 //0x101..120 is test unit
+#define CAN_ID_UNIT(N) (CAN_ID_HOST + (N))
+#define SENSOR_FLIT_MS 50
 
 enum {
 	VWPLC_CMD_POLL, //host: cmd -> slave: response status
 	VWPLC_CMD_SCAN, //host: cmd+rsel+csel
+
 	VWPLC_CMD_MOVE, //host: cmd
 	VWPLC_CMD_TEST, //host: cmd + mysql_record_id
-	VWPLC_CMD_PASS, //host: cmd, identical with cmd "TEST PASS", only for debug purpose
-	VWPLC_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL", only for debug purpose
+
+	//only for debug purpose, do not use it normal testing!!!!
+	VWPLC_CMD_PASS, //host: cmd, identical with cmd "TEST PASS"
+	VWPLC_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL"
 	VWPLC_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
 };
 
@@ -65,12 +71,22 @@ static int vwplc_rimg(void)
 	int img = gpio_rimg(0xffffffff);
 	int msk = 0x0300ffff; //input
 	img ^= msk;
+
+	img |= vwplc_test_end ? (1 << 31) : 0;
+	img |= vwplc_test_ng ? (1 << 30) : 0;
 	return img;
 }
 
 static void vwplc_wimg(int msk, int img)
 {
 	gpio_wimg(img, msk);
+}
+
+static void vwplc_can_send(const can_msg_t *msg)
+{
+	led_hwSetStatus(LED_RED, 1);
+	while(vwplc_can->send(msg));
+	led_hwSetStatus(LED_RED, 0);
 }
 
 static void vwplc_can_handler(void)
@@ -89,7 +105,7 @@ static void vwplc_can_handler(void)
 		csel = gpio_get("CSEL");
 		if((rsel == 0) && (csel == 0)) {
 			vwplc_id = vwplc_rxdat->target;
-			vwplc_txmsg.id = CAN_ID_HOST + vwplc_id;
+			vwplc_txmsg.id = CAN_ID_UNIT(vwplc_id);
 			vwplc_txmsg.dlc = 8;
 		}
 		break;
@@ -120,13 +136,9 @@ static void vwplc_can_handler(void)
 
 	case VWPLC_CMD_POLL:
 		if(vwplc_id) {
-			int sensors = vwplc_sensors;
-			sensors |= vwplc_test_end ? (1 << 31) : 0;
-			sensors |= vwplc_test_ng ? (1 << 30) : 0;
-
 			vwplc_txdat->id = vwplc_id;
-			vwplc_txdat->sensors = sensors;
-			vwplc_can->send(&vwplc_txmsg);
+			vwplc_txdat->sensors = vwplc_sensors;
+			vwplc_can_send(&vwplc_txmsg);
 		}
 		break;
 
@@ -144,10 +156,20 @@ void vwplc_gpio_init(void)
 	GPIO_BIND(GPIO_IPU, PC15, SR+) //GPI#02
 	GPIO_BIND(GPIO_IPU, PA1, SR-) //GPI#03
 
+	GPIO_FILT(SC+, SENSOR_FLIT_MS)
+	GPIO_FILT(SC-, SENSOR_FLIT_MS)
+	GPIO_FILT(SR+, SENSOR_FLIT_MS)
+	GPIO_FILT(SR-, SENSOR_FLIT_MS)
+
 	GPIO_BIND(GPIO_IPU, PA2, SF+) //GPI#04
 	GPIO_BIND(GPIO_IPU, PA4, SF-) //GPI#05
 	GPIO_BIND(GPIO_IPU, PA5, SB+) //GPI#06
 	GPIO_BIND(GPIO_IPU, PA6, SB-) //GPI#07
+
+	GPIO_FILT(SF+, SENSOR_FLIT_MS)
+	GPIO_FILT(SF-, SENSOR_FLIT_MS)
+	GPIO_FILT(SB+, SENSOR_FLIT_MS)
+	GPIO_FILT(SB-, SENSOR_FLIT_MS)
 
 	//sensors #10-17
 	GPIO_BIND(GPIO_IPU, PA7, SP+) //GPI#10
@@ -155,10 +177,17 @@ void vwplc_gpio_init(void)
 	GPIO_BIND(GPIO_IPU, PC5, SM+) //GPI#12
 	GPIO_BIND(GPIO_IPU, PB0, SM-) //GPI#13
 
+	GPIO_FILT(SP+, SENSOR_FLIT_MS)
+	GPIO_FILT(SP-, SENSOR_FLIT_MS)
+	GPIO_FILT(SM+, SENSOR_FLIT_MS)
+	GPIO_FILT(SM-, SENSOR_FLIT_MS)
+
 	GPIO_BIND(GPIO_IPU, PB1, UE) //GPI#14
 	GPIO_BIND(GPIO_IPU, PB2, GPI#15) //GPI#15
 	GPIO_BIND(GPIO_IPU, PB10, GPI#16) //GPI#16
 	GPIO_BIND(GPIO_IPU, PB11, GPI#17) //GPI#17
+
+	GPIO_FILT(UE, SENSOR_FLIT_MS)
 
 	//valve ctrl
 	GPIO_BIND(GPIO_PP0, PB12, CC) //GPO#00
@@ -174,6 +203,8 @@ void vwplc_gpio_init(void)
 	//misc
 	GPIO_BIND(GPIO_IPU, PC12, RSEL)
 	GPIO_BIND(GPIO_IPU, PC11, CSEL)
+	GPIO_FILT(RSEL, 10)
+	GPIO_FILT(CSEL, 10)
 
 	GPIO_BIND(GPIO_PP0, PA8, MPC_ON)
 
@@ -213,17 +244,36 @@ void vwplc_update(void)
 		}
 	}
 
-	vwplc_sensors = vwplc_rimg();
+	int sensors = vwplc_rimg();
+	int delta = sensors ^ vwplc_sensors;
+	if(delta) {
+		vwplc_sensors = sensors;
+
+		#define MASK_EXCEPT_CESL_AND_RSEL (~0X03000000)
+		if(delta & MASK_EXCEPT_CESL_AND_RSEL) {
+			if(vwplc_id) {
+				//report to vwhost
+				__disable_irq();
+				vwplc_txdat->id = vwplc_id;
+				vwplc_txdat->sensors = vwplc_sensors;
+				vwplc_can_send(&vwplc_txmsg);
+				__enable_irq();
+			}
+		}
+	}
 }
 
 void vwplc_init(void)
 {
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
-	const can_filter_t filter = {.id = CAN_ID_HOST, .mask = 0xffff, .flag = 0};
+	const can_filter_t filter[] = {
+		{.id = CAN_ID_HOST, .mask = 0xffff, .flag = 0},
+		{.id = CAN_ID_SCAN, .mask = 0xffff, .flag = 0},
+	};
 	memset(&vwplc_rxmsg, 0x00, sizeof(vwplc_rxmsg));
 	memset(&vwplc_txmsg, 0x00, sizeof(vwplc_txmsg));
 	vwplc_can->init(&cfg);
-	vwplc_can->filt(&filter, 1);
+	vwplc_can->filt(filter, 2);
 
 	vwplc_gpio_init();
 
@@ -306,7 +356,7 @@ static int cmd_vwplc_func(int argc, char *argv[])
 	if(!strcmp(argv[1], "ID?")) {
 		if(argc > 2) {
 			sscanf(argv[2], "%d", &vwplc_id);
-			vwplc_txmsg.id = CAN_ID_HOST + vwplc_id;
+			vwplc_txmsg.id = CAN_ID_UNIT(vwplc_id);
 			vwplc_txmsg.dlc = 8;
 		}
 		printf("<%+d\n", vwplc_id);

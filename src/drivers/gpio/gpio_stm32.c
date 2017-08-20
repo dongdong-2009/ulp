@@ -6,6 +6,7 @@
 *  at most support 32 gpio lines
 *
 */
+
 #include "ulp/sys.h"
 #include "led.h"
 #include <string.h>
@@ -14,6 +15,7 @@
 #include "common/bitops.h"
 #include "stm32f10x.h"
 #include "gpio.h"
+#include "common/debounce.h"
 
 #define GPIO_N 31
 
@@ -21,6 +23,10 @@ typedef struct {
 	const char *name;
 	int mode;
 	int handle;
+
+#if CONFIG_GPIO_FILTER == 1
+	struct debounce_s gfilt;
+#endif
 } gpio_t;
 
 static int gpio_n = 0;
@@ -88,6 +94,10 @@ int gpio_bind(int mode, const char *gpio, const char *name)
 	p->mode = mode;
 	p->handle = handle;
 
+#if CONFIG_GPIO_FILTER == 1
+	debounce_t_init(&p->gfilt, 0, 0);
+#endif
+
 	GPIO_TypeDef *GPIOn = gpio_port(handle);
 	int pin = gpio_pin(handle);
 
@@ -151,6 +161,18 @@ int gpio_bind(int mode, const char *gpio, const char *name)
 	return gpio_n - 1;
 }
 
+#if CONFIG_GPIO_FILTER == 1
+int gpio_filt(const char *name, int ms)
+{
+	int ecode = -1;
+	gpio_t *gpio = gpio_search(name);
+	if(gpio != NULL) {
+		debounce_t_init(&gpio->gfilt, ms, 0);
+	}
+	return ecode;
+}
+#endif
+
 static int gpio_set_hw(const gpio_t *gpio, int high)
 {
 	int ecode = 0;
@@ -194,7 +216,12 @@ static int gpio_get_hw(const gpio_t *gpio)
 	int handle = gpio->handle;
 	GPIO_TypeDef *GPIOn = gpio_port(handle);
 	int msk = gpio_pin(handle);
-	return (GPIOn->IDR & msk) ? 1 : 0;
+	int yes = (GPIOn->IDR & msk) ? 1 : 0;
+#if CONFIG_GPIO_FILTER == 1
+	debounce((struct debounce_s *)(&gpio->gfilt), yes);
+	yes = gpio->gfilt.on;
+#endif
+	return yes;
 }
 
 int gpio_get(const char *name)
@@ -248,12 +275,8 @@ int gpio_rimg(int msk)
 	int img = 0;
 	for(int i = 0; i < gpio_n; i ++) {
 		if (bit_get(i, &msk)) {
-			int handle = gpios[i].handle;
-			GPIO_TypeDef *GPIOn = gpio_port(handle);
-			int pin = gpio_pin(handle);
-
-			int high = (GPIOn->IDR & pin) ? 1 : 0;
-			if(high) bit_set(i, &img);
+			int yes = gpio_get_hw(&gpios[i]);
+			if(yes) bit_set(i, &img);
 			else bit_clr(i, &img);
 		}
 	}

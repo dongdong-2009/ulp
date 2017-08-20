@@ -12,6 +12,7 @@ PA1 == PA01 == PA001 == PA0001
 */
 
 #define GPIO_BIND(mode, gpio, name) gpio_bind(mode, #gpio, #name);
+#define GPIO_FILT(name, ms) gpio_filt(#name, ms);
 #define GPIO_SET(name, high) gpio_set(#name, high);
 #define GPIO_GET(name) gpio_get(#name)
 
@@ -31,6 +32,8 @@ enum {
 };
 
 int gpio_bind(int mode, const char *gpio, const char *name);
+int gpio_filt(const char *name, int ms); //filt the pulse widht <ms, 0 = disable
+
 int gpio_set(const char *name, int high);
 int gpio_get(const char *name);
 int gpio_wimg(int img, int msk);
