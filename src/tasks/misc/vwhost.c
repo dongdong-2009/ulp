@@ -18,7 +18,13 @@
 #include "gpio.h"
 
 #define CAN_BAUD 500000
+#define CAN_ID_SCAN 0x200 //!low priority
 #define CAN_ID_HOST 0x100 //0x101..120 is test unit
+#define CAN_ID_UNIT(N) (CAN_ID_HOST + (N))
+
+#define VW_SAFE_MASK (1 << 11) //!!! 'SM-'
+static int vw_hgpio_safe = -1;
+static int vw_flag_safe = -1;
 
 enum {
 	VW_CMD_POLL, //host: cmd -> slave: response status
@@ -51,6 +57,54 @@ static can_msg_t vw_rxmsg[10];
 static can_msg_t vw_txmsg;
 static rxdat_t *vw_rxdat = (rxdat_t *) vw_rxmsg[0].data;
 static txdat_t *vw_txdat = (txdat_t *) vw_txmsg.data;
+
+static int vwhost_can_send(can_msg_t *msg)
+{
+	const txdat_t *txdat = (const txdat_t *) msg->data;
+	switch(txdat->cmd) {
+	case VW_CMD_SCAN:
+	case VW_CMD_POLL:
+		msg->id = CAN_ID_SCAN;
+		break;
+	default:
+		msg->id = CAN_ID_HOST;
+		break;
+	}
+
+	led_hwSetStatus(LED_RED, 1);
+	while(vw_can->send(msg));
+	led_hwSetStatus(LED_RED, 0);
+	return 0;
+}
+
+static void vwhost_can_handler(void)
+{
+	int id = vw_rxdat->id;
+	memcpy(&vw_rxmsg[id], &vw_rxmsg[0], sizeof(can_msg_t));
+
+	//danger process
+	int safe = 1;
+	for(int i = 1; i < 10; i ++) {
+		if(vw_rxmsg[i].dlc > 0) {
+			rxdat_t *rxdat = (rxdat_t *) vw_rxmsg[i].data;
+			if((rxdat->sensors & VW_SAFE_MASK) == 0) {
+				safe = 0;
+				break;
+			}
+		}
+	}
+
+	vw_flag_safe = safe;
+	gpio_set_h(vw_hgpio_safe, vw_flag_safe);
+}
+
+void USB_LP_CAN1_RX0_IRQHandler(void)
+{
+	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
+	while(!vw_can->recv(&vw_rxmsg[0])) {
+		vwhost_can_handler();
+	}
+}
 
 void vw_gpio_init(void)
 {
@@ -85,7 +139,7 @@ void vw_gpio_init(void)
 	GPIO_BIND(GPIO_PP0, PC6, CSEL0) //GPO#04
 	GPIO_BIND(GPIO_PP0, PC7, CSEL1) //GPO#05
 	GPIO_BIND(GPIO_PP0, PC8, CSEL2) //GPO#06
-	GPIO_BIND(GPIO_PP0, PC9, GPO#7) //GPO#07
+	vw_hgpio_safe = GPIO_BIND(GPIO_PP0, PC9, "SAFE") //GPO#07
 
 	//misc
 	GPIO_BIND(GPIO_IPU, PC12, ESTOP#) //RSEL
@@ -117,7 +171,7 @@ int vw_assign(int idx)
 		vw_txdat->target = id;
 		vw_txdat->cmd = VW_CMD_SCAN;
 		vw_txmsg.dlc = 2;
-		vw_can->send(&vw_txmsg);
+		vwhost_can_send(&vw_txmsg);
 
 		last_idx = -1;
 		return 0; //id been assigned
@@ -139,22 +193,27 @@ void vw_update(void)
 {
 	//so boring .. assign the vwplc id :(
 	static int idx_scan = 0;
-	static int idx_scan_timer = 0;
+	static int scan_timer = 0;
 
-	if((idx_scan_timer == 0) || (time_left(idx_scan_timer) < 0)) {
-		idx_scan_timer = time_get(100);
+	if((scan_timer == 0) || (time_left(scan_timer) < 0)) {
+		scan_timer = time_get(100);
 		int idx = vw_assign(idx_scan);
 		idx_scan += (idx == 0) ? 1 : 0;
 		idx_scan = (idx_scan > 8) ? 0 : idx_scan;
 	}
 
-	//poll result?
-	while(1) {
-		int e = vw_can->recv(&vw_rxmsg[0]);
-		if(e) break;
+	/*poll the slave status
+	note: in fact, periodly poll is not needed
+	becase each vwplc will report its status in case of its status change
+	*/
+	static int poll_timer = 0;
+	if((poll_timer == 0) || (time_left(poll_timer) < 0)) {
+		poll_timer = time_get(500);
 
-		int id = vw_rxdat->id;
-		memcpy(&vw_rxmsg[id], &vw_rxmsg[0], sizeof(can_msg_t));
+		vw_txdat->target = 0;
+		vw_txdat->cmd = VW_CMD_POLL;
+		vw_txmsg.dlc = 2;
+		vwhost_can_send(&vw_txmsg);
 	}
 }
 
@@ -168,12 +227,28 @@ void vw_init(void)
 
 	vw_gpio_init();
 	vw_can->init(&cfg);
+
+	/*!!! to usePreemptionPriority, group must be config first
+	systick priority !must! use  NVIC_SetPriority() to set
+	*/
+	NVIC_InitTypeDef NVIC_InitStructure;
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+	NVIC_SetPriority(SysTick_IRQn, 0);
+
+	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN1_RX0_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+
+	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
+	CAN_ITConfig(CAN1, CAN_IT_FMP0, ENABLE);
 }
 
 void main()
 {
 	sys_init();
-	shell_mute(NULL);
+	//shell_mute(NULL);
 	vw_init();
 	printf("vwhost v1.x, build: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
@@ -188,6 +263,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		"usage:\n"
 		"*IDN?		to read identification string\n"
 		"*RST		instrument reset\n"
+		"SAFE		poll vw_flag_safe\n"
 		"READ id		read (only) vwplc status, id = 1..9, 0=>any one last rx\n"
 		"POLL id		read then update vwplc status, id = 0..9, 0=>ALL\n"
 		"MOVE id msk img	move vplc 1-9 cylinders\n"
@@ -204,6 +280,10 @@ int cmd_xxx_func(int argc, char *argv[])
 		printf("%s", usage);
 		return 0;
 	}
+	else if(!strcmp(argv[0], "SAFE")) {
+		printf("<%+d\n", vw_flag_safe);
+		return 0;
+	}
 	else if(!strcmp(argv[0], "READ")) {
 		bytes = 0;
 		char hex[64];
@@ -211,10 +291,12 @@ int cmd_xxx_func(int argc, char *argv[])
 		if(argc > 1) {
 			n = sscanf(argv[1], "%d", &id);
 			if((n == 1) && (id >= 0) && (id <= 9)) {
+				__disable_irq();
 				for(i = 0; i < vw_rxmsg[id].dlc; i ++) {
 					v = vw_rxmsg[id].data[i];
 					bytes += sprintf(&hex[bytes], "%02x", v & 0xff);
 				}
+				__enable_irq();
 
 				bytes = vw_rxmsg[id].dlc;
 			}
@@ -222,12 +304,14 @@ int cmd_xxx_func(int argc, char *argv[])
 		}
 		else { //print status
 			msk = 0;
+			__disable_irq();
 			for(i = 0; i < 10; i ++) {
 				bytes += sprintf(&hex[bytes], "%d,", vw_rxmsg[i].dlc);
 				if(vw_rxmsg[i].dlc > 0) {
 					msk |= 1 << i;
 				}
 			}
+			__enable_irq();
 
 			printf("<%+d, %s\n", msk, hex);
 			return 0;
@@ -239,9 +323,6 @@ int cmd_xxx_func(int argc, char *argv[])
 	}
 	else if(!strcmp(argv[0], "POLL")) {
 		e = -1;
-		bytes = 0;
-		char hex[64];
-
 		id = 0;
 		n = 1;
 		if(argc > 1) {
@@ -249,38 +330,15 @@ int cmd_xxx_func(int argc, char *argv[])
 		}
 
 		if((n == 1) && (id >= 0) && (id <= 9)) {
-			#if 0
-			//prepare for read back
-			for(i = 0; i < vw_rxmsg[id].dlc; i ++) {
-				v = vw_rxmsg[id].data[i];
-				bytes += sprintf(&hex[bytes], "%02x", v & 0xff);
-			}
-			bytes = vw_rxmsg[id].dlc;
-
-			//clear for new coming msg
-			vw_rxmsg[id].dlc = 0;
-			if(id == 0) {
-				for(i = 1; i < 9; i ++) {
-					vw_rxmsg[i].dlc = 0;
-				}
-			}
-			#else
-			vw_rxmsg[id].dlc = 0;
-			bytes = 0;
-			hex[0] = 0;
-			#endif
-
 			//send poll req
 			vw_txdat->target = id;
 			vw_txdat->cmd = VW_CMD_POLL;
 			vw_txmsg.dlc = 2;
-			e = vw_can->send(&vw_txmsg);
+			e = vwhost_can_send(&vw_txmsg);
 		}
 
-		const char *echo = e ? "Error" : hex;
-		bytes = e ? -1 : bytes;
-
-		printf("<%+d, %s\n", bytes, echo);
+		const char *emsg = e ? "Error" : "OK";
+		printf("<%+d, %s\n", e, emsg);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "MOVE")) {
@@ -298,7 +356,7 @@ int cmd_xxx_func(int argc, char *argv[])
 				vw_txdat->img = (img >> 16) & 0xff;
 				vw_txdat->msk = (msk >> 16) & 0xff;
 				vw_txmsg.dlc = 8;
-				e = vw_can->send(&vw_txmsg);
+				e = vwhost_can_send(&vw_txmsg);
 			}
 		}
 
@@ -318,7 +376,7 @@ int cmd_xxx_func(int argc, char *argv[])
 				vw_txdat->cmd = VW_CMD_TEST;
 				vw_txdat->sql_id = sql;
 				vw_txmsg.dlc = 8;
-				e = vw_can->send(&vw_txmsg);
+				e = vwhost_can_send(&vw_txmsg);
 			}
 		}
 
@@ -335,7 +393,7 @@ int cmd_xxx_func(int argc, char *argv[])
 				vw_txdat->target = id;
 				vw_txdat->cmd = VW_CMD_PASS;
 				vw_txmsg.dlc = 2;
-				e = vw_can->send(&vw_txmsg);
+				e = vwhost_can_send(&vw_txmsg);
 			}
 		}
 
@@ -352,7 +410,7 @@ int cmd_xxx_func(int argc, char *argv[])
 				vw_txdat->target = id;
 				vw_txdat->cmd = VW_CMD_FAIL;
 				vw_txmsg.dlc = 2;
-				e = vw_can->send(&vw_txmsg);
+				e = vwhost_can_send(&vw_txmsg);
 			}
 		}
 
@@ -369,7 +427,7 @@ int cmd_xxx_func(int argc, char *argv[])
 				vw_txdat->target = id;
 				vw_txdat->cmd = VW_CMD_ENDC;
 				vw_txmsg.dlc = 2;
-				e = vw_can->send(&vw_txmsg);
+				e = vwhost_can_send(&vw_txmsg);
 			}
 		}
 
