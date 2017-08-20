@@ -102,9 +102,9 @@ int vw_assign(int idx)
 {
 	sys_assert((idx >= 0) && (idx < 9));
 	const int slaves[] = { //operator view
-		0x3011, 0x6012, 0x9014,
-		0x2021, 0x5022, 0x8024,
-		0x1041, 0x4042, 0x7044,
+		0x1011, 0x2012, 0x3014,
+		0x4021, 0x5022, 0x6024,
+		0x7041, 0x8042, 0x9044,
 	};
 
 	//convert idx to id
@@ -116,6 +116,7 @@ int vw_assign(int idx)
 		//csel/rsel signals need stable time
 		vw_txdat->target = id;
 		vw_txdat->cmd = VW_CMD_SCAN;
+		vw_txmsg.dlc = 2;
 		vw_can->send(&vw_txmsg);
 
 		last_idx = -1;
@@ -248,6 +249,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		}
 
 		if((n == 1) && (id >= 0) && (id <= 9)) {
+			#if 0
 			//prepare for read back
 			for(i = 0; i < vw_rxmsg[id].dlc; i ++) {
 				v = vw_rxmsg[id].data[i];
@@ -262,10 +264,16 @@ int cmd_xxx_func(int argc, char *argv[])
 					vw_rxmsg[i].dlc = 0;
 				}
 			}
+			#else
+			vw_rxmsg[id].dlc = 0;
+			bytes = 0;
+			hex[0] = 0;
+			#endif
 
 			//send poll req
 			vw_txdat->target = id;
 			vw_txdat->cmd = VW_CMD_POLL;
+			vw_txmsg.dlc = 2;
 			e = vw_can->send(&vw_txmsg);
 		}
 
@@ -289,6 +297,7 @@ int cmd_xxx_func(int argc, char *argv[])
 				vw_txdat->cmd = VW_CMD_MOVE;
 				vw_txdat->img = (img >> 16) & 0xff;
 				vw_txdat->msk = (msk >> 16) & 0xff;
+				vw_txmsg.dlc = 8;
 				e = vw_can->send(&vw_txmsg);
 			}
 		}
@@ -308,6 +317,7 @@ int cmd_xxx_func(int argc, char *argv[])
 				vw_txdat->target = id;
 				vw_txdat->cmd = VW_CMD_TEST;
 				vw_txdat->sql_id = sql;
+				vw_txmsg.dlc = 8;
 				e = vw_can->send(&vw_txmsg);
 			}
 		}
@@ -324,6 +334,7 @@ int cmd_xxx_func(int argc, char *argv[])
 			if((n == 1) && (id >= 1) && (id <= 9)) {
 				vw_txdat->target = id;
 				vw_txdat->cmd = VW_CMD_PASS;
+				vw_txmsg.dlc = 2;
 				e = vw_can->send(&vw_txmsg);
 			}
 		}
@@ -340,6 +351,7 @@ int cmd_xxx_func(int argc, char *argv[])
 			if((n == 1) && (id >= 1) && (id <= 9)) {
 				vw_txdat->target = id;
 				vw_txdat->cmd = VW_CMD_FAIL;
+				vw_txmsg.dlc = 2;
 				e = vw_can->send(&vw_txmsg);
 			}
 		}
@@ -356,6 +368,7 @@ int cmd_xxx_func(int argc, char *argv[])
 			if((n == 1) && (id >= 1) && (id <= 9)) {
 				vw_txdat->target = id;
 				vw_txdat->cmd = VW_CMD_ENDC;
+				vw_txmsg.dlc = 2;
 				e = vw_can->send(&vw_txmsg);
 			}
 		}
