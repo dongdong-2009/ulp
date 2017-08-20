@@ -32,7 +32,10 @@ static int debounce_t(struct debounce_s *signal, unsigned lvl)
 	signal->timer = time_get(0);
 
 	if(lvl != signal->on) {
-		if(signal->cnt + delta_ms < signal->threshold) signal->cnt += delta_ms;
+		if(signal->cnt + delta_ms < signal->threshold) {
+			//inc the counter if input level not equal
+			signal->cnt += delta_ms;
+		}
 		else {
 			signal->cnt = 0;
 			signal->on = lvl;
@@ -41,6 +44,7 @@ static int debounce_t(struct debounce_s *signal, unsigned lvl)
 		}
 	}
 	else {
+		//dec the counter if input level is equal
 		if(signal->cnt >= delta_ms) signal->cnt -= delta_ms;
 		else signal->cnt = 0;
 	}
@@ -51,8 +55,16 @@ static int debounce_t(struct debounce_s *signal, unsigned lvl)
 int debounce(struct debounce_s *signal, unsigned lvl)
 {
 	unsigned event = 0;
-	if (signal->timer != 0)
+	if(signal->threshold == 0) { //debounce not enabled
+		event = (lvl != signal->on) ? 1 : 0;
+		signal->on = lvl;
+		signal->off = ! signal->on;
+		return event;
+	}
+
+	if (signal->timer != 0) {
 		return debounce_t(signal, lvl);
+	}
 
 	if(lvl != signal->on) {
 		if(signal->cnt + 1 < signal->threshold) signal->cnt ++;
