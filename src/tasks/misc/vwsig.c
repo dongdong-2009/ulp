@@ -19,6 +19,8 @@
 #include "tm770x.h"
 #include "nvm.h"
 
+#define CONFIG_VWSIG_V1P1 1
+
 typedef struct {
 	const pwm_bus_t *pwm;
 	const char *ELOADx_EN;
@@ -81,6 +83,45 @@ static const eload_t vw_eloads[] = {
 
 void __sys_init(void)
 {
+#if CONFIG_VWSIG_V1P1 == 1
+	//USB UPSTREAM
+	GPIO_BIND(GPIO_OD1, PA08, HUBW_RST)
+	GPIO_BIND(GPIO_OD1, PA11, HUBL_RST)
+	GPIO_BIND(GPIO_PP0, PC14, HOST_SEL)
+	GPIO_BIND(GPIO_PP1, PC13, USB0_EN#)
+
+	//PASSMARK
+	GPIO_BIND(GPIO_PP0, PC02, PMK3_SEL)
+	GPIO_BIND(GPIO_PP1, PA03, VPM_EN)
+
+	//carplay
+	GPIO_BIND(GPIO_OD1, PA02, HUB1_RST)
+	GPIO_BIND(GPIO_PP0, PA01, 2TO1_SEL)
+	GPIO_BIND(GPIO_PP1, PC03, USBx_EN#)
+
+	//UUT
+	GPIO_BIND(GPIO_PP0, PB14, VBAT_EN)
+	GPIO_BIND(GPIO_PP0, PC09, UUT_ZREN)
+
+	//ELOAD
+	GPIO_BIND(GPIO_PP0, PC06, ELOAD1_EN)
+	GPIO_BIND(GPIO_PP0, PC07, ELOAD2_EN)
+	GPIO_BIND(GPIO_PP0, PC08, ELOAD3_EN)
+	GPIO_BIND(GPIO_PP0, PC12, ELOAD1_R1K)
+	GPIO_BIND(GPIO_PP0, PD02, ELOAD2_R1K)
+	GPIO_BIND(GPIO_PP0, PB05, ELOAD3_R1K)
+
+	//DMM
+	GPIO_BIND(GPIO_PP0, PB01, DG408_S0)
+	GPIO_BIND(GPIO_PP0, PB10, DG408_S1)
+	GPIO_BIND(GPIO_PP0, PB11, DG408_S2)
+	GPIO_BIND(GPIO_PP0, PB12, DG409_S0)
+	GPIO_BIND(GPIO_PP0, PB13, DG409_S1)
+
+	//LED(on board)
+	GPIO_BIND(GPIO_PP0, PC00, LED_R)
+	GPIO_BIND(GPIO_PP0, PC01, LED_G)
+#else
 	//USB UPSTREAM
 	GPIO_BIND(GPIO_OD1, PA08, HUBW_RST)
 	GPIO_BIND(GPIO_OD1, PA11, HUBL_RST)
@@ -118,6 +159,7 @@ void __sys_init(void)
 	//LED(on board)
 	GPIO_BIND(GPIO_PP0, PC00, LED_R)
 	GPIO_BIND(GPIO_PP0, PC01, LED_G)
+#endif
 }
 
 void led_hwSetStatus(led_t led, led_status_t status)
@@ -170,6 +212,24 @@ static void vw_eload_init(void)
 
 static const vw_ch_t *vw_ch_search(const char *name)
 {
+#if CONFIG_VWSIG_V1P1 == 1
+	static const vw_ch_t vw_chs[] = {
+		{.dg408 = 0, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VBAT"},
+		{.dg408 = 1, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VUSB3"},
+		{.dg408 = 2, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VUSB2"},
+		{.dg408 = 3, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VUSB1"},
+		{.dg408 = 4, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VSHEILD"},
+		{.dg408 = 5, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 4}, .cal = -1, .name = "VZREN"},
+		{.dg408 = 6, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VIREV"},
+		{.dg408 = 7, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VREF"},
+
+		//0-4A *0.1R = 0.4v, gain = 4
+		{.dg408 = 0, .dg409 = 0, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .cal = VW_CAL_IBAT, .name = "IBAT"},
+		{.dg408 = 0, .dg409 = 1, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .cal = VW_CAL_IELOAD1, .name = "IELOAD1"},
+		{.dg408 = 0, .dg409 = 2, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .cal = VW_CAL_IELOAD2, .name = "IELOAD2"},
+		{.dg408 = 0, .dg409 = 3, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .cal = VW_CAL_IELOAD3, .name = "IELOAD3"},
+	};
+#else
 	static const vw_ch_t vw_chs[] = {
 		{.dg408 = 0, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VBAT"},
 		{.dg408 = 1, .dg409 = 0, .tm770x = {.ainx = TM_AIN1, .gain = 1}, .cal = -1, .name = "VUSB1"},
@@ -186,6 +246,7 @@ static const vw_ch_t *vw_ch_search(const char *name)
 		{.dg408 = 0, .dg409 = 2, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .cal = VW_CAL_IELOAD2, .name = "IELOAD2"},
 		{.dg408 = 0, .dg409 = 3, .tm770x = {.ainx = TM_AIN2, .gain = 4}, .cal = VW_CAL_IELOAD3, .name = "IELOAD3"},
 	};
+#endif
 
 	int nr_of_ch = sizeof(vw_chs) / sizeof(vw_chs[0]);
 	const vw_ch_t *ch = NULL;
@@ -386,8 +447,8 @@ int cmd_xxx_func(int argc, char *argv[])
 		}
 
 		for(int idx = 0; idx < NR_OF_ELOADS; idx ++) {
-			if((eload == 0) || (idx - 1 == eload)) {
-				vw_eload_set(idx - 1, iset);
+			if((eload == 0) || (idx + 1 == eload)) {
+				vw_eload_set(idx, iset);
 				e = 0;
 			}
 		}
