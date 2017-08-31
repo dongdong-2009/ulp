@@ -350,6 +350,7 @@ static int cmd_gpio_func(int argc, char *argv[])
 	}
 
 	if(ecode) printf("<%+d, undefined error\n", ecode);
+	else printf("<%+d, OK!\n", ecode);
 	return 0;
 }
 
