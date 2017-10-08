@@ -534,6 +534,15 @@ static void pdi_verify(void)
 
 	//indicate to operator
 	pdi_stop_action(pdi_passed);
+
+	//wait for fixture pull-out
+	printf("wait for fixture pull out ...\n");
+	while(1) {
+		pdi_mdelay(1);
+		int ready = bsp_rdy_status(pdi_pos);
+		if(!ready) break;
+	}
+
 	pdi_pos = pdi_pos_new;
 }
 
