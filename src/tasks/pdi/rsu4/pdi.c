@@ -474,19 +474,16 @@ static void pdi_verify(void)
 		bsp_swbat(1);
 
 		//wait demo ecu power-up
-		pdi_mdelay_with_pull_detection(7000);
+		//pdi_mdelay_with_pull_detection(7000);
 
 		//test
-		if(pdi_ecode == 0) {
-			ecode = pdi_test(pdi_pos, pdi_mask, &pdi_report);
-			if(pdi_ecode == 0) { //maybe fixture is pulled out
-				if(ecode) pdi_ecode = ERROR_ECUNG;
-				else pdi_ecode = pdi_analysis_report();
-			}
+		ecode = pdi_test(pdi_pos, pdi_mask, &pdi_report);
+		if(ecode) pdi_ecode = ERROR_ECUNG;
+		else pdi_ecode = pdi_analysis_report();
 
-			//power off
-			bsp_swbat(0);
-		}
+		//power off
+		bsp_swbat(0);
+		pdi_mdelay_with_pull_detection(100);
 	}
 
 	int pdi_pos_new = pdi_pos;
@@ -500,15 +497,21 @@ static void pdi_verify(void)
 		pdi_host_printf("P-%s", UUTx);
 		break;
 
-	case ERROR_ECUNG: /*infact host not fully support it*/
-		pdi_host_printf("ECU-NG");
-		break;
 	case ERROR_BACHU:
 		pdi_pos_new = !pdi_pos;
 		pdi_host_itac = 0;
 		pdi_host_printf("%sNG-BRK", UUTx);
 		pdi_wait_host_itac();
 		break;
+
+	case ERROR_ECUNG: /*infact host not fully support it*/
+#if 0
+		pdi_host_printf("ECU-NG");
+		break;
+#else
+		printf("ECU-NG -> %sNG\n", UUTx);
+#endif
+
 	case ERROR_FUNC:
 		pdi_pos_new = !pdi_pos;
 		pdi_host_itac = 0;

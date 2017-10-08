@@ -27,5 +27,6 @@ if [ "$CONFIG_PDI_RSU4" = "y" ]; then
 	choice 'RSU4 Models'	" \
 		P71A		CONFIG_RSU_P71A \
 		KP108		CONFIG_RSU_KP108 \
+		VOLVO		CONFIG_RSU_VOLVO \
 	" P71A
 fi
