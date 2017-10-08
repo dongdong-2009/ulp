@@ -319,7 +319,11 @@ static void bsp_adc_init(void)
 int bsp_rsu_status(int pos, int *mV)
 {
 	//note: msb is sign bit, always 0
+	#if CONFIG_RSU4_NO_LM4040 == 1
+	#define BSP_PT204_D2MV(d)  ((3300 * d) >> 15)
+	#else
 	#define BSP_PT204_D2MV(d)  ((3000 * d) >> 15)
+	#endif
 
 	int mv[4];
 	if(pos == 0) {
@@ -346,7 +350,11 @@ int bsp_rsu_status(int pos, int *mV)
 	2638 2658 2999 2999 y-uut y-push @50KOHM
 	2651 2668 2999 2999 y-uut y-push @50KOHM
 	*/
+	#if CONFIG_RSU4_NO_LM4040 == 1
+	const int vth = 3100; //unit: mV(range: 2.999-3.300)
+	#else
 	const int vth = 2998; //unit: mV(range: 2.999-3.300)
+	#endif
 
 	int status = 0;
 	for(int i = 0; i < 4; i ++) {

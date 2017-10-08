@@ -24,6 +24,7 @@ if [ "$CONFIG_PDI_ECU" = "y" ]; then
 fi
 
 if [ "$CONFIG_PDI_RSU4" = "y" ]; then
+	bool "without vref@lm4040" CONFIG_RSU4_NO_LM4040
 	choice 'RSU4 Models'	" \
 		P71A		CONFIG_RSU_P71A \
 		KP108		CONFIG_RSU_KP108 \
