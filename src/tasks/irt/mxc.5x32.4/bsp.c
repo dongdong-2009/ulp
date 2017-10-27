@@ -13,6 +13,9 @@
 #include "stm32f10x.h"
 #include "mxc.h"
 
+#define CONFIG_LE_GUARD 0
+#define CONFIG_LE_SELF 0
+
 static const can_bus_t *mxc_can = &can1;
 static const spi_bus_t *mxc_spi = &spi1;
 static const mbi5025_t mxc_mbi = {.bus = &spi1, .idx = 0};
@@ -61,10 +64,16 @@ static void mxc_gpio_init(void)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_2;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
+#if CONFIG_LE_SELF == 1
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+#else
 	//hardware bug, set mbi LE PA4 to input to avoid conflict
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
+#endif
 
 	/*irc central control, init LE_txd, LE_rxd,
 	LE_txd	PC7
@@ -75,9 +84,15 @@ static void mxc_gpio_init(void)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
+	#if CONFIG_LE_GUARD == 1
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	#else
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	#endif
 
 	//LE_rxd	PC6
 	EXTI_InitTypeDef EXTI_InitStruct;
@@ -109,10 +124,22 @@ void le_set(int high)
 
 	mxc_le_pulsed = 0;
 	if(high) {
+		#if CONFIG_LE_GUARD == 1
+		GPIOC->BSRR = GPIO_Pin_6;
+		#endif
 		GPIOC->BSRR = GPIO_Pin_7;
+		#if CONFIG_LE_SELF == 1
+		GPIOA->BSRR = GPIO_Pin_4;
+		#endif
 	}
 	else {
 		GPIOC->BRR = GPIO_Pin_7;
+		#if CONFIG_LE_GUARD == 1
+		GPIOC->BRR = GPIO_Pin_6;
+		#endif
+		#if CONFIG_LE_SELF == 1
+		GPIOA->BRR = GPIO_Pin_4;
+		#endif
 	}
 }
 
