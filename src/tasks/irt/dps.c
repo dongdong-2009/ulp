@@ -24,6 +24,9 @@
 *  - dps_hv_set() <=0 turn off hv_en, >0 turn on hv_en and keep vs_en
 *  - dps_lv_set() <=0 turn off lv_en, >0 keep lv_en
 *  - dps_is_set() <=0 turn off is_en, >0 keep is_en
+*  miaofng@2017-10-09 add dps hv 2826 support
+*  - add hv bank switch -
+*  - hv_en auto enable (dueto lack of ctrl pin)
 */
 #include "ulp/sys.h"
 #include "irc.h"
@@ -38,10 +41,19 @@
 
 #define DPS_HV_AC 0 /*AUTO SWITCH HV POLAR*/
 #define DPS_LV_2754 1 /*XL4015*/
+#define DPS_HV_2826 1 //add hv bank, hv auto enable
 
 #if DPS_LV_2754 == 1
 #define IS_GS IS_GS0
 #define IS_EN IS_GS1
+#endif
+
+#if DPS_HV_2826 == 1
+#define CFG_DPS_HV_GAIN 1
+#define CFG_DPS_HV_EN 0
+#else
+#define CFG_DPS_HV_GAIN 0
+#define CFG_DPS_HV_EN 1
 #endif
 
 static float dps_lv;
@@ -207,7 +219,18 @@ static int dps_hv_set(float v)
 	dps_hv = v;
 	if(v > 0.0) {
 		dps_enable(DPS_HV, 1);
-		v /= 1000; //1000:1
+	}
+	{
+		int ratio = 1000;
+#if CFG_DPS_HV_GAIN == 1
+		if(dps_flag_gain_auto & (1 << DPS_HV)) { //auto range adjust
+			if(v > 99.0) dps_hv_g = 1;
+			else dps_hv_g = 0;
+		}
+		dps_gain(DPS_HV, dps_hv_g, 1);
+		ratio = (dps_hv_g) ? 1000 : 100;
+#endif
+		v /= ratio;
 
 		int pwm = (int) (v * (1024/ HV_VREF_PWM));
 		pwm = (pwm > 1023) ? 1023 : pwm;
@@ -221,7 +244,11 @@ static float dps_hv_get(void)
 {
 	float vadc = hv_adc_get();
 	vadc *= VREF_ADC / 65536;
-	float vout = vadc * 1000;
+	int ratio = 1000;
+#if CFG_DPS_HV_GAIN == 1
+	ratio = (dps_hv_g) ? 1000 : 100;
+#endif
+	float vout = vadc * ratio;
 	return vout;
 }
 
@@ -235,7 +262,14 @@ static float dps_vs_get(void)
 {
 	float vadc = vs_adc_get();
 	vadc *= VREF_ADC / 65536;
-	float vout = vadc * 100; //1000:1 * 10(G: adum3190)
+
+	int ratio = 1000;
+#if CFG_DPS_HV_GAIN == 1
+	ratio = (dps_hv_g) ? 1000 : 100;
+#endif
+
+	int g_adum = (27000 + 3000) / 3000; //27K, 3K
+	float vout = vadc * ratio / g_adum;
 	return vout;
 }
 
@@ -387,7 +421,9 @@ int dps_enable(int dps, int enable)
 		break;
 	case DPS_HV:
 		debounce_t_init(&dps_mon_hv, 1000, 0);
+#if CFG_DPS_HV_EN == 1
 		bsp_gpio_set(HV_EN, enable);
+#endif
 		break;
 	case DPS_IS:
 		bsp_gpio_set(IS_EN, enable);
@@ -421,6 +457,21 @@ int dps_gain(int dps, int gain, int execute)
 		}
 		break;
 	case DPS_HV:
+#if CFG_DPS_HV_GAIN == 1
+		if(execute) {
+			dps_hv_g = gain;
+			bsp_gpio_set(HV_GS, gain & 0x01);
+		}
+		else {
+			if(gain < 0) {
+				dps_flag_gain_auto |=  1 << dps;
+			}
+			else {
+				dps_flag_gain_auto &=  ~(1 << dps);
+				dps_hv_g = gain;
+			}
+		}
+#endif
 		break;
 	case DPS_VS:
 	case DPS_LV:
