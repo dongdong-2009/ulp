@@ -10,8 +10,15 @@
 #include "sys/sys.h"
 #include "ulp/debug.h"
 
+enum {
+	__CMD_EXEC_FLAG_INIT,
+	__CMD_EXEC_FLAG_UPDATE,
+	__CMD_EXEC_FLAG_CLOSE,
+};
+
 /*private*/
 static struct cmd_queue_s *cmd_queue;
+static int cmd_exec_flag;
 
 void cmd_Init(void)
 {
@@ -20,6 +27,11 @@ void cmd_Init(void)
 
 void cmd_Update(void)
 {
+}
+
+int cmd_is_repeated(void)
+{
+	return cmd_exec_flag == __CMD_EXEC_FLAG_UPDATE ? 1 : 0;
 }
 
 #ifdef CONFIG_CMD_PATTERN
@@ -89,13 +101,15 @@ void __cmd_preprocess(struct cmd_list_s *clst)
 	clst -> ms = 0;
 	for( i = clst -> len; i > 0; i --) {
 		p = clst -> cmdline + i;
-		if(*p == '&') {
+		if(*p == '&') { //"read &" or "read &100" or "read &100,10" for 10 loops
 			clst -> len = i; //new clst cmdline length
-			*p ++ = 0;
-			if(*p != 0) {
-				clst -> ms = atoi(p);
-				clst -> repeat = 1;
-			}
+			*p ++ = 0; //'&'->'\0'
+
+			int ms = 0;
+			int loops = -1;
+			sscanf(p, "%d,%d", &ms, &loops);
+			clst->ms = ms;
+			clst->repeat = loops - 1; //minus 1st loop
 			break;
 		}
 	}
@@ -196,12 +210,6 @@ static int __cmd_parse(char *cmdline, int len, char **argv, int n)
 	return argc;
 }
 
-enum {
-	__CMD_EXEC_FLAG_INIT,
-	__CMD_EXEC_FLAG_UPDATE,
-	__CMD_EXEC_FLAG_CLOSE,
-};
-
 __weak int cmd_xxx_func(int argc, char *argv[])
 {
 	return -1;
@@ -222,6 +230,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 		if(strncmp(clst->cmdline, cmd->name, n)) {
 			argc = 1;
 			argv[0] = clst->cmdline;
+			cmd_exec_flag = flag;
 			ret = cmd->func(argc, argv);
 			return ret;
 		}
@@ -248,7 +257,7 @@ static int __cmd_exec(struct cmd_list_s *clst, int flag)
 				break;
 			}
 */
-
+			cmd_exec_flag = flag;
 			ret = cmd -> func(argc, _argv);
 #ifdef CONFIG_CMD_BKG
 			clst->cmd = cmd;
@@ -285,13 +294,24 @@ int cmd_queue_update(struct cmd_queue_s *cq)
 				continue;
 		}
 #endif
-		if( __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE) < 0) {
 #ifdef CONFIG_CMD_BKG
-			//remove from queue
+		int ecode = __cmd_exec(clst, __CMD_EXEC_FLAG_UPDATE);
+		if( ecode < 0) {
+			//error occurs, remove from queue
 			list_del(&clst -> list);
 			sys_free(clst);
-#endif
 		}
+
+		if(ecode == 0) {
+			if(clst->repeat > 0) {
+				clst->repeat --;
+				if(clst->repeat == 0) {
+					list_del(&clst -> list);
+					sys_free(clst);
+				}
+			}
+		}
+#endif
 	}
 	return 0;
 }

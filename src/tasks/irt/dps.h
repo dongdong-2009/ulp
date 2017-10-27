@@ -9,8 +9,8 @@
 
 #include "config.h"
 
-#define DPS_HVUP_MS 10
-#define DPS_HVDN_MS 10
+#define DPS_HVUP_MS 64
+#define DPS_HVDN_MS 64
 
 enum {
 	DPS_LV,
@@ -37,5 +37,9 @@ int dps_enable(int dps, int enable);
 int dps_config(int dps, int key, void *p);
 int dps_hv_start(void);
 int dps_hv_stop(void);
+int dps_is_start(void);
+int dps_is_stop(void);
+int dps_lv_start(int ms);
+int dps_lv_stop(void);
 
 #endif

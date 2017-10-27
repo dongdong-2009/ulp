@@ -130,6 +130,9 @@ void _irc_error_print(int ecode, const char *file, int line)
 	case IRT_E_OP_REFUSED_DUETO_ESYS:
 		msg = "Operation Refused Due To System Has Error";
 		break;
+	case IRT_E_OP_REFUSED_DUETO_BUSY:
+		msg = "Operation Refused Due To System Is Busy";
+		break;
 	default:
 		msg = "Undefined Error";
 		break;

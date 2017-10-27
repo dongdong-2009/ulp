@@ -233,7 +233,7 @@ static int cmd_mode_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"MODE <mode>\n"
-		"	<mode> = [HVR|L4R|W4R|L2R|L2T|PRB|RMX|VHV|VLV|IIS]\n"
+		"	<mode> = [HVR|L4R|W4R|L2R|L2T|PRB|RMX|VHV|VLV|IIS|IRT]\n"
 	};
 
 	if(!strcmp(argv[1], "HELP")) {
@@ -251,7 +251,7 @@ static int cmd_mode_func(int argc, char *argv[])
 	int is = (argc > 3) ? atoi(argv[3]) : 0;
 	const char *name[] = {
 		"HVR", "L4R", "W4R", "L2T", "RPB", "RMX",
-		"RX2", "VHV", "VLV", "IIS", "OFF",
+		"RX2", "VHV", "VLV", "IIS", "OFF", "IRT",
 	};
 	const int mode_list[] = {
 		IRC_MODE_HVR, IRC_MODE_L4R,
@@ -259,7 +259,7 @@ static int cmd_mode_func(int argc, char *argv[])
 		IRC_MODE_RPB, IRC_MODE_RMX,
 		IRC_MODE_RX2, IRC_MODE_VHV,
 		IRC_MODE_VLV, IRC_MODE_IIS,
-		IRC_MODE_OFF,
+		IRC_MODE_OFF, IRC_MODE_IRT,
 	};
 
 	ecode = -IRT_E_CMD_FORMAT;

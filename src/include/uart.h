@@ -53,6 +53,7 @@ extern uart_bus_t uart0;
 extern uart_bus_t uart1;
 extern uart_bus_t uart2;
 extern uart_bus_t uart3;
+extern uart_bus_t uart4;
 
 static inline void uart_send(uart_bus_t *uart, const void *frame, int n) {
 	const char *p = frame;

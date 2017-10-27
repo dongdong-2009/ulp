@@ -137,15 +137,15 @@ xconfig: $(PARSER) config_help
 	@if test -r "/usr/bin/wish84.exe"; then /usr/bin/wish84.exe -f lconfig.tk; \
 	else \
 	  wish -f lconfig.tk; \
-	fi; \
-	if test $$? = "2" ; then                   \
+	fi
+	@if test $$? = "2" ; then   \
 		unix2dos autoconfig.h; \
-		echo file .config/autoconfig.h has been created!; \
-		if test $(AUTOCONFIG_PROJ_FILE) != "" ; then	\
-			echo saving file .config to file $(AUTOCONFIG_PROJ_FILE);	\
-			cp .config $(AUTOCONFIG_PROJ_FILE);	\
-			make icf_cfg; \
-		fi \
+	fi
+	@echo file .config/autoconfig.h has been created!
+	@if test $(AUTOCONFIG_PROJ_FILE) != "" ; then	\
+		echo saving file .config to file $(AUTOCONFIG_PROJ_FILE);	\
+		cp .config $(AUTOCONFIG_PROJ_FILE);	\
+		make icf_cfg; \
 	fi
 	@rm -rf config.help
 

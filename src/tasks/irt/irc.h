@@ -49,6 +49,9 @@ enum {
 
 	IRC_MODE_DBG,
 	IRC_MODE_OFF,
+
+	IRC_MODE_IRT,	//external ir tester is used
+	IRC_MODE_END = IRC_MODE_IRT,
 };
 
 void irc_init(void);

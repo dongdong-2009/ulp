@@ -3,6 +3,7 @@ ifeq ($(CONFIG_CPU_STM32),y)
 	obj-$(CONFIG_DRIVER_UART1) += uart1_stm32.o
 	obj-$(CONFIG_DRIVER_UART2) += uart2_stm32.o
 	obj-$(CONFIG_DRIVER_UART3) += uart3_stm32.o
+	obj-$(CONFIG_DRIVER_UART4) += uart4_stm32.o
 endif
 
 #lm3s

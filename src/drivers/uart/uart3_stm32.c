@@ -11,9 +11,17 @@
 #define dma_ch_tx DMA1_Channel2
 #define dma_ch_rx DMA1_Channel3
 
+/*txdma mode has bugs!! in case of 115200bps
+send 100bytes = 8.6mS
+send 1000bytes = 86mS
+you could also increase the uart speed to 921600bps
+*/
+#undef CONFIG_UART3_TF_SZ
+#define CONFIG_UART3_TF_SZ 0
+
 #if CONFIG_UART3_TF_SZ > 0
 #define ENABLE_TX_DMA 1
-#define TX_FIFO_SZ CONFIG_UART1_TF_SZ
+#define TX_FIFO_SZ CONFIG_UART3_TF_SZ
 static char uart_fifo_tx[TX_FIFO_SZ];
 static short uart_fifo_tn; //nr of bytes to send
 static short uart_fifo_tp; //pos of tx fifo start
@@ -22,7 +30,7 @@ static void uart_SetupTxDMA(void *p, int n);
 
 #if CONFIG_UART3_RF_SZ > 0
 #define ENABLE_RX_DMA 1
-#define RX_FIFO_SZ CONFIG_UART1_RF_SZ
+#define RX_FIFO_SZ CONFIG_UART3_RF_SZ
 static char uart_fifo_rx[RX_FIFO_SZ];
 static short uart_fifo_rn;
 static void uart_SetupRxDMA(void *p, int n);

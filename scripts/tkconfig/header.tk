@@ -125,12 +125,12 @@ proc maybe_exit { w } {
 	set oldFocus [focus]
 	frame $w.f
 	button $w.f.back -text "OK" -width 20 \
-		-command "exit 1"
+		-command "exit"
 	button $w.f.canc -text "Cancel" \
 		-width 20 -command "destroy $w; focus $oldFocus"
 	pack $w.f.back $w.f.canc -side left -pady 10 -padx 45
 	pack $w.f -pady 10 -side bottom -padx 10 -anchor w
-  	bind $w <Return> "exit 1"
+	bind $w <Return> "exit"
     	bind $w <Escape> "destroy $w; focus $oldFocus"
 	focus $w
 	global winx; global winy
@@ -169,7 +169,7 @@ proc write_config_file  { w } {
 	global loadfile
 	if { [string length $loadfile] != 0 
     		&& ([file writable $loadfile] == 1 || ([file exists $loadfile] == 0 && [file writable [file dirname $loadfile]] == 1)) } then {
-		writeconfig $loadfile .null
+		writeconfig $loadfile /dev/null
 	} else {
 		catch {destroy $w}
 		toplevel $w -class Dialog
@@ -296,7 +296,7 @@ proc write_hex { file1 file2 varname variable dep } {
 		       puts $file2 "#undef  $varname"} \
 	else {
 		puts $file1 "$varname=$variable"; \
-		puts -nonewline $file2 "#define $varname "; \
+		puts -nonewline $file2 "#define $varname 0x"; \
 		puts $file2 [exec echo $variable | sed s/^0\[xX\]//]; \
 	}
 }
@@ -325,14 +325,14 @@ proc toggle_switch2 {w mnum line text variable} {
 	frame $w.x$line -relief sunken
 	radiobutton $w.x$line.y -text "y" -variable $variable -value 1 \
 		-relief groove -width 2 -command "update_active"
-#	radiobutton $w.x$line.m -text "-"  -variable $variable -value 2 \
-#		-relief groove -width 2 -command "update_active"
+	radiobutton $w.x$line.m -text "-"  -variable $variable -value 2 \
+		-relief groove -width 2 -command "update_active"
 	radiobutton $w.x$line.n -text "n"  -variable $variable -value 0 \
 		-relief groove -width 2 -command "update_active"
 
 	option_name $w $mnum $line $text $variable
 
-	pack $w.x$line.n $w.x$line.y -side right -fill y
+	pack $w.x$line.n $w.x$line.m $w.x$line.y -side right -fill y
 }
 
 proc toggle_switch3 {w mnum line text variable} {
@@ -355,7 +355,7 @@ proc toggle_switch3 {w mnum line text variable} {
 
 proc bool {w mnum line text variable} {
 	toggle_switch2 $w $mnum $line $text $variable
-#	$w.x$line.m configure -state disabled
+	$w.x$line.m configure -state disabled
 	pack $w.x$line -anchor w -fill both -expand on
 }
 
@@ -374,7 +374,7 @@ proc dep_bool {w mnum line text variable } {
 
 proc int { w mnum line text variable } {
 	frame $w.x$line
-	entry $w.x$line.x -width 11 -relief sunken -borderwidth 2 \
+	entry $w.x$line.x -width 18 -relief sunken -borderwidth 2 \
 		-textvariable $variable
 	option_name $w $mnum $line $text $variable
 	pack $w.x$line.x -anchor w -side right -fill y
@@ -422,7 +422,7 @@ proc menutitle {text menu w} {
 
 proc submenu { w mnum line text subnum } {
 	frame $w.x$line
-	button $w.x$line.l -text "" -width 9 -relief groove
+	button $w.x$line.l -text "" -width 15 -relief groove
 	$w.x$line.l configure -activefore [cget $w.x$line.l -fg] \
 		-activeback [cget $w.x$line.l -bg] -state disabled
 	button $w.x$line.m -text "$text" -relief raised -anchor w \
@@ -445,29 +445,6 @@ proc comment {w mnum line text } {
 	pack $w.x$line -anchor w -fill both -expand on
 }
 
-proc readhelp {tag fn}  {
-	set message ""
-	set b 0
-	if { [file readable $fn] == 1} then {
-		set fhandle [open $fn r]
-		while {[gets $fhandle inline] >= 0} {
-			if { $b == 0 } {
-				if { [regexp $tag $inline ] } {
-					set b 1
-					set message "$inline:\n"
-				}
-			} else {
-				if { [regexp {^[^ \t]} $inline]} {
-					break
-				}
-				set message "$message\n$inline"
-			}
-		}
-		close $fhandle
-	}
-	return $message
-}
-
 proc dohelp {w var parent}  {
 	catch {destroy $w}
 	toplevel $w -class Dialog
@@ -481,7 +458,18 @@ proc dohelp {w var parent}  {
 		# First escape sed regexp special characters in var:
 		set var [exec echo "$var" | sed s/\[\]\[\/.^$*\]/\\\\&/g]
 		# Now pick out right help text:
-		set message [readhelp $var config.help]
+		set message [exec sed -n "
+			/^$var\[ 	\]*\$/,\${
+				/^$var\[ 	\]*\$/c\\
+${var}:\\
+
+				/^#/b
+				/^\[^ 	\]/q
+				s/^  //
+				/<file:\\(\[^>\]*\\)>/s//\\1/g
+				p
+			}
+			" config.help]
 		set found [expr [string length "$message"] > 0]
 	}
 
@@ -570,11 +558,11 @@ proc wrapup {w }  {
 	set oldFocus [focus]
 	frame $w.f
 	button $w.f.back -text "OK" \
-		-width 10 -command "exit 2"
+		-width 10 -command "exit"
 	pack $w.f.back -side bottom -pady 10 -anchor s
 	pack $w.f -pady 10 -side top -padx 10 -anchor s
 	focus $w
-        bind $w <Return> "exit 2"
+        bind $w <Return> "exit"
 	global winx; global winy
 	set winx [expr [winfo x .]+30]; set winy [expr [winfo y .]+30]
 	wm geometry $w +$winx+$winy

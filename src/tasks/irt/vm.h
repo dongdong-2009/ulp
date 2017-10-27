@@ -33,6 +33,7 @@ enum {
 	VM_OPCODE_SEQU,
 	VM_OPCODE_GRUP,
 	VM_OPCODE_NULL,
+	VM_OPCODE_WAIT, /*Wn GFT command*/
 };
 
 typedef union opcode_u {
@@ -46,6 +47,11 @@ typedef union opcode_u {
 		unsigned short fscn : 13;
 		unsigned short type : 3;
 	} fscn;
+
+	struct {
+		unsigned short ms : 13; //max 8192
+		unsigned short type : 3;
+	} wait;
 
 	unsigned short value;
 } opcode_t;

@@ -7,6 +7,8 @@
 
 #include "config.h"
 
+#define DAC_OPT_OBUFOFF 1
+
 typedef struct {
 	int option;
 } dac_cfg_t;

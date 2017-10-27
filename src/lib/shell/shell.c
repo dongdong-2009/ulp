@@ -61,6 +61,14 @@ void shell_Init(void)
 	uart2.init(&cfg);
 	shell_register((const struct console_s *) &uart2);
 #endif
+#ifdef CONFIG_SHELL_UART3
+	uart3.init(&cfg);
+	shell_register((const struct console_s *) &uart3);
+#endif
+#ifdef CONFIG_SHELL_UART4
+	uart4.init(&cfg);
+	shell_register((const struct console_s *) &uart4);
+#endif
 }
 
 void shell_Update(void)
@@ -75,8 +83,12 @@ void shell_Update(void)
 			console_set(shell -> console);
 			cmd_queue_update(&shell -> cmd_queue);
 			ok = shell_ReadLine(shell->prompt, NULL);
-			if(ok)
+			if(ok) {
 				cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
+				if(shell->prompt != NULL) {
+					shell_print("%s", shell->prompt);
+				}
+			}
 		}
 #ifdef CONFIG_SHELL_MULTI
 		console_set(NULL); //restore system default console
@@ -135,6 +147,9 @@ int shell_register(const struct console_s *console)
 	#endif
 	cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
 #endif
+	if(shell->prompt != NULL) {
+		shell_print("%s", shell->prompt);
+	}
 	console_set(NULL);
 	return 0;
 }
@@ -182,7 +197,7 @@ static struct shell_s *shell_get(const struct console_s *cnsl)
 		}
 	}
 #else
-	if(shell != NULL && shell->console == cnsl)
+	if(shell != NULL) //only 1 cnsl, always return default shell
 		return shell;
 #endif
 	return NULL;
@@ -191,11 +206,36 @@ static struct shell_s *shell_get(const struct console_s *cnsl)
 int shell_mute_set(const struct console_s *cnsl, int enable)
 {
 	int ret = -1;
-	struct shell_s *s = shell_get(cnsl);
+	struct shell_s *s;
+
+#ifdef CONFIG_SHELL_MULTI
+	if(cnsl == NULL) { //mute all console
+		struct list_head *pos;
+		list_for_each(pos, &shell_queue) {
+			s = list_entry(pos, shell_s, list);
+			if(enable == -1) {
+				s->config ^= SHELL_CONFIG_MUTE;
+			}
+			else {
+				enable = (enable) ? SHELL_CONFIG_MUTE : 0;
+				s->config &= ~SHELL_CONFIG_MUTE;
+				s->config |= enable;
+			}
+		}
+		return 0;
+	}
+#endif
+
+	s = shell_get(cnsl);
 	if(s != NULL) {
-		enable = (enable) ? SHELL_CONFIG_MUTE : 0;
-		s->config &= ~SHELL_CONFIG_MUTE;
-		s->config |= enable;
+		if(enable == -1) {
+			s->config ^= SHELL_CONFIG_MUTE;
+		}
+		else {
+			enable = (enable) ? SHELL_CONFIG_MUTE : 0;
+			s->config &= ~SHELL_CONFIG_MUTE;
+			s->config |= enable;
+		}
 		ret = 0;
 	}
 	return ret;
@@ -257,9 +297,11 @@ int shell_ReadLine(const char *prompt, char *str)
 
 	assert(shell != NULL);
 	if(shell -> cmd_idx < 0) {
+		/*
 		if(prompt != NULL) {
 			shell_print("%s", prompt);
 		}
+		*/
 		memset(shell -> cmd_buffer, 0, CONFIG_SHELL_LEN_CMD_MAX);
 		shell -> cmd_idx ++;
 #if CONFIG_SHELL_LEN_HIS_MAX > 0
@@ -335,7 +377,14 @@ int shell_ReadLine(const char *prompt, char *str)
 			continue;
 		case 0x1B: /*arrow keys*/
 			ch = console_getch();
-			if(ch != '[')
+			if((ch == 'm') || (ch == 'M')) { //CTRL+m
+				strcpy(shell -> cmd_buffer, "shell -x");
+				shell -> cmd_idx = -1;
+				ready = 1;
+				shell_print("\n");
+				break;
+			}
+			else if(ch != '[')
 				continue;
 			ch = console_getch();
 			switch (ch) {
@@ -631,7 +680,6 @@ const cmd_t cmd_autorun = {"autorun", cmd_autorun_func, "autorun a specified cmd
 DECLARE_SHELL_CMD(cmd_autorun)
 #endif
 
-#ifdef CONFIG_CMD_SHELL
 static int cmd_shell_func(int argc, char *argv[])
 {
 	const char *usage = {
@@ -647,9 +695,16 @@ static int cmd_shell_func(int argc, char *argv[])
 		switch(argv[i][1]) {
 		case 'a':
 			shell_mute(shell->console);
+			printf("<+0, No Error\n\r");
 			break;
 		case 'm':
 			shell_unmute(shell->console);
+			printf("<+0, No Error\n\r");
+			break;
+			
+		case 'x':
+			shell_mute_set(shell->console, -1);
+			printf("<+0, mode switched\n\r");
 			break;
 
 		default:
@@ -659,10 +714,8 @@ static int cmd_shell_func(int argc, char *argv[])
 
 	if(e)
 		printf("%s", usage);
-
 	return 0;
 }
 
 const cmd_t cmd_shell = {"shell", cmd_shell_func, "shell management commands"};
 DECLARE_SHELL_CMD(cmd_shell)
-#endif

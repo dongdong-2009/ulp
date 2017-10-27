@@ -71,9 +71,10 @@ void rut_mode(int mode)
 		LS(17)|LS(16)|LS(13), /*IIS*/
 		0x00, /*DBG*/
 		0x00, /*OFF*/
+		LS(19)|LS(15)|LS(27), /*IRT|LV*/
 	};
 
-	sys_assert((mode >= IRC_MODE_HVR) && (mode <= IRC_MODE_OFF));
+	sys_assert((mode >= IRC_MODE_HVR) && (mode <= IRC_MODE_END));
 	int relays = image[mode];
 	relays = rly_map(relays);
 	mbi5025_write_and_latch(&rut_mbi, &relays, sizeof(relays));

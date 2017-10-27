@@ -4,13 +4,28 @@
 # Written by miaofng@2011
 #
 
-choice 'autoliv pdi type selection'	" \
-	SDM10_11	CONFIG_PDI_SDM10 \
-	DM_DMA		CONFIG_PDI_DM \
-	RC_N7		CONFIG_PDI_RC \
-	B515		CONFIG_PDI_B515 \
-	J04N		CONFIG_PDI_J04N \
-	SDM30		CONFIG_PDI_SDM30 \
-	M16			CONFIG_PDI_M16 \
-	RP			CONFIG_PDI_RP \
-" SDM10_11
+choice 'PDI Type'	" \
+	ECU		CONFIG_PDI_ECU \
+	RSU		CONFIG_PDI_RSU \
+	RSU4	CONFIG_PDI_RSU4 \
+" ECU
+
+if [ "$CONFIG_PDI_ECU" = "y" ]; then
+	choice 'ECU PDI Model'	" \
+		SDM10_11		CONFIG_PDI_SDM10 \
+		DM_DMA			CONFIG_PDI_DM \
+		RC_N7			CONFIG_PDI_RC \
+		B515			CONFIG_PDI_B515 \
+		J04N			CONFIG_PDI_J04N \
+		SDM30			CONFIG_PDI_SDM30 \
+		M16				CONFIG_PDI_M16 \
+		RP				CONFIG_PDI_RP \
+	" SDM10_11
+fi
+
+if [ "$CONFIG_PDI_RSU4" = "y" ]; then
+	choice 'RSU4 Models'	" \
+		P71A		CONFIG_RSU_P71A \
+		KP108		CONFIG_RSU_KP108 \
+	" P71A
+fi

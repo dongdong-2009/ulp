@@ -40,7 +40,10 @@ static int spi_Init(const spi_cfg_t *spi_cfg)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7;
+#if CONFIG_SPI1_MISO == 1
+	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_6;
+#endif
 #ifdef CONFIG_SPI1_CS_HARD
 	GPIO_InitStructure.GPIO_Pin |= GPIO_Pin_4;
 #endif
@@ -142,7 +145,7 @@ static int spi_Write(int addr, int val)
 
 static int spi_Read(int addr)
 {
-	return spi_Write(addr, 0xff);
+	return spi_Write(addr, CONFIG_SPI_READ_DUMMY);
 }
 
 #ifdef CONFIG_SPI1_DMA

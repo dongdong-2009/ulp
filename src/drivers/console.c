@@ -41,6 +41,14 @@ void console_Init(void)
 	uart2.init(&cfg);
 	cnsl = (const struct console_s *) &uart2;
 #endif
+#ifdef CONFIG_CONSOLE_UART3
+	uart3.init(&cfg);
+	cnsl = (const struct console_s *) &uart2;
+#endif
+#ifdef CONFIG_CONSOLE_UART4
+	uart4.init(&cfg);
+	cnsl = (const struct console_s *) &uart4;
+#endif
 #ifdef CONFIG_SHELL_MULTI
 	cnsl_def = cnsl;
 #endif
