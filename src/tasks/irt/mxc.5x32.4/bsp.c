@@ -169,7 +169,11 @@ void le_lock(void)
 void le_unlock(void)
 {
 	mxc_le_locked = 0;
+#if IRC_SLOT_LE_CHECK == 1
 	le_set(0);
+#else
+	le_set(1);
+#endif
 }
 
 void sense_set(unsigned char mask)
