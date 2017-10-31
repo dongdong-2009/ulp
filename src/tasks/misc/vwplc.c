@@ -47,7 +47,7 @@ typedef struct {
 
 typedef struct {
 	char id; //test unit id, assign by host, range: 1-18
-	char reserved1; //
+	char reserved1;
 	char reserved2;
 	char reserved3;
 	int sensors; //bit31: end, bit30: ng
@@ -84,9 +84,9 @@ static void vwplc_wimg(int msk, int img)
 
 static void vwplc_can_send(const can_msg_t *msg)
 {
-	led_hwSetStatus(LED_RED, 1);
+	led_hwSetStatus(LED_RED, LED_ON);
 	while(vwplc_can->send(msg));
-	led_hwSetStatus(LED_RED, 0);
+	led_hwSetStatus(LED_RED, LED_OFF);
 }
 
 static void vwplc_can_handler(void)
@@ -107,6 +107,13 @@ static void vwplc_can_handler(void)
 			vwplc_id = vwplc_rxdat->target;
 			vwplc_txmsg.id = CAN_ID_UNIT(vwplc_id);
 			vwplc_txmsg.dlc = 8;
+		}
+
+		//send the status to vwhost
+		if(vwplc_id) {
+			vwplc_txdat->id = vwplc_id;
+			vwplc_txdat->sensors = vwplc_sensors;
+			vwplc_can_send(&vwplc_txmsg);
 		}
 		break;
 
@@ -151,20 +158,20 @@ static void vwplc_can_handler(void)
 void vwplc_gpio_init(void)
 {
 	//sensors #00-07
-	GPIO_BIND(GPIO_IPU, PC13, SC+) //GPI#00
-	GPIO_BIND(GPIO_IPU, PC14, SC-) //GPI#01
-	GPIO_BIND(GPIO_IPU, PC15, SR+) //GPI#02
-	GPIO_BIND(GPIO_IPU, PA1, SR-) //GPI#03
+	GPIO_BIND(GPIO_IPU, PC13, SC+) //0, GPI#00
+	GPIO_BIND(GPIO_IPU, PC14, SC-) //1, GPI#01
+	GPIO_BIND(GPIO_IPU, PC15, SR+) //2, GPI#02
+	GPIO_BIND(GPIO_IPU, PA1, SR-) //3, GPI#03
 
 	GPIO_FILT(SC+, SENSOR_FLIT_MS)
 	GPIO_FILT(SC-, SENSOR_FLIT_MS)
 	GPIO_FILT(SR+, SENSOR_FLIT_MS)
 	GPIO_FILT(SR-, SENSOR_FLIT_MS)
 
-	GPIO_BIND(GPIO_IPU, PA2, SF+) //GPI#04
-	GPIO_BIND(GPIO_IPU, PA4, SF-) //GPI#05
-	GPIO_BIND(GPIO_IPU, PA5, SB+) //GPI#06
-	GPIO_BIND(GPIO_IPU, PA6, SB-) //GPI#07
+	GPIO_BIND(GPIO_IPU, PA2, SF+) //4, GPI#04
+	GPIO_BIND(GPIO_IPU, PA4, SF-) //5, GPI#05
+	GPIO_BIND(GPIO_IPU, PA5, SB+) //6, GPI#06
+	GPIO_BIND(GPIO_IPU, PA6, SB-) //7, GPI#07
 
 	GPIO_FILT(SF+, SENSOR_FLIT_MS)
 	GPIO_FILT(SF-, SENSOR_FLIT_MS)
@@ -172,41 +179,41 @@ void vwplc_gpio_init(void)
 	GPIO_FILT(SB-, SENSOR_FLIT_MS)
 
 	//sensors #10-17
-	GPIO_BIND(GPIO_IPU, PA7, SP+) //GPI#10
-	GPIO_BIND(GPIO_IPU, PC4, SP-) //GPI#11
-	GPIO_BIND(GPIO_IPU, PC5, SM+) //GPI#12
-	GPIO_BIND(GPIO_IPU, PB0, SM-) //GPI#13
+	GPIO_BIND(GPIO_IPU, PA7, SP+) //8, GPI#10
+	GPIO_BIND(GPIO_IPU, PC4, SP-) //9, GPI#11
+	GPIO_BIND(GPIO_IPU, PC5, SM+) //10,GPI#12
+	GPIO_BIND(GPIO_IPU, PB0, SM-) //11, GPI#13
 
 	GPIO_FILT(SP+, SENSOR_FLIT_MS)
 	GPIO_FILT(SP-, SENSOR_FLIT_MS)
 	GPIO_FILT(SM+, SENSOR_FLIT_MS)
 	GPIO_FILT(SM-, SENSOR_FLIT_MS)
 
-	GPIO_BIND(GPIO_IPU, PB1, UE) //GPI#14
-	GPIO_BIND(GPIO_IPU, PB2, GPI#15) //GPI#15
-	GPIO_BIND(GPIO_IPU, PB10, GPI#16) //GPI#16
-	GPIO_BIND(GPIO_IPU, PB11, GPI#17) //GPI#17
+	GPIO_BIND(GPIO_IPU, PB1, UE) //12, GPI#14
+	GPIO_BIND(GPIO_IPU, PB2, GPI#15) //13, GPI#15
+	GPIO_BIND(GPIO_IPU, PB10, GPI#16) //14, GPI#16
+	GPIO_BIND(GPIO_IPU, PB11, GPI#17) //15, GPI#17
 
 	GPIO_FILT(UE, SENSOR_FLIT_MS)
 
 	//valve ctrl
-	GPIO_BIND(GPIO_PP0, PB12, CC) //GPO#00
-	GPIO_BIND(GPIO_PP0, PB13, CR) //GPO#01
-	GPIO_BIND(GPIO_PP0, PB14, CF) //GPO#02
-	GPIO_BIND(GPIO_PP0, PB15, CB) //GPO#03
+	GPIO_BIND(GPIO_PP0, PB12, CC) //16, GPO#00
+	GPIO_BIND(GPIO_PP0, PB13, CR) //17, GPO#01
+	GPIO_BIND(GPIO_PP0, PB14, CF) //18, GPO#02
+	GPIO_BIND(GPIO_PP0, PB15, CB) //19, GPO#03
 
-	GPIO_BIND(GPIO_PP0, PC6, CP) //GPO#04
-	GPIO_BIND(GPIO_PP0, PC7, CM) //GPO#05
-	GPIO_BIND(GPIO_PP0, PC8, LR) //GPO#06
-	GPIO_BIND(GPIO_PP0, PC9, LG) //GPO#07
+	GPIO_BIND(GPIO_PP0, PC6, CP) //20, GPO#04
+	GPIO_BIND(GPIO_PP0, PC7, CM) //21, GPO#05
+	GPIO_BIND(GPIO_PP0, PC8, LR) //22, GPO#06
+	GPIO_BIND(GPIO_PP0, PC9, LG) //23, GPO#07
 
 	//misc
-	GPIO_BIND(GPIO_IPU, PC12, RSEL)
-	GPIO_BIND(GPIO_IPU, PC11, CSEL)
+	GPIO_BIND(GPIO_IPU, PC12, RSEL) //24,
+	GPIO_BIND(GPIO_IPU, PC11, CSEL) //25,
 	GPIO_FILT(RSEL, 10)
 	GPIO_FILT(CSEL, 10)
 
-	GPIO_BIND(GPIO_PP0, PA8, MPC_ON)
+	GPIO_BIND(GPIO_PP0, PA8, MPC_ON) //26,
 
 	GPIO_BIND(GPIO_AIN, PC2, VMPC)
 	GPIO_BIND(GPIO_AIN, PC3, VBST)
@@ -340,7 +347,6 @@ static int cmd_vwplc_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"VWPLC ID?			return test unit id\n"
-		"VWPLC GUID?		return test unit GUID\n"
 		"VWPLC READY?		return -1 or mysql test record id\n"
 		"VWPLC PASS\n"
 		"VWPLC FAIL\n"
@@ -360,9 +366,6 @@ static int cmd_vwplc_func(int argc, char *argv[])
 			vwplc_txmsg.dlc = 8;
 		}
 		printf("<%+d\n", vwplc_id);
-	}
-	else if(!strcmp(argv[1], "GUID?")) {
-		printf("<%+d\n", vwplc_guid);
 	}
 	else if(!strcmp(argv[1], "READY?")) {
 		printf("<%+d\n", vwplc_sql_id);
@@ -408,6 +411,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		"usage:\n"
 		"*IDN?		to read identification string\n"
 		"*RST		instrument reset\n"
+		"*UUID?		query the stm32 uuid\n"
 	};
 
 	if(!strcmp(argv[0], "*IDN?")) {
@@ -418,6 +422,11 @@ int cmd_xxx_func(int argc, char *argv[])
 		printf("<+0, No Error\n\r");
 		mdelay(50);
 		NVIC_SystemReset();
+	}
+	else if(!strcmp(argv[0], "*UUID?")) {
+		unsigned uuid = *(unsigned *)(0X1FFFF7E8);
+		printf("<%+d\n", uuid);
+		return 0;
 	}
 	else if(!strcmp(argv[0], "*?")) {
 		printf("%s", usage);
