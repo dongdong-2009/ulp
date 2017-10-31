@@ -86,7 +86,11 @@ int mxc_execute(void)
 
 	mxc_image_write();
 
+#if IRC_SLOT_LE_CHECK == 1
+	//hw bug: le_r pulse introduced by le_d, Td = 110nS, Tw = 40nS
+	//not solved yet!!!!
 	le_set(1);
+
 	while(!le_is_pulsed()) {
 		if(time_left(suspend) < 0) {
 			sys_update();
@@ -114,6 +118,8 @@ int mxc_execute(void)
 
 	//operation finish
 	le_set(0);
+#endif
+
 	return 0;
 }
 
