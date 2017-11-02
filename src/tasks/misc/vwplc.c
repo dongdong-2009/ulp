@@ -282,7 +282,7 @@ void vwplc_update(void)
 			flash_timer = time_get(1000);
 			lr = gpio_get_h(vwplc_gpio_lr);
 			lr = !lr;
-			lg = !lr;
+			lg = lr;
 			update = 1;
 		}
 	}
