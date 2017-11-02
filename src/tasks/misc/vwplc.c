@@ -262,13 +262,14 @@ void vwplc_update(void)
 	}
 
 	static time_t flash_timer = 0;
-	int lr, lg;
+	int lr, lg, update = 0;
 
 	//test end
 	if(vwplc_test_end) {
 		vwplc_sql_id = -1;
 		lr = vwplc_test_ng ? 1 : 0;
 		lg = vwplc_test_ng ? 0 : 1;
+		update = 1;
 	}
 
 	//test start
@@ -282,6 +283,7 @@ void vwplc_update(void)
 			lr = gpio_get_h(vwplc_gpio_lr);
 			lr = !lr;
 			lg = !lr;
+			update = 1;
 		}
 	}
 
@@ -300,11 +302,14 @@ void vwplc_update(void)
 	//show constant yellow if test unit died
 	if(vwplc_test_died) {
 		lr = lg = 1;
+		update = 1;
 	}
 
 	//update front panel indicator display
-	gpio_set_h(vwplc_gpio_lr, lr);
-	gpio_set_h(vwplc_gpio_lg, lg);
+	if(update) {
+		gpio_set_h(vwplc_gpio_lr, lr);
+		gpio_set_h(vwplc_gpio_lg, lg);
+	}
 
 	int sensors = vwplc_rimg();
 	int delta = sensors ^ vwplc_sensors;
