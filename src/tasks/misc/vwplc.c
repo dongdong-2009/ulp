@@ -35,6 +35,9 @@ enum {
 	VWPLC_CMD_PASS, //host: cmd, identical with cmd "TEST PASS"
 	VWPLC_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL"
 	VWPLC_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
+	VWPLC_CMD_WDTY, //host: cmd, enable test unit wdt
+	VWPLC_CMD_WDTN, //host: cmd, disable test unit wdt
+	VWPLC_CMD_UUID, //host: cmd, query vwplc board uuid
 };
 
 typedef struct {
@@ -47,7 +50,7 @@ typedef struct {
 
 typedef struct {
 	char id; //test unit id, assign by host, range: 1-18
-	char reserved1; //
+	char cmd;
 	char reserved2;
 	char reserved3;
 	int sensors; //bit31: end, bit30: ng
@@ -62,6 +65,12 @@ static int vwplc_id;
 static int vwplc_sql_id; //>= 0: rdy4tst
 static int vwplc_test_end;
 static int vwplc_test_ng;
+static int vwplc_test_offline; /*vwhost will ignore offline mode test units*/
+static int vwplc_test_died; /*only affect indicator*/
+static time_t vwplc_test_wdt = 0;
+#define VWPLC_TEST_WDT_MS 3000
+static int vwplc_gpio_lr; //handle of gpio
+static int vwplc_gpio_lg; //handle of gpio
 static int vwplc_sensors;
 static unsigned vwplc_guid;
 static time_t vplc_mpc_on_timer;
@@ -72,8 +81,11 @@ static int vwplc_rimg(void)
 	int msk = 0x0300ffff; //input
 	img ^= msk;
 
+	img &= 0x0FFFFFFF;
 	img |= vwplc_test_end ? (1 << 31) : 0;
 	img |= vwplc_test_ng ? (1 << 30) : 0;
+	img |= vwplc_test_offline ? (1 << 29) : 0;
+	img |= vwplc_test_died ? (1 << 28) : 0;
 	return img;
 }
 
@@ -84,9 +96,9 @@ static void vwplc_wimg(int msk, int img)
 
 static void vwplc_can_send(const can_msg_t *msg)
 {
-	led_hwSetStatus(LED_RED, 1);
+	led_hwSetStatus(LED_RED, LED_ON);
 	while(vwplc_can->send(msg));
-	led_hwSetStatus(LED_RED, 0);
+	led_hwSetStatus(LED_RED, LED_OFF);
 }
 
 static void vwplc_can_handler(void)
@@ -107,6 +119,14 @@ static void vwplc_can_handler(void)
 			vwplc_id = vwplc_rxdat->target;
 			vwplc_txmsg.id = CAN_ID_UNIT(vwplc_id);
 			vwplc_txmsg.dlc = 8;
+		}
+
+		//send the status to vwhost
+		if(vwplc_id) {
+			vwplc_txdat->id = vwplc_id;
+			vwplc_txdat->cmd = vwplc_rxdat->cmd;
+			vwplc_txdat->sensors = vwplc_sensors;
+			vwplc_can_send(&vwplc_txmsg);
 		}
 		break;
 
@@ -134,9 +154,29 @@ static void vwplc_can_handler(void)
 		vwplc_test_end = 0;
 		break;
 
+	case VWPLC_CMD_WDTY:
+		vwplc_test_died = 1;
+		vwplc_test_wdt = 0;
+		break;
+	case VWPLC_CMD_WDTN:
+		vwplc_test_died = 0;
+		vwplc_test_wdt = 0;
+		break;
+
+	case VWPLC_CMD_UUID:
+		if(vwplc_id) {
+			unsigned uuid = *(unsigned *)(0X1FFFF7E8);
+			vwplc_txdat->id = vwplc_id;
+			vwplc_txdat->cmd = vwplc_rxdat->cmd;
+			vwplc_txdat->sensors = uuid;
+			vwplc_can_send(&vwplc_txmsg);
+		}
+		break;
+
 	case VWPLC_CMD_POLL:
 		if(vwplc_id) {
 			vwplc_txdat->id = vwplc_id;
+			vwplc_txdat->cmd = vwplc_rxdat->cmd;
 			vwplc_txdat->sensors = vwplc_sensors;
 			vwplc_can_send(&vwplc_txmsg);
 		}
@@ -151,20 +191,20 @@ static void vwplc_can_handler(void)
 void vwplc_gpio_init(void)
 {
 	//sensors #00-07
-	GPIO_BIND(GPIO_IPU, PC13, SC+) //GPI#00
-	GPIO_BIND(GPIO_IPU, PC14, SC-) //GPI#01
-	GPIO_BIND(GPIO_IPU, PC15, SR+) //GPI#02
-	GPIO_BIND(GPIO_IPU, PA1, SR-) //GPI#03
+	GPIO_BIND(GPIO_IPU, PC13, SC+) //0, GPI#00
+	GPIO_BIND(GPIO_IPU, PC14, SC-) //1, GPI#01
+	GPIO_BIND(GPIO_IPU, PC15, SR+) //2, GPI#02
+	GPIO_BIND(GPIO_IPU, PA1, SR-) //3, GPI#03
 
 	GPIO_FILT(SC+, SENSOR_FLIT_MS)
 	GPIO_FILT(SC-, SENSOR_FLIT_MS)
 	GPIO_FILT(SR+, SENSOR_FLIT_MS)
 	GPIO_FILT(SR-, SENSOR_FLIT_MS)
 
-	GPIO_BIND(GPIO_IPU, PA2, SF+) //GPI#04
-	GPIO_BIND(GPIO_IPU, PA4, SF-) //GPI#05
-	GPIO_BIND(GPIO_IPU, PA5, SB+) //GPI#06
-	GPIO_BIND(GPIO_IPU, PA6, SB-) //GPI#07
+	GPIO_BIND(GPIO_IPU, PA2, SF+) //4, GPI#04
+	GPIO_BIND(GPIO_IPU, PA4, SF-) //5, GPI#05
+	GPIO_BIND(GPIO_IPU, PA5, SB+) //6, GPI#06
+	GPIO_BIND(GPIO_IPU, PA6, SB-) //7, GPI#07
 
 	GPIO_FILT(SF+, SENSOR_FLIT_MS)
 	GPIO_FILT(SF-, SENSOR_FLIT_MS)
@@ -172,41 +212,41 @@ void vwplc_gpio_init(void)
 	GPIO_FILT(SB-, SENSOR_FLIT_MS)
 
 	//sensors #10-17
-	GPIO_BIND(GPIO_IPU, PA7, SP+) //GPI#10
-	GPIO_BIND(GPIO_IPU, PC4, SP-) //GPI#11
-	GPIO_BIND(GPIO_IPU, PC5, SM+) //GPI#12
-	GPIO_BIND(GPIO_IPU, PB0, SM-) //GPI#13
+	GPIO_BIND(GPIO_IPU, PA7, SP+) //8, GPI#10
+	GPIO_BIND(GPIO_IPU, PC4, SP-) //9, GPI#11
+	GPIO_BIND(GPIO_IPU, PC5, SM+) //10,GPI#12
+	GPIO_BIND(GPIO_IPU, PB0, SM-) //11, GPI#13
 
 	GPIO_FILT(SP+, SENSOR_FLIT_MS)
 	GPIO_FILT(SP-, SENSOR_FLIT_MS)
 	GPIO_FILT(SM+, SENSOR_FLIT_MS)
 	GPIO_FILT(SM-, SENSOR_FLIT_MS)
 
-	GPIO_BIND(GPIO_IPU, PB1, UE) //GPI#14
-	GPIO_BIND(GPIO_IPU, PB2, GPI#15) //GPI#15
-	GPIO_BIND(GPIO_IPU, PB10, GPI#16) //GPI#16
-	GPIO_BIND(GPIO_IPU, PB11, GPI#17) //GPI#17
+	GPIO_BIND(GPIO_IPU, PB1, UE) //12, GPI#14
+	GPIO_BIND(GPIO_IPU, PB2, GPI#15) //13, GPI#15
+	GPIO_BIND(GPIO_IPU, PB10, GPI#16) //14, GPI#16
+	GPIO_BIND(GPIO_IPU, PB11, GPI#17) //15, GPI#17
 
 	GPIO_FILT(UE, SENSOR_FLIT_MS)
 
 	//valve ctrl
-	GPIO_BIND(GPIO_PP0, PB12, CC) //GPO#00
-	GPIO_BIND(GPIO_PP0, PB13, CR) //GPO#01
-	GPIO_BIND(GPIO_PP0, PB14, CF) //GPO#02
-	GPIO_BIND(GPIO_PP0, PB15, CB) //GPO#03
+	GPIO_BIND(GPIO_PP0, PB12, CC) //16, GPO#00
+	GPIO_BIND(GPIO_PP0, PB13, CR) //17, GPO#01
+	GPIO_BIND(GPIO_PP0, PB14, CF) //18, GPO#02
+	GPIO_BIND(GPIO_PP0, PB15, CB) //19, GPO#03
 
-	GPIO_BIND(GPIO_PP0, PC6, CP) //GPO#04
-	GPIO_BIND(GPIO_PP0, PC7, CM) //GPO#05
-	GPIO_BIND(GPIO_PP0, PC8, LR) //GPO#06
-	GPIO_BIND(GPIO_PP0, PC9, LG) //GPO#07
+	GPIO_BIND(GPIO_PP0, PC6, CP) //20, GPO#04
+	GPIO_BIND(GPIO_PP0, PC7, CM) //21, GPO#05
+	vwplc_gpio_lr = GPIO_BIND(GPIO_PP0, PC8, LR) //22, GPO#06
+	vwplc_gpio_lg = GPIO_BIND(GPIO_PP0, PC9, LG) //23, GPO#07
 
 	//misc
-	GPIO_BIND(GPIO_IPU, PC12, RSEL)
-	GPIO_BIND(GPIO_IPU, PC11, CSEL)
+	GPIO_BIND(GPIO_IPU, PC12, RSEL) //24,
+	GPIO_BIND(GPIO_IPU, PC11, CSEL) //25,
 	GPIO_FILT(RSEL, 10)
 	GPIO_FILT(CSEL, 10)
 
-	GPIO_BIND(GPIO_PP0, PA8, MPC_ON)
+	GPIO_BIND(GPIO_PP0, PA8, MPC_ON) //26,
 
 	GPIO_BIND(GPIO_AIN, PC2, VMPC)
 	GPIO_BIND(GPIO_AIN, PC3, VBST)
@@ -222,12 +262,13 @@ void vwplc_update(void)
 	}
 
 	static time_t flash_timer = 0;
+	int lr, lg;
 
 	//test end
 	if(vwplc_test_end) {
 		vwplc_sql_id = -1;
-		gpio_set("LR", vwplc_test_ng ? 1 : 0);
-		gpio_set("LG", vwplc_test_ng ? 0 : 1);
+		lr = vwplc_test_ng ? 1 : 0;
+		lg = vwplc_test_ng ? 0 : 1;
 	}
 
 	//test start
@@ -238,11 +279,32 @@ void vwplc_update(void)
 		//yellow flash
 		if ((flash_timer == 0) || (time_left(flash_timer) < 0)) {
 			flash_timer = time_get(1000);
-			int lr = gpio_get("LR");
-			gpio_set("LR", !lr);
-			gpio_set("LG", !lr);
+			lr = gpio_get_h(vwplc_gpio_lr);
+			lr = !lr;
+			lg = !lr;
 		}
 	}
+
+	//test unit died detection
+	if(vwplc_test_wdt) {
+		if(time_left(vwplc_test_wdt) < 0) {
+			__disable_irq(); //to avoid confict with vwhost remote wdt disable
+			if(vwplc_test_wdt) {
+				vwplc_test_wdt = 0;
+				vwplc_test_died = 1;
+			}
+			__enable_irq();
+		}
+	}
+
+	//show constant yellow if test unit died
+	if(vwplc_test_died) {
+		lr = lg = 1;
+	}
+
+	//update front panel indicator display
+	gpio_set_h(vwplc_gpio_lr, lr);
+	gpio_set_h(vwplc_gpio_lg, lg);
 
 	int sensors = vwplc_rimg();
 	int delta = sensors ^ vwplc_sensors;
@@ -255,6 +317,7 @@ void vwplc_update(void)
 				//report to vwhost
 				__disable_irq();
 				vwplc_txdat->id = vwplc_id;
+				vwplc_txdat->cmd = VWPLC_CMD_POLL;
 				vwplc_txdat->sensors = vwplc_sensors;
 				vwplc_can_send(&vwplc_txmsg);
 				__enable_irq();
@@ -307,6 +370,11 @@ void vwplc_init(void)
 	vwplc_test_end = 1;
 	vwplc_sensors = vwplc_rimg();
 
+	//global status
+	vwplc_test_offline = 0;
+	vwplc_test_died = 1;
+	vwplc_test_wdt = 0;
+
 	gpio_set("CC", 0);
 	gpio_set("CR", 0);
 	gpio_set("CF", 0);
@@ -340,8 +408,9 @@ static int cmd_vwplc_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"VWPLC ID?			return test unit id\n"
-		"VWPLC GUID?		return test unit GUID\n"
 		"VWPLC READY?		return -1 or mysql test record id\n"
+		"VWPLC OFFLINE		change vwplc to offline mode\n"
+		"VWPLC ONLINE		change vwplc to online mode\n"
 		"VWPLC PASS\n"
 		"VWPLC FAIL\n"
 		"VWPLC RIMG?\n"
@@ -361,11 +430,16 @@ static int cmd_vwplc_func(int argc, char *argv[])
 		}
 		printf("<%+d\n", vwplc_id);
 	}
-	else if(!strcmp(argv[1], "GUID?")) {
-		printf("<%+d\n", vwplc_guid);
-	}
 	else if(!strcmp(argv[1], "READY?")) {
 		printf("<%+d\n", vwplc_sql_id);
+	}
+	else if(!strcmp(argv[1], "OFFLINE")) {
+		vwplc_test_offline = 1;
+		printf("<%+d, OK\n", 0);
+	}
+	else if(!strcmp(argv[1], "ONLINE")) {
+		vwplc_test_offline = 0;
+		printf("<%+d, OK\n", 0);
 	}
 	else if(!strcmp(argv[1], "PASS")) {
 		vwplc_test_ng = 0;
@@ -408,16 +482,35 @@ int cmd_xxx_func(int argc, char *argv[])
 		"usage:\n"
 		"*IDN?		to read identification string\n"
 		"*RST		instrument reset\n"
+		"*UUID?		query the stm32 uuid\n"
+		"*WDT?		update wdt and return ms left\n"
 	};
 
 	if(!strcmp(argv[0], "*IDN?")) {
-		printf("<0,Ulicar Technology,HUBPDI V1.x,%s,%s\n\r", __DATE__, __TIME__);
+		printf("<0,Ulicar Technology, VWPLC V1.x,%s,%s\n\r", __DATE__, __TIME__);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*RST")) {
 		printf("<+0, No Error\n\r");
 		mdelay(50);
 		NVIC_SystemReset();
+	}
+	else if(!strcmp(argv[0], "*UUID?")) {
+		unsigned uuid = *(unsigned *)(0X1FFFF7E8);
+		printf("<%+d\n", uuid);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "*WDT?")) {
+		int ms = (vwplc_test_wdt == 0) ? 0 : time_left(vwplc_test_wdt);
+		if((vwplc_test_wdt == 0) && (vwplc_test_died == 0)) {
+			//wdt been disabled by vwhost, ignore update here
+		}
+		else {
+			vwplc_test_wdt = time_get(VWPLC_TEST_WDT_MS);
+			vwplc_test_died = 0;
+		}
+		printf("<%+d\n", ms);
+		return 0;
 	}
 	else if(!strcmp(argv[0], "*?")) {
 		printf("%s", usage);
