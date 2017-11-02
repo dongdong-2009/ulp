@@ -40,6 +40,9 @@ enum {
 	VW_CMD_PASS, //host: cmd, identical with cmd "TEST PASS", only for debug purpose
 	VW_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL", only for debug purpose
 	VW_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
+	VW_CMD_WDTY, //host: cmd, enable test unit wdt
+	VW_CMD_WDTN, //host: cmd, disable test unit wdt
+	VW_CMD_UUID, //host: cmd, query vwplc board uuid
 };
 
 typedef struct {
@@ -52,7 +55,7 @@ typedef struct {
 
 typedef struct {
 	char id; //test unit id, assign by host, range: 1-18
-	char reserved1;
+	char cmd; //original cmd
 	char reserved2;
 	char reserved3;
 	int sensors;
@@ -63,6 +66,7 @@ static can_msg_t vw_rxmsg[10];
 static can_msg_t vw_txmsg;
 static rxdat_t *vw_rxdat = (rxdat_t *) vw_rxmsg[0].data;
 static txdat_t *vw_txdat = (txdat_t *) vw_txmsg.data;
+static int vwplc_uuid[10];
 
 static int vwhost_can_send(can_msg_t *msg)
 {
@@ -104,6 +108,11 @@ void __sys_tick(void)
 static void vwhost_can_handler(void)
 {
 	int id = vw_rxdat->id;
+	if(vw_rxdat->cmd == VW_CMD_UUID) {
+		vwplc_uuid[id] = vw_rxdat->sensors;
+		return;
+	}
+
 	memcpy(&vw_rxmsg[id], &vw_rxmsg[0], sizeof(can_msg_t));
 
 	//can msg id is used as alive detection counter
@@ -249,7 +258,8 @@ void vw_update(void)
 void vw_init(void)
 {
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
-	memset(&vw_rxmsg, 0x00, sizeof(vw_rxmsg));
+	memset(vwplc_uuid, 0x00, sizeof(vwplc_uuid));
+	memset(vw_rxmsg, 0x00, sizeof(vw_rxmsg));
 	memset(&vw_txmsg, 0x00, sizeof(vw_txmsg));
 	vw_txmsg.id = CAN_ID_HOST;
 	vw_txmsg.dlc = 8;
@@ -300,6 +310,9 @@ int cmd_xxx_func(int argc, char *argv[])
 		"PASS id		debug, identical with cmd 'VWPLC PASS'\n"
 		"FAIL id		debug, identical with cmd 'VWPLC FAIL'\n"
 		"ENDC id		handshake with TEST_END signal\n"
+		"UUID [id]		query/read specific vwplc uuid\n"
+		"WDTY			enable test unit wdt function\n"
+		"WDTN			disable test unit wdt function\n"
 	};
 
 	int i, n, e, v, bytes;
@@ -475,6 +488,37 @@ int cmd_xxx_func(int argc, char *argv[])
 		printf("<+0, No Error\n\r");
 		mdelay(50);
 		NVIC_SystemReset();
+	}
+	else if(!strcmp(argv[0], "UUID")) {
+		if(argc > 1) {
+			id = atoi(argv[1]);
+			if((id > 0) && (id < 10)) printf("<%+d, vwplc#%d\n\r", vwplc_uuid[id], id);
+			else printf("<%+d, vwplc#%d\n\r", -1, id);
+		}
+		else { //query all the test unit
+			vw_txdat->target = 0;
+			vw_txdat->cmd = VW_CMD_UUID;
+			vw_txmsg.dlc = 2;
+			e = vwhost_can_send(&vw_txmsg);
+			printf("<+0, No Error\n\r");
+		}
+		return 0;
+	}
+	else if(!strcmp(argv[0], "WDTY")) {
+		vw_txdat->target = 0;
+		vw_txdat->cmd = VW_CMD_WDTY;
+		vw_txmsg.dlc = 2;
+		e = vwhost_can_send(&vw_txmsg);
+		printf("<%+d, WDTY\n\r", e);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "WDTN")) {
+		vw_txdat->target = 0;
+		vw_txdat->cmd = VW_CMD_WDTN;
+		vw_txmsg.dlc = 2;
+		e = vwhost_can_send(&vw_txmsg);
+		printf("<%+d, WDTY\n\r", e);
+		return 0;
 	}
 	else {
 		printf("<-1, Unknown Command\n\r");
