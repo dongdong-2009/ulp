@@ -22,9 +22,15 @@
 #define CAN_ID_HOST 0x100 //0x101..120 is test unit
 #define CAN_ID_UNIT(N) (CAN_ID_HOST + (N))
 
+#define VW_SCAN_MS 500
+#define VW_ALIVE_MS (VW_SCAN_MS << 2)
+
 #define VW_SAFE_MASK (1 << 11) //!!! 'SM-'
 static int vw_hgpio_safe = -1;
 static int vw_flag_safe = -1;
+
+#define VW_UUTE_MASK (1 << 12) //!!! 'UE'
+static int vw_flag_uute = -1;
 
 enum {
 	VW_CMD_POLL, //host: cmd -> slave: response status
@@ -46,9 +52,9 @@ typedef struct {
 
 typedef struct {
 	char id; //test unit id, assign by host, range: 1-18
-	char reserved; //
-	char test_end;
-	char test_ng;
+	char reserved1;
+	char reserved2;
+	char reserved3;
 	int sensors;
 } rxdat_t;
 
@@ -77,10 +83,31 @@ static int vwhost_can_send(can_msg_t *msg)
 	return 0;
 }
 
+void __sys_tick(void)
+{
+	//can msg id is used as alive detection counter
+	//set dlc=0 indicates the fixture is lost
+	int uute = 0;
+	for(int i = 1; i < 10; i ++) {
+		if(vw_rxmsg[i].id <= 0) vw_rxmsg[i].dlc = 0;
+		else {
+			vw_rxmsg[i].id --;
+			rxdat_t *rxdat = (rxdat_t *) vw_rxmsg[i].data;
+			if(rxdat->sensors & VW_UUTE_MASK) {
+				uute |= 1 << i;
+			}
+		}
+	}
+	vw_flag_uute = uute;
+}
+
 static void vwhost_can_handler(void)
 {
 	int id = vw_rxdat->id;
 	memcpy(&vw_rxmsg[id], &vw_rxmsg[0], sizeof(can_msg_t));
+
+	//can msg id is used as alive detection counter
+	vw_rxmsg[id].id = VW_ALIVE_MS;
 
 	//danger process
 	int safe = 1;
@@ -196,12 +223,13 @@ void vw_update(void)
 	static int scan_timer = 0;
 
 	if((scan_timer == 0) || (time_left(scan_timer) < 0)) {
-		scan_timer = time_get(100);
+		scan_timer = time_get(VW_SCAN_MS >> 1);
 		int idx = vw_assign(idx_scan);
 		idx_scan += (idx == 0) ? 1 : 0;
 		idx_scan = (idx_scan > 8) ? 0 : idx_scan;
 	}
 
+#if 0
 	/*poll the slave status
 	note: in fact, periodly poll is not needed
 	becase each vwplc will report its status in case of its status change
@@ -215,6 +243,7 @@ void vw_update(void)
 		vw_txmsg.dlc = 2;
 		vwhost_can_send(&vw_txmsg);
 	}
+#endif
 }
 
 void vw_init(void)
@@ -284,6 +313,10 @@ int cmd_xxx_func(int argc, char *argv[])
 		printf("<%+d\n", vw_flag_safe);
 		return 0;
 	}
+	else if(!strcmp(argv[0], "UUTE")) { //bit mask
+		printf("<%+d\n", vw_flag_uute);
+		return 0;
+	}
 	else if(!strcmp(argv[0], "READ")) {
 		bytes = 0;
 		char hex[64];
@@ -300,7 +333,6 @@ int cmd_xxx_func(int argc, char *argv[])
 
 				bytes = vw_rxmsg[id].dlc;
 			}
-
 		}
 		else { //print status
 			msk = 0;
