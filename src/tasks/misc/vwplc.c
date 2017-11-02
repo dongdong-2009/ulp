@@ -35,6 +35,9 @@ enum {
 	VWPLC_CMD_PASS, //host: cmd, identical with cmd "TEST PASS"
 	VWPLC_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL"
 	VWPLC_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
+	VWPLC_CMD_WDTY, //host: cmd, enable test unit wdt
+	VWPLC_CMD_WDTN, //host: cmd, disable test unit wdt
+	VWPLC_CMD_UUID, //host: cmd, query vwplc board uuid
 };
 
 typedef struct {
@@ -47,7 +50,7 @@ typedef struct {
 
 typedef struct {
 	char id; //test unit id, assign by host, range: 1-18
-	char reserved1;
+	char cmd;
 	char reserved2;
 	char reserved3;
 	int sensors; //bit31: end, bit30: ng
@@ -62,6 +65,12 @@ static int vwplc_id;
 static int vwplc_sql_id; //>= 0: rdy4tst
 static int vwplc_test_end;
 static int vwplc_test_ng;
+static int vwplc_test_offline; /*vwhost will ignore offline mode test units*/
+static int vwplc_test_died; /*only affect indicator*/
+static time_t vwplc_test_wdt = 0;
+#define VWPLC_TEST_WDT_MS 3000
+static int vwplc_gpio_lr; //handle of gpio
+static int vwplc_gpio_lg; //handle of gpio
 static int vwplc_sensors;
 static unsigned vwplc_guid;
 static time_t vplc_mpc_on_timer;
@@ -72,8 +81,11 @@ static int vwplc_rimg(void)
 	int msk = 0x0300ffff; //input
 	img ^= msk;
 
+	img &= 0x0FFFFFFF;
 	img |= vwplc_test_end ? (1 << 31) : 0;
 	img |= vwplc_test_ng ? (1 << 30) : 0;
+	img |= vwplc_test_offline ? (1 << 29) : 0;
+	img |= vwplc_test_died ? (1 << 28) : 0;
 	return img;
 }
 
@@ -112,6 +124,7 @@ static void vwplc_can_handler(void)
 		//send the status to vwhost
 		if(vwplc_id) {
 			vwplc_txdat->id = vwplc_id;
+			vwplc_txdat->cmd = vwplc_rxdat->cmd;
 			vwplc_txdat->sensors = vwplc_sensors;
 			vwplc_can_send(&vwplc_txmsg);
 		}
@@ -141,9 +154,29 @@ static void vwplc_can_handler(void)
 		vwplc_test_end = 0;
 		break;
 
+	case VWPLC_CMD_WDTY:
+		vwplc_test_died = 1;
+		vwplc_test_wdt = 0;
+		break;
+	case VWPLC_CMD_WDTN:
+		vwplc_test_died = 0;
+		vwplc_test_wdt = 0;
+		break;
+
+	case VWPLC_CMD_UUID:
+		if(vwplc_id) {
+			unsigned uuid = *(unsigned *)(0X1FFFF7E8);
+			vwplc_txdat->id = vwplc_id;
+			vwplc_txdat->cmd = vwplc_rxdat->cmd;
+			vwplc_txdat->sensors = uuid;
+			vwplc_can_send(&vwplc_txmsg);
+		}
+		break;
+
 	case VWPLC_CMD_POLL:
 		if(vwplc_id) {
 			vwplc_txdat->id = vwplc_id;
+			vwplc_txdat->cmd = vwplc_rxdat->cmd;
 			vwplc_txdat->sensors = vwplc_sensors;
 			vwplc_can_send(&vwplc_txmsg);
 		}
@@ -204,8 +237,8 @@ void vwplc_gpio_init(void)
 
 	GPIO_BIND(GPIO_PP0, PC6, CP) //20, GPO#04
 	GPIO_BIND(GPIO_PP0, PC7, CM) //21, GPO#05
-	GPIO_BIND(GPIO_PP0, PC8, LR) //22, GPO#06
-	GPIO_BIND(GPIO_PP0, PC9, LG) //23, GPO#07
+	vwplc_gpio_lr = GPIO_BIND(GPIO_PP0, PC8, LR) //22, GPO#06
+	vwplc_gpio_lg = GPIO_BIND(GPIO_PP0, PC9, LG) //23, GPO#07
 
 	//misc
 	GPIO_BIND(GPIO_IPU, PC12, RSEL) //24,
@@ -229,12 +262,13 @@ void vwplc_update(void)
 	}
 
 	static time_t flash_timer = 0;
+	int lr, lg;
 
 	//test end
 	if(vwplc_test_end) {
 		vwplc_sql_id = -1;
-		gpio_set("LR", vwplc_test_ng ? 1 : 0);
-		gpio_set("LG", vwplc_test_ng ? 0 : 1);
+		lr = vwplc_test_ng ? 1 : 0;
+		lg = vwplc_test_ng ? 0 : 1;
 	}
 
 	//test start
@@ -245,11 +279,32 @@ void vwplc_update(void)
 		//yellow flash
 		if ((flash_timer == 0) || (time_left(flash_timer) < 0)) {
 			flash_timer = time_get(1000);
-			int lr = gpio_get("LR");
-			gpio_set("LR", !lr);
-			gpio_set("LG", !lr);
+			lr = gpio_get_h(vwplc_gpio_lr);
+			lr = !lr;
+			lg = !lr;
 		}
 	}
+
+	//test unit died detection
+	if(vwplc_test_wdt) {
+		if(time_left(vwplc_test_wdt) < 0) {
+			__disable_irq(); //to avoid confict with vwhost remote wdt disable
+			if(vwplc_test_wdt) {
+				vwplc_test_wdt = 0;
+				vwplc_test_died = 1;
+			}
+			__enable_irq();
+		}
+	}
+
+	//show constant yellow if test unit died
+	if(vwplc_test_died) {
+		lr = lg = 1;
+	}
+
+	//update front panel indicator display
+	gpio_set_h(vwplc_gpio_lr, lr);
+	gpio_set_h(vwplc_gpio_lg, lg);
 
 	int sensors = vwplc_rimg();
 	int delta = sensors ^ vwplc_sensors;
@@ -262,6 +317,7 @@ void vwplc_update(void)
 				//report to vwhost
 				__disable_irq();
 				vwplc_txdat->id = vwplc_id;
+				vwplc_txdat->cmd = VWPLC_CMD_POLL;
 				vwplc_txdat->sensors = vwplc_sensors;
 				vwplc_can_send(&vwplc_txmsg);
 				__enable_irq();
@@ -314,6 +370,11 @@ void vwplc_init(void)
 	vwplc_test_end = 1;
 	vwplc_sensors = vwplc_rimg();
 
+	//global status
+	vwplc_test_offline = 0;
+	vwplc_test_died = 1;
+	vwplc_test_wdt = 0;
+
 	gpio_set("CC", 0);
 	gpio_set("CR", 0);
 	gpio_set("CF", 0);
@@ -348,6 +409,8 @@ static int cmd_vwplc_func(int argc, char *argv[])
 		"usage:\n"
 		"VWPLC ID?			return test unit id\n"
 		"VWPLC READY?		return -1 or mysql test record id\n"
+		"VWPLC OFFLINE		change vwplc to offline mode\n"
+		"VWPLC ONLINE		change vwplc to online mode\n"
 		"VWPLC PASS\n"
 		"VWPLC FAIL\n"
 		"VWPLC RIMG?\n"
@@ -369,6 +432,14 @@ static int cmd_vwplc_func(int argc, char *argv[])
 	}
 	else if(!strcmp(argv[1], "READY?")) {
 		printf("<%+d\n", vwplc_sql_id);
+	}
+	else if(!strcmp(argv[1], "OFFLINE")) {
+		vwplc_test_offline = 1;
+		printf("<%+d, OK\n", 0);
+	}
+	else if(!strcmp(argv[1], "ONLINE")) {
+		vwplc_test_offline = 0;
+		printf("<%+d, OK\n", 0);
 	}
 	else if(!strcmp(argv[1], "PASS")) {
 		vwplc_test_ng = 0;
@@ -412,10 +483,11 @@ int cmd_xxx_func(int argc, char *argv[])
 		"*IDN?		to read identification string\n"
 		"*RST		instrument reset\n"
 		"*UUID?		query the stm32 uuid\n"
+		"*WDT?		update wdt and return ms left\n"
 	};
 
 	if(!strcmp(argv[0], "*IDN?")) {
-		printf("<0,Ulicar Technology,HUBPDI V1.x,%s,%s\n\r", __DATE__, __TIME__);
+		printf("<0,Ulicar Technology, VWPLC V1.x,%s,%s\n\r", __DATE__, __TIME__);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*RST")) {
@@ -426,6 +498,18 @@ int cmd_xxx_func(int argc, char *argv[])
 	else if(!strcmp(argv[0], "*UUID?")) {
 		unsigned uuid = *(unsigned *)(0X1FFFF7E8);
 		printf("<%+d\n", uuid);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "*WDT?")) {
+		int ms = (vwplc_test_wdt == 0) ? 0 : time_left(vwplc_test_wdt);
+		if((vwplc_test_wdt == 0) && (vwplc_test_died == 0)) {
+			//wdt been disabled by vwhost, ignore update here
+		}
+		else {
+			vwplc_test_wdt = time_get(VWPLC_TEST_WDT_MS);
+			vwplc_test_died = 0;
+		}
+		printf("<%+d\n", ms);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*?")) {
