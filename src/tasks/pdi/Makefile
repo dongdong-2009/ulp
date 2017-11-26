@@ -31,3 +31,5 @@ obj-$(CONFIG_RSU_P71A) += rsu4/p71a.o
 obj-$(CONFIG_RSU_KP108) += rsu4/kp108.o
 obj-$(CONFIG_RSU_VOLVO) += rsu4/volvo.o
 obj-$(CONFIG_RSU_DFL322) += rsu4/dfl322.o
+obj-$(CONFIG_RSU_J71E) += rsu4/j71e.o
+obj-$(CONFIG_RSU_J71E_DHS) += rsu4/j71e.o

@@ -360,6 +360,11 @@ int bsp_rsu_status(int pos, int *mV)
 	for(int i = 0; i < 4; i ++) {
 		status |= (mv[i] > vth) ? (1 << i) : 0;
 	}
+
+	#if CONFIG_RSU4_WITH_PROBE == 1
+	status = ~status; //no rsu => 3v3(contrary to light sensor)
+	#endif
+
 	return status;
 }
 

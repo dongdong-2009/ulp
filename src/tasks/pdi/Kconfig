@@ -24,11 +24,25 @@ if [ "$CONFIG_PDI_ECU" = "y" ]; then
 fi
 
 if [ "$CONFIG_PDI_RSU4" = "y" ]; then
-	bool "without vref@lm4040" CONFIG_RSU4_NO_LM4040
 	choice 'RSU4 Models'	" \
 		P71A		CONFIG_RSU_P71A \
 		KP108		CONFIG_RSU_KP108 \
 		VOLVO		CONFIG_RSU_VOLVO \
 		DFL322		CONFIG_RSU_DFL322 \
+		J71E		CONFIG_RSU_J71E \
+		J71E_DHS	CONFIG_RSU_J71E_DHS \
 	" P71A
+
+	define_bool CONFIG_RSU4_NO_LM4040 y
+	if [ "$CONFIG_RSU_P71A" = "y" -o "$CONFIG_RSU_KP108" = "y" -o "$CONFIG_RSU_VOLVO" = "y" ]; then
+		define_bool CONFIG_RSU4_NO_LM4040 n
+	fi
+
+	define_bool CONFIG_RSU4_WITH_PROBE n
+	if [ "$CONFIG_RSU_J71E_DHS" = "y" ]; then
+		define_bool CONFIG_RSU4_WITH_PROBE y
+	fi
+
+	bool "without vref@lm4040" CONFIG_RSU4_NO_LM4040
+	bool "light sensor->probe switch" CONFIG_RSU4_WITH_PROBE
 fi

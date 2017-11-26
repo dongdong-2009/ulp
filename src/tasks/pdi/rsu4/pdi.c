@@ -354,6 +354,7 @@ int pdi_mdelay_with_pull_detection(int ms)
 {
 	int ecode = 0;
 	time_t deadline = time_get(ms);
+	printf("%s: wait %d ms ...\n", __func__, ms);
 	while(time_left(deadline) > 0) {
 		pdi_mdelay(1);
 		if(!pdi_swdebug) {
@@ -536,11 +537,13 @@ static void pdi_verify(void)
 	pdi_stop_action(pdi_passed);
 
 	//wait for fixture pull-out
-	printf("wait for fixture pull out ...\n");
-	while(1) {
-		pdi_mdelay(1);
-		int ready = bsp_rdy_status(pdi_pos);
-		if(!ready) break;
+	if(!pdi_swdebug) {
+		printf("wait for fixture pull out ...\n");
+		while(1) {
+			pdi_mdelay(1);
+			int ready = bsp_rdy_status(pdi_pos);
+			if(!ready) break;
+		}
 	}
 
 	pdi_pos = pdi_pos_new;
