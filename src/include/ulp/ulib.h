@@ -7,6 +7,7 @@
 
 /* htoi:  convert hexdicimal string s to integer, such as 0x1B, 1b .. */
 int htoi(const char *s);
+int hex2bin(const char *hex, void *bin);
 int bitcount(int n); //return how many 1 in para n
 void hexdump(const char *prefix, const void *data, int nbytes);
 

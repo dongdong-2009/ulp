@@ -12,31 +12,24 @@
 
 int htoi(const char *s)
 {
-	int i;
-	int c, n;
+	int v = -1;
+	sscanf(s, "%x", &v); //support 0xhh,0XHH,hh or HH
+	return v;
+}
 
-	n = 0;
-	for (i = 0; (c = s[i]) != '\0'; ++i) {
-		n *= 16;
-		if (i == 0 && c == '0') {
-			/* Drop the 0x of 0X from the start of the string. */
-			c = s[++i];
-			if (c != 'x' && c != 'X')
-				--i;
-		} else if (c >= '0' && c <= '9')
-			/* c is a numerical digit. */
-			n += c - '0';
-		else if (c >= 'a' && c <= 'f')
-			/* c is a letter in the range 'a'-'f' */
-			n += 10 + (c - 'a');
-		else if (c >= 'A' && c <= 'F')
-			/* c is a letter in the range 'A'-'F' */
-			n += 10 + (c - 'A');
-		else
-			/* invalid input */
-			return n;
+int hex2bin(const char *hex, void *bin)
+{
+	char *result = (char *) bin;
+	char s[3] = {0, 0, 0};
+	int i, n = strlen(hex) >> 1;
+
+	for(i = 0; i < n; i ++) {
+		s[0] = hex[(i << 1) + 0];
+		s[1] = hex[(i << 1) + 1];
+		result[i] = (char) htoi(s);
 	}
-	return n;
+
+	return i;
 }
 
 //return how many 1 in para x

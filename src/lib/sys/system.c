@@ -9,6 +9,7 @@
 #include "spi.h"
 #include "nvm.h"
 #include "wdt.h"
+#include "gpio.h"
 
 __weak void bsp_init(void)
 {
@@ -17,6 +18,9 @@ __weak void bsp_init(void)
 void sys_Init(void)
 {
 	SystemInit();
+#if (CONFIG_DRIVER_GPIO == 1)
+	gpio_init();
+#endif
 #if CONFIG_DRIVER_WDT == 1
 	wdt_init(CONFIG_WDT_PERIOD);
 #endif

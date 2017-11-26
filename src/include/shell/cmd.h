@@ -23,8 +23,8 @@ struct cmd_list_s {
 	char *cmdline;
 	unsigned len : 12;
 #ifdef CONFIG_CMD_BKG
-	unsigned repeat : 1;
-	unsigned ms : 19; //repeat period
+	unsigned ms : 20; //repeat period
+	int repeat;
 	time_t deadline;
 	cmd_t *cmd;
 #endif
@@ -46,6 +46,7 @@ struct cmd_queue_s {
 /*cmd module i/f*/
 void cmd_Init(void);
 void cmd_Update(void);
+int cmd_is_repeated(void);
 
 /*implement me if you want add default handler*/
 int cmd_xxx_func(int argc, char *argv[]);

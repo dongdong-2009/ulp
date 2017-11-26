@@ -58,6 +58,11 @@ enum {
 	HV_FS = VS_EN,
 	IRSTART = HV_EN,
 	IRTEST = HV_VS,
+
+	//dps v4.2
+	VS_UP = HV_FS,
+	VS_DN = HV_VS,
+	VS_POL = HS_VS,
 };
 
 void bsp_gpio_set(int pin, int high);

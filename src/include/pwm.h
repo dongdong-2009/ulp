@@ -11,7 +11,7 @@
 #define PWM_FS_DEF	100
 
 typedef struct {
-	int hz; //desired output pwm frequency, Fclk/fs at most
+	float hz; //desired output pwm frequency, Fclk/fs at most
 	int fs; //pwm full scale value, range: 0x0000~0xFFFF
 } pwm_cfg_t;
 
@@ -63,6 +63,14 @@ extern const pwm_bus_t pwm41;
 extern const pwm_bus_t pwm42;
 extern const pwm_bus_t pwm43;
 extern const pwm_bus_t pwm44;
+#endif
+
+#ifdef CONFIG_DRIVER_PWM8
+extern const pwm_bus_t pwm8;
+extern const pwm_bus_t pwm81;
+extern const pwm_bus_t pwm82;
+extern const pwm_bus_t pwm83;
+extern const pwm_bus_t pwm84;
 #endif
 
 #endif /*__PWM_H_*/

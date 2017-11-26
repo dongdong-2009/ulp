@@ -208,26 +208,35 @@ int shell_mute_set(const struct console_s *cnsl, int enable)
 	int ret = -1;
 	struct shell_s *s;
 
-	if(cnsl == NULL) { //mute all console
 #ifdef CONFIG_SHELL_MULTI
+	if(cnsl == NULL) { //mute all console
 		struct list_head *pos;
 		list_for_each(pos, &shell_queue) {
 			s = list_entry(pos, shell_s, list);
-			enable = (enable) ? SHELL_CONFIG_MUTE : 0;
-			s->config &= ~SHELL_CONFIG_MUTE;
-			s->config |= enable;
+			if(enable == -1) {
+				s->config ^= SHELL_CONFIG_MUTE;
+			}
+			else {
+				enable = (enable) ? SHELL_CONFIG_MUTE : 0;
+				s->config &= ~SHELL_CONFIG_MUTE;
+				s->config |= enable;
+			}
 		}
 		return 0;
-#endif
 	}
-	else {
-		s = shell_get(cnsl);
-		if(s != NULL) {
+#endif
+
+	s = shell_get(cnsl);
+	if(s != NULL) {
+		if(enable == -1) {
+			s->config ^= SHELL_CONFIG_MUTE;
+		}
+		else {
 			enable = (enable) ? SHELL_CONFIG_MUTE : 0;
 			s->config &= ~SHELL_CONFIG_MUTE;
 			s->config |= enable;
-			ret = 0;
 		}
+		ret = 0;
 	}
 	return ret;
 }
@@ -368,7 +377,14 @@ int shell_ReadLine(const char *prompt, char *str)
 			continue;
 		case 0x1B: /*arrow keys*/
 			ch = console_getch();
-			if(ch != '[')
+			if((ch == 'm') || (ch == 'M')) { //CTRL+m
+				strcpy(shell -> cmd_buffer, "shell -x");
+				shell -> cmd_idx = -1;
+				ready = 1;
+				shell_print("\n");
+				break;
+			}
+			else if(ch != '[')
 				continue;
 			ch = console_getch();
 			switch (ch) {
@@ -679,9 +695,16 @@ static int cmd_shell_func(int argc, char *argv[])
 		switch(argv[i][1]) {
 		case 'a':
 			shell_mute(shell->console);
+			printf("<+0, No Error\n\r");
 			break;
 		case 'm':
 			shell_unmute(shell->console);
+			printf("<+0, No Error\n\r");
+			break;
+			
+		case 'x':
+			shell_mute_set(shell->console, -1);
+			printf("<+0, mode switched\n\r");
 			break;
 
 		default:
@@ -691,7 +714,6 @@ static int cmd_shell_func(int argc, char *argv[])
 
 	if(e)
 		printf("%s", usage);
-
 	return 0;
 }
 
