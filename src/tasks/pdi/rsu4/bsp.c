@@ -362,7 +362,7 @@ int bsp_rsu_status(int pos, int *mV)
 	}
 
 	#if CONFIG_RSU4_WITH_PROBE == 1
-	status = ~status; //no rsu => 3v3(contrary to light sensor)
+	status = status ^ 0x0f; //no rsu => 3v3(contrary to light sensor)
 	#endif
 
 	return status;
