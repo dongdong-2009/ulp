@@ -303,8 +303,13 @@ static void pdi_wait_host_itac(void)
 	while(pdi_host_itac == 0) {
 		pdi_mdelay(10);
 		if(time_left(deadline) < 0) {
+			#if 0
 			//wait host itac response "OO"/"NN" timeout ... :(
 			pdi_ecode = ERROR_ITAC;
+			#else
+			//bruce: sometime pdi fail, but itac pass
+			//root cause: host response OO/NN timeout or none
+			#endif
 			break;
 		}
 	}
