@@ -99,11 +99,14 @@ int pdi_host_update_ex(const char *cmd, int cmd_len)
 {
 	int rsu_index, ecode = -1;
 	char rsu_name[16];
+	memset(rsu_name, 0x00, sizeof(rsu_name));
 
 	cmd_len = (cmd_len > 15) ? 15 : cmd_len;
 	strncpy(rsu_name, cmd, cmd_len);
+	printf("rsu_name = %s\n", rsu_name);
 	rsu_index = rsu_sensor_search_by_name(rsu_name);
 	if(rsu_index >= 0) {
+		printf("rsu model = %d\n", rsu_index);
 		rsu_model = rsu_sensor_list[rsu_index].model;
 		bsp_select_grp(rsu_sensor_list[rsu_index].pdi_grp);
 		ecode = 0;
