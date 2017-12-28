@@ -479,8 +479,10 @@ static void pdi_verify(void)
 		//power on
 		bsp_swbat(1);
 
+#if (CONFIG_RSU_P71A == 1) || (CONFIG_RSU_KP108 == 1)
 		//wait demo ecu power-up
-		//pdi_mdelay_with_pull_detection(7000);
+		pdi_mdelay_with_pull_detection(7000);
+#endif
 
 		//test
 		ecode = pdi_test(pdi_pos, pdi_mask, &pdi_report);
