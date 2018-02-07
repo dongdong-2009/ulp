@@ -28,6 +28,7 @@ choice 'misc project configuration'	" \
 	VWHOST				CONFIG_MISC_VWHOST \
 	VWSIG				CONFIG_MISC_VWSIG \
 	VWPWR				CONFIG_MISC_VWPWR \
+	FDSIG				CONFIG_MISC_FDSIG \
 " VALVE_HEAD_DEMO
 
 choice 'board hw version'	" \
