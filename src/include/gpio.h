@@ -39,8 +39,9 @@ int gpio_get(const char *name);
 int gpio_wimg(int img, int msk);
 int gpio_rimg(int msk);
 
-//gpio is returned by gpio_bind()
-#define GPIO_NONE -1
+#define GPIO_INVALID -2 //exist or not exist
+#define GPIO_NONE -1 //not exist
+int gpio_handle(const char *name); //return hgpio or GPIO_NONE
 int gpio_set_h(int gpio, int high);
 int gpio_get_h(int gpio);
 
