@@ -19,6 +19,7 @@ int ecu_reset(void);
 //decrypt algos
 typedef void (*ecu_algo_t)(unsigned char access_level, unsigned char seed[8], unsigned char key[8]);
 void ecu_decrypt_CalculateKey(unsigned char access_level, unsigned char seed[8], unsigned char key[8]);
+void ecu_decrypt_CalculateKey_VOLVO(unsigned char access_level, unsigned char seed[8], unsigned char key[8]);
 void ecu_decrypt_239A(unsigned char access_level, unsigned char seed[8], unsigned char key[8]);
 void ecu_decrypt_34AB(unsigned char access_level, unsigned char seed[8], unsigned char key[8]);
 void ecu_decrypt_B1234C12(unsigned char access_level, unsigned char seed[8], unsigned char key[8]);

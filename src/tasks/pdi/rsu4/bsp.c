@@ -244,7 +244,13 @@ static void bsp_adc_init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 
+#if (CONFIG_RSU_P71A == 1) || (CONFIG_RSU_KP108 == 1)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+#else
+	//use stm32 gpio internal weak-up, about 40-50KOHM
+	//no need to mount on board RP1 & RP6 now!!!
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+#endif
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
@@ -313,7 +319,11 @@ static void bsp_adc_init(void)
 int bsp_rsu_status(int pos, int *mV)
 {
 	//note: msb is sign bit, always 0
+	#if CONFIG_RSU4_NO_LM4040 == 1
+	#define BSP_PT204_D2MV(d)  ((3300 * d) >> 15)
+	#else
 	#define BSP_PT204_D2MV(d)  ((3000 * d) >> 15)
+	#endif
 
 	int mv[4];
 	if(pos == 0) {
@@ -340,12 +350,21 @@ int bsp_rsu_status(int pos, int *mV)
 	2638 2658 2999 2999 y-uut y-push @50KOHM
 	2651 2668 2999 2999 y-uut y-push @50KOHM
 	*/
+	#if CONFIG_RSU4_NO_LM4040 == 1
+	const int vth = 3100; //unit: mV(range: 2.999-3.300)
+	#else
 	const int vth = 2998; //unit: mV(range: 2.999-3.300)
+	#endif
 
 	int status = 0;
 	for(int i = 0; i < 4; i ++) {
 		status |= (mv[i] > vth) ? (1 << i) : 0;
 	}
+
+	#if CONFIG_RSU4_WITH_PROBE == 1
+	status = status ^ 0x0f; //no rsu => 3v3(contrary to light sensor)
+	#endif
+
 	return status;
 }
 

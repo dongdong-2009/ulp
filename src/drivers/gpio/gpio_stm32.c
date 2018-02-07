@@ -17,12 +17,12 @@
 #include "gpio.h"
 #include "common/debounce.h"
 
-#define GPIO_N 31
+#define GPIO_N 63
 
 typedef struct {
 	const char *name;
 	int mode;
-	int handle;
+	int key;
 
 #if CONFIG_GPIO_FILTER == 1
 	struct debounce_s gfilt;
@@ -44,18 +44,30 @@ static gpio_t *gpio_search(const char *name)
 	return p;
 }
 
-static int gpio_handle(const char *gpio)
+int gpio_handle(const char *name)
+{
+	int idx = GPIO_NONE;
+	for(int i = 0; i < gpio_n; i ++) {
+		if(!strcmp(gpios[i].name, name)) {
+			idx = i;
+			break;
+		}
+	}
+	return idx;
+}
+
+static int gpio_key(const char *gpio)
 {
 	//gpio = PA0 or PB10
 	char port = gpio[1];
 	int pin = atoi(&gpio[2]);
-	int handle = (port << 8) | pin;
-	return handle;
+	int key = (port << 8) | pin;
+	return key;
 }
 
-GPIO_TypeDef *gpio_port(int handle)
+GPIO_TypeDef *gpio_port(int key)
 {
-	char port = (handle >> 8) & 0xff;
+	char port = (key >> 8) & 0xff;
 	switch(port){
 	case 'A': return GPIOA;
 	case 'B': return GPIOB;
@@ -69,9 +81,9 @@ GPIO_TypeDef *gpio_port(int handle)
 	return NULL;
 }
 
-int gpio_pin(int handle)
+int gpio_pin(int key)
 {
-	int pin = handle & 0xff;
+	int pin = key & 0xff;
 	int mask = 1 << pin;
 	return mask;
 }
@@ -83,7 +95,7 @@ void gpio_init(void)
 
 int gpio_bind(int mode, const char *gpio, const char *name)
 {
-	int handle = gpio_handle(gpio);
+	int key = gpio_key(gpio);
 	gpio_t *p = gpio_search(name);
 
 	sys_assert(p == NULL); //name should not identify
@@ -92,14 +104,14 @@ int gpio_bind(int mode, const char *gpio, const char *name)
 	p = & gpios[gpio_n ++];
 	p->name = name;
 	p->mode = mode;
-	p->handle = handle;
+	p->key = key;
 
 #if CONFIG_GPIO_FILTER == 1
 	debounce_t_init(&p->gfilt, 0, 0);
 #endif
 
-	GPIO_TypeDef *GPIOn = gpio_port(handle);
-	int pin = gpio_pin(handle);
+	GPIO_TypeDef *GPIOn = gpio_port(key);
+	int pin = gpio_pin(key);
 
 	struct {
 		GPIO_TypeDef *port;
@@ -176,9 +188,9 @@ int gpio_filt(const char *name, int ms)
 static int gpio_set_hw(const gpio_t *gpio, int high)
 {
 	int ecode = 0;
-	int handle = gpio->handle;
-	GPIO_TypeDef *GPIOn = gpio_port(handle);
-	int msk = gpio_pin(handle);
+	int key = gpio->key;
+	GPIO_TypeDef *GPIOn = gpio_port(key);
+	int msk = gpio_pin(key);
 
 	switch(gpio->mode) {
 	case GPIO_PP0:
@@ -204,18 +216,18 @@ int gpio_set(const char *name, int high)
 	return ecode;
 }
 
-int gpio_set_h(int hgpio, int high)
+int gpio_set_h(int handle, int high)
 {
-	sys_assert(hgpio < GPIO_N);
-	gpio_t *gpio = &gpios[hgpio];
+	sys_assert(handle < GPIO_N);
+	gpio_t *gpio = &gpios[handle];
 	return gpio_set_hw(gpio, high);
 }
 
 static int gpio_get_hw(const gpio_t *gpio)
 {
-	int handle = gpio->handle;
-	GPIO_TypeDef *GPIOn = gpio_port(handle);
-	int msk = gpio_pin(handle);
+	int key = gpio->key;
+	GPIO_TypeDef *GPIOn = gpio_port(key);
+	int msk = gpio_pin(key);
 	int yes = (GPIOn->IDR & msk) ? 1 : 0;
 #if CONFIG_GPIO_FILTER == 1
 	debounce((struct debounce_s *)(&gpio->gfilt), yes);
@@ -236,10 +248,10 @@ int gpio_get(const char *name)
 	return ecode ? ecode : level;
 }
 
-int gpio_get_h(int hgpio)
+int gpio_get_h(int handle)
 {
-	sys_assert(hgpio < GPIO_N);
-	gpio_t *gpio = &gpios[hgpio];
+	sys_assert(handle < GPIO_N);
+	gpio_t *gpio = &gpios[handle];
 	return gpio_get_hw(gpio);
 }
 
@@ -249,9 +261,9 @@ int gpio_wimg(int img, int msk)
 	for(int i = 0; i < gpio_n; i ++) {
 		if (bit_get(i, &msk)) {
 			gpio_t *gpio = &gpios[i];
-			int handle = gpio->handle;
-			GPIO_TypeDef *GPIOn = gpio_port(handle);
-			int pin = gpio_pin(handle);
+			int key = gpio->key;
+			GPIO_TypeDef *GPIOn = gpio_port(key);
+			int pin = gpio_pin(key);
 			int high = bit_get(i, &img);
 
 			switch(gpio->mode) {
@@ -299,8 +311,8 @@ void gpio_dumps(void)
 		default: mode = "???";
 		}
 
-		char port = gpios[i].handle >> 8;
-		char pin = gpios[i].handle & 0xff;
+		char port = gpios[i].key >> 8;
+		char pin = gpios[i].key & 0xff;
 		printf("%02d: %s, gpio = P%c%02d, name = %s\n", i, mode, port, pin, gpios[i].name);
 	}
 }

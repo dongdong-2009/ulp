@@ -48,7 +48,8 @@ int fifo_push(fifo_t *fifo, int data)
 		fifo->wpos = wpos;
 	}
 
-	return 1;
+	int npushed = overflow ? 0 : 1;
+	return npushed;
 }
 
 //return nr of bytes is poped
