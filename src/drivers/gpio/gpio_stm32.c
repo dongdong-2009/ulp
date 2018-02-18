@@ -17,8 +17,6 @@
 #include "gpio.h"
 #include "common/debounce.h"
 
-#define GPIO_N 63
-
 //bind := "PA0" or "PB10"
 static GPIO_TypeDef *gpio_port(const char *bind)
 {
@@ -42,6 +40,34 @@ static int gpio_pin(const char *bind)
 	int pin = atoi(&bind[2]);
 	int mask = 1 << pin;
 	return mask;
+}
+
+static int gpio_set_hw(const gpio_t *gpio, int high)
+{
+	int ecode = 0;
+	GPIO_TypeDef *GPIOn = gpio_port(gpio->bind);
+	int msk = gpio_pin(gpio->bind);
+
+	switch(gpio->mode) {
+	case GPIO_PP0:
+	case GPIO_PP1:
+	case GPIO_OD0:
+	case GPIO_OD1:
+		if(high) GPIOn->BSRR = (uint16_t) msk;
+		else GPIOn->BRR = (uint16_t) msk;
+		break;
+	default:
+		ecode = -1;
+	}
+	return ecode;
+}
+
+static int gpio_get_hw(const gpio_t *gpio)
+{
+	GPIO_TypeDef *GPIOn = gpio_port(gpio->bind);
+	int msk = gpio_pin(gpio->bind);
+	int yes = (GPIOn->IDR & msk) ? 1 : 0;
+	return yes;
 }
 
 static int gpio_config_hw(const gpio_t *gpio)
@@ -106,34 +132,6 @@ static int gpio_config_hw(const gpio_t *gpio)
 	GPIO_InitStructure.GPIO_Pin = (uint16_t) pin;
 	GPIO_Init(GPIOn, &GPIO_InitStructure);
 	return 0;
-}
-
-static int gpio_set_hw(const gpio_t *gpio, int high)
-{
-	int ecode = 0;
-	GPIO_TypeDef *GPIOn = gpio_port(gpio->bind);
-	int msk = gpio_pin(gpio->bind);
-
-	switch(gpio->mode) {
-	case GPIO_PP0:
-	case GPIO_PP1:
-	case GPIO_OD0:
-	case GPIO_OD1:
-		if(high) GPIOn->BSRR = (uint16_t) msk;
-		else GPIOn->BRR = (uint16_t) msk;
-		break;
-	default:
-		ecode = -1;
-	}
-	return ecode;
-}
-
-static int gpio_get_hw(const gpio_t *gpio)
-{
-	GPIO_TypeDef *GPIOn = gpio_port(gpio->bind);
-	int msk = gpio_pin(gpio->bind);
-	int yes = (GPIOn->IDR & msk) ? 1 : 0;
-	return yes;
 }
 
 const gpio_drv_t stm32 = {
