@@ -71,6 +71,7 @@ static time_t vwplc_test_wdt = 0;
 #define VWPLC_TEST_WDT_MS 3000
 static int vwplc_gpio_lr; //handle of gpio
 static int vwplc_gpio_lg; //handle of gpio
+static int vwplc_gpio_ly; //handle of gpio
 static int vwplc_sensors;
 static unsigned vwplc_guid;
 static time_t vplc_mpc_on_timer;
@@ -188,8 +189,9 @@ static void vwplc_can_handler(void)
 	}
 }
 
-void vwplc_gpio_init(void)
+void __sys_init(void)
 {
+	/*
 	//sensors #00-07
 	GPIO_BIND(GPIO_IPU, PC13, SC+) //0, GPI#00
 	GPIO_BIND(GPIO_IPU, PC14, SC-) //1, GPI#01
@@ -237,8 +239,10 @@ void vwplc_gpio_init(void)
 
 	GPIO_BIND(GPIO_PP0, PC6, CP) //20, GPO#04
 	GPIO_BIND(GPIO_PP0, PC7, CM) //21, GPO#05
-	vwplc_gpio_lr = GPIO_BIND(GPIO_PP0, PC8, LR) //22, GPO#06
-	vwplc_gpio_lg = GPIO_BIND(GPIO_PP0, PC9, LG) //23, GPO#07
+	*/
+	vwplc_gpio_lr = GPIO_BIND(GPIO_PP0, PA00, LR) //
+	vwplc_gpio_lg = GPIO_BIND(GPIO_PP0, PA01, LG) //
+	vwplc_gpio_ly = GPIO_BIND(GPIO_PP0, PA02, LY) //
 
 	//misc
 	GPIO_BIND(GPIO_IPU, PC12, RSEL) //24,
@@ -246,21 +250,12 @@ void vwplc_gpio_init(void)
 	GPIO_FILT(RSEL, 10)
 	GPIO_FILT(CSEL, 10)
 
-	GPIO_BIND(GPIO_PP0, PA8, MPC_ON) //26,
-
-	GPIO_BIND(GPIO_AIN, PC2, VMPC)
-	GPIO_BIND(GPIO_AIN, PC3, VBST)
+	GPIO_BIND(GPIO_PP0, PC0, LED_R)
+	GPIO_BIND(GPIO_PP0, PC1, LED_G)
 }
 
 void vwplc_update(void)
 {
-	if (vplc_mpc_on_timer) {
-		if(time_left(vplc_mpc_on_timer) < 0) {
-			vplc_mpc_on_timer = 0;
-			gpio_set("MPC_ON", 1);
-		}
-	}
-
 	static time_t flash_timer = 0;
 	int lr, lg, update = 0;
 
@@ -343,8 +338,6 @@ void vwplc_init(void)
 	vwplc_can->init(&cfg);
 	vwplc_can->filt(filter, 2);
 
-	vwplc_gpio_init();
-
 	//minpc power-on
 	vwplc_guid = *(unsigned *)(0X1FFFF7E8);
 	srand(vwplc_guid);
@@ -388,15 +381,21 @@ void vwplc_init(void)
 	gpio_set("CM", 0);
 }
 
+//implemented by fdpwr.c
+extern void fdpwr_init(void);
+extern void fdpwr_update(void);
+
 void main()
 {
 	sys_init();
-	//shell_mute(NULL);
+	shell_mute(NULL);
 	vwplc_init();
+	fdpwr_init();
 	printf("vwplc v1.x, build: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
 		sys_update();
 		vwplc_update();
+		fdpwr_update();
 	}
 }
 
