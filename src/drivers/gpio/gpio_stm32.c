@@ -134,7 +134,7 @@ static int gpio_config_hw(const gpio_t *gpio)
 	return 0;
 }
 
-const gpio_drv_t stm32 = {
+const gpio_drv_t gpio_stm32 = {
 	.name = "stm32",
 	.config = gpio_config_hw,
 	.set = gpio_set_hw,

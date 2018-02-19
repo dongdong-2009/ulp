@@ -48,6 +48,11 @@ int gpio_handle(const char *name); //return hgpio or GPIO_NONE
 int gpio_set_h(int gpio, int high);
 int gpio_get_h(int gpio);
 
+#if CONFIG_GPIO_MCP == 1
+#include "mcp23s17.h"
+void gpio_mcp_init(const mcp23s17_t *mcp_bus);
+#endif
+
 /*usage demo:
 
 void main(void) {
@@ -81,7 +86,10 @@ typedef struct gpio_drv_s {
 	int (*get)(const gpio_t *gpio);
 } gpio_drv_t;
 
-extern const gpio_drv_t stm32;
+extern const gpio_drv_t gpio_stm32;
+#if CONFIG_GPIO_MCP == 1
+extern const gpio_drv_t gpio_mcp;
+#endif
 
 //auto called by sys_init
 void gpio_init(void);

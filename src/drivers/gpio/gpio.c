@@ -68,7 +68,13 @@ int gpio_bind(int mode, const char *bind, const char *name)
 	const gpio_drv_t *driver = NULL;
 
 	#if CONFIG_CPU_STM32 == 1
-	driver = &stm32;
+	driver = &gpio_stm32;
+	#endif
+
+	#if CONFIG_GPIO_MCP == 1
+	if(!strncmp(bind, gpio_mcp.name, 3)) {
+		driver = &gpio_mcp;
+	}
 	#endif
 
 	//gpio should not been binded
