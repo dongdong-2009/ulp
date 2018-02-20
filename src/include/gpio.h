@@ -33,6 +33,9 @@ enum {
 	GPIO_OD1, //od & init out 1
 };
 
+#define IS_GPI(mode) (mode < GPIO_PP0)
+#define IS_GPO(mode) (mode >= GPIO_PP0)
+
 //bind := "PA0" or "PB10"
 int gpio_bind(int mode, const char *bind, const char *name);
 int gpio_filt(const char *name, int ms); //filt the pulse widht <ms, 0 = disable
@@ -42,6 +45,8 @@ int gpio_get(const char *name);
 int gpio_inv(const char *name);
 int gpio_wimg(int img, int msk);
 int gpio_rimg(int msk);
+int gpio_wbits(const void *img, const void *msk, int nbits);
+int gpio_rbits(void *img, const void *msk, int nbits);
 
 #define GPIO_INVALID -2 //exist or not exist
 #define GPIO_NONE -1 //not exist

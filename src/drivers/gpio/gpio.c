@@ -193,11 +193,18 @@ int gpio_get_h(int handle)
 
 int gpio_wimg(int img, int msk)
 {
+	return gpio_wbits(&img, &msk, 32);
+}
+
+int gpio_wbits(const void *img, const void *msk, int nbits)
+{
 	int ecode = 0;
-	for(int i = 0; i < gpio_n; i ++) {
-		if (bit_get(i, &msk)) {
+	int N = (nbits > gpio_n) ? gpio_n : nbits;
+
+	for(int i = 0; i < N; i ++) {
+		if (bit_get(i, msk)) {
 			gpio_t *gpio = &gpios[i];
-			int high = bit_get(i, &img);
+			int high = bit_get(i, img);
 			ecode = gpio_set_hw(gpio, high);
 			if(ecode) break;
 		}
@@ -209,14 +216,22 @@ int gpio_wimg(int img, int msk)
 int gpio_rimg(int msk)
 {
 	int img = 0;
-	for(int i = 0; i < gpio_n; i ++) {
-		if (bit_get(i, &msk)) {
+	gpio_rbits(&img, &msk, 32);
+	return img;
+}
+
+int gpio_rbits(void *img, const void *msk, int nbits)
+{
+	int N = (nbits > gpio_n) ? gpio_n : nbits;
+
+	for(int i = 0; i < N; i ++) {
+		if (bit_get(i, msk)) {
 			int yes = gpio_get_hw(&gpios[i]);
-			if(yes) bit_set(i, &img);
-			else bit_clr(i, &img);
+			if(yes) bit_set(i, img);
+			else bit_clr(i, img);
 		}
 	}
-	return img;
+	return 0;
 }
 
 void gpio_dumps(void)
