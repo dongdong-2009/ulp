@@ -66,7 +66,9 @@ static int gpio_get_hw(const gpio_t *gpio)
 {
 	GPIO_TypeDef *GPIOn = gpio_port(gpio->bind);
 	int msk = gpio_pin(gpio->bind);
-	int yes = (GPIOn->IDR & msk) ? 1 : 0;
+	int yes = 0;
+	if(IS_GPI(gpio->mode)) yes = (GPIOn->IDR & msk) ? 1 : 0;
+	else yes = (GPIOn->ODR & msk) ? 1 : 0;
 	return yes;
 }
 
