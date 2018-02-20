@@ -38,7 +38,8 @@ void gpio_mcp_init(const mcp23s17_t *mcp_bus)
 	memcpy(chip, mcp_bus, sizeof(mcp23s17_t));
 	chip->option |= MCP23017_PORTA_IN;
 	chip->option |= MCP23017_PORTB_IN;
-	chip->option |= MCP23S17_HIGH_SPEED;
+	chip->hwaddr = 0;
+	chip->ck_mhz = 5; //according to experiment, max = 8MHz
 	gpio_chip_reset_flag = 0;
 }
 
@@ -49,9 +50,7 @@ static const gpio_port_t *gpio_port(const char *bind)
 	mcp23s17_t *chip = &gpio_chip_temp;
 
 	//parse chip: 0-7
-	int addr = atoi(&bind[3]);
-	chip->option &= ~0x0f;
-	chip->option |= addr & 0x0f;
+	chip->hwaddr = atoi(&bind[3]);
 
 	//parse port: PA or PB
 	port->index = -1;
@@ -103,7 +102,7 @@ static int gpio_config_hw(const gpio_t *gpio)
 	const gpio_port_t *port = gpio_port(gpio->bind);
 	int mask = gpio_pin(gpio->bind);
 	const mcp23s17_t *chip = port->chip;
-	int chip_addr = MCP23S17_ADDR(chip->option);
+	int chip_addr = chip->hwaddr;
 
 	sys_assert(port->chip != NULL); //gpio_mcp_init(..)?
 	sys_assert(port->index >= 0); //must be PA or PB

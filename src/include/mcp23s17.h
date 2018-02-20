@@ -19,19 +19,20 @@
 #define ADDR_OLATA	0x14
 #define ADDR_OLATB	0x15
 
-//options, lsb 8bit is used for addr@A2..0
-#define MCP23S17_ADDR(option)  (option & 0x0F)
-#define MCP23S17_HIGH_SPEED	(0x01 << 8)
-#define MCP23S17_LOW_SPEED	(0x02 << 8)
-#define MCP23017_PORTA_IN	(0x04 << 8)
-#define MCP23017_PORTA_OUT	(0x08 << 8)
-#define MCP23017_PORTB_IN	(0x10 << 8)
-#define MCP23017_PORTB_OUT	(0x20 << 8)
+//options
+#define MCP23S17_HIGH_SPEED	0x01
+#define MCP23S17_LOW_SPEED	0x02
+#define MCP23017_PORTA_IN	0x04
+#define MCP23017_PORTA_OUT	0x08
+#define MCP23017_PORTB_IN	0x10
+#define MCP23017_PORTB_OUT	0x20
 
 typedef struct {
 	const spi_bus_t *bus;
 	int idx;
-	int option;
+	int option : 8;
+	int hwaddr : 4; //0..7 @A2..0
+	int ck_mhz : 4; //0..9 MHz
 } mcp23s17_t;
 
 void mcp23s17_Init(const mcp23s17_t *chip);

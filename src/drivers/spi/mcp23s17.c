@@ -3,12 +3,12 @@
  *	interface: CPOL=0(sck low idle), CPHA=0(latch at 1st edge/rising edge of sck), msb first
 */
 
-#include "config.h"
+#include "ulp/sys.h"
 #include "mcp23s17.h"
 #include "spi.h"
 
-#define OPCODE_WRITE(chip)	(0x40|(MCP23S17_ADDR(chip->option) << 1))
-#define OPCODE_READ(chip)	(0x41|(MCP23S17_ADDR(chip->option) << 1))
+#define OPCODE_WRITE(chip)	(0x40 | (chip->hwaddr << 1))
+#define OPCODE_READ(chip)	(0x41 | (chip->hwaddr << 1))
 
 void mcp23s17_Init(const mcp23s17_t *chip)
 {
@@ -23,13 +23,22 @@ void mcp23s17_Init(const mcp23s17_t *chip)
 
 	if (chip->option & MCP23S17_HIGH_SPEED) {
 		cfg.freq = 9000000;		//9MHz
-	} else {
+	}
+	else if(chip->option & MCP23S17_LOW_SPEED) {
 		cfg.freq = 500000;		//500KHz
+	}
+	else {
+		int hz = (int)(chip->ck_mhz * 1e6);
+		hz = (hz <= 0) ? (int)500e3 : hz;
+		cfg.freq = hz;
 	}
 	chip->bus->init(&cfg);
 
 	//ioconfig reg config
-	mcp23s17_WriteByte(chip, ADDR_IOCON, 0x00);
+	mcp23s17_WriteByte(chip, ADDR_IOCON, 0x08);
+	unsigned char regv = 0;
+	mcp23s17_ReadByte(chip, ADDR_IOCON, &regv);
+	sys_assert(regv == 0x08); //hw fault, clk too high?
 
 	//porta config
 	if (chip->option & MCP23017_PORTA_OUT) {
