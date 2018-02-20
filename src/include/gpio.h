@@ -39,6 +39,7 @@ int gpio_filt(const char *name, int ms); //filt the pulse widht <ms, 0 = disable
 
 int gpio_set(const char *name, int high);
 int gpio_get(const char *name);
+int gpio_inv(const char *name);
 int gpio_wimg(int img, int msk);
 int gpio_rimg(int msk);
 
@@ -47,6 +48,7 @@ int gpio_rimg(int msk);
 int gpio_handle(const char *name); //return hgpio or GPIO_NONE
 int gpio_set_h(int gpio, int high);
 int gpio_get_h(int gpio);
+int gpio_inv_h(int gpio);
 
 #if CONFIG_GPIO_MCP == 1
 #include "mcp23s17.h"
@@ -71,7 +73,8 @@ typedef struct {
 	const void *drv;
 	const char *name; //"LED_RED"
 	const char *bind; //"PA0" or "PB10" or "mcp0:PA0"
-	int mode;
+	int mode : 8;
+	int high : 1; //mirror register for gpio_inv()
 
 #if CONFIG_GPIO_FILTER == 1
 	struct debounce_s gfilt;

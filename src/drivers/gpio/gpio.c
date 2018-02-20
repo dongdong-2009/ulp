@@ -120,9 +120,10 @@ int gpio_filt(const char *name, int ms)
 }
 #endif
 
-static int gpio_set_hw(const gpio_t *gpio, int high)
+static int gpio_set_hw(gpio_t *gpio, int high)
 {
 	const gpio_drv_t *driver = gpio->drv;
+	gpio->high = high;
 	return driver->set(gpio, high);
 }
 
@@ -141,6 +142,23 @@ int gpio_set_h(int handle, int high)
 	sys_assert(handle < GPIO_N);
 	gpio_t *gpio = &gpios[handle];
 	return gpio_set_hw(gpio, high);
+}
+
+int gpio_inv(const char *name)
+{
+	int ecode = -1;
+	gpio_t *gpio = name_search(name);
+	if(gpio != NULL) {
+		ecode = gpio_set_hw(gpio, !gpio->high);
+	}
+	return ecode;
+}
+
+int gpio_inv_h(int handle)
+{
+	sys_assert(handle < GPIO_N);
+	gpio_t *gpio = &gpios[handle];
+	return gpio_set_hw(gpio, !gpio->high);
 }
 
 static int gpio_get_hw(const gpio_t *gpio)
