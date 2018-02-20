@@ -258,7 +258,8 @@ void gpio_dumps(void)
 		default: mode = "???";
 		}
 
-		printf("%02d: %s, %s => %s\n", i, mode, gpios[i].bind, gpios[i].name);
+		const char *invt = (gpios[i].invt) ? "-" : "+";
+		printf("%02d: %s, %s%s => %s\n", i, mode, invt, gpios[i].bind, gpios[i].name);
 	}
 }
 
