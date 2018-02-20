@@ -6,7 +6,15 @@
 * 3, handshake between test program and vwplc: rdy4tst/test_end/test_ng
 * 4, vwplc can not request test unit ID
 *
+* miaofng@2017-10-01 arch change dueto poll mode too slow
+* 1, cylinders are controlled by test unit, except pull/push by vwhost
+* 2, vwplc send can msg to vwhost automatically in case of any sensor signal change
+*
+* miaofng@2018-02-20 port to fdplc/pwr system
+* 1, add fdpwr board function into fdplc
+*
 */
+
 #include "ulp/sys.h"
 #include "led.h"
 #include <string.h>
@@ -25,19 +33,19 @@
 #define SENSOR_FLIT_MS 50
 
 enum {
-	VWPLC_CMD_POLL, //host: cmd -> slave: response status
-	VWPLC_CMD_SCAN, //host: cmd+rsel+csel
+	FDPLC_CMD_POLL, //host: cmd -> slave: response status
+	FDPLC_CMD_SCAN, //host: cmd+rsel+csel
 
-	VWPLC_CMD_MOVE, //host: cmd
-	VWPLC_CMD_TEST, //host: cmd + mysql_record_id
+	FDPLC_CMD_MOVE, //host: cmd
+	FDPLC_CMD_TEST, //host: cmd + mysql_record_id
 
 	//only for debug purpose, do not use it normal testing!!!!
-	VWPLC_CMD_PASS, //host: cmd, identical with cmd "TEST PASS"
-	VWPLC_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL"
-	VWPLC_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
-	VWPLC_CMD_WDTY, //host: cmd, enable test unit wdt
-	VWPLC_CMD_WDTN, //host: cmd, disable test unit wdt
-	VWPLC_CMD_UUID, //host: cmd, query vwplc board uuid
+	FDPLC_CMD_PASS, //host: cmd, identical with cmd "TEST PASS"
+	FDPLC_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL"
+	FDPLC_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
+	FDPLC_CMD_WDTY, //host: cmd, enable test unit wdt
+	FDPLC_CMD_WDTN, //host: cmd, disable test unit wdt
+	FDPLC_CMD_UUID, //host: cmd, query fdplc board uuid
 };
 
 typedef struct {
@@ -56,130 +64,130 @@ typedef struct {
 	int sensors; //bit31: end, bit30: ng
 } txdat_t;
 
-static const can_bus_t *vwplc_can = &can1;
-static can_msg_t vwplc_rxmsg;
-static can_msg_t vwplc_txmsg;
-static rxdat_t *vwplc_rxdat = (rxdat_t *) vwplc_rxmsg.data;
-static txdat_t *vwplc_txdat = (txdat_t *) vwplc_txmsg.data;
-static int vwplc_id;
-static int vwplc_sql_id; //>= 0: rdy4tst
-static int vwplc_test_end;
-static int vwplc_test_ng;
-static int vwplc_test_offline; /*vwhost will ignore offline mode test units*/
-static int vwplc_test_died; /*only affect indicator*/
-static time_t vwplc_test_wdt = 0;
-#define VWPLC_TEST_WDT_MS 3000
-static int vwplc_gpio_lr; //handle of gpio
-static int vwplc_gpio_lg; //handle of gpio
-static int vwplc_gpio_ly; //handle of gpio
-static int vwplc_sensors;
-static unsigned vwplc_guid;
+static const can_bus_t *fdplc_can = &can1;
+static can_msg_t fdplc_rxmsg;
+static can_msg_t fdplc_txmsg;
+static rxdat_t *fdplc_rxdat = (rxdat_t *) fdplc_rxmsg.data;
+static txdat_t *fdplc_txdat = (txdat_t *) fdplc_txmsg.data;
+static int fdplc_id;
+static int fdplc_sql_id; //>= 0: rdy4tst
+static int fdplc_test_end;
+static int fdplc_test_ng;
+static int fdplc_test_offline; /*vwhost will ignore offline mode test units*/
+static int fdplc_test_died; /*only affect indicator*/
+static time_t fdplc_test_wdt = 0;
+#define FDPLC_TEST_WDT_MS 3000
+static int fdplc_gpio_lr; //handle of gpio
+static int fdplc_gpio_lg; //handle of gpio
+static int fdplc_gpio_ly; //handle of gpio
+static int fdplc_sensors;
+static unsigned fdplc_guid;
 static time_t vplc_mpc_on_timer;
 
-static int vwplc_rimg(void)
+static int fdplc_rimg(void)
 {
 	int img = gpio_rimg(0xffffffff);
 	int msk = 0x0300ffff; //input
 	img ^= msk;
 
 	img &= 0x0FFFFFFF;
-	img |= vwplc_test_end ? (1 << 31) : 0;
-	img |= vwplc_test_ng ? (1 << 30) : 0;
-	img |= vwplc_test_offline ? (1 << 29) : 0;
-	img |= vwplc_test_died ? (1 << 28) : 0;
+	img |= fdplc_test_end ? (1 << 31) : 0;
+	img |= fdplc_test_ng ? (1 << 30) : 0;
+	img |= fdplc_test_offline ? (1 << 29) : 0;
+	img |= fdplc_test_died ? (1 << 28) : 0;
 	return img;
 }
 
-static void vwplc_wimg(int msk, int img)
+static void fdplc_wimg(int msk, int img)
 {
 	gpio_wimg(img, msk);
 }
 
-static void vwplc_can_send(const can_msg_t *msg)
+static void fdplc_can_send(const can_msg_t *msg)
 {
 	led_hwSetStatus(LED_RED, LED_ON);
-	while(vwplc_can->send(msg));
+	while(fdplc_can->send(msg));
 	led_hwSetStatus(LED_RED, LED_OFF);
 }
 
-static void vwplc_can_handler(void)
+static void fdplc_can_handler(void)
 {
 	int rsel, csel, img, msk;
-	if(vwplc_rxdat->target != 0) {
-		if(vwplc_rxdat->target != vwplc_id) {
-			if(vwplc_rxdat->cmd != VWPLC_CMD_SCAN)
+	if(fdplc_rxdat->target != 0) {
+		if(fdplc_rxdat->target != fdplc_id) {
+			if(fdplc_rxdat->cmd != FDPLC_CMD_SCAN)
 				return;
 		}
 	}
 
-	switch(vwplc_rxdat->cmd) {
-	case VWPLC_CMD_SCAN:
+	switch(fdplc_rxdat->cmd) {
+	case FDPLC_CMD_SCAN:
 		rsel = gpio_get("RSEL");
 		csel = gpio_get("CSEL");
 		if((rsel == 0) && (csel == 0)) {
-			vwplc_id = vwplc_rxdat->target;
-			vwplc_txmsg.id = CAN_ID_UNIT(vwplc_id);
-			vwplc_txmsg.dlc = 8;
+			fdplc_id = fdplc_rxdat->target;
+			fdplc_txmsg.id = CAN_ID_UNIT(fdplc_id);
+			fdplc_txmsg.dlc = 8;
 		}
 
 		//send the status to vwhost
-		if(vwplc_id) {
-			vwplc_txdat->id = vwplc_id;
-			vwplc_txdat->cmd = vwplc_rxdat->cmd;
-			vwplc_txdat->sensors = vwplc_sensors;
-			vwplc_can_send(&vwplc_txmsg);
+		if(fdplc_id) {
+			fdplc_txdat->id = fdplc_id;
+			fdplc_txdat->cmd = fdplc_rxdat->cmd;
+			fdplc_txdat->sensors = fdplc_sensors;
+			fdplc_can_send(&fdplc_txmsg);
 		}
 		break;
 
-	case VWPLC_CMD_MOVE:
-		img = vwplc_rxdat->img;
-		msk = vwplc_rxdat->msk;
-		vwplc_wimg(msk << 16, img << 16);
+	case FDPLC_CMD_MOVE:
+		img = fdplc_rxdat->img;
+		msk = fdplc_rxdat->msk;
+		fdplc_wimg(msk << 16, img << 16);
 		break;
 
-	case VWPLC_CMD_TEST:
-		vwplc_sql_id = vwplc_rxdat->sql_id;
+	case FDPLC_CMD_TEST:
+		fdplc_sql_id = fdplc_rxdat->sql_id;
 		break;
 
-	case VWPLC_CMD_PASS:
-		vwplc_test_ng = 0;
-		vwplc_test_end = 1;
+	case FDPLC_CMD_PASS:
+		fdplc_test_ng = 0;
+		fdplc_test_end = 1;
 		break;
 
-	case VWPLC_CMD_FAIL:
-		vwplc_test_ng = 1;
-		vwplc_test_end = 1;
+	case FDPLC_CMD_FAIL:
+		fdplc_test_ng = 1;
+		fdplc_test_end = 1;
 		break;
 
-	case VWPLC_CMD_ENDC:
-		vwplc_test_end = 0;
+	case FDPLC_CMD_ENDC:
+		fdplc_test_end = 0;
 		break;
 
-	case VWPLC_CMD_WDTY:
-		vwplc_test_died = 1;
-		vwplc_test_wdt = 0;
+	case FDPLC_CMD_WDTY:
+		fdplc_test_died = 1;
+		fdplc_test_wdt = 0;
 		break;
-	case VWPLC_CMD_WDTN:
-		vwplc_test_died = 0;
-		vwplc_test_wdt = 0;
+	case FDPLC_CMD_WDTN:
+		fdplc_test_died = 0;
+		fdplc_test_wdt = 0;
 		break;
 
-	case VWPLC_CMD_UUID:
-		if(vwplc_id) {
+	case FDPLC_CMD_UUID:
+		if(fdplc_id) {
 			unsigned uuid = *(unsigned *)(0X1FFFF7E8);
-			vwplc_txdat->id = vwplc_id;
-			vwplc_txdat->cmd = vwplc_rxdat->cmd;
-			vwplc_txdat->sensors = uuid;
-			vwplc_can_send(&vwplc_txmsg);
+			fdplc_txdat->id = fdplc_id;
+			fdplc_txdat->cmd = fdplc_rxdat->cmd;
+			fdplc_txdat->sensors = uuid;
+			fdplc_can_send(&fdplc_txmsg);
 		}
 		break;
 
-	case VWPLC_CMD_POLL:
-		if(vwplc_id) {
-			vwplc_txdat->id = vwplc_id;
-			vwplc_txdat->cmd = vwplc_rxdat->cmd;
-			vwplc_txdat->sensors = vwplc_sensors;
-			vwplc_can_send(&vwplc_txmsg);
+	case FDPLC_CMD_POLL:
+		if(fdplc_id) {
+			fdplc_txdat->id = fdplc_id;
+			fdplc_txdat->cmd = fdplc_rxdat->cmd;
+			fdplc_txdat->sensors = fdplc_sensors;
+			fdplc_can_send(&fdplc_txmsg);
 		}
 		break;
 
@@ -240,42 +248,42 @@ void __sys_init(void)
 	GPIO_BIND(GPIO_PP0, PC6, CP) //20, GPO#04
 	GPIO_BIND(GPIO_PP0, PC7, CM) //21, GPO#05
 	*/
-	vwplc_gpio_lr = GPIO_BIND(GPIO_PP0, PA00, LR) //
-	vwplc_gpio_lg = GPIO_BIND(GPIO_PP0, PA01, LG) //
-	vwplc_gpio_ly = GPIO_BIND(GPIO_PP0, PA02, LY) //
+	fdplc_gpio_lr = GPIO_BIND(GPIO_PP0, PA00, LR) //
+	fdplc_gpio_lg = GPIO_BIND(GPIO_PP0, PA01, LG) //
+	fdplc_gpio_ly = GPIO_BIND(GPIO_PP0, PA02, LY) //
 
 	//misc
-	GPIO_BIND(GPIO_IPU, PC12, RSEL) //24,
-	GPIO_BIND(GPIO_IPU, PC11, CSEL) //25,
-	GPIO_FILT(RSEL, 10)
-	GPIO_FILT(CSEL, 10)
+	//GPIO_BIND(GPIO_IPU, PC12, RSEL) //24,
+	//GPIO_BIND(GPIO_IPU, PC11, CSEL) //25,
+	//GPIO_FILT(RSEL, 10)
+	//GPIO_FILT(CSEL, 10)
 
-	GPIO_BIND(GPIO_PP0, PC0, LED_R)
-	GPIO_BIND(GPIO_PP0, PC1, LED_G)
+	GPIO_BIND(GPIO_PP0, PC00, LED_R)
+	GPIO_BIND(GPIO_PP0, PC01, LED_G)
 }
 
-void vwplc_update(void)
+void fdplc_update(void)
 {
 	static time_t flash_timer = 0;
 	int lr, lg, update = 0;
 
 	//test end
-	if(vwplc_test_end) {
-		vwplc_sql_id = -1;
-		lr = vwplc_test_ng ? 1 : 0;
-		lg = vwplc_test_ng ? 0 : 1;
+	if(fdplc_test_end) {
+		fdplc_sql_id = -1;
+		lr = fdplc_test_ng ? 1 : 0;
+		lg = fdplc_test_ng ? 0 : 1;
 		update = 1;
 	}
 
 	//test start
-	if(vwplc_sql_id >= 0) {
-		vwplc_test_end = 0;
-		vwplc_test_ng = 0;
+	if(fdplc_sql_id >= 0) {
+		fdplc_test_end = 0;
+		fdplc_test_ng = 0;
 
 		//yellow flash
 		if ((flash_timer == 0) || (time_left(flash_timer) < 0)) {
 			flash_timer = time_get(1000);
-			lr = gpio_get_h(vwplc_gpio_lr);
+			lr = gpio_get_h(fdplc_gpio_lr);
 			lr = !lr;
 			lg = !lr;
 			update = 1;
@@ -283,64 +291,64 @@ void vwplc_update(void)
 	}
 
 	//test unit died detection
-	if(vwplc_test_wdt) {
-		if(time_left(vwplc_test_wdt) < 0) {
+	if(fdplc_test_wdt) {
+		if(time_left(fdplc_test_wdt) < 0) {
 			__disable_irq(); //to avoid confict with vwhost remote wdt disable
-			if(vwplc_test_wdt) {
-				vwplc_test_wdt = 0;
-				vwplc_test_died = 1;
+			if(fdplc_test_wdt) {
+				fdplc_test_wdt = 0;
+				fdplc_test_died = 1;
 			}
 			__enable_irq();
 		}
 	}
 
 	//show constant yellow if test unit died
-	if(vwplc_test_died) {
+	if(fdplc_test_died) {
 		lr = lg = 1;
 		update = 1;
 	}
 
 	//update front panel indicator display
 	if(update) {
-		gpio_set_h(vwplc_gpio_lr, lr);
-		gpio_set_h(vwplc_gpio_lg, lg);
+		gpio_set_h(fdplc_gpio_lr, lr);
+		gpio_set_h(fdplc_gpio_lg, lg);
 	}
 
-	int sensors = vwplc_rimg();
-	int delta = sensors ^ vwplc_sensors;
+	int sensors = fdplc_rimg();
+	int delta = sensors ^ fdplc_sensors;
 	if(delta) {
-		vwplc_sensors = sensors;
+		fdplc_sensors = sensors;
 
 		#define MASK_EXCEPT_CESL_AND_RSEL (~0X03000000)
 		if(delta & MASK_EXCEPT_CESL_AND_RSEL) {
-			if(vwplc_id) {
+			if(fdplc_id) {
 				//report to vwhost
 				__disable_irq();
-				vwplc_txdat->id = vwplc_id;
-				vwplc_txdat->cmd = VWPLC_CMD_POLL;
-				vwplc_txdat->sensors = vwplc_sensors;
-				vwplc_can_send(&vwplc_txmsg);
+				fdplc_txdat->id = fdplc_id;
+				fdplc_txdat->cmd = FDPLC_CMD_POLL;
+				fdplc_txdat->sensors = fdplc_sensors;
+				fdplc_can_send(&fdplc_txmsg);
 				__enable_irq();
 			}
 		}
 	}
 }
 
-void vwplc_init(void)
+void fdplc_init(void)
 {
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
 	const can_filter_t filter[] = {
 		{.id = CAN_ID_HOST, .mask = 0xffff, .flag = 0},
 		{.id = CAN_ID_SCAN, .mask = 0xffff, .flag = 0},
 	};
-	memset(&vwplc_rxmsg, 0x00, sizeof(vwplc_rxmsg));
-	memset(&vwplc_txmsg, 0x00, sizeof(vwplc_txmsg));
-	vwplc_can->init(&cfg);
-	vwplc_can->filt(filter, 2);
+	memset(&fdplc_rxmsg, 0x00, sizeof(fdplc_rxmsg));
+	memset(&fdplc_txmsg, 0x00, sizeof(fdplc_txmsg));
+	fdplc_can->init(&cfg);
+	fdplc_can->filt(filter, 2);
 
 	//minpc power-on
-	vwplc_guid = *(unsigned *)(0X1FFFF7E8);
-	srand(vwplc_guid);
+	fdplc_guid = *(unsigned *)(0X1FFFF7E8);
+	srand(fdplc_guid);
 	int mdelay = rand() % 1000;
 	printf("mpc_on delay = %03d mS\n", mdelay);
 	vplc_mpc_on_timer = time_get(mdelay);
@@ -362,16 +370,16 @@ void vwplc_init(void)
 	CAN_ITConfig(CAN1, CAN_IT_FMP0, ENABLE);
 
 	//fixture init action
-	vwplc_id = 0;
-	vwplc_sql_id = -1;
-	vwplc_test_ng = 0;
-	vwplc_test_end = 1;
-	vwplc_sensors = vwplc_rimg();
+	fdplc_id = 0;
+	fdplc_sql_id = -1;
+	fdplc_test_ng = 0;
+	fdplc_test_end = 1;
+	fdplc_sensors = fdplc_rimg();
 
 	//global status
-	vwplc_test_offline = 0;
-	vwplc_test_died = 1;
-	vwplc_test_wdt = 0;
+	fdplc_test_offline = 0;
+	fdplc_test_died = 1;
+	fdplc_test_wdt = 0;
 
 	gpio_set("CC", 0);
 	gpio_set("CR", 0);
@@ -389,12 +397,12 @@ void main()
 {
 	sys_init();
 	shell_mute(NULL);
-	vwplc_init();
+	fdplc_init();
 	fdpwr_init();
-	printf("vwplc v1.x, build: %s %s\n\r", __DATE__, __TIME__);
+	printf("fdplc v1.x, build: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
 		sys_update();
-		vwplc_update();
+		fdplc_update();
 		fdpwr_update();
 	}
 }
@@ -402,23 +410,23 @@ void main()
 void USB_LP_CAN1_RX0_IRQHandler(void)
 {
 	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
-	while(!vwplc_can->recv(&vwplc_rxmsg)) {
-		vwplc_can_handler();
+	while(!fdplc_can->recv(&fdplc_rxmsg)) {
+		fdplc_can_handler();
 	}
 }
 
-static int cmd_vwplc_func(int argc, char *argv[])
+static int cmd_fdplc_func(int argc, char *argv[])
 {
 	const char *usage = {
 		"usage:\n"
-		"VWPLC ID?			return test unit id\n"
-		"VWPLC READY?		return -1 or mysql test record id\n"
-		"VWPLC OFFLINE		change vwplc to offline mode\n"
-		"VWPLC ONLINE		change vwplc to online mode\n"
-		"VWPLC PASS\n"
-		"VWPLC FAIL\n"
-		"VWPLC RIMG?\n"
-		"VWPLC WIMG MSK HEX\n"
+		"FDPLC ID?			return test unit id\n"
+		"FDPLC READY?		return -1 or mysql test record id\n"
+		"FDPLC OFFLINE		change fdplc to offline mode\n"
+		"FDPLC ONLINE		change fdplc to online mode\n"
+		"FDPLC PASS\n"
+		"FDPLC FAIL\n"
+		"FDPLC RIMG?\n"
+		"FDPLC WIMG MSK HEX\n"
 	};
 
 	if(argc < 2) {
@@ -428,35 +436,35 @@ static int cmd_vwplc_func(int argc, char *argv[])
 
 	if(!strcmp(argv[1], "ID?")) {
 		if(argc > 2) {
-			sscanf(argv[2], "%d", &vwplc_id);
-			vwplc_txmsg.id = CAN_ID_UNIT(vwplc_id);
-			vwplc_txmsg.dlc = 8;
+			sscanf(argv[2], "%d", &fdplc_id);
+			fdplc_txmsg.id = CAN_ID_UNIT(fdplc_id);
+			fdplc_txmsg.dlc = 8;
 		}
-		printf("<%+d\n", vwplc_id);
+		printf("<%+d\n", fdplc_id);
 	}
 	else if(!strcmp(argv[1], "READY?")) {
-		printf("<%+d\n", vwplc_sql_id);
+		printf("<%+d\n", fdplc_sql_id);
 	}
 	else if(!strcmp(argv[1], "OFFLINE")) {
-		vwplc_test_offline = 1;
+		fdplc_test_offline = 1;
 		printf("<%+d, OK\n", 0);
 	}
 	else if(!strcmp(argv[1], "ONLINE")) {
-		vwplc_test_offline = 0;
+		fdplc_test_offline = 0;
 		printf("<%+d, OK\n", 0);
 	}
 	else if(!strcmp(argv[1], "PASS")) {
-		vwplc_test_ng = 0;
-		vwplc_test_end = 1;
+		fdplc_test_ng = 0;
+		fdplc_test_end = 1;
 		printf("<%+d, OK\n", 0);
 	}
 	else if(!strcmp(argv[1], "FAIL")) {
-		vwplc_test_ng = 1;
-		vwplc_test_end = 1;
+		fdplc_test_ng = 1;
+		fdplc_test_end = 1;
 		printf("<%+d, OK\n", 0);
 	}
 	else if(!strcmp(argv[1], "RIMG?")) {
-		printf("<%+d, OK\n", vwplc_sensors);
+		printf("<%+d, OK\n", fdplc_sensors);
 	}
 	else if(!strcmp(argv[1], "WIMG")) {
 		int msk = 0;
@@ -468,7 +476,7 @@ static int cmd_vwplc_func(int argc, char *argv[])
 			if((argv[3][1] == 'x') || (argv[3][1] == 'X')) n += sscanf(argv[3], "%x", &img);
 			else n += sscanf(argv[3], "%d", &img);
 			if(n == 2) {
-				vwplc_wimg(msk, img);
+				fdplc_wimg(msk, img);
 				printf("<%+d, OK\n", 0);
 			}
 		}
@@ -477,8 +485,8 @@ static int cmd_vwplc_func(int argc, char *argv[])
 	return 0;
 }
 
-cmd_t cmd_vwplc = {"VWPLC", cmd_vwplc_func, "vwplc i/f commands"};
-DECLARE_SHELL_CMD(cmd_vwplc)
+cmd_t cmd_fdplc = {"FDPLC", cmd_fdplc_func, "fdplc i/f commands"};
+DECLARE_SHELL_CMD(cmd_fdplc)
 
 int cmd_xxx_func(int argc, char *argv[])
 {
@@ -491,7 +499,7 @@ int cmd_xxx_func(int argc, char *argv[])
 	};
 
 	if(!strcmp(argv[0], "*IDN?")) {
-		printf("<0,Ulicar Technology, VWPLC V1.x,%s,%s\n\r", __DATE__, __TIME__);
+		printf("<0,Ulicar Technology, FDPLC V1.x,%s,%s\n\r", __DATE__, __TIME__);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*RST")) {
@@ -505,13 +513,13 @@ int cmd_xxx_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*WDT?")) {
-		int ms = (vwplc_test_wdt == 0) ? 0 : time_left(vwplc_test_wdt);
-		if((vwplc_test_wdt == 0) && (vwplc_test_died == 0)) {
+		int ms = (fdplc_test_wdt == 0) ? 0 : time_left(fdplc_test_wdt);
+		if((fdplc_test_wdt == 0) && (fdplc_test_died == 0)) {
 			//wdt been disabled by vwhost, ignore update here
 		}
 		else {
-			vwplc_test_wdt = time_get(VWPLC_TEST_WDT_MS);
-			vwplc_test_died = 0;
+			fdplc_test_wdt = time_get(FDPLC_TEST_WDT_MS);
+			fdplc_test_died = 0;
 		}
 		printf("<%+d\n", ms);
 		return 0;
