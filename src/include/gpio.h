@@ -13,6 +13,7 @@ PA1 == PA01 == PA001 == PA0001
     == PA.1 == PA.01, not supported yet
 */
 
+#define GPIO_BIND_INV(mode, gpio, name) gpio_bind_inv(mode, #gpio, #name);
 #define GPIO_BIND(mode, gpio, name) gpio_bind(mode, #gpio, #name);
 #define GPIO_FILT(name, ms) gpio_filt(#name, ms);
 #define GPIO_SET(name, high) gpio_set(#name, high);
@@ -38,6 +39,7 @@ enum {
 
 //bind := "PA0" or "PB10"
 int gpio_bind(int mode, const char *bind, const char *name);
+int gpio_bind_inv(int mode, const char *bind, const char *name);
 int gpio_filt(const char *name, int ms); //filt the pulse widht <ms, 0 = disable
 
 int gpio_set(const char *name, int high);
@@ -78,8 +80,9 @@ typedef struct {
 	const void *drv;
 	const char *name; //"LED_RED"
 	const char *bind; //"PA0" or "PB10" or "mcp0:PA0"
-	int mode : 8;
-	int high : 1; //mirror register for gpio_inv()
+	unsigned mode : 8;
+	unsigned high : 1; //mirror register for gpio_inv()
+	unsigned invt : 1; //inverted polar
 
 #if CONFIG_GPIO_FILTER == 1
 	struct debounce_s gfilt;

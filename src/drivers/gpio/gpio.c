@@ -62,6 +62,13 @@ void gpio_init(void)
 	gpio_n = 0;
 }
 
+int gpio_bind_inv(int mode, const char *bind, const char *name)
+{
+	int handle = gpio_bind(mode, bind, name);
+	gpios[handle].invt = 1;
+	return handle;
+}
+
 int gpio_bind(int mode, const char *bind, const char *name)
 {
 	gpio_t *gpio = NULL;
@@ -124,7 +131,7 @@ static int gpio_set_hw(gpio_t *gpio, int high)
 {
 	const gpio_drv_t *driver = gpio->drv;
 	gpio->high = high;
-	return driver->set(gpio, high);
+	return driver->set(gpio, high ^ gpio->invt);
 }
 
 int gpio_set(const char *name, int high)
@@ -165,6 +172,7 @@ static int gpio_get_hw(const gpio_t *gpio)
 {
 	const gpio_drv_t *driver = gpio->drv;
 	int yes = driver->get(gpio);
+	yes ^= gpio->invt;
 #if CONFIG_GPIO_FILTER == 1
 	debounce((struct debounce_s *)(&gpio->gfilt), yes);
 	yes = gpio->gfilt.on;
