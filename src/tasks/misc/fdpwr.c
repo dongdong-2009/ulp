@@ -85,6 +85,8 @@ static float eload_set(int idx, float iset)
 	gpio_set(eload->ELOADx_YES, 0);
 	eload->pwm->set(0);
 	if(iset < ELOAD_IMIN) { //all open?
+		eload_iset[idx] = 0;
+
 		int mask_y = 0;
 		for(int i = 0; i < NR_OF_ELOADS; i ++) {
 			if(eload_iset[i] >= ELOAD_IMIN) mask_y |= 1 << i;
@@ -93,8 +95,6 @@ static float eload_set(int idx, float iset)
 		if(mask_y == 0) {
 			gpio_set("VBAT_BST", 0);
 		}
-
-		eload_iset[idx] = 0;
 		return 0;
 	}
 
@@ -206,7 +206,7 @@ static int cmd_eload_func(int argc, char *argv[])
 		n += sscanf(argv[1], "%d", &eloadx);
 		n += sscanf(argv[2], "%f", &iset);
 		if(n == 2) {
-			if(power_vbat < POWER_VMIN) {
+			if((iset > ELOAD_IMIN) && (power_vbat < POWER_VMIN)) {
 				printf("<-2, vbat error(= %.3fv)\n", power_vbat);
 				return 0;
 			}

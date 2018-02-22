@@ -81,11 +81,16 @@ static int fdplc_gpio_lr; //handle of gpio
 static int fdplc_gpio_lg; //handle of gpio
 static int fdplc_gpio_ly; //handle of gpio
 static int fdplc_sensors;
-static unsigned fdplc_guid;
-static time_t vplc_mpc_on_timer;
+static int fdiox_gpio_lx; //iox rj45 indicator
+static time_t fdiox_lx_timer = 0;
 
 static int fdplc_rimg(void)
 {
+	if((fdiox_lx_timer == 0) || (time_left(fdiox_lx_timer) < 0)){
+		fdiox_lx_timer = time_get(500);
+		gpio_inv_h(fdiox_gpio_lx);
+	}
+
 	int img = gpio_rimg(0xffffffff);
 	int msk = 0x0300ffff; //input
 	img ^= msk;
@@ -199,73 +204,91 @@ static void fdplc_can_handler(void)
 
 void __sys_init(void)
 {
-	/*
-	//sensors #00-07
-	GPIO_BIND(GPIO_IPU, PC13, SC+) //0, GPI#00
-	GPIO_BIND(GPIO_IPU, PC14, SC-) //1, GPI#01
-	GPIO_BIND(GPIO_IPU, PC15, SR+) //2, GPI#02
-	GPIO_BIND(GPIO_IPU, PA1, SR-) //3, GPI#03
+	const mcp23s17_t mcp_bus = {.bus = &spi1, .idx = SPI_1_NSS };
+	gpio_mcp_init(&mcp_bus);
 
+	//index 00-07, iox sensors
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PA00, UE ) //IOX-IN01
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PA01, S02) //IOX-IN02
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PA02, SC+) //IOX-IN03
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PA03, SC-) //IOX-IN04
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PA04, SR+) //IOX-IN05
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PA05, SR-) //IOX-IN06
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PA06, SF+) //IOX-IN07
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PA07, SF-) //IOX-IN08
+
+	GPIO_FILT(UE , SENSOR_FLIT_MS)
+	GPIO_FILT(S02, SENSOR_FLIT_MS)
 	GPIO_FILT(SC+, SENSOR_FLIT_MS)
 	GPIO_FILT(SC-, SENSOR_FLIT_MS)
 	GPIO_FILT(SR+, SENSOR_FLIT_MS)
 	GPIO_FILT(SR-, SENSOR_FLIT_MS)
-
-	GPIO_BIND(GPIO_IPU, PA2, SF+) //4, GPI#04
-	GPIO_BIND(GPIO_IPU, PA4, SF-) //5, GPI#05
-	GPIO_BIND(GPIO_IPU, PA5, SB+) //6, GPI#06
-	GPIO_BIND(GPIO_IPU, PA6, SB-) //7, GPI#07
-
 	GPIO_FILT(SF+, SENSOR_FLIT_MS)
 	GPIO_FILT(SF-, SENSOR_FLIT_MS)
+
+	//index 08-15, iox sensors
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB00, SB+) //IOX-IN09
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB01, SB-) //IOX-IN10
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB02, S11) //IOX-IN11
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB03, S12) //IOX-IN12
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB04, S13) //IOX-IN13
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB05, S14) //IOX-IN14
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB06, S15) //IOX-IN15
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB07, S16) //IOX-IN16
+
 	GPIO_FILT(SB+, SENSOR_FLIT_MS)
 	GPIO_FILT(SB-, SENSOR_FLIT_MS)
+	GPIO_FILT(S11, SENSOR_FLIT_MS)
+	GPIO_FILT(S12, SENSOR_FLIT_MS)
+	GPIO_FILT(S13, SENSOR_FLIT_MS)
+	GPIO_FILT(S14, SENSOR_FLIT_MS)
+	GPIO_FILT(S15, SENSOR_FLIT_MS)
+	GPIO_FILT(S16, SENSOR_FLIT_MS)
 
-	//sensors #10-17
-	GPIO_BIND(GPIO_IPU, PA7, SP+) //8, GPI#10
-	GPIO_BIND(GPIO_IPU, PC4, SP-) //9, GPI#11
-	GPIO_BIND(GPIO_IPU, PC5, SM+) //10,GPI#12
-	GPIO_BIND(GPIO_IPU, PB0, SM-) //11, GPI#13
+	//index 16-19, plc sensors
+	GPIO_BIND_INV(GPIO_IPU, PC14, SM+)
+	GPIO_BIND_INV(GPIO_IPU, PC15, SM-)
+	GPIO_BIND(GPIO_PP0, PC02, CM+)
+	GPIO_BIND(GPIO_PP0, PC03, CM-)
 
-	GPIO_FILT(SP+, SENSOR_FLIT_MS)
-	GPIO_FILT(SP-, SENSOR_FLIT_MS)
 	GPIO_FILT(SM+, SENSOR_FLIT_MS)
 	GPIO_FILT(SM-, SENSOR_FLIT_MS)
 
-	GPIO_BIND(GPIO_IPU, PB1, UE) //12, GPI#14
-	GPIO_BIND(GPIO_IPU, PB2, GPI#15) //13, GPI#15
-	GPIO_BIND(GPIO_IPU, PB10, GPI#16) //14, GPI#16
-	GPIO_BIND(GPIO_IPU, PB11, GPI#17) //15, GPI#17
+	//index 20-27, iox valve ctrl
+	GPIO_BIND(GPIO_PP0, mcp1:PA00, CC) //IOX-OUT01
+	GPIO_BIND(GPIO_PP0, mcp1:PA01, CR) //IOX-OUT02
+	GPIO_BIND(GPIO_PP0, mcp1:PA02, CF) //IOX-OUT03
+	GPIO_BIND(GPIO_PP0, mcp1:PA03, CB) //IOX-OUT04
+	GPIO_BIND(GPIO_PP0, mcp1:PA04, C5) //IOX-OUT05
+	GPIO_BIND(GPIO_PP0, mcp1:PA05, C6) //IOX-OUT06
+	GPIO_BIND(GPIO_PP0, mcp1:PA06, C7) //IOX-OUT07
+	GPIO_BIND(GPIO_PP0, mcp1:PA07, C8) //IOX-OUT08
 
-	GPIO_FILT(UE, SENSOR_FLIT_MS)
-
-	//valve ctrl
-	GPIO_BIND(GPIO_PP0, PB12, CC) //16, GPO#00
-	GPIO_BIND(GPIO_PP0, PB13, CR) //17, GPO#01
-	GPIO_BIND(GPIO_PP0, PB14, CF) //18, GPO#02
-	GPIO_BIND(GPIO_PP0, PB15, CB) //19, GPO#03
-
-	GPIO_BIND(GPIO_PP0, PC6, CP) //20, GPO#04
-	GPIO_BIND(GPIO_PP0, PC7, CM) //21, GPO#05
-	*/
-	fdplc_gpio_lr = GPIO_BIND(GPIO_PP0, PA00, LR) //
-	fdplc_gpio_lg = GPIO_BIND(GPIO_PP0, PA01, LG) //
-	fdplc_gpio_ly = GPIO_BIND(GPIO_PP0, PA02, LY) //
+	//index 28-30, plc valve
+	GPIO_BIND(GPIO_PP0, PA00, LR)
+	GPIO_BIND(GPIO_PP0, PA01, LG)
+	GPIO_BIND(GPIO_PP0, PA02, LY)
 
 	//misc
-	//GPIO_BIND(GPIO_IPU, PC12, RSEL) //24,
-	//GPIO_BIND(GPIO_IPU, PC11, CSEL) //25,
-	//GPIO_FILT(RSEL, 10)
-	//GPIO_FILT(CSEL, 10)
+	GPIO_BIND_INV(GPIO_IPU, PC10, RSEL)
+	GPIO_BIND_INV(GPIO_IPU, PC11, CSEL)
+	GPIO_FILT(RSEL, 10)
+	GPIO_FILT(CSEL, 10)
 
 	GPIO_BIND(GPIO_PP0, PC00, LED_R)
 	GPIO_BIND(GPIO_PP0, PC01, LED_G)
+	GPIO_BIND(GPIO_PP0, mcp1:PB00, LX) //iox rj45 indicator
+
+	fdplc_gpio_lr = gpio_handle("LR"); //front face indicator
+	fdplc_gpio_lg = gpio_handle("LG"); //front face indicator
+	fdplc_gpio_ly = gpio_handle("LY"); //front face indicator
+	fdiox_gpio_lx = gpio_handle("LX"); //iox rj45 indicator
 }
 
 void fdplc_update(void)
 {
 	static time_t flash_timer = 0;
-	int lr, lg, update = 0;
+	int lr, lg, ly, update = 0;
 
 	//test end
 	if(fdplc_test_end) {
@@ -310,8 +333,17 @@ void fdplc_update(void)
 
 	//update front panel indicator display
 	if(update) {
+		if(1) {
+			//3-color led process
+			ly = 0;
+			if((lr == 1) && (lg == 1)) {
+				lr = lg = 0;
+				ly = 1;
+			}
+		}
 		gpio_set_h(fdplc_gpio_lr, lr);
 		gpio_set_h(fdplc_gpio_lg, lg);
+		gpio_set_h(fdplc_gpio_ly, ly);
 	}
 
 	int sensors = fdplc_rimg();
@@ -345,13 +377,6 @@ void fdplc_init(void)
 	memset(&fdplc_txmsg, 0x00, sizeof(fdplc_txmsg));
 	fdplc_can->init(&cfg);
 	fdplc_can->filt(filter, 2);
-
-	//minpc power-on
-	fdplc_guid = *(unsigned *)(0X1FFFF7E8);
-	srand(fdplc_guid);
-	int mdelay = rand() % 1000;
-	printf("mpc_on delay = %03d mS\n", mdelay);
-	vplc_mpc_on_timer = time_get(mdelay);
 
 	/*!!! to usePreemptionPriority, group must be config first
 	systick priority !must! use  NVIC_SetPriority() to set
