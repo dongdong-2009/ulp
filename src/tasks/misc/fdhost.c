@@ -30,31 +30,37 @@ static int fd_flag_safe = -1;
 static int fd_flag_uute = -1;
 
 enum {
-	FD_CMD_POLL, //host: cmd -> slave: response status
-	FD_CMD_SCAN, //host: cmd+rsel+csel
-	FD_CMD_MOVE, //host: cmd
-	FD_CMD_TEST, //host: cmd + mysql_record_id
-	FD_CMD_PASS, //host: cmd, identical with cmd "TEST PASS", only for debug purpose
-	FD_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL", only for debug purpose
-	FD_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
-	FD_CMD_WDTY, //host: cmd, enable test unit wdt
-	FD_CMD_WDTN, //host: cmd, disable test unit wdt
-	FD_CMD_UUID, //host: cmd, query fdplc board uuid
+	FDPLC_CMD_POLL, //host: cmd -> slave: response status
+	FDPLC_CMD_SCAN, //host: cmd+rsel+csel
+	FDPLC_CMD_MOVE, //host: cmd
+	FDPLC_CMD_TEST, //host: cmd + mysql_record_id
+	FDPLC_CMD_PASS, //host: cmd, identical with cmd "TEST PASS", only for debug purpose
+	FDPLC_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL", only for debug purpose
+	FDPLC_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
+	FDPLC_CMD_WDTY, //host: cmd, enable test unit wdt
+	FDPLC_CMD_WDTN, //host: cmd, disable test unit wdt
+	FDPLC_CMD_UUID, //host: cmd, query fdplc board uuid
 };
 
 typedef struct {
-	char target; //0: all slave
-	char cmd; //assign, move, (get)status, ...
-	char img; //used by move
-	char msk; //used by move
-	int sql_id; //used by test, test unit query the mysql of barcode through it
+	char target;
+	char cmd;
+	union {
+		struct {
+			short img;
+			short msk;
+		} move;
+
+		struct {
+			int sql_id;
+		} test;
+	};
 } txdat_t;
 
 typedef struct {
 	char id; //test unit id, assign by host, range: 1-18
 	char cmd; //original cmd
-	char reserved2;
-	char reserved3;
+	unsigned short counter;
 	int sensors;
 } rxdat_t;
 
@@ -69,8 +75,8 @@ static int fdhost_can_send(can_msg_t *msg)
 {
 	const txdat_t *txdat = (const txdat_t *) msg->data;
 	switch(txdat->cmd) {
-	case FD_CMD_SCAN:
-	case FD_CMD_POLL:
+	case FDPLC_CMD_SCAN:
+	case FDPLC_CMD_POLL:
 		msg->id = CAN_ID_SCAN;
 		break;
 	default:
@@ -105,7 +111,7 @@ void __sys_tick(void)
 static void fdhost_can_handler(void)
 {
 	int id = fd_rxdat->id;
-	if(fd_rxdat->cmd == FD_CMD_UUID) {
+	if(fd_rxdat->cmd == FDPLC_CMD_UUID) {
 		fdplc_uuid[id] = fd_rxdat->sensors;
 		return;
 	}
@@ -202,7 +208,7 @@ int fd_assign(int idx)
 	if(last_idx >= 0) {
 		//csel/rsel signals need stable time
 		fd_txdat->target = id;
-		fd_txdat->cmd = FD_CMD_SCAN;
+		fd_txdat->cmd = FDPLC_CMD_SCAN;
 		fd_txmsg.dlc = 2;
 		fdhost_can_send(&fd_txmsg);
 
@@ -245,7 +251,7 @@ void fd_update(void)
 		poll_timer = time_get(500);
 
 		fd_txdat->target = 0;
-		fd_txdat->cmd = FD_CMD_POLL;
+		fd_txdat->cmd = FDPLC_CMD_POLL;
 		fd_txmsg.dlc = 2;
 		fdhost_can_send(&fd_txmsg);
 	}
@@ -374,7 +380,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		if((n == 1) && (id >= 0) && (id <= 9)) {
 			//send poll req
 			fd_txdat->target = id;
-			fd_txdat->cmd = FD_CMD_POLL;
+			fd_txdat->cmd = FDPLC_CMD_POLL;
 			fd_txmsg.dlc = 2;
 			e = fdhost_can_send(&fd_txmsg);
 		}
@@ -394,9 +400,9 @@ int cmd_xxx_func(int argc, char *argv[])
 
 			if((n == 3) && (id >= 0) && (id <= 9)) { //0=> all move
 				fd_txdat->target = id;
-				fd_txdat->cmd = FD_CMD_MOVE;
-				fd_txdat->img = (img >> 16) & 0xff;
-				fd_txdat->msk = (msk >> 16) & 0xff;
+				fd_txdat->cmd = FDPLC_CMD_MOVE;
+				fd_txdat->move.img = (img >> 18) & 0x03ff; //10 cyls in total
+				fd_txdat->move.msk = (msk >> 18) & 0x03ff;
 				fd_txmsg.dlc = 8;
 				e = fdhost_can_send(&fd_txmsg);
 			}
@@ -415,8 +421,8 @@ int cmd_xxx_func(int argc, char *argv[])
 
 			if((n == 2) && (id >= 1) && (id <= 9)) {
 				fd_txdat->target = id;
-				fd_txdat->cmd = FD_CMD_TEST;
-				fd_txdat->sql_id = sql;
+				fd_txdat->cmd = FDPLC_CMD_TEST;
+				fd_txdat->test.sql_id = sql;
 				fd_txmsg.dlc = 8;
 				e = fdhost_can_send(&fd_txmsg);
 			}
@@ -433,7 +439,7 @@ int cmd_xxx_func(int argc, char *argv[])
 
 			if((n == 1) && (id >= 1) && (id <= 9)) {
 				fd_txdat->target = id;
-				fd_txdat->cmd = FD_CMD_PASS;
+				fd_txdat->cmd = FDPLC_CMD_PASS;
 				fd_txmsg.dlc = 2;
 				e = fdhost_can_send(&fd_txmsg);
 			}
@@ -450,7 +456,7 @@ int cmd_xxx_func(int argc, char *argv[])
 
 			if((n == 1) && (id >= 1) && (id <= 9)) {
 				fd_txdat->target = id;
-				fd_txdat->cmd = FD_CMD_FAIL;
+				fd_txdat->cmd = FDPLC_CMD_FAIL;
 				fd_txmsg.dlc = 2;
 				e = fdhost_can_send(&fd_txmsg);
 			}
@@ -467,7 +473,7 @@ int cmd_xxx_func(int argc, char *argv[])
 
 			if((n == 1) && (id >= 1) && (id <= 9)) {
 				fd_txdat->target = id;
-				fd_txdat->cmd = FD_CMD_ENDC;
+				fd_txdat->cmd = FDPLC_CMD_ENDC;
 				fd_txmsg.dlc = 2;
 				e = fdhost_can_send(&fd_txmsg);
 			}
@@ -494,7 +500,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		}
 		else { //query all the test unit
 			fd_txdat->target = 0;
-			fd_txdat->cmd = FD_CMD_UUID;
+			fd_txdat->cmd = FDPLC_CMD_UUID;
 			fd_txmsg.dlc = 2;
 			e = fdhost_can_send(&fd_txmsg);
 			printf("<+0, No Error\n\r");
@@ -503,7 +509,7 @@ int cmd_xxx_func(int argc, char *argv[])
 	}
 	else if(!strcmp(argv[0], "WDTY")) {
 		fd_txdat->target = 0;
-		fd_txdat->cmd = FD_CMD_WDTY;
+		fd_txdat->cmd = FDPLC_CMD_WDTY;
 		fd_txmsg.dlc = 2;
 		e = fdhost_can_send(&fd_txmsg);
 		printf("<%+d, WDTY\n\r", e);
@@ -511,7 +517,7 @@ int cmd_xxx_func(int argc, char *argv[])
 	}
 	else if(!strcmp(argv[0], "WDTN")) {
 		fd_txdat->target = 0;
-		fd_txdat->cmd = FD_CMD_WDTN;
+		fd_txdat->cmd = FDPLC_CMD_WDTN;
 		fd_txmsg.dlc = 2;
 		e = fdhost_can_send(&fd_txmsg);
 		printf("<%+d, WDTY\n\r", e);
