@@ -83,17 +83,21 @@ void pdi_led_flash(int led_mask)
 }
 
 int pdi_can_tx(const can_msg_t *msg) {
-	hexdump("CAN_TX", msg->data, msg->dlc);
+	char prefix[16];
+	sprintf(prefix, "CAN_TX 0X%03X", msg->id);
+	hexdump(prefix, msg->data, msg->dlc);
 	bsp_can_bus->flush();
 	return bsp_can_bus->send(msg);
 }
 
 int pdi_can_rx(can_msg_t *msg) {
+	char prefix[16];
 	time_t deadline = time_get(PDI_ECU_MS);
 	while(1) {
 		pdi_mdelay(10);
 		if(!bsp_can_bus->recv(msg)) {
-			hexdump("CAN_RX", msg->data, msg->dlc);
+			sprintf(prefix, "CAN_RX 0X%03X", msg->id);
+			hexdump(prefix, msg->data, msg->dlc);
 			return 0;
 		}
 
@@ -350,6 +354,7 @@ int pdi_mdelay_with_pull_detection(int ms)
 {
 	int ecode = 0;
 	time_t deadline = time_get(ms);
+	printf("%s: wait %d ms ...\n", __func__, ms);
 	while(time_left(deadline) > 0) {
 		pdi_mdelay(1);
 		if(!pdi_swdebug) {
@@ -470,19 +475,16 @@ static void pdi_verify(void)
 		bsp_swbat(1);
 
 		//wait demo ecu power-up
-		pdi_mdelay_with_pull_detection(7000);
+		//pdi_mdelay_with_pull_detection(7000);
 
 		//test
-		if(pdi_ecode == 0) {
-			ecode = pdi_test(pdi_pos, pdi_mask, &pdi_report);
-			if(pdi_ecode == 0) { //maybe fixture is pulled out
-				if(ecode) pdi_ecode = ERROR_ECUNG;
-				else pdi_ecode = pdi_analysis_report();
-			}
+		ecode = pdi_test(pdi_pos, pdi_mask, &pdi_report);
+		if(ecode) pdi_ecode = ERROR_ECUNG;
+		else pdi_ecode = pdi_analysis_report();
 
-			//power off
-			bsp_swbat(0);
-		}
+		//power off
+		bsp_swbat(0);
+		pdi_mdelay_with_pull_detection(100);
 	}
 
 	int pdi_pos_new = pdi_pos;
@@ -496,15 +498,21 @@ static void pdi_verify(void)
 		pdi_host_printf("P-%s", UUTx);
 		break;
 
-	case ERROR_ECUNG: /*infact host not fully support it*/
-		pdi_host_printf("ECU-NG");
-		break;
 	case ERROR_BACHU:
 		pdi_pos_new = !pdi_pos;
 		pdi_host_itac = 0;
 		pdi_host_printf("%sNG-BRK", UUTx);
 		pdi_wait_host_itac();
 		break;
+
+	case ERROR_ECUNG: /*infact host not fully support it*/
+#if 0
+		pdi_host_printf("ECU-NG");
+		break;
+#else
+		printf("ECU-NG -> %sNG\n", UUTx);
+#endif
+
 	case ERROR_FUNC:
 		pdi_pos_new = !pdi_pos;
 		pdi_host_itac = 0;
@@ -527,6 +535,17 @@ static void pdi_verify(void)
 
 	//indicate to operator
 	pdi_stop_action(pdi_passed);
+
+	//wait for fixture pull-out
+	if(!pdi_swdebug) {
+		printf("wait for fixture pull out ...\n");
+		while(1) {
+			pdi_mdelay(1);
+			int ready = bsp_rdy_status(pdi_pos);
+			if(!ready) break;
+		}
+	}
+
 	pdi_pos = pdi_pos_new;
 }
 

@@ -40,7 +40,7 @@ int ecu_can_init(int txid, int rxid) {
 	can_filter_t filter = {.id = can_id_rx, .mask = 0xffff, .flag = 0};
 
 	bsp_can_bus->init(&cfg);
-	bsp_can_bus->filt(&filter, 1);
+	bsp_can_bus->filt(&filter, (rxid != 0) ? 1 : 0);
 	return 0;
 }
 
@@ -147,6 +147,71 @@ void ecu_decrypt_CalculateKey(unsigned char access_level, unsigned char seed[8],
 			seed[5] = 0x04;
 			seed[6] = 0x68;
 			seed[7] = 0x38;
+			break;
+	}
+	// Key calculation
+	mask = 0x01;
+	x=0;
+	for(i=0; i<64;i++) {
+		if((mask & seed[x])!=0) { // lsb != 0
+			idx = 0x01;
+		}
+		else {
+			idx = 0x00;
+		}
+		idx ^= (secKey[0] & 0x01);
+		if(mask == 0x80) {
+			mask = 0x01;
+			x++;
+		}
+		else {
+			mask <<= 1;
+		}
+		secKey[0]>>=1;
+		if((secKey[1] & 0x01) != 0) {
+			secKey[0] |= 0x80;
+		}
+		secKey[1]>>=1;
+		if((secKey[2] & 0x01) != 0) {
+			secKey[1] |= 0x80;
+		}
+		secKey[2]= ((secKey[2]>>=1) | kSecB2[idx]);
+		secKey[0] = (secKey[0] ^ kSecC0[idx]);
+		secKey[1] = (secKey[1] ^ kSecC1[idx]);
+		secKey[2] = (secKey[2] ^ kSecC2[idx]);
+	}
+	key[0] = (secKey[0] >> 4);
+	key[0] |= (secKey[1] << 4);
+	key[1] = (secKey[2] >> 4);
+	key[1] |= (secKey[1] & 0xF0);
+	key[2] = (secKey[2] & 0x0F);
+	key[2] |= (secKey[0] << 4);
+}
+
+void ecu_decrypt_CalculateKey_VOLVO(unsigned char access_level, unsigned char seed[8], unsigned char key[8])
+{
+	unsigned char idx, i;
+	unsigned char mask, x;
+	unsigned char kSecB2[2] = {0x00, 0x80};
+	unsigned char kSecC2[2] = {0x00, 0x10};
+	unsigned char kSecC1[2] = {0x00, 0x90};
+	unsigned char kSecC0[2] = {0x00, 0x28};
+	unsigned char secKey[3] = {0xA9, 0x41, 0xC5};
+	// Select the five fixed bytes
+	switch(access_level) {
+		case 0x01:
+			seed[3] = 0x53;
+			seed[4] = 0x52;
+			seed[5] = 0x53;
+			seed[6] = 0x30;
+			seed[7] = 0x31;
+			break;
+		case 0x33:
+			seed[3] = 0x53;
+			seed[4] = 0x52;
+			seed[5] = 0x53;
+			seed[6] = 0x33;
+			seed[7] = 0x33;
 			break;
 	}
 	// Key calculation
@@ -364,6 +429,7 @@ static int cmd_probe_id(int txid, int rxid)
 		{0x7A2, 0x7C2, "C131"},
 		{0x7D2, 0x7DA, "BA, DM_DMA, HC"},
 		//{0x7E5, "RCLE"},
+		{0x7F1, 0x7F9, "VOLVO"},
 	};
 
 	const id_cfg_t *pcfg = id_cfg_lists;
@@ -398,7 +464,7 @@ static int cmd_probe_id(int txid, int rxid)
 		}
 	}
 
-	printf("probe: failed!");
+	printf("probe: failed!\n");
 	return -2;
 }
 
@@ -422,6 +488,10 @@ int ecu_probe_algo(int session, ecu_algo_t decrypt_algo_func)
 	if(decrypt_algo_func == ecu_decrypt_CalculateKey) {
 		memcpy(reqseed_msg.data, "\x02\x27\x61\x00\x00\x00\x00\x00", 8);
 		memcpy(sendkey_msg.data, "\x05\x27\x62\xff\xff\xff\x00\x00", 8);
+	}
+	else if(decrypt_algo_func == ecu_decrypt_CalculateKey_VOLVO) {
+		memcpy(reqseed_msg.data, "\x02\x27\x33\x00\x00\x00\x00\x00", 8);
+		memcpy(sendkey_msg.data, "\x05\x27\x34\xff\xff\xff\x00\x00", 8);
 	}
 	else if(decrypt_algo_func == ecu_decrypt_239A) {
 		memcpy(reqseed_msg.data, "\x02\x27\x7d\x00\x00\x00\x00\x00", 8);
@@ -481,6 +551,7 @@ static int cmd_probe_algo(int session)
 {
 	const algo_item_t algo_lists[] = {
 		{ecu_decrypt_CalculateKey, "CalculateKey"},
+		{ecu_decrypt_CalculateKey_VOLVO, "CalculateKey_VOLVO"},
 		{ecu_decrypt_239A, "239A"},
 		{ecu_decrypt_34AB, "34AB"},
 		{ecu_decrypt_B1234C12, "B1234C12"},

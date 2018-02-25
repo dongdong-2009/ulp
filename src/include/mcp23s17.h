@@ -16,7 +16,10 @@
 #define ADDR_GPPUB	0x0d
 #define ADDR_GPIOA	0x12
 #define ADDR_GPIOB	0x13
+#define ADDR_OLATA	0x14
+#define ADDR_OLATB	0x15
 
+//options
 #define MCP23S17_HIGH_SPEED	0x01
 #define MCP23S17_LOW_SPEED	0x02
 #define MCP23017_PORTA_IN	0x04
@@ -27,7 +30,9 @@
 typedef struct {
 	const spi_bus_t *bus;
 	int idx;
-	int option;
+	int option : 8;
+	int hwaddr : 4; //0..7 @A2..0
+	int ck_mhz : 4; //0..9 MHz
 } mcp23s17_t;
 
 void mcp23s17_Init(const mcp23s17_t *chip);

@@ -12,6 +12,7 @@ enum {
 	TM_AIN2,
 };
 
+//gain = 1~128(1/2/4/8/16/32/64/128)
 #define TM_GAIN(g) (g)
 
 enum {

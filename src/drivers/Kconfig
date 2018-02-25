@@ -14,6 +14,7 @@ int 'console baudrate' CONFIG_CONSOLE_BAUD 115200
 bool 'rtc driver' CONFIG_DRIVER_RTC
 bool 'gpio driver' CONFIG_DRIVER_GPIO
 bool 'gpio driver filter support' CONFIG_GPIO_FILTER
+bool 'mcp23s gpio extension driver' CONFIG_GPIO_MCP
 
 mainmenu_option next_comment
 	comment 'uart config'
