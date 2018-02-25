@@ -395,7 +395,7 @@ int cmd_xxx_func(int argc, char *argv[])
 			if((argv[3][1] == 'x') || (argv[3][1] == 'X')) n += sscanf(argv[3], "%x", &img);
 			else n += sscanf(argv[3], "%d", &img);
 
-			if((n == 3) && (id >= 1) && (id <= 9)) {
+			if((n == 3) && (id >= 0) && (id <= 9)) { //0=> all move
 				vw_txdat->target = id;
 				vw_txdat->cmd = VW_CMD_MOVE;
 				vw_txdat->img = (img >> 16) & 0xff;
