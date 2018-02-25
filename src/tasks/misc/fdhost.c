@@ -43,12 +43,12 @@ enum {
 };
 
 typedef struct {
-	char target;
-	char cmd;
+	unsigned target : 4;
+	unsigned cmd : 4;
 	union {
 		struct {
-			short img;
-			short msk;
+			unsigned img : 16;
+			unsigned msk : 16;
 		} move;
 
 		struct {
@@ -58,18 +58,20 @@ typedef struct {
 } txdat_t;
 
 typedef struct {
-	char id; //test unit id, assign by host, range: 1-18
-	char cmd; //original cmd
-	unsigned short counter;
-	int sensors;
+	unsigned id : 4; //test unit id, assign by host
+	unsigned cmd : 4;
+	unsigned model: 8; //fixture model type
+	unsigned counter : 16; //probe counter, low 16bit
+	unsigned sensors; //bit31: end, bit30: ng
 } rxdat_t;
 
+#define NPLC 12
 static const can_bus_t *fd_can = &can1;
-static can_msg_t fd_rxmsg[10];
+static can_msg_t fd_rxmsg[NPLC + 1];
 static can_msg_t fd_txmsg;
 static rxdat_t *fd_rxdat = (rxdat_t *) fd_rxmsg[0].data;
 static txdat_t *fd_txdat = (txdat_t *) fd_txmsg.data;
-static int fdplc_uuid[10];
+static int fdplc_uuid[NPLC + 1];
 
 static int fdhost_can_send(can_msg_t *msg)
 {
@@ -95,7 +97,7 @@ void __sys_tick(void)
 	//can msg id is used as alive detection counter
 	//set dlc=0 indicates the fixture is lost
 	int uute = 0;
-	for(int i = 1; i < 10; i ++) {
+	for(int i = 1; i <= NPLC; i ++) {
 		if(fd_rxmsg[i].id <= 0) fd_rxmsg[i].dlc = 0;
 		else {
 			fd_rxmsg[i].id --;
@@ -123,7 +125,7 @@ static void fdhost_can_handler(void)
 
 	//danger process
 	int safe = 1;
-	for(int i = 1; i < 10; i ++) {
+	for(int i = 1; i <= NPLC; i ++) {
 		if(fd_rxmsg[i].dlc > 0) {
 			rxdat_t *rxdat = (rxdat_t *) fd_rxmsg[i].data;
 			if((rxdat->sensors & FD_SAFE_MASK) == 0) {
@@ -151,21 +153,21 @@ void fd_gpio_init(void)
 	GPIO_BIND(GPIO_IPU, PC13, GPI#00) //GPI#00
 	GPIO_BIND(GPIO_IPU, PC14, GPI#01) //GPI#01
 	GPIO_BIND(GPIO_IPU, PC15, GPI#02) //GPI#02
-	GPIO_BIND(GPIO_IPU, PA1, GPI#03) //GPI#03
+	GPIO_BIND(GPIO_IPU, PA01, GPI#03) //GPI#03
 
-	GPIO_BIND(GPIO_IPU, PA2, GPI#04) //GPI#04
-	GPIO_BIND(GPIO_IPU, PA4, GPI#05) //GPI#05
-	GPIO_BIND(GPIO_IPU, PA5, GPI#06) //GPI#06
-	GPIO_BIND(GPIO_IPU, PA6, GPI#07) //GPI#07
+	GPIO_BIND(GPIO_IPU, PA02, GPI#04) //GPI#04
+	GPIO_BIND(GPIO_IPU, PA04, GPI#05) //GPI#05
+	GPIO_BIND(GPIO_IPU, PA05, GPI#06) //GPI#06
+	GPIO_BIND(GPIO_IPU, PA06, GPI#07) //GPI#07
 
 	//sensors #10-17
-	GPIO_BIND(GPIO_IPU, PA7, GPI#10) //GPI#10
-	GPIO_BIND(GPIO_IPU, PC4, GPI#11) //GPI#11
-	GPIO_BIND(GPIO_IPU, PC5, GPI#12) //GPI#12
-	GPIO_BIND(GPIO_IPU, PB0, GPI#13) //GPI#13
+	GPIO_BIND(GPIO_IPU, PA07, GPI#10) //GPI#10
+	GPIO_BIND(GPIO_IPU, PC04, GPI#11) //GPI#11
+	GPIO_BIND(GPIO_IPU, PC05, GPI#12) //GPI#12
+	GPIO_BIND(GPIO_IPU, PB00, GPI#13) //GPI#13
 
-	GPIO_BIND(GPIO_IPU, PB1, GPI#14) //GPI#14
-	GPIO_BIND(GPIO_IPU, PB2, GPI#15) //GPI#15
+	GPIO_BIND(GPIO_IPU, PB01, GPI#14) //GPI#14
+	GPIO_BIND(GPIO_IPU, PB02, GPI#15) //GPI#15
 	GPIO_BIND(GPIO_IPU, PB10, GPI#16) //GPI#16
 	GPIO_BIND(GPIO_IPU, PB11, GPI#17) //GPI#17
 
@@ -173,31 +175,32 @@ void fd_gpio_init(void)
 	GPIO_BIND(GPIO_PP0, PB12, RSEL0) //GPO#00
 	GPIO_BIND(GPIO_PP0, PB13, RSEL1) //GPO#01
 	GPIO_BIND(GPIO_PP0, PB14, RSEL2) //GPO#02
-	GPIO_BIND(GPIO_PP0, PB15, GPO#3) //GPO#03
+	GPIO_BIND(GPIO_PP0, PB15, RSEL3) //GPO#03
 
-	GPIO_BIND(GPIO_PP0, PC6, CSEL0) //GPO#04
-	GPIO_BIND(GPIO_PP0, PC7, CSEL1) //GPO#05
-	GPIO_BIND(GPIO_PP0, PC8, CSEL2) //GPO#06
-	fd_hgpio_safe = GPIO_BIND(GPIO_PP0, PC9, "SAFE") //GPO#07
+	GPIO_BIND(GPIO_PP0, PC06, CSEL0) //GPO#04
+	GPIO_BIND(GPIO_PP0, PC07, CSEL1) //GPO#05
+	GPIO_BIND(GPIO_PP0, PC08, CSEL2) //GPO#06
+	fd_hgpio_safe = GPIO_BIND(GPIO_PP0, PC09, "SAFE") //GPO#07
 
 	//misc
 	GPIO_BIND(GPIO_IPU, PC12, ESTOP#) //RSEL
 	GPIO_BIND(GPIO_IPU, PC11, RST#) //CSEL
 
-	//GPIO_BIND(GPIO_PP0, PA8, MPC_ON)
+	//GPIO_BIND(GPIO_PP0, PA08, MPC_ON)
 
-	GPIO_BIND(GPIO_AIN, PC2, VMPC)
-	GPIO_BIND(GPIO_AIN, PC3, VBST)
+	GPIO_BIND(GPIO_AIN, PC02, VMPC)
+	GPIO_BIND(GPIO_AIN, PC03, VBST)
 }
 
-/*id range: [1, 9]*/
+/*id range: [1, 12]*/
 int fd_assign(int idx)
 {
-	sys_assert((idx >= 0) && (idx < 9));
+	sys_assert((idx >= 0) && (idx < NPLC));
 	const int slaves[] = { //operator view
 		0x1011, 0x2012, 0x3014,
 		0x4021, 0x5022, 0x6024,
 		0x7041, 0x8042, 0x9044,
+		0xa081, 0xb082, 0xc084,
 	};
 
 	//convert idx to id
@@ -221,6 +224,7 @@ int fd_assign(int idx)
 	gpio_set("RSEL0", rsel & 0x01);
 	gpio_set("RSEL1", rsel & 0x02);
 	gpio_set("RSEL2", rsel & 0x04);
+	gpio_set("RSEL3", rsel & 0x08);
 	gpio_set("CSEL0", csel & 0x01);
 	gpio_set("CSEL1", csel & 0x02);
 	gpio_set("CSEL2", csel & 0x04);
@@ -306,10 +310,10 @@ int cmd_xxx_func(int argc, char *argv[])
 		"*IDN?		to read identification string\n"
 		"*RST		instrument reset\n"
 		"SAFE		poll fd_flag_safe\n"
-		"READ id		read (only) fdplc status, id = 1..9, 0=>any one last rx\n"
-		"POLL id		read then update fdplc status, id = 0..9, 0=>ALL\n"
-		"MOVE id msk img	move vplc 1-9 cylinders\n"
-		"TEST id sql_id	start test of unit 1-9\n"
+		"READ id		read (only) fdplc status, id = 1..12, 0=>any one last rx\n"
+		"POLL id		read then update fdplc status, id = 0..12, 0=>ALL\n"
+		"MOVE id msk img	move vplc cylinders\n"
+		"TEST id sql_id	start test of unit 1-12\n"
 		"PASS id		debug, identical with cmd 'FDPLC PASS'\n"
 		"FAIL id		debug, identical with cmd 'FDPLC FAIL'\n"
 		"ENDC id		handshake with TEST_END signal\n"
@@ -339,7 +343,7 @@ int cmd_xxx_func(int argc, char *argv[])
 
 		if(argc > 1) {
 			n = sscanf(argv[1], "%d", &id);
-			if((n == 1) && (id >= 0) && (id <= 9)) {
+			if((n == 1) && (id >= 0) && (id <= 12)) {
 				__disable_irq();
 				for(i = 0; i < fd_rxmsg[id].dlc; i ++) {
 					v = fd_rxmsg[id].data[i];
@@ -353,7 +357,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		else { //print status
 			msk = 0;
 			__disable_irq();
-			for(i = 0; i < 10; i ++) {
+			for(i = 0; i <= NPLC; i ++) {
 				bytes += sprintf(&hex[bytes], "%d,", fd_rxmsg[i].dlc);
 				if(fd_rxmsg[i].dlc > 0) {
 					msk |= 1 << i;
@@ -377,7 +381,7 @@ int cmd_xxx_func(int argc, char *argv[])
 			n = sscanf(argv[1], "%d", &id);
 		}
 
-		if((n == 1) && (id >= 0) && (id <= 9)) {
+		if((n == 1) && (id >= 0) && (id <= 12)) {
 			//send poll req
 			fd_txdat->target = id;
 			fd_txdat->cmd = FDPLC_CMD_POLL;
@@ -398,7 +402,7 @@ int cmd_xxx_func(int argc, char *argv[])
 			if((argv[3][1] == 'x') || (argv[3][1] == 'X')) n += sscanf(argv[3], "%x", &img);
 			else n += sscanf(argv[3], "%d", &img);
 
-			if((n == 3) && (id >= 0) && (id <= 9)) { //0=> all move
+			if((n == 3) && (id >= 0) && (id <= 12)) { //0=> all move
 				fd_txdat->target = id;
 				fd_txdat->cmd = FDPLC_CMD_MOVE;
 				fd_txdat->move.img = (img >> 18) & 0x03ff; //10 cyls in total
@@ -419,7 +423,7 @@ int cmd_xxx_func(int argc, char *argv[])
 			if((argv[2][1] == 'x') || (argv[2][1] == 'X')) n += sscanf(argv[2], "%x", &sql);
 			else n += sscanf(argv[2], "%d", &sql);
 
-			if((n == 2) && (id >= 1) && (id <= 9)) {
+			if((n == 2) && (id >= 1) && (id <= 12)) {
 				fd_txdat->target = id;
 				fd_txdat->cmd = FDPLC_CMD_TEST;
 				fd_txdat->test.sql_id = sql;
@@ -437,7 +441,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		if(argc > 1) {
 			n = sscanf(argv[1], "%d", &id);
 
-			if((n == 1) && (id >= 1) && (id <= 9)) {
+			if((n == 1) && (id >= 1) && (id <= 12)) {
 				fd_txdat->target = id;
 				fd_txdat->cmd = FDPLC_CMD_PASS;
 				fd_txmsg.dlc = 2;
@@ -454,7 +458,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		if(argc > 1) {
 			n = sscanf(argv[1], "%d", &id);
 
-			if((n == 1) && (id >= 1) && (id <= 9)) {
+			if((n == 1) && (id >= 1) && (id <= 12)) {
 				fd_txdat->target = id;
 				fd_txdat->cmd = FDPLC_CMD_FAIL;
 				fd_txmsg.dlc = 2;
@@ -471,7 +475,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		if(argc > 1) {
 			n = sscanf(argv[1], "%d", &id);
 
-			if((n == 1) && (id >= 1) && (id <= 9)) {
+			if((n == 1) && (id >= 1) && (id <= 12)) {
 				fd_txdat->target = id;
 				fd_txdat->cmd = FDPLC_CMD_ENDC;
 				fd_txmsg.dlc = 2;
@@ -495,7 +499,7 @@ int cmd_xxx_func(int argc, char *argv[])
 	else if(!strcmp(argv[0], "UUID")) {
 		if(argc > 1) {
 			id = atoi(argv[1]);
-			if((id > 0) && (id < 10)) printf("<%+d, fdplc#%d\n\r", fdplc_uuid[id], id);
+			if((id > 0) && (id <= NPLC)) printf("<%+d, fdplc#%d\n\r", fdplc_uuid[id], id);
 			else printf("<%+d, fdplc#%d\n\r", -1, id);
 		}
 		else { //query all the test unit
@@ -520,7 +524,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		fd_txdat->cmd = FDPLC_CMD_WDTN;
 		fd_txmsg.dlc = 2;
 		e = fdhost_can_send(&fd_txmsg);
-		printf("<%+d, WDTY\n\r", e);
+		printf("<%+d, WDTN\n\r", e);
 		return 0;
 	}
 	else {
