@@ -16,37 +16,54 @@
 #include "tm770x.h"
 #include "nvm.h"
 
-#define CONFIG_DMM_CAL 0
-#define CONFIG_MUX_API 1 //mode switch cmds
-#define CONFIG_AUX_API 1 //audio modes switch cmds
-#define CONFIG_DMM_API 1 //tm7707 emulated dmm cmds
-#define CONFIG_DMM_DRV 1 //tm7707 hw driver
+#define CONFIG_MUX 1 //mode switch cmds
+#define CONFIG_AUX 1 //audio modes switch cmds
+#define CONFIG_DMM 0 //tm7707 emulated dmm cmds
+#define CONFIG_CAL 0 //channel & bank external calibration
 
-typedef struct {
-	const char *name;
-	unsigned ainx	: 1; //always TM_AIN1(=0)
-	unsigned gain	: 8; //2^(0~7)
-	unsigned dg409	: 2; //0~3
-	unsigned dg408	: 5; //0~7|NSS
-	unsigned diagx	: 3; //0~7
-} dmm_ch_t;
+static int sys_ecode = 0;
+static const char *sys_emsg = "";
 
+#if CONFIG_DMM == 1
 typedef struct { //y = g*x + d
 	float g;
 	float d;
 } dmm_cal_t;
+
+dmm_cal_t *dmm_cal = NULL; //current calibration coefficient
+
+static void dmm_hw_init(void);
+static int dmm_hw_config(int ainx, int gain);
+static int dmm_hw_poll(void);
+static int dmm_hw_read(float *result);
+
+static void dmm_init(void);
+static int dmm_read(float *v);
+#define dmm_poll dmm_hw_poll
+static int dmm_cal_bank(int bank);
+static int dmm_switch_bank(int bank);
+#endif
+
+//cal api
+#if CONFIG_CAL == 1
+#endif
 
 #define BANK_18V 0 //0~+/-18V
 #define BANK_06V 1 //0~+/-06V
 #define BANK_1V5 3 //0~+/-1V5
 #define BANK_ACS 2 //-0V5~5V5
 
-static int sys_ecode = 0;
-static const char *sys_emsg = "";
+typedef struct {
+	const char *name;
+	unsigned ainx	: 1; //always TM_AIN1(=0)
+	unsigned gain	: 8; //2^(0~7)
+	unsigned dg409	: 2; //0~3
+	unsigned dg408	: 6; //0~7|NSS
+	unsigned diagx	: 3; //0~7
+} dmm_ch_t;
 
 /*following parameters will be modified by dmm_switch_ch*/
 const dmm_ch_t *dmm_ch = NULL; //current selected channel
-dmm_cal_t *dmm_cal = NULL; //current calibration coefficient
 
 #define dmm_ch_list_sz (sizeof(dmm_ch_list) / sizeof(dmm_ch_list[0]))
 const dmm_ch_t dmm_ch_list[] = {
@@ -83,35 +100,53 @@ const dmm_ch_t dmm_ch_list[] = {
 	{.dg408=0x20, .dg409=BANK_06V, .diagx=5, .ainx=TM_AIN1, .gain=1, .name="VOTG"},
 };
 
-static dmm_cal_t dmm_cals[] = {
-	{.d = +0.0, .g = 108.2/8.200}, //BANK@BANK_18V, 8K2|100K
-	{.d = +0.0, .g = 133.0/33.00}, //BANK@BANK_06V, 33K|100K
-	{.d = +2.5, .g = 200.0/100.0}, //BANK@BANK_ACS, 100K|100K
-	{.d = +0.0, .g = 100.0/100.0}, //BANK@BANK_1V5
-};
-
-//dmm drv
-#if CONFIG_DMM_DRV == 1
-static void dmm_hw_init(void);
-static int dmm_hw_config(int ainx, int gain);
-static int dmm_hw_poll(void);
-static int dmm_hw_read(float *result);
-#endif
-
-//dmm api
-static int dmm_switch_bank(int bank);
+//dmm channel switch
 static int dmm_switch_ch(const char *ch_name);
-#if CONFIG_DMM_API == 1
-static void dmm_init(void);
-static int dmm_read(float *v);
-#define dmm_poll dmm_hw_poll
-#endif
+static const dmm_ch_t *dmm_ch_search(const char *ch_name)
+{
+	const dmm_ch_t *ch = NULL;
+	for(int i = 0; i < dmm_ch_list_sz; i ++) {
+		if(!strcmp(ch_name, dmm_ch_list[i].name)) {
+			ch = &dmm_ch_list[i];
+			break;
+		}
+	}
+	return ch;
+}
 
-//cal api
-#if CONFIG_DMM_CAL == 1
-static int dmm_cal_bank(int bank);
-static int dmm_cal_ieload(const char *ch);
+static int dmm_switch_ch(const char *ch_name)
+{
+	const dmm_ch_t *ch = dmm_ch_search(ch_name);
+	if(ch == NULL) {
+		sys_emsg = "invalid channel name";
+		return -1;
+	}
+
+	//turn off all channels
+	gpio_set("DG408_S4", 0);
+	gpio_set("DG408_S3", 0);
+	//sys_mdelay(1);
+
+	//cd4051
+	gpio_set("DIAG_S2", ch->diagx & 0x04);
+	gpio_set("DIAG_S1", ch->diagx & 0x02);
+	gpio_set("DIAG_S0", ch->diagx & 0x01);
+
+	//dg408
+	gpio_set("DG408_S4", ch->dg408 & 0x20);
+	gpio_set("DG408_S3", ch->dg408 & 0x10);
+	gpio_set("DG408_S2", ch->dg408 & 0x04);
+	gpio_set("DG408_S1", ch->dg408 & 0x02);
+	gpio_set("DG408_S0", ch->dg408 & 0x01);
+
+	//dg409
+#if CONFIG_DMM == 1
+	dmm_switch_bank(ch->dg409);
+	dmm_hw_config(ch->ainx, ch->gain);
 #endif
+	dmm_ch = ch;
+	return 0;
+}
 
 void __sys_init(void)
 {
@@ -177,7 +212,7 @@ void __sys_init(void)
 }
 
 //dmm hardware driver
-#if CONFIG_DMM_DRV == 1
+#if CONFIG_DMM == 1
 #define DMM_MCLK_HZ 4000000
 #define DMM_ODAT_HZ 100
 #define DMM_ISR_Y() do {EXTI->PR = EXTI_Line4; NVIC_EnableIRQ(EXTI4_IRQn);} while(0)
@@ -227,6 +262,17 @@ static int dmm_hw_read(float *result)
 		*result = dmm_hw_vref * digv / (1 << 23);
 	}
 	return npop;
+}
+
+static int dmm_read(float *result)
+{
+	float v = 0;
+	int n = dmm_hw_read(&v);
+	if((n > 0) && (dmm_cal != NULL)) {
+		v = v * dmm_cal->g + dmm_cal->d;
+		*result = v;
+	}
+	return n;
 }
 
 void EXTI4_IRQHandler(void)
@@ -282,65 +328,19 @@ static void dmm_hw_init(void)
 	//tm770x_cal_self(&dmm_hw, TM_AIN2);
 	dmm_hw_config(TM_AIN1, TM_GAIN(1));
 }
-#endif
-
-static const dmm_ch_t *dmm_ch_search(const char *ch_name)
-{
-	const dmm_ch_t *ch = NULL;
-	for(int i = 0; i < dmm_ch_list_sz; i ++) {
-		if(!strcmp(ch_name, dmm_ch_list[i].name)) {
-			ch = &dmm_ch_list[i];
-			break;
-		}
-	}
-	return ch;
-}
 
 static int dmm_switch_bank(int bank)
 {
+	static dmm_cal_t dmm_cals[] = {
+		{.d = +0.0, .g = 108.2/8.200}, //BANK@BANK_18V, 8K2|100K
+		{.d = +0.0, .g = 133.0/33.00}, //BANK@BANK_06V, 33K|100K
+		{.d = +2.5, .g = 200.0/100.0}, //BANK@BANK_ACS, 100K|100K
+		{.d = +0.0, .g = 100.0/100.0}, //BANK@BANK_1V5
+	};
+
 	gpio_set("DG409_S1", bank & 0x02);
 	gpio_set("DG409_S0", bank & 0x01);
-
-#if CONFIG_DMM_API == 1
 	dmm_cal = &dmm_cals[bank];
-#endif
-	return 0;
-}
-
-static int dmm_switch_ch(const char *ch_name)
-{
-	const dmm_ch_t *ch = dmm_ch_search(ch_name);
-	if(ch == NULL) {
-		sys_emsg = "invalid channel name";
-		return -1;
-	}
-
-	//turn off all channels
-	gpio_set("DG408_S4", 0);
-	gpio_set("DG408_S3", 0);
-	sys_mdelay(1);
-
-	//cd4051
-	gpio_set("DIAG_S2", ch->diagx & 0x04);
-	gpio_set("DIAG_S1", ch->diagx & 0x02);
-	gpio_set("DIAG_S0", ch->diagx & 0x01);
-
-	//dg408
-	gpio_set("DG408_S4", ch->dg408 & 0x20);
-	gpio_set("DG408_S3", ch->dg408 & 0x10);
-	gpio_set("DG408_S2", ch->dg408 & 0x04);
-	gpio_set("DG408_S1", ch->dg408 & 0x02);
-	gpio_set("DG408_S0", ch->dg408 & 0x01);
-
-	//dg409
-	dmm_switch_bank(ch->dg409);
-
-#if CONFIG_DMM_DRV == 1
-	sys_mdelay(1);
-	dmm_hw_config(ch->ainx, ch->gain);
-#endif
-
-	dmm_ch = ch;
 	return 0;
 }
 
@@ -355,13 +355,12 @@ static int dmm_cal_bank(int bank)
 	dmm_switch_bank(bank);
 	dmm_hw_config(TM_AIN1, 1);
 
-	for(int i = 0; i < N; i ++) {
-		int n = dmm_read(&y);
-		if(n == 0) {
+	for(int i = 0; i < N;) {
+		if(dmm_read(&y)) {
+			i ++;
+			y0 += y;
+			printf("dmm: %+.6f => %+.6f V, uncal\n", x0, y);
 		}
-
-		printf("dmm: %+.6f => %+.6f V, uncal\n", x0, y);
-		y0 += y;
 	}
 
 	//apply VREF_+3V0 to input
@@ -369,13 +368,12 @@ static int dmm_cal_bank(int bank)
 	dmm_switch_bank(bank);
 	dmm_hw_config(TM_AIN1, 1);
 
-	for(int i = 0; i < N; i ++) {
-		int n = dmm_read(&y);
-		if(n == 0) {
+	for(int i = 0; i < N;) {
+		if(dmm_read(&y) > 0) {
+			i ++;
+			y1 += y;
+			printf("dmm: %+.6f => %+.6f V, uncal\n", x1, y);
 		}
-
-		printf("dmm: %+.6f => %+.6f V, uncal\n", x1, y);
-		y1 += y;
 	}
 
 	y0 /= N;
@@ -411,45 +409,16 @@ static int dmm_cal_bank(int bank)
 //dmm algo, include mux selection
 static void dmm_init(void)
 {
-#if CONFIG_DMM_DRV == 1
 	dmm_hw_init();
-#endif
-
-#if CONFIG_DMM_API == 1
 	//self calibration
 	dmm_cal_bank(BANK_18V);
 	dmm_cal_bank(BANK_06V);
 	dmm_cal_bank(BANK_ACS);
-#endif
-
 	dmm_switch_ch("VREF_+3V");
 }
-
-#if CONFIG_DMM_API == 1
-/*wait until data available, or timeout occurs
-*/
-static int dmm_read(float *result)
-{
-	time_t deadline = time_get(1000 / DMM_ODAT_HZ * 2);
-	while(dmm_poll() == 0) {
-		sys_update();
-		if(time_left(deadline) < 0) {
-			sys_emsg = "dmm_read timeout error!";
-			return 0;
-		}
-	}
-
-	float v = 0;
-	int n = dmm_hw_read(&v);
-	if((n > 0) && (dmm_cal != NULL)) {
-		v = v * dmm_cal->g + dmm_cal->d;
-		*result = v;
-	}
-	return n;
-}
 #endif
 
-#if CONFIG_DMM_CAL == 1
+#if CONFIG_CAL == 1
 enum {
 	VW_CAL_IBAT,
 	VW_CAL_IELOAD1,
@@ -471,11 +440,13 @@ static void vw_cal_init(void)
 	}
 	hexdump("cal", vw_cals, sizeof(vw_cals));
 }
-#endif /*CONFIG_DMM_CAL == 1*/
+#endif /*CONFIG_CAL == 1*/
 
 void sig_init(void)
 {
+#if CONFIG_DMM == 1
 	dmm_init();
+#endif
 }
 
 void sig_update(void)
@@ -521,6 +492,10 @@ int cmd_xxx_func(int argc, char *argv[])
 		printf("<%+d\n", uuid);
 		return 0;
 	}
+	else if(!strcmp(argv[0], "ERR?")) {
+		printf("<%+d, %s\n", sys_ecode, sys_emsg);
+		return 0;
+	}
 	else {
 		printf("<-1, Unknown Command\n\r");
 		return 0;
@@ -528,7 +503,7 @@ int cmd_xxx_func(int argc, char *argv[])
 	return 0;
 }
 
-#if CONFIG_MUX_API == 1
+#if CONFIG_MUX == 1
 typedef struct {
 	const char *name;
 	struct {
@@ -563,6 +538,9 @@ typedef struct {
 #define MUX_OFF  {.upx_ven=0, .upx_en=0, .usbx_en=0, .usb1=0, .usb2=0, .usb3=0, .ds2c_en=0, .ds2c=0, .ds3c_en=0, .ds3c=0}
 #define MUX_IDL  {.upx_ven=1, .upx_en=1, .usbx_en=0, .usb1=0, .usb2=0, .usb3=0, .ds2c_en=0, .ds2c=0, .ds3c_en=0, .ds3c=0}
 #define MUX_PMK  {.upx_ven=1, .upx_en=1, .usbx_en=1, .usb1=0, .usb2=0, .usb3=0, .ds2c_en=0, .ds2c=0, .ds3c_en=0, .ds3c=0}
+#define MUX_PMK1 {.upx_ven=1, .upx_en=1, .usbx_en=1, .usb1=0, .usb2=3, .usb3=3, .ds2c_en=0, .ds2c=0, .ds3c_en=0, .ds3c=0}
+#define MUX_PMK2 {.upx_ven=1, .upx_en=1, .usbx_en=1, .usb1=3, .usb2=0, .usb3=3, .ds2c_en=0, .ds2c=0, .ds3c_en=0, .ds3c=0}
+#define MUX_PMK3 {.upx_ven=1, .upx_en=1, .usbx_en=1, .usb1=3, .usb2=3, .usb3=0, .ds2c_en=0, .ds2c=0, .ds3c_en=0, .ds3c=0}
 #define MUX_CDP  {.upx_ven=1, .upx_en=1, .usbx_en=1, .usb1=3, .usb2=3, .usb3=3, .ds2c_en=1, .ds2c=1, .ds3c_en=1, .ds3c=1}
 #define MUX_H21  {.upx_ven=1, .upx_en=1, .usbx_en=1, .usb1=2, .usb2=2, .usb3=0, .ds2c_en=0, .ds2c=0, .ds3c_en=0, .ds3c=0}
 #define MUX_H12  {.upx_ven=1, .upx_en=1, .usbx_en=1, .usb1=1, .usb2=1, .usb3=0, .ds2c_en=0, .ds2c=0, .ds3c_en=0, .ds3c=0}
@@ -576,6 +554,9 @@ const mode_t mode_list[] = {
 	{.name = "iqz" , .rly = RLY_BYP , .mux = MUX_OFF },
 	{.name = "idl" , .rly = RLY_BYP , .mux = MUX_IDL },
 	{.name = "pmk" , .rly = RLY_PMK , .mux = MUX_PMK },
+	{.name = "pmk1", .rly = RLY_PMK , .mux = MUX_PMK1 },
+	{.name = "pmk2", .rly = RLY_PMK , .mux = MUX_PMK2 },
+	{.name = "pmk3", .rly = RLY_PMK , .mux = MUX_PMK3 },
 	{.name = "pmkc", .rly = RLY_PMKC, .mux = MUX_PMK },
 	{.name = "cdp" , .rly = RLY_PMK , .mux = MUX_CDP },
 	{.name = "h21" , .rly = RLY_PMK , .mux = MUX_H21 },
@@ -683,7 +664,7 @@ cmd_t cmd_host = {"host", cmd_host_func, "host i/f cmds"};
 DECLARE_SHELL_CMD(cmd_host)
 #endif
 
-#if CONFIG_AUX_API == 1
+#if CONFIG_AUX == 1
 static int cmd_aux_func(int argc, char *argv[])
 {
 	const char *usage = {
@@ -731,8 +712,8 @@ static int cmd_dmm_func(int argc, char *argv[])
 	const char *usage = {
 		"usage:\n"
 		"dmm ch [ch_name]	get/set dmm measure channel\n"
-#if CONFIG_DMM_API == 1
-		"dmm read		read result voltage/current\n"
+#if CONFIG_DMM == 1
+		"dmm read N		read result voltage/current\n"
 		"dmm poll		poll nr of results in fifo\n"
 #endif
 	};
@@ -747,16 +728,22 @@ static int cmd_dmm_func(int argc, char *argv[])
 			}
 			ecode = dmm_switch_ch(argv[2]);
 		}
-#if CONFIG_DMM_API == 1
+#if CONFIG_DMM == 1
 		if(!strcmp(argv[1], "poll")) {
 			int nitems = dmm_poll();
 			printf("<%+d, samples available in fifo\n", nitems);
 			return 0;
 		}
 		if(!strcmp(argv[1], "read")) {
+			int N = (argc >= 3) ? atoi(argv[2]) : 1;
 			float v = 0.0;
-			int n = dmm_read(&v);
-			printf("<%+d, %+.6f V\n", n, v);
+			for(int i = 0; i < N;) {
+				sig_update();
+				if(dmm_read(&v)) {
+					printf("<%+.6f, %03d\n", v, i);
+					i ++;
+				}
+			}
 			return 0;
 		}
 #endif
@@ -786,7 +773,7 @@ static int cmd_dmm_func(int argc, char *argv[])
 cmd_t cmd_dmm = {"dmm", cmd_dmm_func, "dmm i/f cmds"};
 DECLARE_SHELL_CMD(cmd_dmm)
 
-#if CONFIG_DMM_CAL == 1
+#if CONFIG_CAL == 1
 static int cmd_cal_func(int argc, char *argv[])
 {
 	const char *usage = {
