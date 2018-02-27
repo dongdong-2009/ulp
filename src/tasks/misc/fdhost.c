@@ -1,10 +1,7 @@
 /*
 *
-* miaofng@2017-07-16 routine for vw
-* 1, vw system includes vw and vwhost
-* 2, all cylinders are controled by vwhost, vw acts like a plc io extend module
-* 3, handshake between test program and vw: rdy4tst/test_end/test_ng
-* 4, vw can not request test unit ID
+* miaofng@2018-02-25 routine for ford
+* 1, port from vwhost
 *
 */
 #include "ulp/sys.h"
@@ -22,27 +19,27 @@
 #define CAN_ID_HOST 0x100 //0x101..120 is test unit
 #define CAN_ID_UNIT(N) (CAN_ID_HOST + (N))
 
-#define VW_SCAN_MS 500
-#define VW_ALIVE_MS (VW_SCAN_MS << 2)
+#define FD_SCAN_MS 500
+#define FD_ALIVE_MS (FD_SCAN_MS << 2)
 
-#define VW_SAFE_MASK (1 << 11) //!!! 'SM-'
-static int vw_hgpio_safe = -1;
-static int vw_flag_safe = -1;
+#define FD_SAFE_MASK (1 << 11) //!!! 'SM-'
+static int fd_hgpio_safe = -1;
+static int fd_flag_safe = -1;
 
-#define VW_UUTE_MASK (1 << 12) //!!! 'UE'
-static int vw_flag_uute = -1;
+#define FD_UUTE_MASK (1 << 12) //!!! 'UE'
+static int fd_flag_uute = -1;
 
 enum {
-	VW_CMD_POLL, //host: cmd -> slave: response status
-	VW_CMD_SCAN, //host: cmd+rsel+csel
-	VW_CMD_MOVE, //host: cmd
-	VW_CMD_TEST, //host: cmd + mysql_record_id
-	VW_CMD_PASS, //host: cmd, identical with cmd "TEST PASS", only for debug purpose
-	VW_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL", only for debug purpose
-	VW_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
-	VW_CMD_WDTY, //host: cmd, enable test unit wdt
-	VW_CMD_WDTN, //host: cmd, disable test unit wdt
-	VW_CMD_UUID, //host: cmd, query vwplc board uuid
+	FD_CMD_POLL, //host: cmd -> slave: response status
+	FD_CMD_SCAN, //host: cmd+rsel+csel
+	FD_CMD_MOVE, //host: cmd
+	FD_CMD_TEST, //host: cmd + mysql_record_id
+	FD_CMD_PASS, //host: cmd, identical with cmd "TEST PASS", only for debug purpose
+	FD_CMD_FAIL, //host: cmd, identical with cmd "TEST FAIL", only for debug purpose
+	FD_CMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
+	FD_CMD_WDTY, //host: cmd, enable test unit wdt
+	FD_CMD_WDTN, //host: cmd, disable test unit wdt
+	FD_CMD_UUID, //host: cmd, query fdplc board uuid
 };
 
 typedef struct {
@@ -61,19 +58,19 @@ typedef struct {
 	int sensors;
 } rxdat_t;
 
-static const can_bus_t *vw_can = &can1;
-static can_msg_t vw_rxmsg[10];
-static can_msg_t vw_txmsg;
-static rxdat_t *vw_rxdat = (rxdat_t *) vw_rxmsg[0].data;
-static txdat_t *vw_txdat = (txdat_t *) vw_txmsg.data;
-static int vwplc_uuid[10];
+static const can_bus_t *fd_can = &can1;
+static can_msg_t fd_rxmsg[10];
+static can_msg_t fd_txmsg;
+static rxdat_t *fd_rxdat = (rxdat_t *) fd_rxmsg[0].data;
+static txdat_t *fd_txdat = (txdat_t *) fd_txmsg.data;
+static int fdplc_uuid[10];
 
-static int vwhost_can_send(can_msg_t *msg)
+static int fdhost_can_send(can_msg_t *msg)
 {
 	const txdat_t *txdat = (const txdat_t *) msg->data;
 	switch(txdat->cmd) {
-	case VW_CMD_SCAN:
-	case VW_CMD_POLL:
+	case FD_CMD_SCAN:
+	case FD_CMD_POLL:
 		msg->id = CAN_ID_SCAN;
 		break;
 	default:
@@ -82,7 +79,7 @@ static int vwhost_can_send(can_msg_t *msg)
 	}
 
 	led_hwSetStatus(LED_RED, 1);
-	while(vw_can->send(msg));
+	while(fd_can->send(msg));
 	led_hwSetStatus(LED_RED, 0);
 	return 0;
 }
@@ -93,56 +90,56 @@ void __sys_tick(void)
 	//set dlc=0 indicates the fixture is lost
 	int uute = 0;
 	for(int i = 1; i < 10; i ++) {
-		if(vw_rxmsg[i].id <= 0) vw_rxmsg[i].dlc = 0;
+		if(fd_rxmsg[i].id <= 0) fd_rxmsg[i].dlc = 0;
 		else {
-			vw_rxmsg[i].id --;
-			rxdat_t *rxdat = (rxdat_t *) vw_rxmsg[i].data;
-			if(rxdat->sensors & VW_UUTE_MASK) {
+			fd_rxmsg[i].id --;
+			rxdat_t *rxdat = (rxdat_t *) fd_rxmsg[i].data;
+			if(rxdat->sensors & FD_UUTE_MASK) {
 				uute |= 1 << i;
 			}
 		}
 	}
-	vw_flag_uute = uute;
+	fd_flag_uute = uute;
 }
 
-static void vwhost_can_handler(void)
+static void fdhost_can_handler(void)
 {
-	int id = vw_rxdat->id;
-	if(vw_rxdat->cmd == VW_CMD_UUID) {
-		vwplc_uuid[id] = vw_rxdat->sensors;
+	int id = fd_rxdat->id;
+	if(fd_rxdat->cmd == FD_CMD_UUID) {
+		fdplc_uuid[id] = fd_rxdat->sensors;
 		return;
 	}
 
-	memcpy(&vw_rxmsg[id], &vw_rxmsg[0], sizeof(can_msg_t));
+	memcpy(&fd_rxmsg[id], &fd_rxmsg[0], sizeof(can_msg_t));
 
 	//can msg id is used as alive detection counter
-	vw_rxmsg[id].id = VW_ALIVE_MS;
+	fd_rxmsg[id].id = FD_ALIVE_MS;
 
 	//danger process
 	int safe = 1;
 	for(int i = 1; i < 10; i ++) {
-		if(vw_rxmsg[i].dlc > 0) {
-			rxdat_t *rxdat = (rxdat_t *) vw_rxmsg[i].data;
-			if((rxdat->sensors & VW_SAFE_MASK) == 0) {
+		if(fd_rxmsg[i].dlc > 0) {
+			rxdat_t *rxdat = (rxdat_t *) fd_rxmsg[i].data;
+			if((rxdat->sensors & FD_SAFE_MASK) == 0) {
 				safe = 0;
 				break;
 			}
 		}
 	}
 
-	vw_flag_safe = safe;
-	gpio_set_h(vw_hgpio_safe, vw_flag_safe);
+	fd_flag_safe = safe;
+	gpio_set_h(fd_hgpio_safe, fd_flag_safe);
 }
 
 void USB_LP_CAN1_RX0_IRQHandler(void)
 {
 	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
-	while(!vw_can->recv(&vw_rxmsg[0])) {
-		vwhost_can_handler();
+	while(!fd_can->recv(&fd_rxmsg[0])) {
+		fdhost_can_handler();
 	}
 }
 
-void vw_gpio_init(void)
+void fd_gpio_init(void)
 {
 	//sensors #00-07
 	GPIO_BIND(GPIO_IPU, PC13, GPI#00) //GPI#00
@@ -175,7 +172,7 @@ void vw_gpio_init(void)
 	GPIO_BIND(GPIO_PP0, PC6, CSEL0) //GPO#04
 	GPIO_BIND(GPIO_PP0, PC7, CSEL1) //GPO#05
 	GPIO_BIND(GPIO_PP0, PC8, CSEL2) //GPO#06
-	vw_hgpio_safe = GPIO_BIND(GPIO_PP0, PC9, "SAFE") //GPO#07
+	fd_hgpio_safe = GPIO_BIND(GPIO_PP0, PC9, "SAFE") //GPO#07
 
 	//misc
 	GPIO_BIND(GPIO_IPU, PC12, ESTOP#) //RSEL
@@ -188,7 +185,7 @@ void vw_gpio_init(void)
 }
 
 /*id range: [1, 9]*/
-int vw_assign(int idx)
+int fd_assign(int idx)
 {
 	sys_assert((idx >= 0) && (idx < 9));
 	const int slaves[] = { //operator view
@@ -204,10 +201,10 @@ int vw_assign(int idx)
 	static int last_idx = -1;
 	if(last_idx >= 0) {
 		//csel/rsel signals need stable time
-		vw_txdat->target = id;
-		vw_txdat->cmd = VW_CMD_SCAN;
-		vw_txmsg.dlc = 2;
-		vwhost_can_send(&vw_txmsg);
+		fd_txdat->target = id;
+		fd_txdat->cmd = FD_CMD_SCAN;
+		fd_txmsg.dlc = 2;
+		fdhost_can_send(&fd_txmsg);
 
 		last_idx = -1;
 		return 0; //id been assigned
@@ -225,15 +222,15 @@ int vw_assign(int idx)
 	return id;
 }
 
-void vw_update(void)
+void fd_update(void)
 {
-	//so boring .. assign the vwplc id :(
+	//so boring .. assign the fdplc id :(
 	static int idx_scan = 0;
 	static int scan_timer = 0;
 
 	if((scan_timer == 0) || (time_left(scan_timer) < 0)) {
-		scan_timer = time_get(VW_SCAN_MS >> 1);
-		int idx = vw_assign(idx_scan);
+		scan_timer = time_get(FD_SCAN_MS >> 1);
+		int idx = fd_assign(idx_scan);
 		idx_scan += (idx == 0) ? 1 : 0;
 		idx_scan = (idx_scan > 8) ? 0 : idx_scan;
 	}
@@ -241,31 +238,31 @@ void vw_update(void)
 #if 0
 	/*poll the slave status
 	note: in fact, periodly poll is not needed
-	becase each vwplc will report its status in case of its status change
+	becase each fdplc will report its status in case of its status change
 	*/
 	static int poll_timer = 0;
 	if((poll_timer == 0) || (time_left(poll_timer) < 0)) {
 		poll_timer = time_get(500);
 
-		vw_txdat->target = 0;
-		vw_txdat->cmd = VW_CMD_POLL;
-		vw_txmsg.dlc = 2;
-		vwhost_can_send(&vw_txmsg);
+		fd_txdat->target = 0;
+		fd_txdat->cmd = FD_CMD_POLL;
+		fd_txmsg.dlc = 2;
+		fdhost_can_send(&fd_txmsg);
 	}
 #endif
 }
 
-void vw_init(void)
+void fd_init(void)
 {
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
-	memset(vwplc_uuid, 0x00, sizeof(vwplc_uuid));
-	memset(vw_rxmsg, 0x00, sizeof(vw_rxmsg));
-	memset(&vw_txmsg, 0x00, sizeof(vw_txmsg));
-	vw_txmsg.id = CAN_ID_HOST;
-	vw_txmsg.dlc = 8;
+	memset(fdplc_uuid, 0x00, sizeof(fdplc_uuid));
+	memset(fd_rxmsg, 0x00, sizeof(fd_rxmsg));
+	memset(&fd_txmsg, 0x00, sizeof(fd_txmsg));
+	fd_txmsg.id = CAN_ID_HOST;
+	fd_txmsg.dlc = 8;
 
-	vw_gpio_init();
-	vw_can->init(&cfg);
+	fd_gpio_init();
+	fd_can->init(&cfg);
 
 	/*!!! to usePreemptionPriority, group must be config first
 	systick priority !must! use  NVIC_SetPriority() to set
@@ -288,11 +285,11 @@ void main()
 {
 	sys_init();
 	//shell_mute(NULL);
-	vw_init();
-	printf("vwhost v1.x, build: %s %s\n\r", __DATE__, __TIME__);
+	fd_init();
+	printf("fdhost v1.x, build: %s %s\n\r", __DATE__, __TIME__);
 	while(1){
 		sys_update();
-		vw_update();
+		fd_update();
 	}
 }
 
@@ -302,15 +299,15 @@ int cmd_xxx_func(int argc, char *argv[])
 		"usage:\n"
 		"*IDN?		to read identification string\n"
 		"*RST		instrument reset\n"
-		"SAFE		poll vw_flag_safe\n"
-		"READ id		read (only) vwplc status, id = 1..9, 0=>any one last rx\n"
-		"POLL id		read then update vwplc status, id = 0..9, 0=>ALL\n"
+		"SAFE		poll fd_flag_safe\n"
+		"READ id		read (only) fdplc status, id = 1..9, 0=>any one last rx\n"
+		"POLL id		read then update fdplc status, id = 0..9, 0=>ALL\n"
 		"MOVE id msk img	move vplc 1-9 cylinders\n"
 		"TEST id sql_id	start test of unit 1-9\n"
-		"PASS id		debug, identical with cmd 'VWPLC PASS'\n"
-		"FAIL id		debug, identical with cmd 'VWPLC FAIL'\n"
+		"PASS id		debug, identical with cmd 'FDPLC PASS'\n"
+		"FAIL id		debug, identical with cmd 'FDPLC FAIL'\n"
 		"ENDC id		handshake with TEST_END signal\n"
-		"UUID [id]		query/read specific vwplc uuid\n"
+		"UUID [id]		query/read specific fdplc uuid\n"
 		"WDTY			enable test unit wdt function\n"
 		"WDTN			disable test unit wdt function\n"
 	};
@@ -323,11 +320,11 @@ int cmd_xxx_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(!strcmp(argv[0], "SAFE")) {
-		printf("<%+d\n", vw_flag_safe);
+		printf("<%+d\n", fd_flag_safe);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "UUTE")) { //bit mask
-		printf("<%+d\n", vw_flag_uute);
+		printf("<%+d\n", fd_flag_uute);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "READ")) {
@@ -338,21 +335,21 @@ int cmd_xxx_func(int argc, char *argv[])
 			n = sscanf(argv[1], "%d", &id);
 			if((n == 1) && (id >= 0) && (id <= 9)) {
 				__disable_irq();
-				for(i = 0; i < vw_rxmsg[id].dlc; i ++) {
-					v = vw_rxmsg[id].data[i];
+				for(i = 0; i < fd_rxmsg[id].dlc; i ++) {
+					v = fd_rxmsg[id].data[i];
 					bytes += sprintf(&hex[bytes], "%02x", v & 0xff);
 				}
 				__enable_irq();
 
-				bytes = vw_rxmsg[id].dlc;
+				bytes = fd_rxmsg[id].dlc;
 			}
 		}
 		else { //print status
 			msk = 0;
 			__disable_irq();
 			for(i = 0; i < 10; i ++) {
-				bytes += sprintf(&hex[bytes], "%d,", vw_rxmsg[i].dlc);
-				if(vw_rxmsg[i].dlc > 0) {
+				bytes += sprintf(&hex[bytes], "%d,", fd_rxmsg[i].dlc);
+				if(fd_rxmsg[i].dlc > 0) {
 					msk |= 1 << i;
 				}
 			}
@@ -376,10 +373,10 @@ int cmd_xxx_func(int argc, char *argv[])
 
 		if((n == 1) && (id >= 0) && (id <= 9)) {
 			//send poll req
-			vw_txdat->target = id;
-			vw_txdat->cmd = VW_CMD_POLL;
-			vw_txmsg.dlc = 2;
-			e = vwhost_can_send(&vw_txmsg);
+			fd_txdat->target = id;
+			fd_txdat->cmd = FD_CMD_POLL;
+			fd_txmsg.dlc = 2;
+			e = fdhost_can_send(&fd_txmsg);
 		}
 
 		const char *emsg = e ? "Error" : "OK";
@@ -396,12 +393,12 @@ int cmd_xxx_func(int argc, char *argv[])
 			else n += sscanf(argv[3], "%d", &img);
 
 			if((n == 3) && (id >= 0) && (id <= 9)) { //0=> all move
-				vw_txdat->target = id;
-				vw_txdat->cmd = VW_CMD_MOVE;
-				vw_txdat->img = (img >> 16) & 0xff;
-				vw_txdat->msk = (msk >> 16) & 0xff;
-				vw_txmsg.dlc = 8;
-				e = vwhost_can_send(&vw_txmsg);
+				fd_txdat->target = id;
+				fd_txdat->cmd = FD_CMD_MOVE;
+				fd_txdat->img = (img >> 16) & 0xff;
+				fd_txdat->msk = (msk >> 16) & 0xff;
+				fd_txmsg.dlc = 8;
+				e = fdhost_can_send(&fd_txmsg);
 			}
 		}
 
@@ -417,11 +414,11 @@ int cmd_xxx_func(int argc, char *argv[])
 			else n += sscanf(argv[2], "%d", &sql);
 
 			if((n == 2) && (id >= 1) && (id <= 9)) {
-				vw_txdat->target = id;
-				vw_txdat->cmd = VW_CMD_TEST;
-				vw_txdat->sql_id = sql;
-				vw_txmsg.dlc = 8;
-				e = vwhost_can_send(&vw_txmsg);
+				fd_txdat->target = id;
+				fd_txdat->cmd = FD_CMD_TEST;
+				fd_txdat->sql_id = sql;
+				fd_txmsg.dlc = 8;
+				e = fdhost_can_send(&fd_txmsg);
 			}
 		}
 
@@ -435,10 +432,10 @@ int cmd_xxx_func(int argc, char *argv[])
 			n = sscanf(argv[1], "%d", &id);
 
 			if((n == 1) && (id >= 1) && (id <= 9)) {
-				vw_txdat->target = id;
-				vw_txdat->cmd = VW_CMD_PASS;
-				vw_txmsg.dlc = 2;
-				e = vwhost_can_send(&vw_txmsg);
+				fd_txdat->target = id;
+				fd_txdat->cmd = FD_CMD_PASS;
+				fd_txmsg.dlc = 2;
+				e = fdhost_can_send(&fd_txmsg);
 			}
 		}
 
@@ -452,10 +449,10 @@ int cmd_xxx_func(int argc, char *argv[])
 			n = sscanf(argv[1], "%d", &id);
 
 			if((n == 1) && (id >= 1) && (id <= 9)) {
-				vw_txdat->target = id;
-				vw_txdat->cmd = VW_CMD_FAIL;
-				vw_txmsg.dlc = 2;
-				e = vwhost_can_send(&vw_txmsg);
+				fd_txdat->target = id;
+				fd_txdat->cmd = FD_CMD_FAIL;
+				fd_txmsg.dlc = 2;
+				e = fdhost_can_send(&fd_txmsg);
 			}
 		}
 
@@ -469,10 +466,10 @@ int cmd_xxx_func(int argc, char *argv[])
 			n = sscanf(argv[1], "%d", &id);
 
 			if((n == 1) && (id >= 1) && (id <= 9)) {
-				vw_txdat->target = id;
-				vw_txdat->cmd = VW_CMD_ENDC;
-				vw_txmsg.dlc = 2;
-				e = vwhost_can_send(&vw_txmsg);
+				fd_txdat->target = id;
+				fd_txdat->cmd = FD_CMD_ENDC;
+				fd_txmsg.dlc = 2;
+				e = fdhost_can_send(&fd_txmsg);
 			}
 		}
 
@@ -481,7 +478,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*IDN?")) {
-		printf("<+0, Ulicar Technology, vwhost V1.x,%s,%s\n\r", __DATE__, __TIME__);
+		printf("<+0, Ulicar Technology, fdhost V1.x,%s,%s\n\r", __DATE__, __TIME__);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "*RST")) {
@@ -492,31 +489,31 @@ int cmd_xxx_func(int argc, char *argv[])
 	else if(!strcmp(argv[0], "UUID")) {
 		if(argc > 1) {
 			id = atoi(argv[1]);
-			if((id > 0) && (id < 10)) printf("<%+d, vwplc#%d\n\r", vwplc_uuid[id], id);
-			else printf("<%+d, vwplc#%d\n\r", -1, id);
+			if((id > 0) && (id < 10)) printf("<%+d, fdplc#%d\n\r", fdplc_uuid[id], id);
+			else printf("<%+d, fdplc#%d\n\r", -1, id);
 		}
 		else { //query all the test unit
-			vw_txdat->target = 0;
-			vw_txdat->cmd = VW_CMD_UUID;
-			vw_txmsg.dlc = 2;
-			e = vwhost_can_send(&vw_txmsg);
+			fd_txdat->target = 0;
+			fd_txdat->cmd = FD_CMD_UUID;
+			fd_txmsg.dlc = 2;
+			e = fdhost_can_send(&fd_txmsg);
 			printf("<+0, No Error\n\r");
 		}
 		return 0;
 	}
 	else if(!strcmp(argv[0], "WDTY")) {
-		vw_txdat->target = 0;
-		vw_txdat->cmd = VW_CMD_WDTY;
-		vw_txmsg.dlc = 2;
-		e = vwhost_can_send(&vw_txmsg);
+		fd_txdat->target = 0;
+		fd_txdat->cmd = FD_CMD_WDTY;
+		fd_txmsg.dlc = 2;
+		e = fdhost_can_send(&fd_txmsg);
 		printf("<%+d, WDTY\n\r", e);
 		return 0;
 	}
 	else if(!strcmp(argv[0], "WDTN")) {
-		vw_txdat->target = 0;
-		vw_txdat->cmd = VW_CMD_WDTN;
-		vw_txmsg.dlc = 2;
-		e = vwhost_can_send(&vw_txmsg);
+		fd_txdat->target = 0;
+		fd_txdat->cmd = FD_CMD_WDTN;
+		fd_txmsg.dlc = 2;
+		e = fdhost_can_send(&fd_txmsg);
 		printf("<%+d, WDTY\n\r", e);
 		return 0;
 	}
