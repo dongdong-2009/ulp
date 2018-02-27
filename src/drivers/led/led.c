@@ -11,6 +11,7 @@ static time_t led_timer;
 static char flag_status; /*0->off/flash, 1->on*/
 static char flag_flash; /*1->flash*/
 static char flag_hwstatus; /*owned by led_update thread only*/
+static char flag_combine;
 
 #ifdef CONFIG_LED_ECODE
 static char led_ecode;
@@ -23,6 +24,7 @@ void led_Init(void)
 	flag_status = 0;
 	flag_flash = 0;
 	flag_hwstatus = 0;
+	flag_combine = 0;
 #ifdef CONFIG_LED_ECODE
 	led_ecode = 0;
 	led_estep = 0;
@@ -31,7 +33,7 @@ void led_Init(void)
 #if CONFIG_LED_HWDRV == 1
 	led_hwInit();
 #endif
-	led_flash(LED_GREEN);
+	led_flash(LED_SYS);
 }
 
 void led_Update(void)
@@ -45,10 +47,10 @@ void led_Update(void)
 	if(led_ecode != 0) { //ecode=2: 1110 10 10
 		led_timer = time_get(LED_ERROR_PERIOD);
 		if(led_estep < LED_ERROR_IDLE) {
-			flag_status &= ~(1 << LED_RED);
+			flag_status &= ~(1 << LED_ERR);
 		}
 		else {
-			flag_status ^= 1 << LED_RED;
+			flag_status ^= 1 << LED_ERR;
 		}
 		led_estep ++;
 		led_estep = (led_estep > (LED_ERROR_IDLE + 1 + 2 * (led_ecode - 1))) ? 0 : led_estep;
@@ -85,11 +87,36 @@ void led_Update_Immediate(void)
 	}
 }
 
+/*combine() method is used to auto turn off
+other led, such as: led_on(LED_R) will auto
+turn off LED_G and clear flash(LED_G)*/
+void led_combine(int mask)
+{
+	flag_combine = mask;
+}
+
+static void led_combine_process(led_t led)
+{
+	if(flag_combine & (1 << (int)led)) {
+		for(int i = 0; i < 32; i++) {
+			int mask = 1 << i;
+			if(flag_combine & mask) {
+				if(i != (int)led) {
+					/*clear turn on & flash effect*/
+					flag_status &= ~ mask;
+					flag_flash &= ~ mask;
+				}
+			}
+		}
+	}
+}
+
 void led_on(led_t led)
 {
 	int i = (int)led;
+	led_combine_process(led);
 #ifdef CONFIG_LED_ECODE
-	led_error(0);
+	if(led == LED_ERR) led_error(0);
 #endif
 
 #if CONFIG_LED_DUAL
@@ -97,8 +124,8 @@ void led_on(led_t led)
 	flag_status &= ~0x07;
 	flag_flash &= ~0x07;
 	if(led == LED_YELLOW) {
-		flag_status |= 1 << LED_RED;
-		flag_status |= 1 << LED_GREEN;
+		flag_status |= 1 << LED_ERR;
+		flag_status |= 1 << LED_SYS;
 	}
 	else
 #endif
@@ -106,15 +133,15 @@ void led_on(led_t led)
 		flag_status |= 1 << i;
 		flag_flash &= ~(1 << i);
 	}
-	led_Update_Immediate();
+	//led_Update_Immediate();
 }
 
 void led_off(led_t led)
 {
 	int i = (int)led;
-
+	led_combine_process(led);
 #ifdef CONFIG_LED_ECODE
-	led_error(0);
+	if(led == LED_ERR) led_error(0);
 #endif
 
 #if CONFIG_LED_DUAL
@@ -122,8 +149,8 @@ void led_off(led_t led)
 	flag_status &= ~0x07;
 	flag_flash &= ~0x07;
 	if(led == LED_YELLOW) {
-		flag_status &= ~(1 << LED_RED);
-		flag_status &= ~(1 << LED_GREEN);
+		flag_status &= ~(1 << LED_ERR);
+		flag_status &= ~(1 << LED_SYS);
 	}
 	else
 #endif
@@ -132,23 +159,23 @@ void led_off(led_t led)
 		flag_flash &= ~(1 << i);
 	}
 
-	led_hwSetStatus(led, LED_OFF);
+	//led_hwSetStatus(led, LED_OFF);
 }
 
 void led_inv(led_t led)
 {
 	int i = (int)led;
-
+	led_combine_process(led);
 #ifdef CONFIG_LED_ECODE
-	led_error(0);
+	if(led == LED_ERR) led_error(0);
 #endif
 
 #if CONFIG_LED_DUAL
 	flag_status &= ~(0x07 & (~(1 << i)));
 	flag_flash &= ~0x07;
 	if(led == LED_YELLOW) {
-		flag_status ^= 1 << LED_RED;
-		flag_status ^= 1 << LED_GREEN;
+		flag_status ^= 1 << LED_ERR;
+		flag_status ^= 1 << LED_SYS;
 	}
 	else
 #endif
@@ -156,23 +183,23 @@ void led_inv(led_t led)
 		flag_status ^= 1 << i;
 		flag_flash &= ~(1 << i);
 	}
-	led_Update_Immediate();
+	//led_Update_Immediate();
 }
 
 void led_flash(led_t led)
 {
 	int i = (int)led;
-
+	led_combine_process(led);
 #ifdef CONFIG_LED_ECODE
-	led_error(0);
+	if(led == LED_ERR) led_error(0);
 #endif
 
 #if CONFIG_LED_DUAL
 	flag_status &= ~(0x07 & (~(1 << i)));
 	flag_flash &= ~0x07;
 	if(led == LED_YELLOW) {
-		flag_flash |= 1 << LED_RED;
-		flag_flash |= 1 << LED_GREEN;
+		flag_flash |= 1 << LED_ERR;
+		flag_flash |= 1 << LED_SYS;
 	}
 	else
 #endif
@@ -185,24 +212,22 @@ void led_flash(led_t led)
 #ifdef CONFIG_LED_ECODE
 void led_error(int ecode)
 {
-	if(ecode) {
-#if CONFIG_LED_DUAL
-		flag_status &= ~0x07;
-		flag_flash &= ~0x07;
-#else
-		flag_status &= ~(1 << LED_RED);
-		flag_flash &= ~(1 << LED_RED);
-#endif
-	}
-
 	ecode = (ecode < 0) ? - ecode : ecode;
-#ifdef CONFIG_LED_ELATCH
-	//to flash new ecode, led_error(0) must be called first
-	if((ecode == 0) || (led_ecode == 0))
-#endif
-	{
+	if(ecode != led_ecode) {
 		led_ecode = (char) ecode;
 		led_estep = 0;
+
+		if(ecode) {
+			led_combine_process(LED_ERR);
+
+		#if CONFIG_LED_DUAL
+			flag_status &= ~0x07;
+			flag_flash &= ~0x07;
+		#else
+			flag_status &= ~(1 << LED_ERR);
+			flag_flash &= ~(1 << LED_ERR);
+		#endif
+		}
 	}
 }
 #endif
@@ -222,8 +247,8 @@ static int cmd_led_func(int argc, char *argv[])
 
 	if(argc == 3) {
 		led_t led = (led_t) atoi(argv[2]);
-		led = (argv[2][0] == 'r') ? LED_RED : led;
-		led = (argv[2][0] == 'g') ? LED_GREEN : led;
+		led = (argv[2][0] == 'r') ? LED_ERR : led;
+		led = (argv[2][0] == 'g') ? LED_SYS : led;
 		led = (argv[2][0] == 'y') ? LED_YELLOW : led;
 
 		switch(argv[1][2]) {

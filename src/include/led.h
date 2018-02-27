@@ -15,9 +15,22 @@
 #define LED_ERROR_IDLE		10
 
 typedef enum {
-	LED_GREEN = 0,
-	LED_RED,
-	LED_YELLOW,
+	LED_G,
+	LED_GREEN = LED_G,
+	LED_SYS = LED_G,
+
+	LED_R,
+	LED_RED = LED_R,
+	LED_ERR = LED_R,
+
+	LED_Y,
+	LED_YELLOW = LED_Y,
+
+	LED_EXT_R,
+	LED_EXT_G,
+	LED_EXT_Y,
+
+	LED_X,
 	NR_OF_LED
 } led_t;
 
@@ -26,9 +39,15 @@ typedef enum {
 	LED_ON
 } led_status_t;
 
+#define led_y led_on
+#define led_n led_off
+#define led_f led_flash
+#define led_e led_error
+
 void led_Init(void);
 void led_Update(void);
 void led_Update_Immediate(void);
+void led_combine(int mask);
 void led_on(led_t led);
 void led_off(led_t led);
 void led_inv(led_t led);

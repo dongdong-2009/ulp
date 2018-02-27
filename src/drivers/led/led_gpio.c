@@ -17,10 +17,10 @@ void led_hwSetStatus(led_t led, led_status_t status)
 
 	int yes = (status == LED_ON) ? 1 : 0;
 	switch(led) {
-	case LED_GREEN:
+	case LED_SYS:
 		if(gpio_led_g != GPIO_NONE) gpio_set_h(gpio_led_g, yes);
 		break;
-	case LED_RED:
+	case LED_ERR:
 		if(gpio_led_r != GPIO_NONE) gpio_set_h(gpio_led_r, yes);
 		break;
 	default:
