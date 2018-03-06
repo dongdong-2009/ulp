@@ -33,7 +33,8 @@
 #include "ulp/types.h"
 #include "i2c.h"
 
-#define CONFIG_SYS_I2C_EEPROM_ADDR_OVERFLOW 0xff
+#define CONFIG_SYS_I2C_EEPROM_ADDR_OVERFLOW 0x00
+static int i2c_hz = 100000;
 
 #if CONFIG_I2C_PINMAP_I2C2 == 1
 #include "stm32f10x.h"
@@ -112,7 +113,7 @@ static inline void I2C_INIT_FUNC(void) {
 #  define I2C_INIT do { I2C_INIT_FUNC();} while(0)
 
 # ifndef I2C_DELAY
-#  define I2C_DELAY udelay(5)	/* 1/4 I2C clock duration */
+#  define I2C_DELAY udelay(1000000/4/i2c_hz)	/* 1/4 I2C clock duration */
 # endif
 
 /*-----------------------------------------------------------------------
@@ -488,22 +489,30 @@ int  i2c_write(uchar chip, uint addr, int alen, const uchar *buffer, int len)
 
 static int i2c_soft_init(const i2c_cfg_t *cfg)
 {
+	i2c_hz = cfg->speed;
 	i2c_init(0, 0);
 	return 0;
 }
 
 static int i2c_soft_wbuf(uchar chip, uint addr, int alen, const uchar *buf, int len)
 {
-	return i2c_write(chip, addr, alen, buf, len);
+	return i2c_write(chip >> 1, addr, alen, buf, len);
 }
 
 static int i2c_soft_rbuf(uchar chip, uint addr, int alen, uchar *buf, int len)
 {
-	return i2c_read(chip, addr, alen, buf, len);
+	return i2c_read(chip >> 1, addr, alen, buf, len);
+}
+
+static int i2c_soft_WaitStandByState(unsigned char chip)
+{
+	while(i2c_probe(chip >> 1)); //busy
+	return 0;
 }
 
 i2c_bus_t i2cs = {
 	.init = i2c_soft_init,
 	.wbuf = i2c_soft_wbuf,
 	.rbuf = i2c_soft_rbuf,
+	.WaitStandByState = i2c_soft_WaitStandByState,
 };
