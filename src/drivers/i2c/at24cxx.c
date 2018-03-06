@@ -10,7 +10,7 @@ static int EEPROM_PAGE_SIZE = 8;
 void at24cxx_Init(at24cxx_t *chip)
 {
 	i2c_cfg_t cfg = {
-		100000,		//100K
+		10000,		//10K
 		NULL,
 	};
 	
@@ -102,25 +102,25 @@ int at24cxx_ReadBuffer(at24cxx_t *chip, unsigned char chip_addr, unsigned addr, 
 	return chip->bus->rbuf(chip_addr, addr, alen, buffer, len);
 }
 
-#if 0
+#if 1
+#include "ulp/sys.h"
+#include "ulp/ulib.h"
 #include "shell/cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 static at24cxx_t at24c02 = {
-	.bus = &i2c1,
+	.bus = &i2cs,
 	.page_size = 8,
 };
 
 static int cmd_at24cxx_func(int argc, char *argv[])
 {
-	unsigned char temp;
-
 	const char usage[] = { \
 		" usage:\n" \
-		" at24cxx write addr value, write reg \n" \
-		" at24cxx read addr, read reg\n" \
+		" at24 w addr string		addr = string\n" \
+		" at24 r addr [nbytes]		read nbytes from addr, default = 1 byte\n" \
 	};
 
 	if(argc < 2) {
@@ -128,20 +128,24 @@ static int cmd_at24cxx_func(int argc, char *argv[])
 		return 0;
 	}
 
-	if(!strcmp(argv[1], "init"))
-		at24cxx_Init(&at24c02);
+	int addr = atoi(argv[2]);
+	int alen = 1;
+	int size = 16;
+	char temp[16];
 
-	if (!strcmp(argv[1], "write")) {
-		at24cxx_WriteBuffer(&at24c02, 0xA0, atoi(argv[2]), 1, (unsigned char *)argv[3], sizeof(argv[3]));
+	at24cxx_Init(&at24c02);
+	if (!strcmp(argv[1], "w")) {
+		at24cxx_WriteBuffer(&at24c02, 0xA0, addr, alen, argv[3], strlen(argv[3]));
 	}
 
-	if (!strcmp(argv[1], "read")) {
-		at24cxx_ReadBuffer(&at24c02, 0xA0, atoi(argv[2]), 1, &temp, 1);
-		printf("%c = 0x%x\n",temp, temp);
+	if (!strcmp(argv[1], "r")) {
+		if(argc > 3) size = atoi(argv[3]);
+		at24cxx_ReadBuffer(&at24c02, 0xA0, addr, alen, temp, size);
+		hexdump("eeprom", temp, size);
 	}
 
 	return 0;
 }
-const cmd_t cmd_at24cxx = {"at24cxx", cmd_at24cxx_func, "at24cxx cmd"};
+const cmd_t cmd_at24cxx = {"at24", cmd_at24cxx_func, "at24cxx cmd"};
 DECLARE_SHELL_CMD(cmd_at24cxx)
 #endif
