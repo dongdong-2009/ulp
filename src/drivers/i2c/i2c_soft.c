@@ -494,17 +494,17 @@ static int i2c_soft_init(const i2c_cfg_t *cfg)
 	return 0;
 }
 
-static int i2c_soft_wbuf(uchar chip, uint addr, int alen, const uchar *buf, int len)
+static int i2c_soft_wbuf(char chip, int addr, int alen, const void *buf, int len)
 {
 	return i2c_write(chip >> 1, addr, alen, buf, len);
 }
 
-static int i2c_soft_rbuf(uchar chip, uint addr, int alen, uchar *buf, int len)
+static int i2c_soft_rbuf(char chip, int addr, int alen, void *buf, int len)
 {
 	return i2c_read(chip >> 1, addr, alen, buf, len);
 }
 
-static int i2c_soft_WaitStandByState(unsigned char chip)
+static int i2c_soft_WaitStandByState(char chip)
 {
 	while(i2c_probe(chip >> 1)); //busy
 	return 0;
