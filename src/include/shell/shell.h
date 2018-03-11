@@ -29,6 +29,12 @@
 #define CONFIG_SHELL_LEN_HIS_MAX 64
 #endif
 
+
+enum shell_status {
+	SHELL_STATUS_INIT,
+	SHELL_STATUS_RUN,
+};
+
 struct shell_s {
 	const struct console_s *console;
 

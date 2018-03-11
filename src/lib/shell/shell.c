@@ -80,6 +80,12 @@ void shell_Update(void)
 		shell = list_entry(pos, shell_s, list);
 #endif
 		if((shell->config & SHELL_CONFIG_LOCK) == 0) {
+			if(shell->status == SHELL_STATUS_INIT) { //first update
+				shell->status = SHELL_STATUS_RUN;
+				if(shell->prompt != NULL) {
+					shell_print("%s", shell->prompt);
+				}
+			}
 			console_set(shell -> console);
 			cmd_queue_update(&shell -> cmd_queue);
 			ok = shell_ReadLine(shell->prompt, NULL);
@@ -108,7 +114,7 @@ int shell_register(const struct console_s *console)
 	list_add(&shell -> list, &shell_queue);
 #endif
 	shell -> console = console;
-	shell -> status = 0;
+	shell -> status = SHELL_STATUS_INIT;
 	shell -> config = 0;
 	shell -> cmd_buffer[0] = 0;
 	shell -> cmd_idx = -1;
@@ -147,9 +153,6 @@ int shell_register(const struct console_s *console)
 	#endif
 	cmd_queue_exec(&shell -> cmd_queue, shell -> cmd_buffer);
 #endif
-	if(shell->prompt != NULL) {
-		shell_print("%s", shell->prompt);
-	}
 	console_set(NULL);
 	return 0;
 }
