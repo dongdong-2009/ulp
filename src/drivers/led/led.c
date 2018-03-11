@@ -8,10 +8,10 @@
 #include "ulp_time.h"
 
 static time_t led_timer;
-static char flag_status; /*0->off/flash, 1->on*/
-static char flag_flash; /*1->flash*/
-static char flag_hwstatus; /*owned by led_update thread only*/
-static char flag_combine;
+static int flag_status; /*0->off/flash, 1->on*/
+static int flag_flash; /*1->flash*/
+static int flag_hwstatus; /*owned by led_update thread only*/
+static int flag_combine;
 
 #ifdef CONFIG_LED_ECODE
 static char led_ecode;
@@ -108,6 +108,13 @@ static void led_combine_process(led_t led)
 				}
 			}
 		}
+
+		/*clear ecode effect*/
+		#ifdef CONFIG_LED_ECODE == 1
+		if(flag_combine & (1 << LED_ERR)) { //LED_ERR is in combine
+			led_error(0);
+		}
+		#endif
 	}
 }
 
@@ -214,20 +221,20 @@ void led_error(int ecode)
 {
 	ecode = (ecode < 0) ? - ecode : ecode;
 	if(ecode != led_ecode) {
-		led_ecode = (char) ecode;
-		led_estep = 0;
-
 		if(ecode) {
 			led_combine_process(LED_ERR);
 
-		#if CONFIG_LED_DUAL
+			#if CONFIG_LED_DUAL
 			flag_status &= ~0x07;
 			flag_flash &= ~0x07;
-		#else
+			#else
 			flag_status &= ~(1 << LED_ERR);
 			flag_flash &= ~(1 << LED_ERR);
-		#endif
+			#endif
 		}
+
+		led_ecode = (char) ecode;
+		led_estep = 0;
 	}
 }
 #endif
