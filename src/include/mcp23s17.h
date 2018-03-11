@@ -35,7 +35,7 @@ typedef struct {
 	int ck_mhz : 4; //0..9 MHz
 } mcp23s17_t;
 
-void mcp23s17_Init(const mcp23s17_t *chip);
+int mcp23s17_Init(const mcp23s17_t *chip);
 //data sequence like this: GPIOB in high byte, GIIOA in low byte
 int mcp23s17_WriteByte(const mcp23s17_t *chip, unsigned char addr, unsigned char data);
 int mcp23s17_ReadByte(const mcp23s17_t *chip, unsigned char addr, unsigned char *pdata);
