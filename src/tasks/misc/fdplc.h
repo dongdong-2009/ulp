@@ -11,6 +11,10 @@
 #define CAN_ID_HOST 0x100 //0x101..120 is test unit
 #define CAN_ID_UNIT(N) (CAN_ID_HOST + (N))
 
+#define FD_NPLC 12
+#define FD_SCAN_MS 1200
+#define FD_ALIVE_MS (FD_SCAN_MS << 1)
+
 typedef enum {
 	FDCMD_POLL, //host: cmd -> slave: response status
 	FDCMD_SCAN, //host: cmd+rsel+csel
@@ -21,7 +25,7 @@ typedef enum {
 	//only for debug purpose, do not use it normal testing!!!!
 	FDCMD_PASS, //host: cmd, identical with cmd "TEST PASS"
 	FDCMD_FAIL, //host: cmd, identical with cmd "TEST FAIL"
-	//FDCMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
+	FDCMD_ENDC, //host: cmd, clear test_end request, indicates all cyl has been released
 	FDCMD_WDTY, //host: cmd, enable test unit wdt
 	FDCMD_WDTN, //host: cmd, disable test unit wdt
 	FDCMD_UUID, //host: cmd, query fdplc board uuid
@@ -48,6 +52,8 @@ typedef struct {
 	unsigned model: 8;  //fixture model type
 	unsigned pushed : 16; //probe counter, low 16bit
 	unsigned sensors; //bit31: end, bit30: ng, bit29
+	#define FDRPT_MASK_UUTE (1 << 01) //!!! 'UE'
+	#define FDRPT_MASK_SM_N (1 << 17) //!!! 'SM-'
 	#define FDRPT_MASK_TEND (1 << 31)
 	#define FDRPT_MASK_TNGD (1 << 30)
 	#define FDRPT_MASK_TDBG (1 << 29) //teststand is in offline test mode
