@@ -57,13 +57,25 @@ static fdplc_eeprom_t fdplc_eeprom;
 static int led_r, led_g, led_x;
 static int ext_r, ext_g, ext_y;
 
+//for fdiox board dynamic detection
 static const unsigned char fdiox_magic = 0xca; //1100 1010
 static const unsigned char fdiox_mask = 0xfe; //lsb is used by led_x
 
 #define fdmdl_list_size (sizeof(fdmdl_list) / sizeof(fdmdl_list[0]))
 #define fdplc_model_is_valid(model) (model < fdmdl_list_size)
-
 static const fdmdl_t fdmdl_list[] = FDMDL_LIST;
+
+static int fdplc_w_img;
+static int fdplc_w_msk;
+
+/*delayed write, todo gpio access always in main thread*/
+static void fdplc_wimg(int img, int msk)
+{
+	fdplc_w_msk |= msk;
+	fdplc_w_img &= ~ msk;
+	fdplc_w_img |= img & msk;
+	//gpio_wimg(img, msk);
+}
 
 static int fdplc_eeprom_save(int bytes)
 {
@@ -233,12 +245,6 @@ void fdplc_on_event(fdplc_event_t event)
 	__enable_irq();
 }
 
-static void fdplc_wimg(int msk, int img)
-{
-	//only CM+/CM-/CC/CR/... valves support move by can
-	gpio_wimg(img, msk & (0x03ff << 18));
-}
-
 static int fdplc_rimg(void)
 {
 	/*include all plc & iox valves and its sensors
@@ -396,6 +402,8 @@ void fdplc_init(void)
 	fdplc_status.ecode = 0;
 	fdplc_id_assign = 0;
 	fdplc_sensors = fdplc_rimg();
+	fdplc_w_img = 0;
+	fdplc_w_msk = 0;
 
 	//indicator init
 	led_combine((1<<LED_EXT_R)|(1<<LED_EXT_G)|(1<<LED_EXT_Y)|(1 << LED_ERR));
@@ -497,11 +505,22 @@ void fdplc_update(void)
 	//report status to local front panel display
 	fdplc_status_update();
 
-	//report status to remote fdhost
-	__disable_irq();
-	int sensors = fdplc_rimg();
-	__enable_irq();
+	//wimg for valves
+	if(fdplc_w_msk) {
+		int msk, img;
+		__disable_irq();
+		msk = fdplc_w_msk;
+		img = fdplc_w_img;
+		fdplc_w_msk = 0;
+		fdplc_w_img = 0;
+		__enable_irq();
+		gpio_wimg(img, msk);
+	}
 
+	//rimg for valves/sensors
+	int sensors = fdplc_rimg();
+
+	//report status to remote fdhost
 	int delta = sensors ^ fdplc_sensors;
 	if(delta) {
 		fdplc_sensors = sensors;
@@ -608,7 +627,7 @@ static int cmd_fdplc_func(int argc, char *argv[])
 			if((argv[3][1] == 'x') || (argv[3][1] == 'X')) n += sscanf(argv[3], "%x", &img);
 			else n += sscanf(argv[3], "%d", &img);
 			if(n == 2) {
-				fdplc_wimg(msk, img);
+				fdplc_wimg(img, msk);
 				printf("<%+d, OK\n", 0);
 			}
 		}
