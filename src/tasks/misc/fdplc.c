@@ -60,18 +60,10 @@ static int ext_r, ext_g, ext_y;
 static const unsigned char fdiox_magic = 0xca; //1100 1010
 static const unsigned char fdiox_mask = 0xfe; //lsb is used by led_x
 
-#define fdplc_fixture_list_size (sizeof(fdplc_fixture_list) / sizeof(fdplc_fixture_list[0]))
-#define fdplc_model_is_valid(model) ((model >= 0) && (model < fdplc_fixture_list_size))
-static const struct {
-	unsigned model : 8;
-	const char *customer;
-	const char *product;
-} fdplc_fixture_list[] = {
-	{.model = 0, .customer = "Renault", .product = "aux-hub"},
-	{.model = 1, .customer = "Renault", .product = "dual-charge"},
-	{.model = 2, .customer = "Ford", .product = "micro-1usb"},
-	{.model = 3, .customer = "Ford", .product = "micro-2usb"},
-};
+#define fdmdl_list_size (sizeof(fdmdl_list) / sizeof(fdmdl_list[0]))
+#define fdplc_model_is_valid(model) (model < fdmdl_list_size)
+
+static const fdmdl_t fdmdl_list[] = FDMDL_LIST;
 
 static int fdplc_eeprom_save(int bytes)
 {
@@ -431,8 +423,8 @@ void fdplc_init(void)
 	const char *customer = "invalid";
 	const char *product = "invalid";
 	if(fdplc_model_is_valid(model)) {
-		customer = fdplc_fixture_list[model].customer;
-		product = fdplc_fixture_list[model].product;
+		customer = fdmdl_list[model].customer;
+		product = fdmdl_list[model].product;
 	}
 
 	printf("fdplc_eeprom.magic = 0x%04x\n", fdplc_eeprom.magic);
@@ -556,14 +548,6 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 	}
 }
 
-/*callback @sys_assert*/
-void __sys_error(const char *file, int line, const char *function)
-{
-	if(!strcmp(function, "mcp23s17_Init")) {
-		fdplc_on_event(FDPLC_EVENT_FAIL_MCP);
-	}
-}
-
 static int cmd_fdplc_func(int argc, char *argv[])
 {
 	const char *usage = {
@@ -653,9 +637,9 @@ static int cmd_fixture_func(int argc, char *argv[])
 	}
 
 	if(!strcmp(argv[1], "LIST")) {
-		printf("<%+02d, fixture_list_size = %d\n", fdplc_fixture_list_size, fdplc_fixture_list_size);
-		for(int i = 0; i < fdplc_fixture_list_size; i ++) {
-			printf("<%+02d, %s \"%s\"\n", i, fdplc_fixture_list[i].customer, fdplc_fixture_list[i].product);
+		printf("<%+02d, fixture_list_size = %d\n", fdmdl_list_size, fdmdl_list_size);
+		for(int i = 0; i < fdmdl_list_size; i ++) {
+			printf("<%+02d, %s \"%s\"\n", i, fdmdl_list[i].customer, fdmdl_list[i].product);
 		}
 		return 0;
 	}
@@ -664,8 +648,8 @@ static int cmd_fixture_func(int argc, char *argv[])
 		const char *customer = "invalid";
 		const char *product = "invalid";
 		if(fdplc_model_is_valid(model)) {
-			customer = fdplc_fixture_list[model].customer;
-			product = fdplc_fixture_list[model].product;
+			customer = fdmdl_list[model].customer;
+			product = fdmdl_list[model].product;
 		}
 
 		printf("<%+d, %s %s\n", model, customer, product);
@@ -686,9 +670,9 @@ static int cmd_fixture_func(int argc, char *argv[])
 	}
 	else if(argc == 3) {
 		int model = -1;
-		for(int i = 0; i < fdplc_fixture_list_size; i ++) {
-			int mismatch = strcmp(argv[1], fdplc_fixture_list[i].customer);
-			if(!mismatch) mismatch = strcmp(argv[2], fdplc_fixture_list[i].product);
+		for(int i = 0; i < fdmdl_list_size; i ++) {
+			int mismatch = strcmp(argv[1], fdmdl_list[i].customer);
+			if(!mismatch) mismatch = strcmp(argv[2], fdmdl_list[i].product);
 			if(!mismatch) {
 				model = i;
 				break;
