@@ -107,8 +107,8 @@ void __sys_init(void)
 	//index 08-15, iox sensors
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PB00, SB+) //IOX-IN09
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PB01, SB-) //IOX-IN10
-	GPIO_BIND_INV(GPIO_IPU, mcp0:PB02, S11) //IOX-IN11
-	GPIO_BIND_INV(GPIO_IPU, mcp0:PB03, S12) //IOX-IN12
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB02, SA+) //IOX-IN11
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB03, SA-) //IOX-IN12
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PB04, S13) //IOX-IN13
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PB05, S14) //IOX-IN14
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PB06, S15) //IOX-IN15
@@ -137,7 +137,7 @@ void __sys_init(void)
 	GPIO_BIND(GPIO_PP0, mcp1:PA01, CR) //IOX-OUT02
 	GPIO_BIND(GPIO_PP0, mcp1:PA02, CF) //IOX-OUT03
 	GPIO_BIND(GPIO_PP0, mcp1:PA03, CB) //IOX-OUT04
-	GPIO_BIND(GPIO_PP0, mcp1:PA04, C5) //IOX-OUT05
+	GPIO_BIND(GPIO_PP0, mcp1:PA04, CA) //IOX-OUT05
 	GPIO_BIND(GPIO_PP0, mcp1:PA05, C6) //IOX-OUT06
 	GPIO_BIND(GPIO_PP0, mcp1:PA06, C7) //IOX-OUT07
 	GPIO_BIND(GPIO_PP0, mcp1:PA07, C8) //IOX-OUT08
@@ -204,6 +204,10 @@ void fdplc_on_event(fdplc_event_t event)
 		fdplc_status.wdt_y = 1;
 		fdplc_status.ecode &= ~(1 << FDPLC_E_WDT);
 		fdplc_wdt = time_get(FDPLC_WDT_MS);
+		break;
+	case FDPLC_EVENT_ASSIGN:
+		fdplc_status.assigned = 1;
+		break;
 	case FDPLC_EVENT_PASS:
 		fdplc_status.test_ng = 0;
 		fdplc_status.test_end = 1;
@@ -282,7 +286,7 @@ static void fdplc_can_handler(void)
 	case FDCMD_SCAN:
 		rsel = gpio_get_h(fdplc_gpio_rsel);
 		csel = gpio_get_h(fdplc_gpio_csel);
-		if((rsel == 0) && (csel == 0)) {
+		if((rsel == 1) && (csel == 1)) {
 			fdplc_id_assign = fdplc_rxdat->dst;
 			fdplc_txmsg.id = CAN_ID_UNIT(fdplc_id_assign);
 			fdplc_txmsg.dlc = 8;
@@ -301,9 +305,24 @@ static void fdplc_can_handler(void)
 		break;
 
 	case FDCMD_MOVE:
-		img = fdplc_rxdat->move.img;
-		msk = fdplc_rxdat->move.msk;
-		fdplc_wimg(msk << 18, img << 18); //18 => index@CM+
+		//18 => index@CM+, right shifted by fdhost inside cmd move
+		img = fdplc_rxdat->move.img << 18;
+		msk = fdplc_rxdat->move.msk << 18;
+		//specifical process for CM+/CM-
+		//pls always ctrl CM+
+		#define MSK_CMP (1 << 18) //CM+
+		#define MSK_CMN (1 << 19) //CM-
+		if(msk & MSK_CMP) {
+			msk |= MSK_CMN;
+			img &= ~ MSK_CMN;
+			img |= (img & MSK_CMP) ? 0 : MSK_CMN;
+		}
+		else if(msk & MSK_CMN) {
+			msk |= MSK_CMP;
+			img &= ~ MSK_CMP;
+			img |= (img & MSK_CMN) ? 0 : MSK_CMP;
+		}
+		fdplc_wimg(msk, img);
 		break;
 
 	case FDCMD_TEST:
@@ -487,7 +506,10 @@ void fdplc_update(void)
 	fdplc_status_update();
 
 	//report status to remote fdhost
+	__disable_irq();
 	int sensors = fdplc_rimg();
+	__enable_irq();
+
 	int delta = sensors ^ fdplc_sensors;
 	if(delta) {
 		fdplc_sensors = sensors;
