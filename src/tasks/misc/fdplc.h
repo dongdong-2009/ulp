@@ -15,6 +15,18 @@
 #define FD_SCAN_MS 1200
 #define FD_ALIVE_MS (FD_SCAN_MS << 1)
 
+typedef struct {
+	const char *customer;
+	const char *product;
+} fdmdl_t;
+
+#define FDMDL_LIST { \
+	{.customer = "Ford", .product = "micro-1usb"}, \
+	{.customer = "Ford", .product = "micro-2usb"}, \
+	{.customer = "Renault", .product = "aux-hub"}, \
+	{.customer = "Renault", .product = "dual-charge"}, \
+}
+
 typedef enum {
 	FDCMD_POLL, //host: cmd -> slave: response status
 	FDCMD_SCAN, //host: cmd+rsel+csel

@@ -57,21 +57,25 @@ static fdplc_eeprom_t fdplc_eeprom;
 static int led_r, led_g, led_x;
 static int ext_r, ext_g, ext_y;
 
+//for fdiox board dynamic detection
 static const unsigned char fdiox_magic = 0xca; //1100 1010
 static const unsigned char fdiox_mask = 0xfe; //lsb is used by led_x
 
-#define fdplc_fixture_list_size (sizeof(fdplc_fixture_list) / sizeof(fdplc_fixture_list[0]))
-#define fdplc_model_is_valid(model) ((model >= 0) && (model < fdplc_fixture_list_size))
-static const struct {
-	unsigned model : 8;
-	const char *customer;
-	const char *product;
-} fdplc_fixture_list[] = {
-	{.model = 0, .customer = "Renault", .product = "aux-hub"},
-	{.model = 1, .customer = "Renault", .product = "dual-charge"},
-	{.model = 2, .customer = "Ford", .product = "micro-1usb"},
-	{.model = 3, .customer = "Ford", .product = "micro-2usb"},
-};
+#define fdmdl_list_size (sizeof(fdmdl_list) / sizeof(fdmdl_list[0]))
+#define fdplc_model_is_valid(model) (model < fdmdl_list_size)
+static const fdmdl_t fdmdl_list[] = FDMDL_LIST;
+
+static int fdplc_w_img;
+static int fdplc_w_msk;
+
+/*delayed write, todo gpio access always in main thread*/
+static void fdplc_wimg(int img, int msk)
+{
+	fdplc_w_msk |= msk;
+	fdplc_w_img &= ~ msk;
+	fdplc_w_img |= img & msk;
+	//gpio_wimg(img, msk);
+}
 
 static int fdplc_eeprom_save(int bytes)
 {
@@ -107,8 +111,8 @@ void __sys_init(void)
 	//index 08-15, iox sensors
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PB00, SB+) //IOX-IN09
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PB01, SB-) //IOX-IN10
-	GPIO_BIND_INV(GPIO_IPU, mcp0:PB02, S11) //IOX-IN11
-	GPIO_BIND_INV(GPIO_IPU, mcp0:PB03, S12) //IOX-IN12
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB02, SA+) //IOX-IN11
+	GPIO_BIND_INV(GPIO_IPU, mcp0:PB03, SA-) //IOX-IN12
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PB04, S13) //IOX-IN13
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PB05, S14) //IOX-IN14
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PB06, S15) //IOX-IN15
@@ -137,7 +141,7 @@ void __sys_init(void)
 	GPIO_BIND(GPIO_PP0, mcp1:PA01, CR) //IOX-OUT02
 	GPIO_BIND(GPIO_PP0, mcp1:PA02, CF) //IOX-OUT03
 	GPIO_BIND(GPIO_PP0, mcp1:PA03, CB) //IOX-OUT04
-	GPIO_BIND(GPIO_PP0, mcp1:PA04, C5) //IOX-OUT05
+	GPIO_BIND(GPIO_PP0, mcp1:PA04, CA) //IOX-OUT05
 	GPIO_BIND(GPIO_PP0, mcp1:PA05, C6) //IOX-OUT06
 	GPIO_BIND(GPIO_PP0, mcp1:PA06, C7) //IOX-OUT07
 	GPIO_BIND(GPIO_PP0, mcp1:PA07, C8) //IOX-OUT08
@@ -204,6 +208,10 @@ void fdplc_on_event(fdplc_event_t event)
 		fdplc_status.wdt_y = 1;
 		fdplc_status.ecode &= ~(1 << FDPLC_E_WDT);
 		fdplc_wdt = time_get(FDPLC_WDT_MS);
+		break;
+	case FDPLC_EVENT_ASSIGN:
+		fdplc_status.assigned = 1;
+		break;
 	case FDPLC_EVENT_PASS:
 		fdplc_status.test_ng = 0;
 		fdplc_status.test_end = 1;
@@ -235,12 +243,6 @@ void fdplc_on_event(fdplc_event_t event)
 		break;
 	}
 	__enable_irq();
-}
-
-static void fdplc_wimg(int msk, int img)
-{
-	//only CM+/CM-/CC/CR/... valves support move by can
-	gpio_wimg(img, msk & (0x03ff << 18));
 }
 
 static int fdplc_rimg(void)
@@ -282,7 +284,7 @@ static void fdplc_can_handler(void)
 	case FDCMD_SCAN:
 		rsel = gpio_get_h(fdplc_gpio_rsel);
 		csel = gpio_get_h(fdplc_gpio_csel);
-		if((rsel == 0) && (csel == 0)) {
+		if((rsel == 1) && (csel == 1)) {
 			fdplc_id_assign = fdplc_rxdat->dst;
 			fdplc_txmsg.id = CAN_ID_UNIT(fdplc_id_assign);
 			fdplc_txmsg.dlc = 8;
@@ -301,9 +303,10 @@ static void fdplc_can_handler(void)
 		break;
 
 	case FDCMD_MOVE:
-		img = fdplc_rxdat->move.img;
-		msk = fdplc_rxdat->move.msk;
-		fdplc_wimg(msk << 18, img << 18); //18 => index@CM+
+		//18 => index@CM+, right shifted by fdhost inside cmd move
+		img = fdplc_rxdat->move.img << 18;
+		msk = fdplc_rxdat->move.msk << 18;
+		fdplc_wimg(img, msk);
 		break;
 
 	case FDCMD_TEST:
@@ -352,6 +355,31 @@ static void fdplc_can_handler(void)
 	}
 }
 
+static int fdplc_on_set_CMp(const gpio_t *gpio, int high)
+{
+	if(high) {
+		gpio_set("CM-", 0);
+	}
+	return 0;
+}
+
+static int fdplc_on_set_CMn(const gpio_t *gpio, int high)
+{
+	if(high) {
+		gpio_set("CM+", 0);
+	}
+	return 0;
+}
+
+static int fdplc_on_set_CF(const gpio_t *gpio, int high)
+{
+	if(high) {
+		fdplc_eeprom.pushed += 1;
+		fdplc_eeprom_save(sizeof(fdplc_eeprom.pushed));
+	}
+	return 0;
+}
+
 void fdplc_init(void)
 {
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
@@ -385,10 +413,16 @@ void fdplc_init(void)
 	fdplc_status.ecode = 0;
 	fdplc_id_assign = 0;
 	fdplc_sensors = fdplc_rimg();
+	fdplc_w_img = 0;
+	fdplc_w_msk = 0;
 
 	//indicator init
 	led_combine((1<<LED_EXT_R)|(1<<LED_EXT_G)|(1<<LED_EXT_Y)|(1 << LED_ERR));
 	led_flash(LED_X);
+
+	gpio_on_set("CM+", fdplc_on_set_CMp);
+	gpio_on_set("CM-", fdplc_on_set_CMn);
+	gpio_on_set("CF", fdplc_on_set_CF);
 
 	//global status
 	fdplc_on_event(FDPLC_EVENT_INIT);
@@ -412,8 +446,8 @@ void fdplc_init(void)
 	const char *customer = "invalid";
 	const char *product = "invalid";
 	if(fdplc_model_is_valid(model)) {
-		customer = fdplc_fixture_list[model].customer;
-		product = fdplc_fixture_list[model].product;
+		customer = fdmdl_list[model].customer;
+		product = fdmdl_list[model].product;
 	}
 
 	printf("fdplc_eeprom.magic = 0x%04x\n", fdplc_eeprom.magic);
@@ -486,8 +520,22 @@ void fdplc_update(void)
 	//report status to local front panel display
 	fdplc_status_update();
 
-	//report status to remote fdhost
+	//wimg for valves
+	if(fdplc_w_msk) {
+		int msk, img;
+		__disable_irq();
+		msk = fdplc_w_msk;
+		img = fdplc_w_img;
+		fdplc_w_msk = 0;
+		fdplc_w_img = 0;
+		__enable_irq();
+		gpio_wimg(img, msk);
+	}
+
+	//rimg for valves/sensors
 	int sensors = fdplc_rimg();
+
+	//report status to remote fdhost
 	int delta = sensors ^ fdplc_sensors;
 	if(delta) {
 		fdplc_sensors = sensors;
@@ -531,14 +579,6 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 	CAN_ClearITPendingBit(CAN1, CAN_IT_FMP0);
 	while(!fdplc_can->recv(&fdplc_rxmsg)) {
 		fdplc_can_handler();
-	}
-}
-
-/*callback @sys_assert*/
-void __sys_error(const char *file, int line, const char *function)
-{
-	if(!strcmp(function, "mcp23s17_Init")) {
-		fdplc_on_event(FDPLC_EVENT_FAIL_MCP);
 	}
 }
 
@@ -602,7 +642,7 @@ static int cmd_fdplc_func(int argc, char *argv[])
 			if((argv[3][1] == 'x') || (argv[3][1] == 'X')) n += sscanf(argv[3], "%x", &img);
 			else n += sscanf(argv[3], "%d", &img);
 			if(n == 2) {
-				fdplc_wimg(msk, img);
+				fdplc_wimg(img, msk);
 				printf("<%+d, OK\n", 0);
 			}
 		}
@@ -631,9 +671,9 @@ static int cmd_fixture_func(int argc, char *argv[])
 	}
 
 	if(!strcmp(argv[1], "LIST")) {
-		printf("<%+02d, fixture_list_size = %d\n", fdplc_fixture_list_size, fdplc_fixture_list_size);
-		for(int i = 0; i < fdplc_fixture_list_size; i ++) {
-			printf("<%+02d, %s \"%s\"\n", i, fdplc_fixture_list[i].customer, fdplc_fixture_list[i].product);
+		printf("<%+02d, fixture_list_size = %d\n", fdmdl_list_size, fdmdl_list_size);
+		for(int i = 0; i < fdmdl_list_size; i ++) {
+			printf("<%+02d, %s \"%s\"\n", i, fdmdl_list[i].customer, fdmdl_list[i].product);
 		}
 		return 0;
 	}
@@ -642,8 +682,8 @@ static int cmd_fixture_func(int argc, char *argv[])
 		const char *customer = "invalid";
 		const char *product = "invalid";
 		if(fdplc_model_is_valid(model)) {
-			customer = fdplc_fixture_list[model].customer;
-			product = fdplc_fixture_list[model].product;
+			customer = fdmdl_list[model].customer;
+			product = fdmdl_list[model].product;
 		}
 
 		printf("<%+d, %s %s\n", model, customer, product);
@@ -664,9 +704,9 @@ static int cmd_fixture_func(int argc, char *argv[])
 	}
 	else if(argc == 3) {
 		int model = -1;
-		for(int i = 0; i < fdplc_fixture_list_size; i ++) {
-			int mismatch = strcmp(argv[1], fdplc_fixture_list[i].customer);
-			if(!mismatch) mismatch = strcmp(argv[2], fdplc_fixture_list[i].product);
+		for(int i = 0; i < fdmdl_list_size; i ++) {
+			int mismatch = strcmp(argv[1], fdmdl_list[i].customer);
+			if(!mismatch) mismatch = strcmp(argv[2], fdmdl_list[i].product);
 			if(!mismatch) {
 				model = i;
 				break;
