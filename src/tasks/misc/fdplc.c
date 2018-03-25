@@ -306,21 +306,7 @@ static void fdplc_can_handler(void)
 		//18 => index@CM+, right shifted by fdhost inside cmd move
 		img = fdplc_rxdat->move.img << 18;
 		msk = fdplc_rxdat->move.msk << 18;
-		//specifical process for CM+/CM-
-		//pls always ctrl CM+
-		#define MSK_CMP (1 << 18) //CM+
-		#define MSK_CMN (1 << 19) //CM-
-		if(msk & MSK_CMP) {
-			msk |= MSK_CMN;
-			img &= ~ MSK_CMN;
-			img |= (img & MSK_CMP) ? 0 : MSK_CMN;
-		}
-		else if(msk & MSK_CMN) {
-			msk |= MSK_CMP;
-			img &= ~ MSK_CMP;
-			img |= (img & MSK_CMN) ? 0 : MSK_CMP;
-		}
-		fdplc_wimg(msk, img);
+		fdplc_wimg(img, msk);
 		break;
 
 	case FDCMD_TEST:
@@ -369,6 +355,31 @@ static void fdplc_can_handler(void)
 	}
 }
 
+static int fdplc_on_set_CMp(const gpio_t *gpio, int high)
+{
+	if(high) {
+		gpio_set("CM-", 0);
+	}
+	return 0;
+}
+
+static int fdplc_on_set_CMn(const gpio_t *gpio, int high)
+{
+	if(high) {
+		gpio_set("CM+", 0);
+	}
+	return 0;
+}
+
+static int fdplc_on_set_CF(const gpio_t *gpio, int high)
+{
+	if(high) {
+		fdplc_eeprom.pushed += 1;
+		fdplc_eeprom_save(sizeof(fdplc_eeprom.pushed));
+	}
+	return 0;
+}
+
 void fdplc_init(void)
 {
 	const can_cfg_t cfg = {.baud = CAN_BAUD, .silent = 0};
@@ -408,6 +419,10 @@ void fdplc_init(void)
 	//indicator init
 	led_combine((1<<LED_EXT_R)|(1<<LED_EXT_G)|(1<<LED_EXT_Y)|(1 << LED_ERR));
 	led_flash(LED_X);
+
+	gpio_on_set("CM+", fdplc_on_set_CMp);
+	gpio_on_set("CM-", fdplc_on_set_CMn);
+	gpio_on_set("CF", fdplc_on_set_CF);
 
 	//global status
 	fdplc_on_event(FDPLC_EVENT_INIT);
