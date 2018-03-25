@@ -11,7 +11,6 @@ if [ "$CONFIG_DRIVER_LED" = "y" ]; then
 	bool "enable led obsolete driver" CONFIG_LED_HWDRV
 	int 'LED Module Update Period(mS)' CONFIG_LED_UPDATE_MS 1000
 	bool "led error code function" CONFIG_LED_ECODE
-	bool "led error code latch(for nest)" CONFIG_LED_LATCH
 	bool "dual color led function" CONFIG_LED_DUAL
 	bool "led debug cmd" CONFIG_LED_CMD
 fi
