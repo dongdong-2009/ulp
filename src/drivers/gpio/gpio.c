@@ -106,6 +106,7 @@ int gpio_bind(int mode, const char *bind, const char *name)
 	gpio->name = name;
 	gpio->bind = bind;
 	gpio->mode = mode;
+	gpio->cb_on_set = NULL;
 
 #if CONFIG_GPIO_FILTER == 1
 	debounce_t_init(&gpio->gfilt, 0, 0);
@@ -122,13 +123,30 @@ int gpio_filt(const char *name, int ms)
 	gpio_t *gpio = name_search(name);
 	if(gpio != NULL) {
 		debounce_t_init(&gpio->gfilt, ms, 0);
+		ecode = 0;
 	}
 	return ecode;
 }
 #endif
 
+int gpio_on_set(const char *name, int (*cb)(const gpio_t *gpio, int high))
+{
+	int ecode = -1;
+	gpio_t *gpio = name_search(name);
+	if(gpio != NULL) {
+		gpio->cb_on_set = cb;
+		ecode = 0;
+	}
+	return ecode;
+}
+
 static int gpio_set_hw(gpio_t *gpio, int high)
 {
+	if(gpio->cb_on_set != NULL) {
+		int ecode = gpio->cb_on_set(gpio, high);
+		if(ecode) return -1;
+	}
+
 	const gpio_drv_t *driver = gpio->drv;
 	gpio->high = high;
 	return driver->set(gpio, high ^ gpio->invt);

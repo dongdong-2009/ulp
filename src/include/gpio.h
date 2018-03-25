@@ -7,6 +7,20 @@
 
 #include "common/debounce.h"
 
+typedef struct gpio_s {
+	const void *drv;
+	const char *name; //"LED_RED"
+	const char *bind; //"PA0" or "PB10" or "mcp0:PA0"
+	unsigned mode : 8;
+	unsigned high : 1; //mirror register for gpio_inv()
+	unsigned invt : 1; //inverted polar
+
+#if CONFIG_GPIO_FILTER == 1
+	struct debounce_s gfilt;
+#endif
+	int (*cb_on_set)(const struct gpio_s *gpio, int high);
+} gpio_t;
+
 /*
 gpio is named as: PA0 port A, pin 0 note:
 PA1 == PA01 == PA001 == PA0001
@@ -40,7 +54,12 @@ enum {
 //bind := "PA0" or "PB10", return handle in case no error
 int gpio_bind(int mode, const char *bind, const char *name);
 int gpio_bind_inv(int mode, const char *bind, const char *name);
-int gpio_filt(const char *name, int ms); //filt the pulse widht <ms, 0 = disable
+
+//filt the pulse widht <ms, 0 = disable
+int gpio_filt(const char *name, int ms);
+
+//add the callback before the gpio output level change, NULL to disable
+int gpio_on_set(const char *name, int (*cb)(const gpio_t *gpio, int high));
 
 int gpio_set(const char *name, int high);
 int gpio_get(const char *name);
@@ -76,19 +95,6 @@ void main(void) {
 */
 
 //priv
-typedef struct {
-	const void *drv;
-	const char *name; //"LED_RED"
-	const char *bind; //"PA0" or "PB10" or "mcp0:PA0"
-	unsigned mode : 8;
-	unsigned high : 1; //mirror register for gpio_inv()
-	unsigned invt : 1; //inverted polar
-
-#if CONFIG_GPIO_FILTER == 1
-	struct debounce_s gfilt;
-#endif
-} gpio_t;
-
 typedef struct gpio_drv_s {
 	const char *name;
 	const char *bind;
