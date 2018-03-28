@@ -67,6 +67,7 @@ static const fdmdl_t fdmdl_list[] = FDMDL_LIST;
 
 static int fdplc_w_img;
 static int fdplc_w_msk;
+static int fdplc_remote_counter_reset = 0;
 
 /*delayed write, todo gpio access always in main thread*/
 static void fdplc_wimg(int img, int msk)
@@ -87,7 +88,11 @@ static int fdplc_eeprom_save(int bytes)
 /*callback @sys_init*/
 void __sys_init(void)
 {
+	//power-up iox board then wait for its 3v3 stable
+	GPIO_BIND(GPIO_PP1, PA03, IOX_EN)
+	mdelay(10);
 	gpio_mcp_init(&fdplc_mcp);
+	gpio_init();
 
 	//index 00-07, iox sensors
 	GPIO_BIND_INV(GPIO_IPU, mcp0:PA00, UE ) //IOX-IN01
@@ -150,6 +155,7 @@ void __sys_init(void)
 	ext_r = GPIO_BIND(GPIO_PP0, PA00, LR)
 	ext_g = GPIO_BIND(GPIO_PP0, PA01, LG)
 	ext_y = GPIO_BIND(GPIO_PP0, PA02, LY)
+	GPIO_BIND(GPIO_PP1, PA03, IOX_EN)
 
 	//misc
 	fdplc_gpio_rsel = GPIO_BIND_INV(GPIO_IPU, PC10, RSEL)
@@ -324,6 +330,10 @@ static void fdplc_can_handler(void)
 		break;
 	case FDCMD_WDTN:
 		fdplc_on_event(FDPLC_EVENT_WDTN);
+		break;
+
+	case FDCMD_CNTR:
+		fdplc_remote_counter_reset = 1;
 		break;
 
 	case FDCMD_UUID:
@@ -520,6 +530,12 @@ void fdplc_update(void)
 	//report status to local front panel display
 	fdplc_status_update();
 
+	//remote cmd: FDCMD_CNTR
+	if(fdplc_remote_counter_reset) {
+		fdplc_eeprom.pushed = 0;
+		fdplc_eeprom_save(sizeof(fdplc_eeprom.pushed));
+	}
+
 	//wimg for valves
 	if(fdplc_w_msk) {
 		int msk, img;
@@ -715,7 +731,7 @@ static int cmd_fixture_func(int argc, char *argv[])
 
 		if(model >= 0) {
 			fdplc_eeprom.model = model;
-			fdplc_eeprom.pushed = 0;
+			//fdplc_eeprom.pushed = 0;
 			fdplc_eeprom.magic = FDPLC_NVM_MAGIC;
 			int ecode = fdplc_eeprom_save(sizeof(fdplc_eeprom));
 			if(ecode) {

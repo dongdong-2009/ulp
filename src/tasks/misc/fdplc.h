@@ -41,6 +41,7 @@ typedef enum {
 	FDCMD_WDTY, //host: cmd, enable test unit wdt
 	FDCMD_WDTN, //host: cmd, disable test unit wdt
 	FDCMD_UUID, //host: cmd, query fdplc board uuid
+	FDCMD_CNTR, //host: cmd, clear fixture probe counter
 } fdcmd_type_t;
 
 typedef struct {
