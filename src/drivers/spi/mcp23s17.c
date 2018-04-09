@@ -10,7 +10,7 @@
 #define OPCODE_WRITE(chip)	(0x40 | (chip->hwaddr << 1))
 #define OPCODE_READ(chip)	(0x41 | (chip->hwaddr << 1))
 
-void mcp23s17_Init(const mcp23s17_t *chip)
+int mcp23s17_Init(const mcp23s17_t *chip)
 {
 	spi_cfg_t cfg = {
 		.cpol = 0,
@@ -38,7 +38,10 @@ void mcp23s17_Init(const mcp23s17_t *chip)
 	mcp23s17_WriteByte(chip, ADDR_IOCON, 0x08);
 	unsigned char regv = 0;
 	mcp23s17_ReadByte(chip, ADDR_IOCON, &regv);
-	sys_assert(regv == 0x08); //hw fault, clk too high?
+	if(regv != 0x08) {
+		//chip exist? or clk too high?
+		return -1;
+	}
 
 	//porta config
 	if (chip->option & MCP23017_PORTA_OUT) {
@@ -55,7 +58,9 @@ void mcp23s17_Init(const mcp23s17_t *chip)
 		mcp23s17_WriteByte(chip, ADDR_IODIRB, 0xff);
 		mcp23s17_WriteByte(chip, ADDR_GPPUB, 0xff);
 	}
+	return 0;
 }
+
 int mcp23s17_WriteByte(const mcp23s17_t *chip, unsigned char addr, unsigned char data)
 {
 	spi_cs_set(chip->idx, 0);

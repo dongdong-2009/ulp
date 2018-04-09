@@ -8,17 +8,17 @@
 #include "config.h"
 
 typedef struct {
-	unsigned speed;			/*i2c speed,100K -> 100000*/
-	unsigned option;		/*just for more config for i2c*/
+	int speed;			/*i2c speed,100K -> 100000*/
+	int option;		/*just for more config for i2c*/
 } i2c_cfg_t;
 
 typedef struct {
 	int (*init)(const i2c_cfg_t *cfg);
-	int (*wreg)(unsigned char chip, unsigned addr, int alen, const unsigned char *buffer);
-	int (*rreg)(unsigned char chip, unsigned addr, int alen, unsigned char *buffer);
-	int (*wbuf)(unsigned char chip, unsigned addr, int alen, const unsigned char *buffer, int len);
-	int (*rbuf)(unsigned char chip, unsigned addr, int alen, unsigned char *buffer, int len);
-	int (*WaitStandByState)(unsigned char chip);
+	int (*wreg)(char chip, int addr, int alen, const void *buffer);
+	int (*rreg)(char chip, int addr, int alen, void *buffer);
+	int (*wbuf)(char chip, int addr, int alen, const void *buffer, int len);
+	int (*rbuf)(char chip, int addr, int alen, void *buffer, int len);
+	int (*WaitStandByState)(char chip);
 } i2c_bus_t;
 
 extern i2c_bus_t i2c1;

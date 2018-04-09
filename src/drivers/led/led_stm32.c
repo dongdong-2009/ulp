@@ -116,7 +116,6 @@ void led_hwSetStatus(led_t led, led_status_t status)
 	}
 
 	switch(led) {
-		case LED_GREEN:
 		case LED_SYS:
 #if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1) || (CONFIG_TASK_SSS == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_12, ba);
@@ -153,7 +152,6 @@ void led_hwSetStatus(led_t led, led_status_t status)
 			GPIO_WriteBit(GPIOE, GPIO_Pin_15, ba);
 #endif
 			break;
-		case LED_RED:
 		case LED_ERR:
 #if (CONFIG_TASK_MOTOR == 1) || (CONFIG_TASK_STEPMOTOR == 1) || (CONFIG_TASK_VVT == 1) || (CONFIG_TASK_SSS == 1)
 			GPIO_WriteBit(GPIOC, GPIO_Pin_10, ba);

@@ -106,13 +106,14 @@ int gpio_bind(int mode, const char *bind, const char *name)
 	gpio->name = name;
 	gpio->bind = bind;
 	gpio->mode = mode;
+	gpio->cb_on_set = NULL;
 
 #if CONFIG_GPIO_FILTER == 1
 	debounce_t_init(&gpio->gfilt, 0, 0);
 #endif
 
-	driver->config(gpio);
-	return gpio_n - 1; //return the index of current gpio, 0 - 30
+	int ecode = driver->config(gpio);
+	return (ecode) ? GPIO_NONE : (gpio_n - 1); //return the index of current gpio
 }
 
 #if CONFIG_GPIO_FILTER == 1
@@ -122,13 +123,30 @@ int gpio_filt(const char *name, int ms)
 	gpio_t *gpio = name_search(name);
 	if(gpio != NULL) {
 		debounce_t_init(&gpio->gfilt, ms, 0);
+		ecode = 0;
 	}
 	return ecode;
 }
 #endif
 
+int gpio_on_set(const char *name, int (*cb)(const gpio_t *gpio, int high))
+{
+	int ecode = -1;
+	gpio_t *gpio = name_search(name);
+	if(gpio != NULL) {
+		gpio->cb_on_set = cb;
+		ecode = 0;
+	}
+	return ecode;
+}
+
 static int gpio_set_hw(gpio_t *gpio, int high)
 {
+	if(gpio->cb_on_set != NULL) {
+		int ecode = gpio->cb_on_set(gpio, high);
+		if(ecode) return -1;
+	}
+
 	const gpio_drv_t *driver = gpio->drv;
 	gpio->high = high;
 	return driver->set(gpio, high ^ gpio->invt);
@@ -146,7 +164,8 @@ int gpio_set(const char *name, int high)
 
 int gpio_set_h(int handle, int high)
 {
-	sys_assert(handle < GPIO_N);
+	if(handle == GPIO_NONE) return -1;
+	sys_assert((handle < GPIO_N) && (handle >= 0));
 	gpio_t *gpio = &gpios[handle];
 	return gpio_set_hw(gpio, high);
 }
@@ -163,7 +182,8 @@ int gpio_inv(const char *name)
 
 int gpio_inv_h(int handle)
 {
-	sys_assert(handle < GPIO_N);
+	if(handle == GPIO_NONE) return -1;
+	sys_assert((handle < GPIO_N) && (handle >= 0));
 	gpio_t *gpio = &gpios[handle];
 	return gpio_set_hw(gpio, !gpio->high);
 }
@@ -194,7 +214,8 @@ int gpio_get(const char *name)
 
 int gpio_get_h(int handle)
 {
-	sys_assert(handle < GPIO_N);
+	if(handle == GPIO_NONE) return -1;
+	sys_assert((handle < GPIO_N) && (handle >= 0));
 	gpio_t *gpio = &gpios[handle];
 	return gpio_get_hw(gpio);
 }

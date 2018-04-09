@@ -28,6 +28,7 @@ static gpio_port_t gpio_port_temp = {.chip = NULL};
 
 //bit mask, indicates which mcp23s17 chip has been reset
 static int gpio_chip_reset_flag;
+static int gpio_chip_error_flag;
 
 void gpio_mcp_init(const mcp23s17_t *mcp_bus)
 {
@@ -39,8 +40,12 @@ void gpio_mcp_init(const mcp23s17_t *mcp_bus)
 	chip->option |= MCP23017_PORTA_IN;
 	chip->option |= MCP23017_PORTB_IN;
 	chip->hwaddr = 0;
-	chip->ck_mhz = 5; //according to experiment, max = 8MHz
+	if(chip->ck_mhz <= 0) {
+		//for fdplc project, according to experiment, max = 8MHz
+		chip->ck_mhz = 5;
+	}
 	gpio_chip_reset_flag = 0;
+	gpio_chip_error_flag = 0;
 }
 
 //bind := "mcp?:PAy" or "mcp?:PAyy", such as: "mcp0:PA01"
@@ -119,11 +124,19 @@ static int gpio_config_hw(const gpio_t *gpio)
 		sys_assert(1 == 0); //mode unsupported!
 	}
 
-	if(gpio_chip_reset_flag & (1 << chip_addr)) {}
+	int ecode = 0;
+	if(gpio_chip_reset_flag & (1 << chip_addr)) {
+		if(gpio_chip_error_flag & (1 << chip_addr)) {
+			ecode = -1;
+		}
+	}
 	else {
 		//default: all = input, ipu = yes
-		mcp23s17_Init(chip);
 		gpio_chip_reset_flag |= 1 << chip_addr;
+		if(mcp23s17_Init(chip)) {
+			gpio_chip_error_flag |= 1 << chip_addr;
+			ecode = -1;
+		}
 	}
 
 	//mcp reg access
@@ -150,7 +163,7 @@ static int gpio_config_hw(const gpio_t *gpio)
 	regv &= ~ mask;
 	if(!out) regv |= mask;
 	mcp23s17_WriteByte(chip, addr, regv);
-	return 0;
+	return ecode;
 }
 
 const gpio_drv_t gpio_mcp = {

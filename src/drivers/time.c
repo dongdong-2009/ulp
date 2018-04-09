@@ -52,11 +52,6 @@ int time_diff(time_t t0, time_t t1)
 	return left;
 }
 
-void udelay(int us)
-{
-	while(us > 0) us--;
-}
-
 void mdelay(int ms)
 {
 	ms *= CONFIG_TICK_HZ;
@@ -73,6 +68,11 @@ void sdelay(int ss)
 #ifndef __SELF_DEBUG
 #if CONFIG_CPU_STM32 == 1
 #include "stm32f10x.h"
+void udelay(int us)
+{
+	us *= (SystemFrequency / 9000000);
+	while(us > 0) us--;
+}
 #elif CONFIG_CPU_LM3S == 1
 #include "lm3s.h"
 #elif CONFIG_CPU_SAM3U == 1

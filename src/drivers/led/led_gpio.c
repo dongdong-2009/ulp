@@ -7,21 +7,23 @@
 #include "led.h"
 #include "gpio.h"
 
-int gpio_led_g = GPIO_INVALID;
-int gpio_led_r = GPIO_INVALID;
+static int lsys = GPIO_NONE;
+static int lerr = GPIO_NONE;
 
 void led_hwSetStatus(led_t led, led_status_t status)
 {
-	if(gpio_led_g == GPIO_INVALID) gpio_led_g = gpio_handle("LED_G");
-	if(gpio_led_r == GPIO_INVALID) gpio_led_r = gpio_handle("LED_R");
+	if((lsys == GPIO_NONE) && (lerr == GPIO_NONE)){
+		lsys = gpio_handle("LED_G");
+		lerr = gpio_handle("LED_R");
+	}
 
 	int yes = (status == LED_ON) ? 1 : 0;
 	switch(led) {
 	case LED_SYS:
-		if(gpio_led_g != GPIO_NONE) gpio_set_h(gpio_led_g, yes);
+		gpio_set_h(lsys, yes);
 		break;
 	case LED_ERR:
-		if(gpio_led_r != GPIO_NONE) gpio_set_h(gpio_led_r, yes);
+		gpio_set_h(lerr, yes);
 		break;
 	default:
 		break;
