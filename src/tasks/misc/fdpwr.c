@@ -10,6 +10,15 @@
 #include "gpio.h"
 #include "pwm.h"
 
+//#define CONFIG_FDPLC_V1P0
+#if CONFIG_FDPLC_V1P0 == 1
+#define PWM_VBAT_DIV (100.0/(100.0+200.0))
+#define PWM_IREF_DIV (100.0/(100.0+100.0))
+#else
+#define PWM_VBAT_DIV (100.0/(100.0+330.0)) //330K+100K
+#define PWM_IREF_DIV (100.0/(100.0+100.0)) //100K+100K
+#endif
+
 #define ELOAD_IMIN 0.001 //eload turn on limit
 #define ELOAD_ISCL 3.000 //short circuit current - high
 #define ELOAD_ISCH 5.000 //short circuit current - low
@@ -34,6 +43,7 @@ static const eload_t eload_list[] = {
 static float eload_isc = ELOAD_ISCL;
 static float eload_iset[NR_OF_ELOADS];
 static float power_vbat;
+static float vpwm = 0.0; //only for debug purpose
 
 static float power_set(float vbat)
 {
@@ -52,12 +62,18 @@ static float power_set(float vbat)
 	gpio_set("VBAT_POL", vbat < 0);
 	gpio_set("VBAT_YES", 1);
 
+#if CONFIG_FDPLC_V1P0 == 1
 	//vbat = iset * 10K + 1.25v
 	//iset = (vbat - 1.25v) / 10K
 	//vpwm = iset * 510 * 3
 	float iset = (vset - 1.25) / 1.0e4;
-	float vpwm = iset * 510 * 3;
-	int dpwm = (int)(vpwm * 999 / 3.0);
+	vpwm = iset * 510;
+	int dpwm = (int)(vpwm / PWM_VBAT_DIV * 999 / 3.0);
+#else
+	float iset = (vset - 1.25) / 1.0e4;
+	vpwm = iset * 470;
+	int dpwm = (int)(vpwm / PWM_VBAT_DIV * 999 / 3.0);
+#endif
 	pwm41.set(dpwm);
 	power_vbat = (vbat > 0) ? vset : -vset;
 	return power_vbat;
@@ -109,10 +125,18 @@ static float eload_set(int idx, float iset)
 	}
 	*/
 
-	//iset * 10mR * 20 + vset = 1.229v
+#if CONFIG_FDPLC_V1P0 == 1
+	//iset * 10mR * 20 + vpwm = 1.229v
 	//vpwm = 1.229v - iset * 10mR* 20
-	float vpwm = 0.8 - 0.010 * 20 * iset;
-	int dpwm = (int)(999 - vpwm * 2 / 3 * 999);
+	vpwm = 0.800 - 0.010 * 20 * iset; //0.8 is used dueto hw bug!!
+	int dpwm = (int)(vpwm / PWM_IREF_DIV * 999 / 3.0);
+	dpwm = 999 - dpwm;
+#else
+	//iset * 10mR * 20 + vpwm = 1.229v
+	//vpwm = 1.229v - iset * 10mR* 20
+	vpwm = 1.229 - 0.010 * 20 * iset;
+	int dpwm = (int)(vpwm / PWM_IREF_DIV * 999 / 3.0);
+#endif
 	eload->pwm->set(dpwm);
 	eload_iset[idx] = iset;
 	return iset;
@@ -164,7 +188,7 @@ static int cmd_power_func(int argc, char *argv[])
 		int n = sscanf(argv[2], "%f", &vbat);
 		if(n > 0) {
 			vbat = power_set(vbat);
-			printf("<+0, vbat = %.3f V\n", vbat);
+			printf("<+0, vbat = %.3f V, vpwm = %.3f V\n", vbat, vpwm);
 			return 0;
 		}
 	}
@@ -217,7 +241,7 @@ static int cmd_eload_func(int argc, char *argv[])
 						iget = eload_set(idx, iset);
 					}
 				}
-				printf("<+0, Iset = %.3f A\n", iget);
+				printf("<+0, Iset = %.3f A, vpwm = %.3f V\n", iget, vpwm);
 				return 0;
 			}
 
