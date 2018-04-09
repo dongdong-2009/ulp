@@ -146,8 +146,8 @@ void __sys_init(void)
 	GPIO_BIND(GPIO_PP0, mcp1:PA01, CR) //IOX-OUT02
 	GPIO_BIND(GPIO_PP0, mcp1:PA02, CF) //IOX-OUT03
 	GPIO_BIND(GPIO_PP0, mcp1:PA03, CB) //IOX-OUT04
-	GPIO_BIND(GPIO_PP0, mcp1:PA04, CA) //IOX-OUT05
-	GPIO_BIND(GPIO_PP0, mcp1:PA05, C6) //IOX-OUT06
+	GPIO_BIND(GPIO_PP0, mcp1:PA04, CA+) //IOX-OUT05
+	GPIO_BIND(GPIO_PP0, mcp1:PA05, CA-) //IOX-OUT06
 	GPIO_BIND(GPIO_PP0, mcp1:PA06, C7) //IOX-OUT07
 	GPIO_BIND(GPIO_PP0, mcp1:PA07, C8) //IOX-OUT08
 
@@ -381,6 +381,22 @@ static int fdplc_on_set_CMn(const gpio_t *gpio, int high)
 	return 0;
 }
 
+static int fdplc_on_set_CAp(const gpio_t *gpio, int high)
+{
+	if(high) {
+		gpio_set("CA-", 0);
+	}
+	return 0;
+}
+
+static int fdplc_on_set_CAn(const gpio_t *gpio, int high)
+{
+	if(high) {
+		gpio_set("CA+", 0);
+	}
+	return 0;
+}
+
 static int fdplc_on_set_CF(const gpio_t *gpio, int high)
 {
 	if(high) {
@@ -425,6 +441,7 @@ void fdplc_init(void)
 	fdplc_sensors = fdplc_rimg();
 	fdplc_w_img = 0;
 	fdplc_w_msk = 0;
+	fdplc_remote_counter_reset = 0;
 
 	//indicator init
 	led_combine((1<<LED_EXT_R)|(1<<LED_EXT_G)|(1<<LED_EXT_Y)|(1 << LED_ERR));
@@ -432,6 +449,8 @@ void fdplc_init(void)
 
 	gpio_on_set("CM+", fdplc_on_set_CMp);
 	gpio_on_set("CM-", fdplc_on_set_CMn);
+	gpio_on_set("CA+", fdplc_on_set_CAp);
+	gpio_on_set("CA-", fdplc_on_set_CAn);
 	gpio_on_set("CF", fdplc_on_set_CF);
 
 	//global status
@@ -532,8 +551,12 @@ void fdplc_update(void)
 
 	//remote cmd: FDCMD_CNTR
 	if(fdplc_remote_counter_reset) {
-		fdplc_eeprom.pushed = 0;
-		fdplc_eeprom_save(sizeof(fdplc_eeprom.pushed));
+		if(fdplc_eeprom.pushed) {
+			fdplc_eeprom.pushed_backup = fdplc_eeprom.pushed;
+			fdplc_eeprom.pushed = 0;
+			fdplc_eeprom_save(sizeof(fdplc_eeprom.pushed));
+			fdplc_remote_counter_reset = 0;
+		}
 	}
 
 	//wimg for valves
@@ -706,14 +729,23 @@ static int cmd_fixture_func(int argc, char *argv[])
 		return 0;
 	}
 	else if(!strcmp(argv[1], "PUSHED?")) {
-		int pushed = (fdplc_eeprom.magic == FDPLC_NVM_MAGIC) ? fdplc_eeprom.pushed : -1;
-		printf("<%+d, pushed counter\n", pushed);
+		int pushed = -1;
+		int pushed_backup = -1;
+		if(fdplc_eeprom.magic == FDPLC_NVM_MAGIC) {
+			pushed = fdplc_eeprom.pushed;
+			pushed_backup = fdplc_eeprom.pushed_backup;
+		}
+		printf("<%+d, pushed counter(pushed_backup = %d)\n", pushed, pushed_backup);
 		return 0;
 	}
 	else if(!strcmp(argv[1], "PUSHED")) {
 		if((argc == 3) && (!strcmp(argv[2], "RESET"))) {
-			fdplc_eeprom.pushed = 0;
-			int ecode = fdplc_eeprom_save(sizeof(fdplc_eeprom.pushed));
+			int ecode = 0;
+			if(fdplc_eeprom.pushed) {
+				fdplc_eeprom.pushed_backup = fdplc_eeprom.pushed;
+				fdplc_eeprom.pushed = 0;
+				ecode = fdplc_eeprom_save(sizeof(fdplc_eeprom.pushed));
+			}
 			printf("<%+d, pushed counter reset\n", ecode);
 			return 0;
 		}

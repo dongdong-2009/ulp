@@ -21,6 +21,7 @@ typedef struct {
 } fdmdl_t;
 
 #define FDMDL_LIST { \
+	{.customer = "Invalid", .product = "Invalid"}, \
 	{.customer = "Ford", .product = "micro-1usb"}, \
 	{.customer = "Ford", .product = "micro-2usb"}, \
 	{.customer = "Renault", .product = "aux-hub"}, \
@@ -135,6 +136,7 @@ typedef struct {
 
 	//to identify eeprom correct
 	unsigned magic : 16;
+	unsigned pushed_backup; //pushed counter before reset
 } fdplc_eeprom_t;
 
 void fdplc_on_event(fdplc_event_t event);
