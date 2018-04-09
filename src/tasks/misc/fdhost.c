@@ -273,6 +273,7 @@ int cmd_xxx_func(int argc, char *argv[])
 		"PASS id		debug, identical with cmd 'FDPLC PASS'\n"
 		"FAIL id		debug, identical with cmd 'FDPLC FAIL'\n"
 		"ENDC id		handshake with TEST_END signal\n"
+		"CNTR id		reset target test unit pushed counter\n"
 		"UUID [id]		query/read specific fdplc uuid\n"
 		"WDTY			enable test unit wdt function\n"
 		"WDTN			disable test unit wdt function\n"
@@ -436,6 +437,23 @@ int cmd_xxx_func(int argc, char *argv[])
 			if((n == 1) && (id >= 1) && (id <= 12)) {
 				fd_txdat->dst = id;
 				fd_txdat->cmd = FDCMD_ENDC;
+				fd_txmsg.dlc = 4;
+				e = fdhost_can_send(&fd_txmsg);
+			}
+		}
+
+		const char *emsg = e ? "Error" : "OK";
+		printf("<%+d, %s\n", e, emsg);
+		return 0;
+	}
+	else if(!strcmp(argv[0], "CNTR")) {
+		e = -1;
+		if(argc > 1) {
+			n = sscanf(argv[1], "%d", &id);
+
+			if((n == 1) && (id >= 1) && (id <= 12)) {
+				fd_txdat->dst = id;
+				fd_txdat->cmd = FDCMD_CNTR;
 				fd_txmsg.dlc = 4;
 				e = fdhost_can_send(&fd_txmsg);
 			}
