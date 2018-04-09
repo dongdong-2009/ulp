@@ -18,6 +18,7 @@ typedef struct {
 int fifo_init(fifo_t *fifo, int nitems);
 void fifo_dump(fifo_t *fifo);
 int fifo_push(fifo_t *fifo, int data);
+int fifo_push_force(fifo_t *fifo, int data);
 int fifo_pop(fifo_t *fifo, int *data);
 void fifo_free(fifo_t *fifo);
 

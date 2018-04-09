@@ -52,6 +52,21 @@ int fifo_push(fifo_t *fifo, int data)
 	return npushed;
 }
 
+int fifo_push_force(fifo_t *fifo, int data)
+{
+	int wpos = fifo->wpos;
+	wpos = (wpos + 1) % fifo->size;
+	if(wpos == fifo->rpos) {
+		//overflow = 1;
+		int discard = 0;
+		fifo_pop(fifo, &discard);
+	}
+
+	fifo->buf[fifo->wpos] = data;
+	fifo->wpos = wpos;
+	return 1;
+}
+
 //return nr of bytes is poped
 int fifo_pop(fifo_t *fifo, int *data)
 {
