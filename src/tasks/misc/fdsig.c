@@ -3,6 +3,9 @@
 * miaofng@2018-01-31 routine for ford online hub tester
 * 1, fdsig includes: mux, audio and dmm <optional, in case of external dmm not used>
 * 2, mux is like "hotkey" of cmd cmd gpio
+*
+* miaofng@2018-04-10 update to support fdsig v1.1
+*
 */
 #include "ulp/sys.h"
 #include "led.h"
@@ -31,6 +34,7 @@ static int sys_ecode = 0;
 static const char *sys_emsg = "";
 
 #if CONFIG_DMM == 1
+#if CONFIG_FDPLC_V1P0 == 1
 enum {
 	BANK_18V, //0~+/-18V
 	BANK_06V, //0~+/-06V
@@ -45,6 +49,16 @@ const char *dmm_bank_name[] = {
 	"BANK_ACS",
 	"BANK_1V5",
 };
+#else
+enum {
+	BANK_ANY, //0~+/-18V
+	NR_OF_BANK,
+};
+
+const char *dmm_bank_name[] = {
+	"BANK_ANY",
+};
+#endif
 
 typedef struct { //y = g*x + d
 	const char *name;
@@ -53,28 +67,56 @@ typedef struct { //y = g*x + d
 	float d;
 } dmm_cal_t;
 
-#define ACS_G05 185 //unit: mv/A, +/-05A => +/-925mV
-#define ACS_G20 96 //unit: mV/A, +/-05A => +/-500mV
-#define IBAT_RS 10  //unit: ohm
+#define ADC_REF 3.000 //unit: V
+#define ACS_VDD 5.000 //unit: V
+#define ACS_OFS ((ACS_VDD) / 2)
+#define ACS_G05 0.185 //unit: V/A, +/-05A => +/-925mV
+#define ACS_G20 0.096 //unit: V/A, +/-05A => +/-500mV
+#define IBAT_RS 10.00 //unit: ohm
 
 static const dmm_cal_t dmm_cal_rom[] = {
+	//dmm_v = g0 * vadc + d0, bank calibration
+#if CONFIG_FDPLC_V1P0 == 1
 	{.d = +0.0, .g = 108.2/8.200, .unit = "V", .name = "BANK_18V"}, //BANK@BANK_18V, 8K2|100K
 	{.d = +0.0, .g = 133.0/33.00, .unit = "V", .name = "BANK_06V"}, //BANK@BANK_06V, 33K|100K
 	{.d = +2.5, .g = 200.0/100.0, .unit = "V", .name = "BANK_ACS"}, //BANK@BANK_ACS, 100K|100K
 	{.d = +0.0, .g = 100.0/100.0, .unit = "V", .name = "BANK_1V5"}, //BANK@BANK_1V5
+#else
+	#define DMM_VOFS (ADC_REF * 0.5 / (0.5 + 1.0)) //unit: V, R = Kohm
+	#define DMM_GAIN ((100.0 + 33.0) / 33.0) //R = Kohm
+	{.d = DMM_VOFS, .g = DMM_GAIN, .unit = "V", .name = "BANK_ANY"},
+#endif
 
-	//bank & ch calibration will be merged into dmm_cal during channel switch
-	{.d = +0.0, .g = -1.0000/IBAT_RS, .unit = "A", .name = "IQBAT"}, //VBAT-
-	{.d = +0.0, .g = -1.0000/IBAT_RS, .unit = "A", .name = "I0BAT"}, //VBAT-
-	{.d = -2500/ACS_G20, .g = 1000.0/ACS_G20, .unit = "A", .name = "IBAT"},
-	{.d = -2500/ACS_G20, .g = 1000.0/ACS_G20, .unit = "A", .name = "IELOAD1"},
-	{.d = -2500/ACS_G20, .g = 1000.0/ACS_G20, .unit = "A", .name = "IELOAD2"},
-	{.d = -2500/ACS_G20, .g = 1000.0/ACS_G20, .unit = "A", .name = "IELOAD3"},
+	//dmm_i = (dmm_v - d1) * g1, ch calibration
+	{.d = 0.00000, .g = -1.0/IBAT_RS, .unit = "A", .name = "IQBAT"}, //VBAT-
+	{.d = 0.00000, .g = -1.0/IBAT_RS, .unit = "A", .name = "I0BAT"}, //VBAT-
+	{.d = ACS_OFS, .g = +1.0/ACS_G20, .unit = "A", .name = "IBAT"},
+	{.d = ACS_OFS, .g = +1.0/ACS_G20, .unit = "A", .name = "IELOAD1"},
+	{.d = ACS_OFS, .g = +1.0/ACS_G20, .unit = "A", .name = "IELOAD2"},
+	{.d = ACS_OFS, .g = +1.0/ACS_G20, .unit = "A", .name = "IELOAD3"},
+
+	//ohm = (dmm_v - d1) * g1
+	//0R->0.231V
+	//1K->1.294V - 1.0192V = 0.275
+	#define OHM_ROFS 0.230
+	#define OHM_IREF 0.001 //unit: A
+	{.d = OHM_ROFS, .g = +1.0/OHM_IREF, .unit = "R", .name = "RIREF"},
+	{.d = OHM_ROFS, .g = +1.0/OHM_IREF, .unit = "R", .name = "RAUXL"},
+	{.d = OHM_ROFS, .g = +1.0/OHM_IREF, .unit = "R", .name = "RAUXR"},
+	{.d = OHM_ROFS, .g = +1.0/OHM_IREF, .unit = "R", .name = "RAUXD"},
+	{.d = OHM_ROFS, .g = +1.0/OHM_IREF, .unit = "R", .name = "RAUXG"},
+	{.d = OHM_ROFS, .g = +1.0/OHM_IREF, .unit = "R", .name = "ROTG"},
 };
 
 #define DMM_CAL_LIST_SIZE (sizeof(dmm_cal_rom) / sizeof(dmm_cal_rom[0]))
 static dmm_cal_t dmm_cal_list[DMM_CAL_LIST_SIZE] __nvm;
-static dmm_cal_t dmm_cal; //current calibration coefficient
+
+/*
+current calibration coefficient, note: bank & ch calibration will be
+merged together(into dmm_cal) during channel switch
+*/
+static dmm_cal_t dmm_cal;
+
 static dmm_cal_t *dmm_cal_search(const char *ch_name) {
 	dmm_cal_t *cal = NULL;
 	for(int i = 0; i < DMM_CAL_LIST_SIZE; i ++) {
@@ -99,7 +141,7 @@ static const dmm_cal_t *dmm_cal_search_rom(const char *ch_name) {
 static void dmm_hw_init(void);
 static int dmm_hw_config(int ainx, int gain);
 static int dmm_hw_poll(void);
-static int dmm_hw_read(float *result);
+static int dmm_hw_read(float *v);
 
 static void dmm_init(void);
 static int dmm_read(float *v);
@@ -108,14 +150,14 @@ static int dmm_cal_bank(int bank);
 static int dmm_switch_bank(int bank);
 
 #define DMM_DUMMY_N 50
-static int dmm_read_dummy(int n);
+static int dmm_flush(int n);
 #endif
 
 typedef struct {
 	const char *name;
 	unsigned ainx	: 1; //always TM_AIN1(=0)
 	unsigned gain	: 8; //2^(0~7)
-	unsigned dg409	: 2; //0~3
+	unsigned dg409	: 2; //0~3, only by fdsig_v1.0
 	unsigned dg408	: 6; //0~7|NSS
 	unsigned diagx	: 3; //0~7
 	unsigned vcdpx	: 3; //0~6
@@ -125,6 +167,8 @@ typedef struct {
 const dmm_ch_t *dmm_ch = NULL; //current selected channel
 
 #define dmm_ch_list_sz (sizeof(dmm_ch_list) / sizeof(dmm_ch_list[0]))
+
+#if CONFIG_FDPLC_V1P0 == 1
 const dmm_ch_t dmm_ch_list[] = {
 	{.dg408=0x00, .dg409=BANK_18V, .ainx=TM_AIN1, .gain=1, .name="OFF"},
 	//DG408#1
@@ -170,9 +214,65 @@ const dmm_ch_t dmm_ch_list[] = {
 	{.dg408=0x26, .dg409=BANK_ACS, .diagx=0, .ainx=TM_AIN1, .gain=1, .name="IELOAD2"}, //VIELOAD2
 	{.dg408=0x27, .dg409=BANK_ACS, .diagx=0, .ainx=TM_AIN1, .gain=1, .name="IELOAD3"}, //VIELOAD3
 };
+#else
+const dmm_ch_t dmm_ch_list[] = {
+	{.dg408=0x00, .gain=1, .ainx=TM_AIN1,  .name="OFF"},
 
-//dmm channel switch
-static int dmm_switch_ch(const char *ch_name);
+	//DG408#1
+	{.dg408=0x10, .gain=1, .ainx=TM_AIN1, .name="VBAT+"},
+	{.dg408=0x11, .gain=1, .ainx=TM_AIN1, .name="VBAT-"},
+	{.dg408=0x12, .gain=1, .ainx=TM_AIN1, .name="VUSB1"},
+	{.dg408=0x13, .gain=1, .ainx=TM_AIN1, .name="VUSB2"},
+	{.dg408=0x14, .gain=1, .ainx=TM_AIN1, .name="VUSB3"},
+	{.dg408=0x15, .gain=1, .ainx=TM_AIN1, .name="VUSB2C"},
+	{.dg408=0x16, .gain=1, .ainx=TM_AIN1, .name="VUSB3C"},
+	{.dg408=0x17, .gain=1, .ainx=TM_AIN1, .name="VREF_3V0"},
+
+	{.dg408=0x11, .gain=1, .ainx=TM_AIN1, .name="IQBAT"}, //VBAT-
+	{.dg408=0x11, .gain=1, .ainx=TM_AIN1, .name="I0BAT"}, //VBAT-
+
+	//DG408#2
+	{.dg408=0x20, .gain=1, .ainx=TM_AIN1, .name="VCDP"},
+	{.dg408=0x21, .gain=1, .ainx=TM_AIN1, .name="VREF_IS"}, //VIREF
+	{.dg408=0x22, .gain=1, .ainx=TM_AIN1, .name="VDIAG"},
+	{.dg408=0x23, .gain=1, .ainx=TM_AIN1, .name="VDIM"},
+	{.dg408=0x24, .gain=1, .ainx=TM_AIN1, .name="VIBAT"},
+	{.dg408=0x25, .gain=1, .ainx=TM_AIN1, .name="VIELOAD1"},
+	{.dg408=0x26, .gain=1, .ainx=TM_AIN1, .name="VIELOAD2"},
+	{.dg408=0x27, .gain=1, .ainx=TM_AIN1, .name="VIELOAD3"},
+	//unit: A
+	{.dg408=0x24, .gain=1, .ainx=TM_AIN1, .name="IBAT"},
+	{.dg408=0x25, .gain=1, .ainx=TM_AIN1, .name="IELOAD1"},
+	{.dg408=0x26, .gain=1, .ainx=TM_AIN1, .name="IELOAD2"},
+	{.dg408=0x27, .gain=1, .ainx=TM_AIN1, .name="IELOAD3"},
+
+	//CDP
+	{.dg408=0x20, .vcdpx=0, .gain=1, .ainx=TM_AIN1, .name="VREF_0V6"},
+	{.dg408=0x20, .vcdpx=1, .gain=1, .ainx=TM_AIN1, .name="VCDP1"},
+	{.dg408=0x20, .vcdpx=2, .gain=1, .ainx=TM_AIN1, .name="VCDP2"},
+	{.dg408=0x20, .vcdpx=3, .gain=1, .ainx=TM_AIN1, .name="VCDP3"},
+	{.dg408=0x20, .vcdpx=4, .gain=1, .ainx=TM_AIN1, .name="VCDP2C"},
+	{.dg408=0x20, .vcdpx=5, .gain=1, .ainx=TM_AIN1, .name="VCDP3C"},
+	{.dg408=0x20, .vcdpx=6, .gain=1, .ainx=TM_AIN1, .name="N.A."},
+	{.dg408=0x20, .vcdpx=7, .gain=1, .ainx=TM_AIN1, .name="GND"},
+
+	//DIAG@CD4051
+	{.dg408=0x22, .diagx=0, .gain=1, .ainx=TM_AIN1, .name="VIREF"},
+	{.dg408=0x22, .diagx=1, .gain=1, .ainx=TM_AIN1, .name="VAUXL"}, //MIC_L
+	{.dg408=0x22, .diagx=2, .gain=1, .ainx=TM_AIN1, .name="VAUXR"}, //MIC_R
+	{.dg408=0x22, .diagx=3, .gain=1, .ainx=TM_AIN1, .name="VAUXD"}, //MIC_DET
+	{.dg408=0x22, .diagx=4, .gain=1, .ainx=TM_AIN1, .name="VAUXG"}, //MIC_GND
+	{.dg408=0x22, .diagx=5, .gain=1, .ainx=TM_AIN1, .name="VOTG"}, //OTG_ID
+	//unit: OHM
+	{.dg408=0x22, .diagx=0, .gain=1, .ainx=TM_AIN1, .name="RIREF"},
+	{.dg408=0x22, .diagx=1, .gain=1, .ainx=TM_AIN1, .name="RAUXL"}, //MIC_L
+	{.dg408=0x22, .diagx=2, .gain=1, .ainx=TM_AIN1, .name="RAUXR"}, //MIC_R
+	{.dg408=0x22, .diagx=3, .gain=1, .ainx=TM_AIN1, .name="RAUXD"}, //MIC_DET
+	{.dg408=0x22, .diagx=4, .gain=1, .ainx=TM_AIN1, .name="RAUXG"}, //MIC_GND
+	{.dg408=0x22, .diagx=5, .gain=1, .ainx=TM_AIN1, .name="ROTG"}, //OTG_ID
+};
+#endif
+
 static const dmm_ch_t *dmm_ch_search(const char *ch_name)
 {
 	const dmm_ch_t *ch = NULL;
@@ -222,13 +322,21 @@ static int dmm_switch_ch(const char *ch_name)
 #endif
 
 	/* merge bank & channel calibration data
-	y = g1*(g0*x + d0) + d1
-	  = (g1*g0)*x + (g1*d0 + d1)
+	dmm_i = (dmm_v - d1) * g1 //dmm_v = g0 * vadc + d0
+	      = (g0 * vadc + d0 - d1) * g1
+		  = vadc * (g0 * g1) + (d0 - d1) * g1
+	    g = g0 * g1
+		d = (d0 - d1) * g1
 	*/
 	dmm_cal_t *cal = dmm_cal_search(ch_name);
 	if(cal != NULL) {
-		float g = cal->g * dmm_cal.g;
-		float d = cal->g * dmm_cal.d + cal->d;
+		float d0 = dmm_cal.d;
+		float g0 = dmm_cal.g;
+		float d1 = cal->d;
+		float g1 = cal->g;
+
+		float g = g0 * g1;
+		float d = g1 * (d0 - d1);
 		memcpy(&dmm_cal, cal, sizeof(dmm_cal));
 		dmm_cal.g = g;
 		dmm_cal.d = d;
@@ -241,7 +349,9 @@ void __sys_init(void)
 {
 	//GPIO_BIND(GPIO_OD1, PA08, HUBW_RST)
 	//GPIO_BIND(GPIO_OD1, PA11, HUBL_RST)
+#if CONFIG_FDPLC_V1P0 == 1
 	GPIO_BIND(GPIO_PP0, PA00, DIAG_VEH)
+#endif
 	GPIO_BIND(GPIO_PP0, PA01, DIAG_DET)
 	GPIO_BIND(GPIO_PP0, PA02, DIAG_LOP)
 	GPIO_BIND(GPIO_PP0, PA03, DIAG_SLR)
@@ -252,8 +362,10 @@ void __sys_init(void)
 
 	//PB
 	GPIO_BIND(GPIO_OD1, PB05, HUBH_RST#)
+#if CONFIG_FDPLC_V1P0 == 1
 	GPIO_BIND(GPIO_PP0, PB12, DG409_S0)
 	GPIO_BIND(GPIO_PP0, PB13, DG409_S1)
+#endif
 	GPIO_BIND(GPIO_PP0, PB14, DG408_S4)
 	GPIO_BIND(GPIO_PP0, PB15, DG408_S3)
 
@@ -311,7 +423,6 @@ static tm770x_t *dmm_hw;
 static fifo_t dmm_hw_fifo;
 static int dmm_hw_ainx;
 static int dmm_hw_gain;
-static float dmm_hw_vref = 3.0;
 
 static int dmm_hw_config(int ainx, int gain)
 {
@@ -339,7 +450,7 @@ static int dmm_hw_poll(void)
 /* this routine will not consider ina128 & dg408 & dg409
 return nitems read, out para *result is tm7707 input voltage with unit: v
 */
-static int dmm_hw_read(float *result)
+static int dmm_hw_read(float *v)
 {
 	int digv, npop = 0;
 	DMM_ISR_N();
@@ -348,7 +459,7 @@ static int dmm_hw_read(float *result)
 
 	if(npop > 0) {
 		digv = (digv - 0x800000) / dmm_hw_gain;
-		*result = dmm_hw_vref * digv / (1 << 23);
+		*v = ADC_REF * digv / (1 << 23);
 	}
 	return npop;
 }
@@ -364,7 +475,7 @@ static int dmm_read(float *result)
 	return n;
 }
 
-static int dmm_read_dummy(int n)
+static int dmm_flush(int n)
 {
 	float v = 0;
 	for(int i = 0; i < n;) {
@@ -431,8 +542,13 @@ static void dmm_hw_init(void)
 
 static int dmm_switch_bank(int bank)
 {
+	#if CONFIG_FDPLC_V1P0 == 1
 	gpio_set("DG409_S1", bank & 0x02);
 	gpio_set("DG409_S0", bank & 0x01);
+	#else
+	bank = BANK_ANY;
+	#endif
+
 	dmm_cal_t *cal = dmm_cal_search(dmm_bank_name[bank]);
 	if(cal == NULL) {
 		sys_ecode |= 1 << E_CAL_BANK;
@@ -444,16 +560,20 @@ static int dmm_switch_bank(int bank)
 
 static int dmm_cal_bank(int bank)
 {
-	float x0 = 0, x1 = dmm_hw_vref;
+	float x0 = 0, x1 = ADC_REF;
 	float y0 = 0, y1 = 0, y;
 	int N = 50;
 
-	//apply 0v(VBAT-) to input
+	//apply 0v to input
 	printf("self calibrating bank %s ...\n", dmm_bank_name[bank]);
+#if CONFIG_FDPLC_V1P0 == 1
 	dmm_switch_ch("VBAT-");
+#else
+	dmm_switch_ch("GND");
+#endif
 	dmm_switch_bank(bank);
 	dmm_hw_config(TM_AIN1, 1);
-	dmm_read_dummy(DMM_DUMMY_N);
+	dmm_flush(DMM_DUMMY_N);
 
 	//restore rom calibration data
 	const dmm_cal_t *cal_rom = dmm_cal_search_rom(dmm_bank_name[bank]);
@@ -472,7 +592,7 @@ static int dmm_cal_bank(int bank)
 	dmm_switch_ch("VREF_3V0");
 	dmm_switch_bank(bank);
 	dmm_hw_config(TM_AIN1, 1);
-	dmm_read_dummy(DMM_DUMMY_N);
+	dmm_flush(DMM_DUMMY_N);
 
 	for(int i = 0; i < N;) {
 		if(dmm_read(&y) > 0) {
@@ -524,13 +644,13 @@ static int dmm_cal_zero(const char *ch_name)
 		return -1;
 	}
 
-	//apply 0v(VBAT-) to input
+	//apply IBAT/IQBAT/IELOAD1/.. to input
 	printf("zero point calibrating %s ...\n", ch_name);
 	int N = 50;
 	float y0, y;
 
 	dmm_switch_ch(ch_name);
-	dmm_read_dummy(DMM_DUMMY_N);
+	dmm_flush(DMM_DUMMY_N);
 
 	for(int i = 0; i < N;) {
 		if(dmm_read(&y)) {
@@ -544,13 +664,15 @@ static int dmm_cal_zero(const char *ch_name)
 	printf("%s: 0 => %+.6f %s, uncal\n", ch_name, y0, cal->unit);
 
 	/* during dmm_switch_ch() formular is:
-	y = g1*(g0*x + d0) + d1
-	  = (g1*g0)*x + (g1*d0 + d1)
+	dmm_i = (dmm_v - d1) * g1 //dmm_v = g0 * vadc + d0
+	      = (g0 * vadc + d0 - d1) * g1
+		  = vadc * (g0 * g1) + (d0 - d1) * g1
 
-	in order for zero point calibration,
-	d1 -= y0 is enough
+	so:
+	   d1 = d1_original + (y0 / g1)
 	*/
-	cal->d -= y0;
+	float g1 = cal->g;
+	cal->d = cal->d + y0 / g1;
 
 	//after cal
 	dmm_switch_ch(ch_name);
@@ -843,8 +965,10 @@ static int cmd_aux_func(int argc, char *argv[])
 	if(test|loop|diag) {
 		gpio_set("DIAG_LOP", loop);
 		gpio_set("DIAG_SLR", micr);
-		gpio_set("DIAG_VEH", diag);
 		gpio_set("DIAG_DET", gdet);
+#if CONFIG_FDPLC_V1P0 == 1
+		gpio_set("DIAG_VEH", diag);
+#endif
 		printf("<+0, OK!\n");
 		return 0;
 	}
@@ -878,7 +1002,7 @@ static int cmd_dmm_func(int argc, char *argv[])
 				return 0;
 			}
 			ecode = dmm_switch_ch(argv[2]);
-			//dmm_read_dummy(DMM_DUMMY_N);
+			//dmm_flush(DMM_DUMMY_N);
 		}
 #if CONFIG_DMM == 1
 		if(!strcmp(argv[1], "poll")) {
@@ -889,8 +1013,14 @@ static int cmd_dmm_func(int argc, char *argv[])
 		if(!strcmp(argv[1], "read")) {
 			int N = 1;
 			if(argc > 3) {
-				dmm_switch_ch(argv[2]);
-				N = atoi(argv[3]);
+				if(isdigit(argv[2][0])) {
+					N = atoi(argv[2]);
+					dmm_switch_ch(argv[3]);
+				}
+				else {
+					dmm_switch_ch(argv[2]);
+					N = atoi(argv[3]);
+				}
 			}
 			else if(argc == 3){
 				if(isdigit(argv[2][0])) N = atoi(argv[2]);
@@ -945,11 +1075,18 @@ static int cmd_cal_func(int argc, char *argv[])
 		if(!strcmp(argv[1], "self")) {
 			gpio_set("EVBATP", 0);
 			mdelay(20);
+
+			//restore rom cal settings
 			memcpy(dmm_cal_list, dmm_cal_rom, sizeof(dmm_cal_rom));
+
 			//bank: gain & zero point calibration
+		#if CONFIG_FDPLC_V1P0 == 1
 			dmm_cal_bank(BANK_18V);
 			dmm_cal_bank(BANK_06V);
 			dmm_cal_bank(BANK_ACS);
+		#else
+			dmm_cal_bank(BANK_ANY);
+		#endif
 			//channel: zero point self calibration
 			dmm_cal_zero("IELOAD1");
 			dmm_cal_zero("IELOAD2");
