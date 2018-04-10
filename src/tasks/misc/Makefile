@@ -23,5 +23,6 @@ obj-$(CONFIG_MISC_FDHOST) += fdhost.o
 obj-$(CONFIG_MISC_VWSIG) += vwsig.o
 obj-$(CONFIG_MISC_VWPWR) += vwpwr.o
 obj-$(CONFIG_MISC_FDSIG) += fdsig.o
+obj-$(CONFIG_MISC_FDSIG) += fdsig_dmm.o
 obj-$(CONFIG_MISC_FDPLC) += fdplc.o
 obj-$(CONFIG_MISC_FDPLC) += fdpwr.o
