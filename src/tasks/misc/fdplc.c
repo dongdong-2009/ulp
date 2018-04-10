@@ -173,9 +173,9 @@ void led_hwSetStatus(led_t led, led_status_t status)
 {
 	int yes = (status == LED_ON) ? 1 : 0;
 	switch(led) {
-	case LED_G: gpio_set_h(led_g, yes); break;
 	case LED_X: gpio_set_h(led_x, yes); break;
 
+	case LED_SYS: gpio_set_h(led_g, yes); break;
 	case LED_ERR:
 	case LED_EXT_R: gpio_set_h(ext_r, yes); break;
 	case LED_EXT_G: gpio_set_h(ext_g, yes); break;
