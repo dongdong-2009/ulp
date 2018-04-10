@@ -16,6 +16,7 @@ static int flag_combine;
 #ifdef CONFIG_LED_ECODE
 static char led_ecode;
 static char led_estep; /*0/1: idle, other->counting ..*/
+static time_t led_ecode_timer;
 #endif
 
 void led_Init(void)
@@ -28,6 +29,7 @@ void led_Init(void)
 #ifdef CONFIG_LED_ECODE
 	led_ecode = 0;
 	led_estep = 0;
+	led_ecode_timer = 0;
 #endif
 
 #if CONFIG_LED_HWDRV == 1
@@ -38,42 +40,49 @@ void led_Init(void)
 
 void led_Update(void)
 {
-	if(time_left(led_timer) > 0)
-		return;
-
-	led_timer = time_get(LED_FLASH_PERIOD);
-
 #ifdef CONFIG_LED_ECODE
 	if(led_ecode != 0) { //ecode=2: 1110 10 10
-		led_timer = time_get(LED_ERROR_PERIOD);
-		if(led_estep < LED_ERROR_IDLE) {
-			flag_status &= ~(1 << LED_ERR);
+		if(time_left(led_ecode_timer) < 0) {
+			led_ecode_timer = time_get(LED_ERROR_PERIOD);
+			if(led_estep < LED_ERROR_IDLE) {
+				flag_status &= ~(1 << LED_ERR);
+			}
+			else {
+				flag_status ^= 1 << LED_ERR;
+			}
+			led_estep ++;
+			led_estep = (led_estep > (LED_ERROR_IDLE + 1 + 2 * (led_ecode - 1))) ? 0 : led_estep;
+			led_Update_Immediate(flag_status, 1 << LED_ERR);
 		}
-		else {
-			flag_status ^= 1 << LED_ERR;
-		}
-		led_estep ++;
-		led_estep = (led_estep > (LED_ERROR_IDLE + 1 + 2 * (led_ecode - 1))) ? 0 : led_estep;
 	}
 #endif
 
-	led_Update_Immediate();
+	if(time_left(led_timer) < 0) {
+		led_timer = time_get(LED_FLASH_PERIOD);
+		int status = flag_hwstatus;
+		status ^= flag_flash;
+		status &= flag_flash;
+		status |= flag_status;
+		led_Update_Immediate(status, -1);
+	}
 }
 
-void led_Update_Immediate(void)
+void led_Update_Immediate(int status, int mask)
 {
 	int led;
 	int update;
-	int status;
+	//int status;
 
 	/*calcu the new status of leds*/
-	status = flag_hwstatus;
+/* 	status = flag_hwstatus;
 	status ^= flag_flash;
 	status &= flag_flash;
-	status |= flag_status;
+	status |= flag_status; */
 
 	update = status ^ flag_hwstatus;
-	flag_hwstatus = status;
+	update &= mask;
+	flag_hwstatus &= ~ mask;
+	flag_hwstatus |= status & mask;
 
 	led = 0;
 	while(update > 0) {
@@ -110,7 +119,7 @@ static void led_combine_process(led_t led)
 		}
 
 		/*clear ecode effect*/
-		#ifdef CONFIG_LED_ECODE == 1
+		#if CONFIG_LED_ECODE == 1
 		if(flag_combine & (1 << LED_ERR)) { //LED_ERR is in combine
 			led_error(0);
 		}
